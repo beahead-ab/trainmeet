@@ -30,6 +30,13 @@ catalog = [
     "psycopg[binary,pool]>=3.2",
     "pyjwt[crypto]>=2.10",
 ]
+# TrainMeet CAD (cad/, #89): PostgreSQL through psycopg, and TrainMeet ID's login and API, as
+# Catalog. Not in the hub's image.
+cad = [
+    "httpx>=0.27",
+    "psycopg[binary,pool]>=3.2",
+    "pyjwt[crypto]>=2.10",
+]
 # TrainMeet ID's own API (id/, #67): PostgreSQL, Keycloak's tokens and keys. Not in the hub's image.
 id = [
     "botocore>=1.35",
@@ -66,7 +73,7 @@ dev = [
 ]
 
 [tool.uv]
-default-groups = ["dev", "catalog", "id", "push", "tkl"]
+default-groups = ["dev", "cad", "catalog", "id", "push", "tkl"]
 
 [build-system]
 requires = ["hatchling>=1.27"]
@@ -75,6 +82,7 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 # One package per part. New parts (contracts, core, drift, ...) are added here as they are built.
 packages = [
+    "cad",
     "catalog",
     "contracts",
     "core",
@@ -89,6 +97,7 @@ packages = [
 exclude = [
     "**/tests",
     "hub/Dockerfile",
+    "cad/Dockerfile",
     "catalog/Dockerfile",
     "id/Dockerfile",
     "id/api.Dockerfile",
@@ -113,7 +122,7 @@ allowed-confusables = ["×", "–"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "synk", "tkl", "deploy", "tests"]
+files = ["cad", "catalog", "contracts", "core", "drift", "hub", "id", "integrationer", "planering", "synk", "tkl", "deploy", "tests"]
 
 [[tool.mypy.overrides]]
 # These have type hints but no py.typed marker.
@@ -142,6 +151,7 @@ ignore_missing_imports = true
 addopts = "--import-mode=importlib -q"
 testpaths = [
     "tests",
+    "cad",
     "catalog",
     "contracts",
     "core",

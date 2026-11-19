@@ -1,7 +1,8 @@
 #!/bin/sh
 # Körs på servern av jobbet "Testmiljön", efter att bilderna trainmeet-hub:$1,
-# trainmeet-catalog:$1, trainmeet-id:$1, trainmeet-idapi:$1 och trainmeet-tkl:$1 har laddats in
-# och catalog.env, id.env, id-vault/ och catalog-backup.sh har lagts dit.
+# trainmeet-catalog:$1, trainmeet-id:$1, trainmeet-idapi:$1, trainmeet-tkl:$1 och trainmeet-cad:$1
+# har laddats in och catalog.env, id.env, cad.env, id-vault/, catalog-backup.sh och cad-backup.sh
+# har lagts dit.
 # Startar de nya versionerna, provar dem och städar bort gamla versioner (de tre senaste blir
 # kvar). Catalogs databas säkerhetskopieras och provas före migreringen (CAT-39).
 set -eu
@@ -18,14 +19,25 @@ TAG_BASE="${6:-https://$CATALOG_DOMAIN/t/}"
 PI_DOMAIN="${7:-test.pi.trainmeet.app}"
 # TKL i molnet (#76): trainmeet-tkl:$1 too.
 TKL_DOMAIN="${8:-test.tkl.trainmeet.app}"
+# TrainMeet CAD (#89): trainmeet-cad:$1, with its secrets in cad.env.
+CAD_DOMAIN="${9:-test.cad.trainmeet.app}"
 cd /srv/trainmeet
 
 umask 077
 test -s catalog.env || { echo "catalog.env saknas på servern." >&2; exit 1; }
 test -s id.env || { echo "id.env saknas på servern." >&2; exit 1; }
+test -s cad.env || { echo "cad.env saknas på servern." >&2; exit 1; }
 mkdir -p id-vault catalog-vault
 # Catalogs bilder (#51) on the server's disk when there is no bucket; Catalog runs as this user.
 mkdir -p catalog-pictures
+# CAD (#89): its three secrets come from deploy/testmiljo.py in cad.env, as Catalog's, and the
+# profile cad starts it. A cad.env without them stops the deploy instead of leaving CAD off.
+for name in CAD_DB_PASSWORD CAD_BACKUP_KEY ID_CAD_SECRET; do
+  grep -q "^$name=." cad.env || { echo "cad.env saknar $name." >&2; exit 1; }
+done
+# Also in .env below, for compose run by cron (cad-backup.sh reads .env).
+export COMPOSE_PROFILES=cad
+mkdir -p cad-backup && chmod 700 cad-backup
 # Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
 # then (CAT-214, #66).
 TRIAL=on
@@ -36,7 +48,9 @@ if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"
   printf 'ID_TAG=%s\nID_DOMAIN=%s\nHOST_UID=%s\n' "$TAG" "$ID_DOMAIN" "$(id -u)"
-  cat catalog.env id.env
+  printf 'CAD_TAG=%s\nCAD_DOMAIN=%s\nCAD_TRIAL_LOGIN=%s\n' "$TAG" "$CAD_DOMAIN" "$TRIAL"
+  printf 'COMPOSE_PROFILES=cad\n'
+  cat catalog.env id.env cad.env
 } > .env
 umask 022
 
@@ -54,6 +68,21 @@ until docker compose exec -T catalog-db pg_isready -U catalog -d catalog >/dev/n
 done
 sh ./catalog-backup.sh fore-migrering
 docker compose run --rm --no-deps catalog python -m catalog.migrate
+
+# CAD (#89), as Catalog: the database first, then the backup, then the migrations.
+docker compose up -d cad-db
+i=0
+until docker compose exec -T cad-db pg_isready -U cad -d cad >/dev/null 2>&1; do
+  i=$((i + 1))
+  if [ "$i" -ge 60 ]; then
+    echo "CAD:s databas startar inte." >&2
+    docker compose logs --tail 50 cad-db >&2
+    exit 1
+  fi
+  sleep 1
+done
+sh ./cad-backup.sh fore-migrering
+docker compose run --rm --no-deps cad python -m cad.migrate
 
 # ID's API has a database of its own, idapi, beside Keycloak's in ID's PostgreSQL (#67).
 docker compose up -d id-db
@@ -81,10 +110,15 @@ if ! cmp -s .sums.new .sums; then
 fi
 mv .sums.new .sums
 
-# Every night at 03:17 UTC: a backup of Catalog's database (CAT-39).
+# Every night at 03:17 UTC: a backup of Catalog's database (CAT-39), and at 03:37 CAD's (#89).
 NIGHT="17 3 * * * sh /srv/trainmeet/catalog-backup.sh natt >> /srv/trainmeet/catalog-backup/logg.txt 2>&1"
+CAD_NIGHT="37 3 * * * sh /srv/trainmeet/cad-backup.sh natt >> /srv/trainmeet/cad-backup/logg.txt 2>&1"
 if command -v crontab >/dev/null 2>&1; then
-  { crontab -l 2>/dev/null | grep -v 'catalog-backup.sh' || true; echo "$NIGHT"; } | crontab -
+  {
+    crontab -l 2>/dev/null | grep -v -e 'catalog-backup.sh' -e 'cad-backup.sh' || true
+    echo "$NIGHT"
+    echo "$CAD_NIGHT"
+  } | crontab -
 else
   # Shown as a warning on the run in GitHub Actions.
   echo "::warning::cron saknas på servern, så nattens säkerhetskopia av Catalog är inte inlagd."
@@ -114,7 +148,7 @@ if [ ! -s id-vault/trainmeet_smtp-password ]; then
 fi
 
 # The new versions must answer on the server itself, with the right commit.
-for service in hub:8080 pi:8084 tkl:8085 catalog:8081 id-api:8083; do
+for service in hub:8080 pi:8084 tkl:8085 catalog:8081 id-api:8083 cad:8086; do
   name="${service%%:*}"
   port="${service##*:}"
   i=0
@@ -130,7 +164,7 @@ for service in hub:8080 pi:8084 tkl:8085 catalog:8081 id-api:8083; do
   echo "$name svarar med version $TAG."
 done
 
-for image in trainmeet-hub trainmeet-catalog trainmeet-id trainmeet-idapi trainmeet-tkl; do
+for image in trainmeet-hub trainmeet-catalog trainmeet-id trainmeet-idapi trainmeet-tkl trainmeet-cad; do
   docker images "$image" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +4 | cut -f2 |
     while read -r old; do
       [ "$old" = "$TAG" ] || docker image rm "$image:$old" >/dev/null 2>&1 || true

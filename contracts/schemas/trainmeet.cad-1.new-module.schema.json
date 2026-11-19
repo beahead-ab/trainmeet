@@ -1,0 +1,348 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.new-module.schema.json",
+  "title": "trainmeet.cad-1.new-module",
+  "$defs": {
+    "Curve": {
+      "additionalProperties": true,
+      "description": "Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.\nWith Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.",
+      "properties": {
+        "kind": {
+          "const": "curve",
+          "default": "curve",
+          "title": "Kind",
+          "type": "string"
+        },
+        "radius": {
+          "description": "Track 1's centre line, in mm.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "angle": {
+          "description": "The angle, in degrees.",
+          "exclusiveMaximum": 180,
+          "exclusiveMinimum": 0,
+          "title": "Angle",
+          "type": "number"
+        },
+        "width": {
+          "description": "The module body's width, Kant 1 to the other edge.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width",
+          "type": "number"
+        },
+        "edge": {
+          "$ref": "#/$defs/EdgeSide",
+          "default": "outer"
+        },
+        "sides": {
+          "$ref": "#/$defs/CurveSides",
+          "default": "bent"
+        },
+        "measured": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CurveMeasure"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The string and sagitta the radius and angle came from."
+        }
+      },
+      "required": [
+        "radius",
+        "angle",
+        "width"
+      ],
+      "title": "Curve",
+      "type": "object"
+    },
+    "CurveMeasure": {
+      "additionalProperties": true,
+      "description": "The owner's measurement of a curve: a string between track 1's centre at A and B, and the\nsagitta (pilhöjd) from the string's middle to the track (CADMOB-03).",
+      "properties": {
+        "chord": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Chord",
+          "type": "number"
+        },
+        "sagitta": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Sagitta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "chord",
+        "sagitta"
+      ],
+      "title": "CurveMeasure",
+      "type": "object"
+    },
+    "CurveSides": {
+      "description": "The box's long sides.",
+      "enum": [
+        "bent",
+        "straight"
+      ],
+      "title": "CurveSides",
+      "type": "string"
+    },
+    "EdgeSide": {
+      "description": "Which edge of a curve module is Kant 1.",
+      "enum": [
+        "outer",
+        "inner"
+      ],
+      "title": "EdgeSide",
+      "type": "string"
+    },
+    "Gable": {
+      "additionalProperties": true,
+      "description": "Gavel: a module's end, with its norm, its profile and where the tracks go through it, in\nmm from Kant 1, track 1 nearest Kant 1. Without a profile it is an own gable, measured here.",
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: egen gavel.",
+          "title": "Profile"
+        },
+        "tracks": {
+          "items": {
+            "exclusiveMinimum": 0,
+            "maximum": 20000,
+            "type": "number"
+          },
+          "maxItems": 12,
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "end"
+      ],
+      "title": "Gable",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    },
+    "Straight": {
+      "additionalProperties": true,
+      "description": "Rak modul: length × width.",
+      "properties": {
+        "kind": {
+          "const": "straight",
+          "default": "straight",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "description": "Along Kant 1, gable A to gable B.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Length",
+          "type": "number"
+        },
+        "width": {
+          "description": "Gable width, Kant 1 to the far side.",
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width",
+          "type": "number"
+        }
+      },
+      "required": [
+        "length",
+        "width"
+      ],
+      "title": "Straight",
+      "type": "object"
+    },
+    "Trapezoid": {
+      "additionalProperties": true,
+      "description": "A trapezoid, as MMM's (685 × 480/280): Kant 1 straight, the gables at right angles to it,\nand the far side slanting from width_a at gable A to width_b at gable B.",
+      "properties": {
+        "kind": {
+          "const": "trapezoid",
+          "default": "trapezoid",
+          "title": "Kind",
+          "type": "string"
+        },
+        "length": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Length",
+          "type": "number"
+        },
+        "width_a": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width A",
+          "type": "number"
+        },
+        "width_b": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Width B",
+          "type": "number"
+        }
+      },
+      "required": [
+        "length",
+        "width_a",
+        "width_b"
+      ],
+      "title": "Trapezoid",
+      "type": "object"
+    },
+    "Visibility": {
+      "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+      "enum": [
+        "me",
+        "club",
+        "all"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Ny modul, bara mått (CAD-01). owner a club's id makes it the club's: the club's\nadministrator may. club is the club that sees it with the visibility klubben.",
+  "properties": {
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "shape": {
+      "discriminator": {
+        "mapping": {
+          "curve": "#/$defs/Curve",
+          "straight": "#/$defs/Straight",
+          "trapezoid": "#/$defs/Trapezoid"
+        },
+        "propertyName": "kind"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/Straight"
+        },
+        {
+          "$ref": "#/$defs/Curve"
+        },
+        {
+          "$ref": "#/$defs/Trapezoid"
+        }
+      ],
+      "title": "Shape"
+    },
+    "gables": {
+      "items": {
+        "$ref": "#/$defs/Gable"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "Gables",
+      "type": "array"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
+    },
+    "visibility": {
+      "$ref": "#/$defs/Visibility",
+      "default": "me"
+    },
+    "club": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Club"
+    }
+  },
+  "required": [
+    "name",
+    "scale",
+    "shape",
+    "gables"
+  ],
+  "type": "object"
+}

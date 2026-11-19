@@ -85,14 +85,17 @@ def test_clients_and_hub_reject_the_same_incomplete_messages(stem: str, change: 
 
 
 def test_each_service_publishes_only_its_own_contracts() -> None:
-    """The Hub, Catalog and ID are services of their own (C16, #67): none of them publishes
-    the others' messages in its OpenAPI file."""
-    from contracts.generate import CATALOG_OPENAPI, ID_OPENAPI, OPENAPI
+    """The Hub, Catalog, ID and CAD are services of their own (C16, #67, #89): none of them
+    publishes the others' messages in its OpenAPI file."""
+    from contracts.generate import CAD_OPENAPI, CATALOG_OPENAPI, ID_OPENAPI, OPENAPI
 
     def names(path: Path) -> set[str]:
         return set(json.loads(path.read_text(encoding="utf-8"))["components"]["schemas"])
 
     hub, catalog, identity = names(OPENAPI), names(CATALOG_OPENAPI), names(ID_OPENAPI)
-    assert not any(n.startswith(("trainmeet.catalog-", "trainmeet.id-")) for n in hub)
+    assert not any(
+        n.startswith(("trainmeet.catalog-", "trainmeet.id-", "trainmeet.cad-")) for n in hub
+    )
     assert all(n.startswith("trainmeet.catalog-") for n in catalog)
     assert all(n.startswith("trainmeet.id-") for n in identity)
+    assert all(n.startswith("trainmeet.cad-") for n in names(CAD_OPENAPI))

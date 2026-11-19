@@ -1,0 +1,909 @@
+/* CAD's own layout, on top of the design system (@trainmeet/design): one main area per page,
+   filter chips, short texts and one primary button, as the CAD views. Colours from the design
+   system, for WCAG 2.2 AA contrast in light and dark. */
+:root {
+  --cad-orange: #c2410c;
+  --cad-orange-soft: #fff1e7;
+  --cad-green: #166534;
+  --cad-green-soft: #e6f4ea;
+  --cad-yellow: #92400e;
+  --cad-yellow-soft: #fef3c7;
+  --cad-board: #f1efe8;
+  --cad-board-line: #8a8478;
+  --cad-track: #2b2f36;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --cad-orange: #fb923c;
+    --cad-orange-soft: #3a2414;
+    --cad-green: #86efac;
+    --cad-green-soft: #12301d;
+    --cad-yellow: #fcd34d;
+    --cad-yellow-soft: #3a2f10;
+    --cad-board: #22262d;
+    --cad-board-line: #8f96a3;
+    --cad-track: #e9ebef;
+  }
+}
+
+.cad-dold {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.cad-fyll {
+  flex: 1;
+}
+.cad-dampad {
+  color: var(--tm-mute);
+}
+.tm-mono.cad-nummer,
+.cad-nummer {
+  color: var(--tm-mute);
+}
+
+/* The header: the library's name with a chooser, and the token balance. */
+.cad-bibliotek {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: Inter, system-ui, sans-serif;
+}
+.cad-bibliotek b {
+  color: var(--tm-head-text);
+  font-size: 18px;
+}
+.cad-bibliotek select {
+  appearance: none;
+  border: 0;
+  background: transparent url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23a3a9b4' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") no-repeat right 4px center / 12px 8px;
+  color: var(--tm-head-text);
+  font: 700 18px Inter, system-ui, sans-serif;
+  padding: 6px 22px 6px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.cad-bibliotek select option {
+  color: #111317;
+}
+.cad-bibliotek select.cad-skala {
+  font: 500 14px var(--tm-mono);
+  color: var(--tm-head-mute);
+}
+.cad-saldo {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: #1f242c;
+  color: var(--tm-head-text);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Pages. */
+.cad-sida {
+  max-width: 1840px;
+  margin: 0 auto;
+  padding: 32px 32px 48px;
+}
+.cad-sida h1 {
+  margin: 0 0 16px;
+  font-size: 32px;
+  line-height: 1.2;
+}
+.cad-ingress {
+  max-width: 760px;
+  margin: 8px 0 0;
+  color: var(--tm-mute);
+  font-size: 18px;
+}
+.cad-rubrikrad h1 {
+  margin: 0;
+}
+.cad-rubrikrad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.cad-pill,
+.cad-status,
+.cad-tagg,
+.cad-bricka {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 12px;
+  border: 1px solid var(--tm-line);
+  border-radius: 999px;
+  background: var(--tm-panel);
+  font-size: 15px;
+  white-space: nowrap;
+}
+.cad-status {
+  border-color: transparent;
+  background: var(--tm-panel-2);
+  font-weight: 600;
+}
+.cad-status.godkand {
+  background: var(--cad-green-soft);
+  color: var(--cad-green);
+}
+.cad-status.utkast {
+  border: 1px dashed var(--tm-mute);
+  background: transparent;
+}
+.cad-tagg.gron {
+  background: var(--cad-green-soft);
+  color: var(--cad-green);
+  border-color: transparent;
+}
+.cad-tagg.gul {
+  background: var(--cad-yellow-soft);
+  color: var(--cad-yellow);
+  border-color: transparent;
+}
+.cad-bricka {
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  border-color: transparent;
+}
+.cad-bricka.general,
+.cad-bricka.own {
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+}
+.cad-kort {
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+  border-radius: var(--tm-radius);
+  padding: 20px 24px;
+}
+.cad-kort h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+.cad-overrubrik {
+  margin: 0 0 12px;
+  padding: 0;
+  color: var(--tm-mute);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.cad-kort .cad-overrubrik {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+.cad-kommer {
+  opacity: 0.78;
+}
+.cad-snart {
+  color: var(--tm-mute);
+  font-style: italic;
+}
+.cad-knapprad {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.tm-knapp[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cad-lank {
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  color: var(--tm-blue-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cad-lank.fara {
+  color: #b42318;
+}
+.cad-fel {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #fde7e7;
+  color: #8a1c1c;
+}
+.cad-ruta {
+  margin: 12px 0;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--tm-panel);
+  border: 1px solid var(--tm-line);
+}
+.cad-info {
+  margin: 0;
+  padding: 14px 4px 0;
+  border-top: 1px solid var(--tm-line);
+  color: var(--tm-mute);
+}
+.cad-brodsmulor {
+  margin-bottom: 16px;
+  color: var(--tm-mute);
+}
+.cad-brodsmulor a {
+  text-decoration: none;
+}
+
+/* Modulerna. */
+.cad-gavlar {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 20px;
+}
+.cad-gavlar .cad-overrubrik {
+  margin: 0;
+}
+.cad-gavlar ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cad-gavlar b {
+  margin-right: 6px;
+  font-size: 18px;
+}
+.cad-tabellkort {
+  padding: 0;
+  overflow: hidden;
+}
+.cad-filterrad {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+}
+.cad-sok input {
+  width: 420px;
+  max-width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.cad-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cad-chip {
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--tm-line);
+  border-radius: 999px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  cursor: pointer;
+}
+.cad-chip[aria-pressed="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.cad-vaxel,
+.cad-segment {
+  display: inline-flex;
+  padding: 4px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  background: var(--tm-panel-2);
+}
+.cad-vaxel button,
+.cad-segment button {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--tm-mute);
+  font: inherit;
+  cursor: pointer;
+}
+.cad-vaxel button[aria-pressed="true"],
+.cad-segment button[aria-checked="true"] {
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+.cad-segment {
+  width: 100%;
+}
+.cad-segment button {
+  flex: 1;
+}
+.cad-tabell {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cad-tabell th,
+.cad-tabell td {
+  padding: 14px 18px;
+  border-top: 1px solid var(--tm-line);
+  text-align: left;
+  vertical-align: middle;
+}
+.cad-tabell thead th {
+  color: var(--tm-mute);
+  font-weight: 500;
+  font-size: 15px;
+  background: var(--tm-panel-2);
+}
+.cad-tabell tbody tr:hover {
+  background: var(--tm-blue-soft);
+}
+.cad-tumme {
+  width: 150px;
+}
+.cad-tumme svg {
+  display: block;
+  width: 130px;
+  height: 64px;
+}
+.cad-namn {
+  color: var(--tm-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+.cad-namn:hover {
+  text-decoration: underline;
+}
+.cad-fotrad {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--tm-line);
+}
+.cad-rutnat {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 16px 20px;
+  list-style: none;
+}
+.cad-rutnat a {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--tm-line);
+  border-radius: 12px;
+  color: var(--tm-text);
+  text-decoration: none;
+}
+.cad-rutnat svg {
+  width: 100%;
+  height: 110px;
+}
+
+/* The drawings. */
+.cad-ritning {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 640px;
+}
+.cad-skiva {
+  fill: var(--cad-board);
+  stroke: var(--cad-board-line);
+}
+.cad-kant1 {
+  fill: none;
+  stroke: var(--tm-text);
+  stroke-linecap: round;
+}
+.cad-kant1-fyllning {
+  fill: var(--tm-text);
+}
+.cad-spar {
+  fill: none;
+  stroke: var(--cad-track);
+  stroke-linecap: round;
+}
+.cad-okant {
+  fill: none;
+  stroke: var(--tm-mute);
+}
+.cad-forslag {
+  stroke: var(--cad-orange);
+  stroke-dasharray: 9 6;
+}
+.cad-forslag-text {
+  fill: var(--cad-orange);
+  font-weight: 700;
+}
+.cad-sliper {
+  fill: var(--cad-board-line);
+}
+.cad-mattlinje {
+  stroke: var(--tm-blue);
+  fill: none;
+  stroke-width: 2;
+}
+.cad-matt,
+.cad-ritning .cad-matt {
+  fill: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-ritning text,
+.cad-gavelbild text,
+.cad-steg svg text,
+.cad-snore text {
+  fill: var(--tm-text);
+  font-family: Inter, system-ui, sans-serif;
+}
+.cad-kant1-text,
+.cad-gavel-text {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+.cad-gavelbild {
+  display: block;
+  width: 100%;
+  height: 190px;
+}
+.cad-profilbar {
+  display: block;
+  width: 100%;
+  height: 46px;
+}
+.cad-prick {
+  fill: var(--cad-orange);
+}
+.cad-prick.oppen {
+  fill: var(--tm-panel);
+  stroke: var(--cad-orange);
+  stroke-width: 3;
+  stroke-dasharray: 4 3;
+}
+
+/* Tomt bibliotek. */
+.cad-tom {
+  max-width: 1600px;
+  padding-left: 160px;
+  padding-right: 160px;
+}
+.cad-steg {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  margin: 40px 0 24px;
+  padding: 0;
+  list-style: none;
+}
+.cad-steg svg {
+  width: 100%;
+  height: 150px;
+  background: var(--tm-panel-2);
+  border-radius: 10px;
+}
+.cad-stegnr {
+  display: block;
+  margin-top: 16px;
+  color: var(--tm-blue-text);
+  font-weight: 700;
+}
+.cad-steg h2 {
+  margin: 8px 0;
+  font-size: 20px;
+}
+.cad-steg p {
+  margin: 0;
+  color: var(--tm-mute);
+}
+.cad-tom-rad {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+/* Ny modul. */
+.cad-vagar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.cad-vag-aktiv {
+  border: 2px solid var(--tm-blue);
+}
+.cad-taggar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.cad-filrad {
+  display: grid;
+  gap: 12px;
+}
+
+/* Rak modul and Kurvmodul. */
+.cad-tvadelad {
+  display: grid;
+  grid-template-columns: minmax(380px, 480px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.cad-formular {
+  display: grid;
+  gap: 18px;
+}
+.cad-formular fieldset {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cad-formular legend {
+  float: left;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.cad-falt,
+.cad-matt-falt {
+  display: grid;
+  gap: 6px;
+}
+.cad-matt-falt {
+  grid-template-columns: 1fr 160px;
+  align-items: center;
+}
+.cad-rad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.cad-rad .cad-matt-falt {
+  grid-template-columns: 1fr;
+}
+.cad-formular input,
+.cad-formular select {
+  min-height: 46px;
+  width: 100%;
+  padding: 0 14px;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.cad-mm {
+  position: relative;
+  display: block;
+}
+.cad-mm input {
+  padding-right: 48px;
+  text-align: right;
+  font-family: var(--tm-mono);
+}
+.cad-mm span {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--tm-mute);
+}
+.cad-mm input[readonly] {
+  background: var(--tm-panel-2);
+}
+.cad-gavelmarke {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  border-radius: 6px;
+  background: var(--tm-blue);
+  color: var(--tm-on-blue);
+  font-size: 14px;
+}
+.cad-gavelfalt legend {
+  color: var(--tm-mute);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+.cad-kryss {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+.cad-kryss input {
+  width: 22px;
+  height: 22px;
+  min-height: 0;
+}
+.cad-sparrad {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cad-andrat {
+  color: #b42318;
+  font-weight: 600;
+}
+.cad-utraknat {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.cad-utraknat p {
+  margin: 0 0 6px;
+}
+.cad-snore {
+  width: 100%;
+  height: 120px;
+  background: var(--tm-panel-2);
+  border-radius: 10px;
+}
+.cad-hoger {
+  display: grid;
+  gap: 24px;
+}
+.cad-kortrubrik {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.cad-kortrubrik h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.cad-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--tm-mute);
+}
+.cad-legend i {
+  display: inline-block;
+  width: 26px;
+  border-top: 3px solid var(--cad-track);
+}
+.cad-legend i.streckad {
+  border-top: 3px dashed var(--tm-mute);
+  margin-left: 8px;
+}
+.cad-tomritning {
+  padding: 80px 0;
+  text-align: center;
+}
+.cad-gavelpar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.cad-utraknat-tabell td {
+  font-family: var(--tm-mono);
+  text-align: right;
+}
+
+/* Modulens sida. */
+.cad-flikar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cad-flikar a {
+  padding: 12px 16px;
+  border-bottom: 3px solid transparent;
+  color: var(--tm-text);
+  text-decoration: none;
+}
+.cad-flikar a[aria-current="page"] {
+  border-bottom-color: var(--tm-blue);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.cad-oversikt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 450px;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+.cad-sidokolumn {
+  display: grid;
+  gap: 20px;
+}
+.cad-siffror {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.cad-siffror li {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+}
+.cad-siffror b {
+  display: block;
+  color: var(--tm-text);
+  font-size: 24px;
+}
+.cad-fakta dl,
+.cad-anvands dl {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  gap: 10px 12px;
+  margin: 0 0 12px;
+}
+.cad-fakta dt,
+.cad-anvands dt {
+  color: var(--tm-mute);
+}
+.cad-fakta dd,
+.cad-anvands dd {
+  margin: 0;
+}
+.cad-gavelrad h3 {
+  margin: 12px 0 6px;
+  font-size: 16px;
+}
+.cad-lagen {
+  margin: 4px 0 0;
+  color: var(--tm-mute);
+}
+.cad-vem {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+.cad-vem legend {
+  float: left;
+  width: 100%;
+}
+.cad-radio {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.cad-radio input {
+  width: 20px;
+  height: 20px;
+}
+.cad-historik ol {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cad-historik li {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 16px;
+}
+.cad-ritkort.stor .cad-ritning {
+  max-height: 720px;
+}
+.cad-tabort {
+  margin-top: 24px;
+}
+
+/* Gavelprofiler. */
+.cad-profiler {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin: 20px 0;
+}
+.cad-profil header,
+.cad-profil footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.cad-profil h2 {
+  margin: 0;
+  font-size: 18px;
+}
+.cad-profil .cad-profilbar {
+  margin: 16px 0 4px;
+}
+.cad-nyprofil {
+  max-width: 560px;
+  margin: 20px 0;
+}
+
+/* Logga in, and the footer. */
+.cad-inloggning .cad-kort {
+  display: grid;
+  gap: 14px;
+  justify-items: start;
+  max-width: 680px;
+}
+.cad-fot {
+  max-width: 1840px;
+  margin: 0 auto;
+  padding: 16px 32px 40px;
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .cad-tvadelad,
+  .cad-oversikt,
+  .cad-vagar,
+  .cad-tom-rad,
+  .cad-gavelpar {
+    grid-template-columns: 1fr;
+  }
+  .cad-steg,
+  .cad-profiler {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .cad-tom {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+@media (max-width: 760px) {
+  .cad-sida {
+    padding: 20px 16px 96px;
+  }
+  .cad-steg,
+  .cad-profiler,
+  .cad-siffror {
+    grid-template-columns: 1fr;
+  }
+  .cad-tabell th:nth-child(n + 4),
+  .cad-tabell td:nth-child(n + 4) {
+    display: none;
+  }
+  .cad-saldo {
+    display: none;
+  }
+}
+.cad-profil footer {
+  align-items: flex-end;
+}
+.cad-profil footer span:last-child {
+  white-space: nowrap;
+}
+.cad-gavelbild .cad-matt,
+.cad-snore .cad-matt {
+  fill: var(--tm-blue-text);
+  font-weight: 700;
+}

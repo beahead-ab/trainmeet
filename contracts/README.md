@@ -11,6 +11,7 @@ Den enda vägen mellan TrainMeets delar. Ingen del använder en annan dels inre 
 | Driftens API, `trainmeet.drift/1` | `drift.py` | För trafikledningen och skärmarna: starta, klockan, lista, godkänna och tilldela klienter samt händelseloggen. |
 | Skälen | `reasons.py` | Varför Drift sa nej, med texten för varje skäl. |
 | Catalogs API, `trainmeet.catalog/1` | `catalog.py` | TrainMeet Catalogs version, inloggning och provinloggning (#48). Fordonet, minikortet, taggen, uppslaget och förebilden kommer med sina steg. Egen [OpenAPI](catalog.openapi.json) och egna [TypeScript-typer](catalog.d.ts), eftersom Catalog är en egen tjänst. |
+| CAD:s API, `trainmeet.cad/1` | `cad.py` | TrainMeet CAD, modulbiblioteket (#89): modulen med versioner och historik, skala och norm, gavlar och gavelprofiler, synlighet, spårgrafen till Studio och skalet för anläggningen. Egen [OpenAPI](cad.openapi.json) och egna [TypeScript-typer](cad.d.ts), eftersom CAD är en egen tjänst. |
 | Förarnas API, `trainmeet.driver/1` | `driver.py` | För Lokföraren och trafikledningens sida Förare: kom in med QR-koden, tjänsterna, ta och släpp, körplanen, incheckning, Framme, meddelanden, klockan och tågens läge, lämna träffen, och tjänster efter pappret som trafikledningen godkänner eller avslår (LOK-13). Adresserna under `/api/drift/1/drivers`; Förarnas val av vems tokens som läser pappret under `/api/planering/1/meets/{meet}/paper-reading`. Det föraren gör är drifthändelser i `drift.py`. |
 | Synken | `SKISSER.md` | Skiss. Skrivs färdigt i steg 5. |
 
@@ -21,7 +22,7 @@ Orden står i [ORDLISTA.md](ORDLISTA.md).
 ## Reglerna
 
 - **Modellerna är källan.** JSON-schemana skapas ur dem med `uv run python -m contracts.generate`. Testerna blir röda om ett schema inte stämmer med sin modell.
-- Kör sedan `npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts` , `npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts` och `npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts` för att uppdatera klienttyperna.
+- Kör sedan `npx --yes openapi-typescript@7.10.1 contracts/openapi.json -o contracts/types.d.ts` , `npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts`, `npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts` och `npx --yes openapi-typescript@7.10.1 contracts/cad.openapi.json -o contracts/cad.d.ts` för att uppdatera klienttyperna.
 - **Okända fält sparas och ignoreras**, så att en äldre läsare aldrig går sönder på en nyare skrivare.
 - **Nya fält läggs till utan nytt nummer.** Tas ett fält bort, eller ändras vad det betyder, får formatet nytt nummer (`trainmeet.meet/2`).
 - **Id:n är stabila mellan versioner.** En driftplats, sträcka, ett tåg och ett tågbesök behåller sitt id.

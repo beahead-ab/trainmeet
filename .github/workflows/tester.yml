@@ -1,7 +1,7 @@
 # Körs på varje PR och varje ändring på main: kodstil, typer, testerna och bilderna för
-# Hubben, Catalog, TrainMeet ID och TKL, och Pi-paketet. Alla kontrollerna, "Tester", "Hubbens
-# bild", "Catalogs bild", "ID:s bild", "TKL:s bild" och "Pi-paketet", ska vara gröna innan en PR
-# slås ihop.
+# Hubben, Catalog, TrainMeet ID, TKL och CAD, och Pi-paketet. Alla kontrollerna, "Tester",
+# "Hubbens bild", "Catalogs bild", "ID:s bild", "TKL:s bild", "Pi-paketet" och "CAD:s bild", ska
+# vara gröna innan en PR slås ihop.
 name: Tester
 
 on:
@@ -70,6 +70,7 @@ jobs:
           npx --yes openapi-typescript@7.10.1 contracts/catalog.openapi.json -o contracts/catalog.d.ts --check
           npx --yes openapi-typescript@7.10.1 contracts/id.openapi.json -o contracts/id.d.ts --check
           npx --yes openapi-typescript@7.10.1 contracts/tkl.openapi.json -o contracts/tkl.d.ts --check
+          npx --yes openapi-typescript@7.10.1 contracts/cad.openapi.json -o contracts/cad.d.ts --check
 
   bilden:
     name: Hubbens bild
@@ -598,6 +599,7 @@ jobs:
             -e ID_APP_SECRET=id-hemlighet -e ID_PUBLIC_URL=http://localhost:8002 \
             -e ID_HUB_SECRET=hub-hemlighet -e ID_HUB_URL=http://localhost:8003 \
             -e ID_TKL_URL=https://tkl.example.test \
+            -e ID_CAD_SECRET=cad-hemlighet -e ID_CAD_URL=http://localhost:8004 \
             trainmeet-id:prov
           for i in $(seq 1 120); do curl -fsS http://127.0.0.1:9000/health/ready >/dev/null 2>&1 && break; sleep 2; done
           curl -fsS http://127.0.0.1:9000/health/ready
@@ -787,9 +789,173 @@ jobs:
           gh release upload pi-senaste trainmeet-hub-pi.tar.gz trainmeet-hub-pi.tar.gz.sha256 \
             BUILD deploy/pi/install.sh --clobber
 
+  # TrainMeet CAD (#89): webbappens typer och tester körs när bilden byggs. Sedan provas bilden
+  # med testmiljöns compose-fil och en egen PostgreSQL, som Catalog: CAD vägrar starta mot en
+  # omigrerad databas, säkerhetskopian tas och provas före migreringen och en natt med data i.
+  # Sist webbläsarprovet: provinloggningen, en rak modul och en kurvmodul ur bara mått, Godkänn
+  # och biblioteket, mot en låtsad TrainMeet ID (cad/prov_webblasare.py).
+  cad:
+    name: CAD:s bild
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PROV: /tmp/cad-testmiljo
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bygg bilden
+        run: >
+          docker build -f cad/Dockerfile -t trainmeet-cad:prov
+          --build-arg TRAINMEET_COMMIT=${{ github.sha }} .
+
+      - name: Starta databasen som i testmiljön
+        run: |
+          mkdir -p "$PROV"
+          cp deploy/testmiljo/compose.yaml deploy/testmiljo/cad-backup.sh "$PROV/"
+          cd "$PROV"
+          umask 077
+          {
+            # Compose-filen har de andra tjänsterna också; provet här startar bara CAD, men
+            # namnen ska finnas.
+            echo "HUB_TAG=prov"
+            echo "HUB_DOMAIN=localhost"
+            echo "PI_DOMAIN=localhost"
+            echo "CATALOG_TAG=prov"
+            echo "CATALOG_DOMAIN=localhost"
+            echo "CATALOG_DB_PASSWORD=$(openssl rand -hex 24)"
+            echo "CATALOG_TRIAL_LOGIN=on"
+            echo "CATALOG_TAG_BASE=https://localhost/t/"
+            echo "TAGS_DOMAIN=localhost"
+            echo "ID_TAG=prov"
+            echo "ID_DOMAIN=localhost"
+            echo "ID_DB_PASSWORD=$(openssl rand -hex 24)"
+            echo "ID_ADMIN_PASSWORD=$(openssl rand -hex 24)"
+            echo "ID_CATALOG_SECRET=$(openssl rand -hex 32)"
+            echo "ID_APP_SECRET=$(openssl rand -hex 32)"
+            echo "ID_HUB_SECRET=$(openssl rand -hex 32)"
+            echo "HOST_UID=$(id -u)"
+            # CAD, med profilen cad som up.sh slår på när hemligheterna finns.
+            echo "COMPOSE_PROFILES=cad"
+            echo "CAD_TAG=prov"
+            echo "CAD_DOMAIN=localhost"
+            echo "CAD_TRIAL_LOGIN=on"
+            echo "CAD_DB_PASSWORD=$(openssl rand -hex 24)"
+            echo "CAD_BACKUP_KEY=$(openssl rand -hex 32)"
+            echo "ID_CAD_SECRET=$(openssl rand -hex 32)"
+          } > .env
+          docker compose up -d --wait cad-db
+
+      - name: Säkerhetskopian före migreringen, migreringen och CAD
+        run: |
+          cd "$PROV"
+          # CAD vägrar starta mot en databas som inte är migrerad.
+          if UT=$(timeout 60 docker compose run --rm --no-deps cad 2>&1); then
+            echo "::error::CAD startade mot en omigrerad databas."; exit 1
+          fi
+          echo "$UT" | grep -q "saknar migrationer"
+          TESTMILJO_DIR="$PROV" sh cad-backup.sh fore-migrering
+          docker compose run --rm --no-deps cad python -m cad.migrate
+          docker compose run --rm --no-deps cad python -m cad.migrate --check
+          docker compose up -d --no-deps cad
+
+      - name: Prova CAD
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8086/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8086/healthz | grep -qx ok
+          curl -fsS http://localhost:8086/api/version | grep -q '"product":"TrainMeet CAD"'
+          curl -fsS http://localhost:8086/api/version | grep -q '"commit":"${{ github.sha }}"'
+          curl -fsS http://localhost:8086/ | grep -q "<title>TrainMeet CAD</title>"
+          curl -fsS http://localhost:8086/moduler/ny | grep -q 'id="root"'
+          curl -fsS -o /dev/null http://localhost:8086/manifest.webmanifest
+          curl -fsS -I http://localhost:8086/moduler | grep -qi "content-security-policy: default-src 'self'"
+          curl -fsS http://localhost:8086/api/cad/1/session | grep -q '"login":"trial"'
+          ACCOUNT=$(curl -fsS http://localhost:8086/api/cad/1/trial/accounts | jq -r '.[0].id')
+          curl -fsS -c "$PROV/kakor" -H 'Content-Type: application/json' -d "{\"account\":\"$ACCOUNT\"}" \
+            http://localhost:8086/api/cad/1/trial/login | grep -q '"name":"Provkonto A"'
+          # En rak modul ur bara mått, med MMM:s gavel 140 mm från Kant 1 (CAD-01, CAD-22).
+          MODUL=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' \
+            -d '{"name":"Linje 1500","scale":"H0","shape":{"kind":"straight","length":1500,"width":500},"gables":[{"end":"A","profile":"h0-mmm-enkelspar","tracks":[140]},{"end":"B","profile":"h0-mmm-enkelspar","tracks":[140]}]}' \
+            http://localhost:8086/api/cad/1/modules)
+          echo "$MODUL" | jq -e '.number == "M-001" and .graph.complete and (.graph.pieces | length) == 1' >/dev/null
+          ID=$(echo "$MODUL" | jq -r .id)
+          curl -fsS -b "$PROV/kakor" http://localhost:8086/api/cad/1/modules | jq -e '.modules | length == 1' >/dev/null
+          curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' -d '{"version":1}' \
+            "http://localhost:8086/api/cad/1/modules/$ID/approve" | jq -e '.status == "approved"' >/dev/null
+          # CAD runs as its own user, never as root.
+          CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
+          case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac
+
+      - name: Nattens säkerhetskopia, med data i
+        run: |
+          cd "$PROV"
+          TESTMILJO_DIR="$PROV" sh cad-backup.sh natt
+          ls cad-backup/*-natt.dump.enc cad-backup/*-fore-migrering.dump.enc
+          # Krypterad: pg_dumps eget huvud (PGDMP) syns inte i filen.
+          if head -c 5 cad-backup/*-natt.dump.enc | grep -q PGDMP; then exit 1; fi
+
+      - name: Node för webbläsarprovet
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: uv för webbläsarprovet
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Webbläsarprovet, med låtsad ID (#89)
+        timeout-minutes: 5
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_ADRESS: http://127.0.0.1:8095
+        run: |
+          docker run -d --rm --name cad-webblasare-db -e POSTGRES_PASSWORD=prov \
+            -p 127.0.0.1:5434:5432 postgres:17-alpine
+          npm ci --no-audit --no-fund
+          npm run build -w apps/cad
+          uv sync --locked
+          for i in $(seq 1 60); do
+            docker exec cad-webblasare-db pg_isready -h 127.0.0.1 -U postgres >/dev/null 2>&1 && break
+            sleep 1
+          done
+          uv run python -m cad.prov_webblasare --ny --port 8095 \
+            --databas postgresql://postgres:prov@127.0.0.1:5434/postgres > "$PROV/webblasare.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:8095/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          if ! PROV_BILDER="$PROV/webblasare" node apps/cad/e2e/bibliotek.mjs; then
+            cat "$PROV/webblasare.log"
+            exit 1
+          fi
+
+      - name: Webbläsarprovets skärmbilder
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cad-webblasarprovet
+          path: ${{ env.PROV }}/webblasare
+          if-no-files-found: ignore
+
+      - name: Visa loggen om något gick fel
+        if: failure()
+        run: cd "$PROV" && docker compose logs || true
+
+      # Webbläsarprovets CAD körs genom uv och håller uv:s cache låst. Den stängs av före
+      # jobbets egen städning, som annars väntar på låset tills den ger upp (som i Catalog-jobbet).
+      - name: Stäng av provets program
+        if: always()
+        run: |
+          pkill -f "cad.prov_webblasare" || true
+          for i in $(seq 1 10); do pgrep -f "cad.prov_webblasare" >/dev/null || break; sleep 1; done
+
   testmiljon:
     name: Testmiljön
-    needs: [tester, bilden, catalog, id, tkl]
+    needs: [tester, bilden, catalog, id, tkl, cad]
     if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -810,6 +976,7 @@ jobs:
       ID_DOMAIN: ${{ vars.TESTID_DOMAIN || 'test.id.trainmeet.app' }}
       PI_DOMAIN: ${{ vars.TESTPI_DOMAIN || 'test.pi.trainmeet.app' }}
       TKL_DOMAIN: ${{ vars.TESTTKL_DOMAIN || 'test.tkl.trainmeet.app' }}
+      CAD_DOMAIN: ${{ vars.TESTCAD_DOMAIN || 'test.cad.trainmeet.app' }}
       TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}
       TAG: ${{ github.sha }}
     steps:
@@ -875,7 +1042,7 @@ jobs:
       - name: Bygg bilderna
         if: steps.nyckel.outputs.finns == 'true'
         run: |
-          for part in hub catalog; do
+          for part in hub catalog cad; do
             docker build -f "$part/Dockerfile" -t "trainmeet-$part:$TAG" \
               --build-arg TRAINMEET_COMMIT="$TAG" \
               --build-arg TRAINMEET_PR="$PR" \
@@ -901,10 +1068,12 @@ jobs:
           KNOWN: ${{ steps.server.outputs.known_hosts }}
           CATALOG_ENV: ${{ steps.server.outputs.catalog_env }}
           ID_ENV: ${{ steps.server.outputs.id_env }}
+          CAD_ENV: ${{ steps.server.outputs.cad_env }}
           PICTURES_KEY: ${{ steps.server.outputs.pictures_key }}
         run: |
           echo "CATALOG_ENV=$CATALOG_ENV" >> "$GITHUB_ENV"
           echo "ID_ENV=$ID_ENV" >> "$GITHUB_ENV"
+          echo "CAD_ENV=$CAD_ENV" >> "$GITHUB_ENV"
           SSH="ssh -i $KEY -o UserKnownHostsFile=$KNOWN -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes"
           echo "SSH=$SSH" >> "$GITHUB_ENV"
           echo "TARGET=$SSH_USER@$IP" >> "$GITHUB_ENV"
@@ -942,13 +1111,16 @@ jobs:
           APNS_KEY: ${{ secrets.APNS_KEY }}
           IP: ${{ steps.server.outputs.ip }}
         run: |
-          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
+          docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" "trainmeet-cad:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
           cat deploy/testmiljo/catalog-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/catalog-backup.sh'
+          cat deploy/testmiljo/cad-backup.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/cad-backup.sh'
           # Catalogs hemligheter går direkt från Secret Manager till servern och skrivs aldrig ut.
           $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/catalog.env' < "$CATALOG_ENV"
           $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/id.env' < "$ID_ENV"
+          # CAD:s hemligheter (#89) likadant: databasen, säkerhetskopiorna och klienten cad i ID.
+          $SSH "$TARGET" 'umask 077; cat > /srv/trainmeet/cad.env' < "$CAD_ENV"
           # Catalogs bilder (#51): nyckeln som bara når hinken går från Secret Manager till
           # catalog-vault på servern och skrivs aldrig ut. Utan den ligger bilderna på disken.
           if [ -n "$PICTURES_KEY" ] && [ -s "$PICTURES_KEY" ]; then
@@ -994,7 +1166,7 @@ jobs:
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
             TAG_BASE="https://$TAGS_DOMAIN/t/"
           fi
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh
+          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < deploy/testmiljo/up.sh
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
@@ -1152,6 +1324,37 @@ jobs:
             sleep 5
           done
           echo "::error::https://$TKL_DOMAIN svarar inte."
+          exit 1
+
+      - name: Prova CAD:s adress
+        if: steps.nyckel.outputs.finns == 'true'
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+        run: |
+          PEKAR=$(getent ahostsv4 "$CAD_DOMAIN" | awk 'NR==1{print $1}' || true)
+          if [ "$PEKAR" != "$IP" ]; then
+            echo "::warning::$CAD_DOMAIN pekar inte på servern än. Lägg in DNS-raden i Cloudflare."
+            {
+              echo "### CAD är ute, men adressen saknas"
+              echo ""
+              echo "Lägg in en DNS-rad i Cloudflare: typ **CNAME**, namn **${CAD_DOMAIN%%.trainmeet.app}**, mål **$DOMAIN**, proxy **av** (grått moln)."
+              echo "Kör sedan jobbet igen, eller vänta till nästa ihopslagning."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for i in $(seq 1 36); do
+            if [ "$i" = 7 ]; then $SSH "$TARGET" 'cd /srv/trainmeet && docker compose restart caddy'; fi
+            if curl -fsS "https://$CAD_DOMAIN/api/version" | grep -q "\"commit\":\"$TAG\""; then
+              {
+                echo "### CAD är ute"
+                echo ""
+                echo "- https://$CAD_DOMAIN"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::https://$CAD_DOMAIN svarar inte."
           exit 1
 
       - name: Prova taggarnas adress

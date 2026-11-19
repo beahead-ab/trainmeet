@@ -43,7 +43,7 @@ export function switcherApps(t: T, host: string, apps?: AppKey[] | null): Switch
   const all = [
     { product: "HUB", label: "TrainMeet Hub", what: t("appHub"), href: test ? "https://test.hub.trainmeet.app" : undefined },
     { product: "TKL", label: "TrainMeet TKL", what: t("appTkl") },
-    { product: "CAD", label: "TrainMeet CAD", what: t("appCad") },
+    { product: "CAD", label: "TrainMeet CAD", what: t("appCad"), href: test ? "https://test.cad.trainmeet.app" : undefined },
     { product: "CATALOG", label: "TrainMeet Catalog", what: t("appCatalog"), href: test ? "https://test.catalog.trainmeet.app" : undefined },
     { product: "LOKFÖRAREN", label: "Lokföraren", what: t("appDriver") },
     { product: "ID", label: "TrainMeet ID", what: t("appId") },

@@ -69,7 +69,11 @@ def test_the_rule_catches_a_violation(tmp_path: Path) -> None:
     (tmp_path / "catalog" / "bad.py").write_text("from hub import build_info\n")
     (tmp_path / "hub").mkdir()
     (tmp_path / "hub" / "bad.py").write_text("import catalog.app\n")
+    (tmp_path / "cad").mkdir()
+    (tmp_path / "cad" / "ok.py").write_text("from contracts.cad import Module\n")
+    (tmp_path / "cad" / "bad.py").write_text("from catalog.db import Database\n")
     assert violations(tmp_path) == [
+        "cad/bad.py importerar catalog",
         "catalog/bad.py importerar hub",
         "drift/bad.py importerar planering",
         "hub/bad.py importerar catalog",

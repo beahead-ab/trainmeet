@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.version.schema.json",
+  "title": "trainmeet.cad-1.version",
+  "additionalProperties": true,
+  "description": "What is running, so a tester can see which change the test environment has.",
+  "properties": {
+    "product": {
+      "const": "TrainMeet CAD",
+      "default": "TrainMeet CAD",
+      "title": "Product",
+      "type": "string"
+    },
+    "version": {
+      "description": "The package version, for example 0.1.0.",
+      "title": "Version",
+      "type": "string"
+    },
+    "commit": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The git commit, or null locally.",
+      "title": "Commit"
+    },
+    "pr": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The pull request the change came from.",
+      "title": "Pr"
+    },
+    "title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The title of that pull request.",
+      "title": "Title"
+    },
+    "built": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the image was built, UTC.",
+      "title": "Built"
+    }
+  },
+  "required": [
+    "version"
+  ],
+  "type": "object"
+}

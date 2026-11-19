@@ -5,7 +5,8 @@
 
 The tests run the check, so a model and its schema can never disagree on main.
 The Hub's HTTP API is described in openapi.json and TrainMeet Catalog's in
-catalog.openapi.json, since Catalog is a service of its own (C16).
+catalog.openapi.json, since Catalog is a service of its own (C16). TrainMeet CAD, also a service
+of its own (CAD-14), has cad.openapi.json.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 from pydantic.json_schema import JsonSchemaValue
 
 from contracts import (
+    cad,
     catalog,
     drift,
     driver,
@@ -43,6 +45,8 @@ ID_OPENAPI = SCHEMA_DIR.parent / "id.openapi.json"
 ID_PREFIX = "trainmeet.id-"
 TKL_OPENAPI = SCHEMA_DIR.parent / "tkl.openapi.json"
 TKL_PREFIX = "trainmeet.tkl-"
+CAD_OPENAPI = SCHEMA_DIR.parent / "cad.openapi.json"
+CAD_PREFIX = "trainmeet.cad-"
 # TKL's station file (<station>.tkl.json), read and written by TKL alone. It is a schema of its
 # own; TKL's API takes it when Studio imports a model, so it is in tkl.openapi.json only.
 STATION_MODEL = "trainmeet.station-model-1"
@@ -407,6 +411,26 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.meet-grant": id_api.MeetGrant,
     "trainmeet.id-1.reviewer-grant": id_api.ReviewerGrant,
     "trainmeet.id-1.problem": id_api.Problem,
+    # TrainMeet CAD (#89): the module library.
+    "trainmeet.cad-1.version": cad.CadVersion,
+    "trainmeet.cad-1.session": cad.CadSession,
+    "trainmeet.cad-1.account": cad.CadAccount,
+    "trainmeet.cad-1.trial-login": cad.CadTrialLogin,
+    "trainmeet.cad-1.problem": cad.CadProblem,
+    "trainmeet.cad-1.library": cad.Library,
+    "trainmeet.cad-1.module-list": cad.ModuleList,
+    "trainmeet.cad-1.module": cad.Module,
+    "trainmeet.cad-1.new-module": cad.NewModule,
+    "trainmeet.cad-1.module-change": cad.ModuleChange,
+    "trainmeet.cad-1.module-approval": cad.ModuleApproval,
+    "trainmeet.cad-1.visibility-change": cad.VisibilityChange,
+    "trainmeet.cad-1.module-event": cad.ModuleEvent,
+    "trainmeet.cad-1.module-removed": cad.ModuleRemoved,
+    "trainmeet.cad-1.profile-list": cad.ProfileList,
+    "trainmeet.cad-1.gable-profile": cad.GableProfile,
+    "trainmeet.cad-1.new-profile": cad.NewProfile,
+    "trainmeet.cad-1.track-graph": cad.TrackGraph,
+    "trainmeet.cad-1.assembly": cad.Assembly,
 }
 
 
@@ -531,7 +555,8 @@ def openapi() -> str:
         [
             s
             for s in CONTRACTS
-            if not s.startswith((CATALOG_PREFIX, ID_PREFIX, TKL_PREFIX)) and s != STATION_MODEL
+            if not s.startswith((CATALOG_PREFIX, ID_PREFIX, TKL_PREFIX, CAD_PREFIX))
+            and s != STATION_MODEL
         ]
     )
     paths: dict[str, dict[str, JsonSchemaValue]] = {}
@@ -1746,6 +1771,17 @@ def id_openapi() -> str:
         problems=(401, 422),
         app=True,
     )
+    # The person's clubs, for CAD's visibility klubben (#89, CAD-05).
+    route(
+        "get",
+        a + "/apps/clubs",
+        "appClubs",
+        "club",
+        many=True,
+        query=("person",),
+        problems=(401, 422),
+        app=True,
+    )
     # TrainMeet tokens (#79, TOKEN-08): the person's balances, and the apps' reservations.
     route("get", a + "/tokens", "tokens", "token-balance", many=True, problems=(401,))
     # Köpen (TOKEN-02, TOKEN-11): Stripe Checkout, in test mode until MOMS is decided.
@@ -2195,11 +2231,154 @@ def tkl_openapi() -> str:
     )
 
 
+def cad_openapi() -> str:
+    """TrainMeet CAD's HTTP API (#89): the module library. The session is a cookie set by the
+    login."""
+    paths: dict[str, dict[str, JsonSchemaValue]] = {}
+    c = "trainmeet.cad-1."
+
+    def route(
+        method: str,
+        path: str,
+        operation: str,
+        response: str,
+        request: str | None = None,
+        *,
+        many: bool = False,
+        created: bool = False,
+        query: tuple[tuple[str, JsonSchemaValue], ...] = (),
+        problems: tuple[int, ...] = (),
+    ) -> None:
+        body = openapi_ref(c + response)
+        if many:
+            body = {"type": "array", "items": body}
+        answer = {"description": "OK", "content": {"application/json": {"schema": body}}}
+        entry: JsonSchemaValue = {
+            "operationId": operation,
+            "responses": {"201" if created else "200": answer},
+        }
+        for code in problems:
+            entry["responses"][str(code)] = {
+                "description": "CAD säger nej",
+                "content": {"application/json": {"schema": openapi_ref(c + "problem")}},
+            }
+        if request:
+            entry["requestBody"] = {
+                "required": True,
+                "content": {"application/json": {"schema": openapi_ref(c + request)}},
+            }
+        params = [
+            {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
+            for part in path.split("/")
+            if part.startswith("{")
+        ]
+        params += [{"name": name, "in": "query", "schema": schema} for name, schema in query]
+        if params:
+            entry["parameters"] = params
+        paths.setdefault(path, {})[method] = entry
+
+    a = "/api/cad/1"
+    text: JsonSchemaValue = {"type": "string"}
+    scale: JsonSchemaValue = {"type": "string", "enum": [s.value for s in cad.Scale]}
+    read = (401, 404, 503)
+    write = (401, 403, 404, 409, 422, 503)
+    route("get", "/api/version", "cadVersion", "version")
+    route("get", a + "/session", "cadSession", "session")
+    route("delete", a + "/session", "cadLogOut", "session")
+    route("get", a + "/trial/accounts", "cadTrialAccounts", "account", many=True)
+    route("post", a + "/trial/login", "cadTrialLogIn", "session", "trial-login")
+    route("get", a + "/libraries", "cadLibraries", "library", many=True, problems=(401, 503))
+    route(
+        "get",
+        a + "/modules",
+        "cadModules",
+        "module-list",
+        query=(("library", text), ("scale", scale), ("q", text)),
+        problems=read,
+    )
+    route(
+        "post", a + "/modules", "cadNewModule", "module", "new-module", created=True, problems=write
+    )
+    route("get", a + "/modules/{module}", "cadModule", "module", problems=read)
+    route(
+        "put", a + "/modules/{module}", "cadSaveModule", "module", "module-change", problems=write
+    )
+    route("delete", a + "/modules/{module}", "cadRemoveModule", "module-removed", problems=write)
+    route(
+        "get",
+        a + "/modules/{module}/versions/{version}",
+        "cadModuleVersion",
+        "module",
+        problems=read,
+    )
+    route(
+        "get",
+        a + "/modules/{module}/history",
+        "cadModuleHistory",
+        "module-event",
+        many=True,
+        problems=read,
+    )
+    route(
+        "post",
+        a + "/modules/{module}/approve",
+        "cadApproveModule",
+        "module",
+        "module-approval",
+        problems=write,
+    )
+    route(
+        "put",
+        a + "/modules/{module}/visibility",
+        "cadModuleVisibility",
+        "module",
+        "visibility-change",
+        problems=write,
+    )
+    route(
+        "get",
+        a + "/profiles",
+        "cadProfiles",
+        "profile-list",
+        query=(("scale", scale),),
+        problems=(401, 503),
+    )
+    route(
+        "post",
+        a + "/profiles",
+        "cadNewProfile",
+        "gable-profile",
+        "new-profile",
+        created=True,
+        problems=write,
+    )
+    return (
+        json.dumps(
+            {
+                "openapi": "3.1.0",
+                "info": {"title": "TrainMeet CAD · kontrakten", "version": "1"},
+                "paths": paths,
+                "components": {
+                    "schemas": components([s for s in CONTRACTS if s.startswith(CAD_PREFIX)]),
+                    "securitySchemes": {
+                        "session": {"type": "apiKey", "in": "cookie", "name": "cad_session"}
+                    },
+                },
+                "security": [{"session": []}],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n"
+    )
+
+
 OPENAPI_FILES = {
     OPENAPI: openapi,
     CATALOG_OPENAPI: catalog_openapi,
     ID_OPENAPI: id_openapi,
     TKL_OPENAPI: tkl_openapi,
+    CAD_OPENAPI: cad_openapi,
 }
 
 

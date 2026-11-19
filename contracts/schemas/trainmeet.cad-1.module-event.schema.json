@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.module-event.schema.json",
+  "title": "trainmeet.cad-1.module-event",
+  "$defs": {
+    "ModuleEventKind": {
+      "enum": [
+        "created",
+        "saved",
+        "approved",
+        "visibility",
+        "removed"
+      ],
+      "title": "ModuleEventKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Historik: one thing that happened to the module.",
+  "properties": {
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ModuleEventKind"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "by": {
+      "description": "The person's name.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "By",
+      "type": "string"
+    },
+    "text": {
+      "description": "What happened, in Swedish.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "at",
+    "kind",
+    "version",
+    "by",
+    "text"
+  ],
+  "type": "object"
+}

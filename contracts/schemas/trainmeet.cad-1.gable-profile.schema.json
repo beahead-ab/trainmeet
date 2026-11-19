@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.gable-profile.schema.json",
+  "title": "trainmeet.cad-1.gable-profile",
+  "$defs": {
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "Owner": {
+      "additionalProperties": true,
+      "description": "Who owns a module or an own gable profile: a person or a club in TrainMeet ID.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/OwnerKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name"
+      ],
+      "title": "Owner",
+      "type": "object"
+    },
+    "OwnerKind": {
+      "enum": [
+        "person",
+        "club"
+      ],
+      "title": "OwnerKind",
+      "type": "string"
+    },
+    "ProfileKind": {
+      "enum": [
+        "norm",
+        "general",
+        "own"
+      ],
+      "title": "ProfileKind",
+      "type": "string"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Gavelprofil: where the tracks go through a gable, measured from Kant 1. Modules with the\nsame profile fit together. A position the profile leaves open is given per module.",
+  "properties": {
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/ProfileKind"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "norm": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Norm"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tracks": {
+      "description": "How many tracks.",
+      "maximum": 12,
+      "minimum": 1,
+      "title": "Tracks",
+      "type": "integer"
+    },
+    "first": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kant 1 → spår 1 in mm; null: given per module.",
+      "title": "First"
+    },
+    "spacings": {
+      "description": "Spår n → spår n + 1 in mm, one fewer than the tracks; null: per module.",
+      "items": {
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "title": "Spacings",
+      "type": "array"
+    },
+    "read": {
+      "default": true,
+      "description": "The norm's exact measures are read in. False: they are read in before the launch (CAD-N), and what is open is given per module.",
+      "title": "Read",
+      "type": "boolean"
+    },
+    "note": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Where the measures come from.",
+      "title": "Note"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Owner"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "An own profile's owner."
+    },
+    "uses": {
+      "default": 0,
+      "description": "How many gables in the modules the person sees use it.",
+      "minimum": 0,
+      "title": "Uses",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "scale",
+    "tracks"
+  ],
+  "type": "object"
+}

@@ -777,6 +777,23 @@ def test_the_app_switcher_shows_the_apps_the_person_has_something_in(world: Worl
     assert world.browser().get(f"{API}/session").json()["apps"] == []
 
 
+def test_an_app_asks_for_the_persons_clubs(world: World) -> None:
+    """#89, CAD-05: CAD's visibility klubben follows the person's clubs, with the role."""
+    kim, club, people = club_with(world, ("Jon Eriksson", "jon@example.com"))
+    jon = people["Jon Eriksson"]
+    assert apps(world, "clubs", person=kim.id).json() == [
+        {"id": club, "name": "Västby MJK", "role": "admin"}
+    ]
+    assert apps(world, "clubs", person=jon.id).json() == [
+        {"id": club, "name": "Västby MJK", "role": "member"}
+    ]
+    stranger = log_in(world, "Sara Holm", "sara@example.com")
+    stranger.id = stranger.client.get(f"{API}/session").json()["account"]["id"]
+    assert apps(world, "clubs", person=stranger.id).json() == []
+    # Only an app with its own token asks.
+    assert kim.client.get(f"{API}/apps/clubs", params={"person": kim.id}).status_code == 401
+
+
 def test_the_admin_gives_the_role_to_another_and_a_club_keeps_an_admin(world: World) -> None:
     """KONTO-02: the admin makes a member admin, and the last admin cannot step down."""
     kim, club, people = club_with(world, ("Sara Holm", "sara@example.com"))

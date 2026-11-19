@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.library.schema.json",
+  "title": "trainmeet.cad-1.library",
+  "additionalProperties": true,
+  "description": "Ett modulbibliotek: the person's own, a club's, or everything the person sees.",
+  "properties": {
+    "id": {
+      "pattern": "^(mine|all|club:[0-9a-f-]{36})$",
+      "title": "Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "kind": {
+      "enum": [
+        "mine",
+        "club",
+        "all"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "club": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Club"
+    },
+    "may_add": {
+      "description": "New modules can be added here.",
+      "title": "May Add",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "kind",
+    "may_add"
+  ],
+  "type": "object"
+}

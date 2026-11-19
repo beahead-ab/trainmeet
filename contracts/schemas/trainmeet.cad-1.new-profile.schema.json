@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.new-profile.schema.json",
+  "title": "trainmeet.cad-1.new-profile",
+  "$defs": {
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "An own gable profile, a person's or a club's: every track's position from Kant 1. A club's\nprofile can be the club's own norm (CAD11).",
+  "properties": {
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "norm": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Norm"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A club's id; null: the person's own.",
+      "title": "Owner"
+    },
+    "tracks": {
+      "description": "Every track's position from Kant 1.",
+      "items": {
+        "exclusiveMinimum": 0,
+        "maximum": 20000,
+        "type": "number"
+      },
+      "maxItems": 12,
+      "minItems": 1,
+      "title": "Tracks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "name",
+    "scale",
+    "tracks"
+  ],
+  "type": "object"
+}

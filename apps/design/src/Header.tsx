@@ -18,7 +18,8 @@ export function linkClick(navigate: Navigate | undefined, href: string) {
 type HeaderProps = {
   product: string;
   productLabel: string;
-  place: string;
+  /** The page's name: text, or a chooser such as CAD's library (#89). */
+  place: ReactNode;
   home: string;
   navLabel: string;
   tabs: NavItem[];

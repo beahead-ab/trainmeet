@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.session.schema.json",
+  "title": "trainmeet.cad-1.session",
+  "$defs": {
+    "AppKey": {
+      "description": "The TrainMeet apps, in the app switcher (KONTO-38) and in Hjälp och fel (KONTO-06).",
+      "enum": [
+        "hub",
+        "tkl",
+        "cad",
+        "catalog",
+        "driver",
+        "id"
+      ],
+      "title": "AppKey",
+      "type": "string"
+    },
+    "CadAccount": {
+      "additionalProperties": true,
+      "description": "The person who is logged in, as CAD knows them. The id is ID's subject.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "initials": {
+          "description": "For the account button.",
+          "maxLength": 3,
+          "minLength": 1,
+          "title": "Initials",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "initials"
+      ],
+      "title": "CadAccount",
+      "type": "object"
+    },
+    "ClubChoice": {
+      "additionalProperties": true,
+      "description": "One of the person's clubs in TrainMeet ID (#67).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "admin": {
+          "description": "The person is the club's administrator.",
+          "title": "Admin",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "admin"
+      ],
+      "title": "ClubChoice",
+      "type": "object"
+    },
+    "LoginKind": {
+      "description": "How people log in to this CAD.",
+      "enum": [
+        "trial",
+        "id"
+      ],
+      "title": "LoginKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Who is logged in, if anyone, and how one logs in here.",
+  "properties": {
+    "account": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CadAccount"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "login": {
+      "$ref": "#/$defs/LoginKind"
+    },
+    "clubs": {
+      "description": "The person's clubs, as ID says now.",
+      "items": {
+        "$ref": "#/$defs/ClubChoice"
+      },
+      "title": "Clubs",
+      "type": "array"
+    },
+    "apps": {
+      "anyOf": [
+        {
+          "items": {
+            "$ref": "#/$defs/AppKey"
+          },
+          "type": "array"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The app switcher's apps, as ID says (ID11); null when ID does not answer.",
+      "title": "Apps"
+    },
+    "tokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The tokens left on the person's own account in ID (TOKEN-01); null without ID or when ID does not answer.",
+      "title": "Tokens"
+    },
+    "tokens_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tokens in TrainMeet ID.",
+      "title": "Tokens Url"
+    },
+    "help_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Hjälp och fel in TrainMeet ID (KONTO-06).",
+      "title": "Help Url"
+    },
+    "logout_url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only in the answer to logging out: where the browser goes next, so that TrainMeet ID logs out too (KONTO-01).",
+      "title": "Logout Url"
+    }
+  },
+  "required": [
+    "login"
+  ],
+  "type": "object"
+}

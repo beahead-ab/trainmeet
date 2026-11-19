@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.visibility-change.schema.json",
+  "title": "trainmeet.cad-1.visibility-change",
+  "$defs": {
+    "Visibility": {
+      "description": "Vem ser modulen (CAD-05): bara jag, min klubb, alla i TrainMeet.",
+      "enum": [
+        "me",
+        "club",
+        "all"
+      ],
+      "title": "Visibility",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "visibility": {
+      "$ref": "#/$defs/Visibility"
+    },
+    "club": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Club"
+    }
+  },
+  "required": [
+    "visibility"
+  ],
+  "type": "object"
+}

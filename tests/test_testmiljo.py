@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
 import shutil
@@ -124,7 +125,9 @@ def test_a_pretend_pi_follows_the_test_hub() -> None:
     assert "- pi-data:/data" in pi and "127.0.0.1:8084:8080" in pi
     assert "{$PI_DOMAIN}" in caddyfile and "reverse_proxy pi:8080" in caddyfile
     assert 'PI_DOMAIN="${7:-test.pi.trainmeet.app}"' in up and "pi:8084" in up
-    assert '"$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    assert (
+        '"$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+    )
     hub_image = (ROOT / "hub" / "Dockerfile").read_text()
     assert "mkdir /data && chown hub:hub /data" in hub_image
 
@@ -193,7 +196,8 @@ def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -
     assert "TAGS_DOMAIN: ${{ vars.TESTTAGS_DOMAIN || 'trainmeet.app' }}" in workflow
     assert 'TAG_BASE="https://$TAGS_DOMAIN/t/"' in workflow
     assert (
-        '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" < deploy/testmiljo/up.sh' in workflow
+        '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" '
+        "< deploy/testmiljo/up.sh" in workflow
     )
     assert "- name: Prova taggarnas adress" in workflow
 
@@ -218,9 +222,60 @@ def test_tkl_in_the_cloud_reaches_the_test_hub_only_over_the_internet() -> None:
     assert 'TKL_DOMAIN="${8:-test.tkl.trainmeet.app}"' in up and "tkl:8085" in up
     assert 'docker build -f tkl/Dockerfile -t "trainmeet-tkl:$TAG"' in workflow
     assert "- name: Prova TKL:s adress" in workflow
-    assert (
-        "name: TKL:s bild" in workflow and "needs: [tester, bilden, catalog, id, tkl]" in workflow
-    )
+    assert "name: TKL:s bild" in workflow
+    assert "needs: [tester, bilden, catalog, id, tkl, cad]" in workflow
+
+
+def test_the_cad_check_gives_compose_every_name_it_requires() -> None:
+    """The check "CAD:s bild" runs the test environment's compose file too (#89)."""
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    required = set(re.findall(r"\$\{([A-Z_]+):\?", compose))
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    job = workflow.split("\n  cad:\n")[1].split("\n  testmiljon:\n")[0]
+    given = set(re.findall(r'echo "([A-Z_]+)=', job.split("} > .env")[0]))
+    assert required <= given, sorted(required - given)
+    assert {"COMPOSE_PROFILES", "CAD_DB_PASSWORD", "CAD_BACKUP_KEY", "ID_CAD_SECRET"} <= given
+
+
+def test_cad_has_its_own_database_behind_the_same_caddy() -> None:
+    """#89: test.cad.trainmeet.app is CAD with its own PostgreSQL, backed up before every
+    migration and every night as Catalog's. Its three secrets come from deploy/testmiljo.py to
+    cad.env, as Catalog's, so CAD always runs and no one adds a secret by hand."""
+    folder = ROOT / "deploy" / "testmiljo"
+    compose = (folder / "compose.yaml").read_text()
+    caddyfile = (folder / "Caddyfile").read_text()
+    up = (folder / "up.sh").read_text()
+    backup = (folder / "cad-backup.sh").read_text()
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    cad = compose.split("\n  cad:\n")[1].split("\n\n")[0]
+    database = compose.split("\n  cad-db:\n")[1].split("\n\n")[0]
+    assert "image: trainmeet-cad:${CAD_TAG" in cad and '- "127.0.0.1:8086:8080"' in cad
+    assert 'profiles: ["cad"]' in cad and 'profiles: ["cad"]' in database
+    assert "- cad-db:/var/lib/postgresql/data" in database and "ports:" not in database
+    assert "CAD_MIGRATE: check" in cad
+    assert "CAD_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet" in cad
+    assert "CAD_ID_SECRET: ${ID_CAD_SECRET:-}" in cad
+    assert "CAD_ID_API: http://id-api:8080" in cad
+    assert "ID_CAD_SECRET: ${ID_CAD_SECRET:-}" in compose.split("\n  id:\n")[1]
+    assert "ID_API_APPS: catalog,hub,cad" in compose
+    site = caddyfile.split("{$CAD_DOMAIN} {")[1].split("\n}")[0]
+    assert "reverse_proxy cad:8080" in site and 'X-Robots-Tag "noindex, nofollow"' in site
+    assert 'CAD_DOMAIN="${9:-test.cad.trainmeet.app}"' in up
+    assert "COMPOSE_PROFILES=cad" in up and "cad:8086" in up
+    assert up.index("cad-backup.sh fore-migrering") < up.index("python -m cad.migrate")
+    assert "cad-backup.sh natt" in up
+    assert "pg_restore" in backup and "-pass env:CAD_BACKUP_KEY" in backup
+    assert "cad_migration" in backup and "catalog" not in backup.replace("catalog-backup", "")
+    deploy = workflow.split("\n  testmiljon:\n")[1]
+    for secret in ("CAD_DB_PASSWORD", "CAD_BACKUP_KEY", "ID_CAD_SECRET"):
+        assert f"secrets.{secret}" not in workflow, f"{secret} is made by deploy/testmiljo.py"
+        assert secret not in deploy
+    assert "CAD_ENV: ${{ steps.server.outputs.cad_env }}" in deploy
+    assert "'umask 077; cat > /srv/trainmeet/cad.env' < \"$CAD_ENV\"" in deploy
+    assert 'test -s cad.env || { echo "cad.env saknas på servern." >&2; exit 1; }' in up
+    assert "for service in hub:8080 pi:8084 tkl:8085 catalog:8081 id-api:8083 cad:8086; do" in up
+    assert "for part in hub catalog cad; do" in workflow
+    assert "- name: Prova CAD:s adress" in workflow and "name: CAD:s bild" in workflow
 
 
 def test_help_goes_to_the_support_address_from_the_settings() -> None:
@@ -429,6 +484,92 @@ def test_the_hub_has_a_secret_of_its_own_in_id() -> None:
     compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
     assert "TRAINMEET_ID_SECRET: ${ID_HUB_SECRET}" in compose
     assert "ID_HUB_SECRET: ${ID_HUB_SECRET:?ID_HUB_SECRET saknas}" in compose
+
+
+def test_cad_secrets_survive_secret_manager_and_stay_private(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#89: CAD's database password and backup key, as Catalog's, and its client's secret in ID,
+    a secret of its own as the hub's. cad.env has all three, and id.env the client's."""
+    made = testmiljo.generate_cad_secrets()
+    assert testmiljo.CadSecrets.from_json(made.to_json()) == made
+    assert len(made.backup_key) == 64 and made.db_password != made.backup_key
+    client = testmiljo.generate_id_cad_secrets()
+    assert testmiljo.IdCadSecrets.from_json(client.to_json()) == client
+    assert len(client.cad_secret) == 64
+    assert client.env_file() == f"ID_CAD_SECRET={client.cad_secret}\n"
+    monkeypatch.setenv("TESTMILJO_SSH_DIR", str(tmp_path))
+    path = testmiljo.write_cad_env(made, client)
+    assert path.name == "testmiljo_cad.env"
+    assert path.stat().st_mode & 0o777 == 0o600
+    assert path.read_text() == (
+        f"CAD_DB_PASSWORD={made.db_password}\nCAD_BACKUP_KEY={made.backup_key}\n"
+        f"ID_CAD_SECRET={client.cad_secret}\n"
+    )
+    names = {
+        testmiljo.CATALOG_SECRET_NAME,
+        testmiljo.ID_SECRET_NAME,
+        testmiljo.ID_API_SECRET_NAME,
+        testmiljo.ID_HUB_SECRET_NAME,
+        testmiljo.CAD_SECRET_NAME,
+        testmiljo.ID_CAD_SECRET_NAME,
+    }
+    assert len(names) == 6
+    # Keycloak's client cad and CAD read the same variable from .env.
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    assert "ID_CAD_SECRET: ${ID_CAD_SECRET:-}" in compose.split("\n  id:\n")[1]
+    assert "CAD_ID_SECRET: ${ID_CAD_SECRET:-}" in compose.split("\n  cad:\n")[1]
+
+
+def test_a_test_environment_from_before_cad_gets_cads_secrets_and_keeps_its_own() -> None:
+    """The secrets stored before #89 are read as they are; CAD's two are made once, saved and
+    read back at the next deploy."""
+    stored: dict[str, str] = {
+        testmiljo.CATALOG_SECRET_NAME: testmiljo.generate_catalog_secrets().to_json(),
+        testmiljo.ID_HUB_SECRET_NAME: testmiljo.generate_id_hub_secrets().to_json(),
+    }
+    before = dict(stored)
+
+    def list_secrets(name: str, **_: object) -> SimpleNamespace:
+        found = [SimpleNamespace(id=name, name=name, version_count=1)] if name in stored else []
+        return SimpleNamespace(secrets=found)
+
+    def create_secret(name: str, **_: object) -> SimpleNamespace:
+        return SimpleNamespace(id=name, name=name, version_count=0)
+
+    def create_secret_version(secret_id: str, data: str) -> None:
+        stored[secret_id] = base64.b64decode(data).decode()
+
+    def access_secret_version(secret_id: str, **_: object) -> SimpleNamespace:
+        return SimpleNamespace(data=base64.b64encode(stored[secret_id].encode()).decode())
+
+    api = Mock()
+    api.list_secrets.side_effect = list_secrets
+    api.create_secret.side_effect = create_secret
+    api.create_secret_version.side_effect = create_secret_version
+    api.access_secret_version.side_effect = access_secret_version
+
+    cad = testmiljo.ensure_cad_secrets(api, "proj-1")
+    client = testmiljo.ensure_id_cad_secrets(api, "proj-1")
+    assert testmiljo.ensure_cad_secrets(api, "proj-1") == cad
+    assert testmiljo.ensure_id_cad_secrets(api, "proj-1") == client
+    assert api.create_secret_version.call_count == 2
+    assert testmiljo.ensure_catalog_secrets(api, "proj-1") == testmiljo.CatalogSecrets.from_json(
+        before[testmiljo.CATALOG_SECRET_NAME]
+    )
+    assert testmiljo.ensure_id_hub_secrets(api, "proj-1") == testmiljo.IdHubSecrets.from_json(
+        before[testmiljo.ID_HUB_SECRET_NAME]
+    )
+    assert {k: v for k, v in stored.items() if k in before} == before
+
+
+def test_the_deploy_gives_cads_client_secret_to_id_and_to_cad() -> None:
+    """main() puts ID_CAD_SECRET in id.env, for Keycloak's client cad, and in cad.env."""
+    source = (ROOT / "deploy" / "testmiljo.py").read_text()
+    main = source.split("def main(")[1]
+    assert "id_cad_secrets = ensure_id_cad_secrets(secrets, project_id)" in main
+    assert "+ id_cad_secrets.env_file()" in main.split('output("id_env"')[0]
+    assert 'output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets)))' in main
 
 
 def test_every_check_stops_its_background_programs() -> None:

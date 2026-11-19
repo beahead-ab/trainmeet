@@ -233,6 +233,24 @@ def test_tkl_logs_in_as_a_public_client_with_pkce_in_the_file_and_the_update() -
     assert '"http://localhost:8090", "http://127.0.0.1:8090"' in updates
 
 
+def test_cad_logs_in_and_asks_like_catalog_in_the_file_and_the_update() -> None:
+    """#89: the client "cad" logs in with the code flow and PKCE, and asks ID's API about the
+    clubs and the roles with client credentials (KONTO-34), the same in the file and update 8.
+    Without its secret the update waits for the next start instead of counting as done."""
+    cad = next(c for c in realm()["clients"] if c["clientId"] == "cad")
+    assert cad["publicClient"] is False and cad["secret"] == "${ID_CAD_SECRET}"
+    assert cad["standardFlowEnabled"] is True and cad["serviceAccountsEnabled"] is True
+    assert cad["directAccessGrantsEnabled"] is False and cad["implicitFlowEnabled"] is False
+    assert cad["attributes"]["pkce.code.challenge.method"] == "S256"
+    assert cad["redirectUris"] == ["${ID_CAD_URL}/api/cad/1/id/callback"]
+    assert cad["attributes"]["post.logout.redirect.uris"] == "${ID_CAD_URL}/*"
+    updates = UPDATES.read_text(encoding="utf-8")
+    assert "RealmUpdates::cadLogsIn" in updates
+    assert 'address + "/api/cad/1/id/callback"' in updates
+    assert 'System.getenv("ID_CAD_SECRET")' in updates
+    assert "throw new IllegalStateException" in updates.split("cadLogsIn(KeycloakSession")[1]
+
+
 def test_there_is_one_update_for_every_number_after_the_first() -> None:
     """Update i takes the realm from i - 1 to i; the list runs in order, one transaction each."""
     updates = UPDATES.read_text(encoding="utf-8")
