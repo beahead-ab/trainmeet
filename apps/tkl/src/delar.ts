@@ -1,7 +1,7 @@
 // Delställverk (#87, TKL97–TKL103): what the box at the top of Ställverket and a part's own screen
 // show, without React. The interlocking decides everything (STV-43); this only puts its state in
 // order for the two screens.
-import type { Interlocking, PartRequest, PartRouteOut, PartShown, PartSide, Ready } from "./api";
+import type { Interlocking, PartPlace, PartRequest, PartRouteOut, PartShown, PartSide, Ready } from "./api";
 import type { Area } from "./Panelen";
 
 export type Asking = { part: PartShown; request: PartRequest };
@@ -91,4 +91,20 @@ export function givePress(part: PartShown): GivePress {
   if (!approved.length) return { kind: "none" };
   if (approved.length === 1) return { kind: "return", request: (approved[0] as PartRequest).id };
   return { kind: "choose" };
+}
+
+/** A part's driftplats in Hubben as a small line says it (#87 del b, TKL101, TRAFIK-35): what
+ * the dispatcher answered for it. None for a part that is no driftplats of its own, or while
+ * TKL is not connected. */
+export function placeLine(part: { id: string; name: string; own_place?: boolean | null }, places: PartPlace[] | null | undefined, connected: boolean): string | null {
+  if (!part.own_place || !connected) return null;
+  const found = (places ?? []).find((p) => p.part === part.id);
+  if (!found) return `${part.name} i Hubben: inte begärd. Anslut igen för att begära delens driftplats.`;
+  const said: Record<string, string> = {
+    waiting: "väntar på trafikledningen",
+    approved: "godkänd",
+    refused: "nekad",
+    revoked: "återkallad",
+  };
+  return `${part.name} i Hubben (${found.place}): ${said[found.status] ?? found.status}.`;
 }

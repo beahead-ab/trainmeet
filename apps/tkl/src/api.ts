@@ -48,6 +48,18 @@ export type PartSide = Schemas["trainmeet.tkl-1.interlocking.PartSide"];
 export type Ready = Schemas["trainmeet.tkl-1.interlocking.TklReady"];
 export type PartTrains = Schemas["trainmeet.tkl-1.part-trains"];
 export type PartTrain = Schemas["trainmeet.tkl-1.part-trains.TklPartTrain"];
+// Studio › Dela stationen (#87 del b): the parts as a draft or the model's, what Studio works out
+// for each, and the checks. A part's place in Hubben, with the dispatcher's answer (TRAFIK-35).
+export type Dela = Schemas["trainmeet.tkl-1.dela"];
+export type DelaState = Schemas["trainmeet.tkl-1.dela.TklDelaState"];
+export type DelaCheck = Schemas["trainmeet.tkl-1.dela.TklDelaCheck"];
+export type DelaFound = Schemas["trainmeet.tkl-1.dela.TklDelaFound"];
+export type DelaRefKind = Schemas["trainmeet.tkl-1.dela.TklDelaRefKind"];
+export type StationPart = Schemas["trainmeet.tkl-1.dela.StationPart"];
+export type BorderSwitch = Schemas["trainmeet.tkl-1.dela.BorderSwitch"];
+export type SwitchStreet = Schemas["trainmeet.tkl-1.dela.SwitchStreet"];
+export type RouteOut = Schemas["trainmeet.tkl-1.dela.RouteOut"];
+export type PartPlace = Schemas["trainmeet.tkl-1.connection.TklPartPlace"];
 // Rita (#85): the station drawn on the grid, the model with its panel plan, kept as a draft.
 export type Drawing = Schemas["trainmeet.tkl-1.drawing"];
 export type Rita = Schemas["trainmeet.tkl-1.rita"];
@@ -224,6 +236,11 @@ export const api = {
   saveDrawing: (drawing: Drawing) => call<Rita>(`${TKL}/studio/rita`, "PUT", drawing),
   useDrawing: () => call<Rita>(`${TKL}/studio/rita/use`, "POST"),
   forgetDrawing: () => call<Rita>(`${TKL}/studio/rita`, "DELETE"),
+  // Dela stationen (#87 del b): the parts are saved as a draft, checks and all, until Använd.
+  dela: () => call<Dela>(`${TKL}/studio/dela`),
+  saveParts: (parts: StationPart[]) => call<Dela>(`${TKL}/studio/dela`, "PUT", { parts }),
+  useParts: () => call<Dela>(`${TKL}/studio/dela/use`, "POST"),
+  forgetParts: () => call<Dela>(`${TKL}/studio/dela`, "DELETE"),
   manover: () => call<Manover>(`${TKL}/studio/manover`),
   saveManover: (settings: Manover) => call<Manover>(`${TKL}/studio/manover`, "PUT", settings),
   answerExit: async (place: string, section: string, exit: string) =>

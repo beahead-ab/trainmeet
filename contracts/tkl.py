@@ -90,9 +90,12 @@ from contracts.station_model import (
     PartSide,
     Point,
     Position,
+    RouteOut,
     SignalType,
     StationModel,
+    StationPart,
     SwitchControl,
+    SwitchStreet,
     SwitchType,
 )
 from contracts.station_outside import StationOutside
@@ -202,6 +205,14 @@ class TklConnection(Contract):
     hub_name: Text | None = None
     status: ApprovalStatus | None = None
     places: list[Id] = Field(default_factory=list)
+    # #87 del b: a station with parts that are their own driftplatser (TKL101, TRAFIK-35).
+    place: Id | None = Field(
+        default=None, description="Stationens egen driftplats, när den är godkänd."
+    )
+    parts: list[TklPartPlace] = Field(
+        default_factory=list,
+        description="Delarnas driftplatser, var och en med trafikledningens svar.",
+    )
     outside_version: int | None = Field(default=None, description="Utsidan som följde med.")
     message: Text | None = None
     preview: bool = Field(
@@ -1264,6 +1275,93 @@ class TklPartMessage(Contract):
     approved: bool | None = None
     number: TrainNumber | None = None
     text: Text
+
+
+# --- Studio, Dela stationen (#87 del b, TKL99, TKL101, TKL103) ------------------------------
+# The owner divides the station into parts in Studio: each part's area on the panel, its border
+# switches with their owner and position towards the part, the rules at the border, the switch
+# streets computed from the track graph and the routes out chosen from the station's routes.
+# The parts belong to the station model: kept as a draft until Använd, then the model's, and
+# versioned with it. The area is the same kind as local release's (TKL103).
+
+
+class TklDelaState(StrEnum):
+    DRAFT = "draft"  # utkast, sparat på datorn
+    IN_USE = "in_use"  # används i Ställverket: stationsmodellens delar
+
+
+class TklDelaRefKind(StrEnum):
+    """What a check is about, so that a click on it shows it."""
+
+    PART = "part"
+    PIECE = "piece"
+    SWITCH = "switch"
+    SIGNAL = "signal"
+    STREET = "street"
+    ROUTE_OUT = "route_out"
+
+
+class TklDelaCheck(Contract):
+    """One of Studio's checks of the parts: a problem stops Använd, a note does not."""
+
+    text: Text
+    problem: bool = True
+    part: Id | None = Field(default=None, description="Delen kontrollen gäller.")
+    kind: TklDelaRefKind | None = None
+    id: Text | None = Field(default=None, description="Det kontrollen gäller, att klicka på.")
+
+
+class TklDelaFound(Contract):
+    """What Studio works out for one part from the station's track plan: where its area meets
+    the rest, and the switch streets and routes out it can be given."""
+
+    part: Id
+    edge: list[Name] = Field(
+        default_factory=list, description="Noderna där området möter resten av stationen."
+    )
+    border_switches: list[BorderSwitch] = Field(
+        default_factory=list,
+        description="Växlarna vid gränsen: de leder ut ur området och ska vara gränsväxlar. Med "
+        "stationen som ägare och det läge mot delen som Studio föreslår: benet som stannar i "
+        "området.",
+    )
+    streets: list[SwitchStreet] = Field(
+        default_factory=list,
+        description="Växelgatorna Studio kan räkna fram ur spårgrafen: en per ände och spår.",
+    )
+    routes_out: list[RouteOut] = Field(
+        default_factory=list,
+        description="Stationens växlingsvägar som börjar i området och lämnar det.",
+    )
+
+
+class TklDela(Contract):
+    """Studio, Dela stationen: the parts as a draft or as the model has them, the station's
+    sections to click the area with, what Studio works out per part, and the checks."""
+
+    state: TklDelaState
+    parts: list[StationPart] = Field(default_factory=list)
+    sections: dict[Name, list[Name]] = Field(
+        default_factory=dict,
+        description="Stationens sektioner med sina spårbitar: området väljs sektion för sektion.",
+    )
+    found: list[TklDelaFound] = Field(default_factory=list)
+    checks: list[TklDelaCheck] = Field(default_factory=list)
+
+
+class TklDelaEdit(Contract):
+    """The parts as the owner has them now: saved as the draft."""
+
+    parts: list[StationPart] = Field(default_factory=list, max_length=20)
+
+
+class TklPartPlace(Contract):
+    """A part's driftplats in Hubben, with the dispatcher's answer for it (TKL101,
+    TRAFIK-35): found by its link, the part's id in the station's outside."""
+
+    part: Id
+    place: Id
+    status: ApprovalStatus
 
 
 class TklReportKind(StrEnum):

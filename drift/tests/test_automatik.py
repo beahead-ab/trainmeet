@@ -28,13 +28,23 @@ START = datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 Action = station.Action
 
 
+def provbanan() -> MeetPackage:
+    raw = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
+    return MeetPackage.model_validate_json(raw)
+
+
 class World:
     """A meet, its automation and the two clocks: the wall clock and the monotonic one."""
 
-    def __init__(self, *, run: bool = True, settings: dict[str, Any] | None = None) -> None:
-        raw = files("contracts").joinpath("examples/provbanan.meet.json").read_bytes()
+    def __init__(
+        self,
+        *,
+        run: bool = True,
+        settings: dict[str, Any] | None = None,
+        package: MeetPackage | None = None,
+    ) -> None:
         self.real = 0.0
-        self.drift = Drift(MeetPackage.model_validate_json(raw), [], now=START)
+        self.drift = Drift(package or provbanan(), [], now=START)
         self.drift.start(START)
         self.auto = Automatik(now=lambda: self.real)
         if settings is not None:
@@ -423,3 +433,88 @@ def test_a_manned_terminus_is_not_stabled() -> None:
     world.send("sjv", Action.TRAIN_ARRIVED, call="t101-sjv")
     world.until("06:45")
     assert world.drift.ended_here("t101-mla")
+
+
+def with_a_yard() -> MeetPackage:
+    """Provbanan with Åsen's yard as a part of the station that is its own driftplats
+    (PLAN-34, TKL101): no section between the yard and Åsen. A goods train leaves the yard,
+    stands at Åsen and goes on to Mellanå; another comes from Mellanå into the yard."""
+    package = provbanan().model_dump(mode="json")
+    asen = next(p for p in package["places"] if p["id"] == "asn")
+    package["places"].insert(
+        package["places"].index(asen) + 1,
+        {
+            "id": "asn-bgd",
+            "code": "Ånb",
+            "name": "Åsens bangård",
+            "kind": "manned",
+            "tracks": [{"name": "51", "sort_order": 0}],
+            "part_of": "asn",
+        },
+    )
+    package["trains"] += [
+        {
+            "id": "t901",
+            "number": "9901",
+            "train_type": "G",
+            "days": ["mon"],
+            "calls": [
+                {"id": "t901-bgd", "place": "asn-bgd", "track": "51", "departure": "06:25"},
+                {
+                    "id": "t901-asn",
+                    "place": "asn",
+                    "track": "3",
+                    "arrival": "06:27",
+                    "departure": "06:30",
+                },
+                {"id": "t901-mla", "place": "mla", "track": "2", "arrival": "06:40"},
+            ],
+        },
+        {
+            "id": "t902",
+            "number": "9902",
+            "train_type": "G",
+            "days": ["mon"],
+            "calls": [
+                {"id": "t902-mla", "place": "mla", "track": "2", "departure": "07:50"},
+                {
+                    "id": "t902-asn",
+                    "place": "asn",
+                    "track": "3",
+                    "arrival": "08:00",
+                    "departure": "08:02",
+                },
+                {"id": "t902-bgd", "place": "asn-bgd", "track": "51", "arrival": "08:05"},
+            ],
+        },
+    ]
+    return MeetPackage.model_validate(package)
+
+
+def test_a_train_from_the_yard_part_leaves_its_station_on_time() -> None:
+    """#87 del c found that the train waited for ever for an arrival at the station: the move
+    from the part to the station is no leg, so nothing ever reports it (PLAN-34). The train
+    departs the part and is at the station without a section between; it leaves the station
+    on time and arrives at Mellanå. One from Mellanå into the yard is not held either."""
+    world = World(package=with_a_yard())
+    assert "t901-bgd" not in world.drift.legs, "the part and its station have no section"
+    world.until("06:29")
+    assert world.auto.blocked.get("t901-asn") != "Väntar på föregående ankomst"
+    world.until("06:45")
+    assert world.at("train.departed", "t901-asn") == "06:30"
+    assert "t901-asn" in world.drift.arrived, "at Mellanå after its running time"
+    world.until("08:10")
+    assert world.at("train.departed", "t902-mla") == "07:50"
+    assert "t902-mla" in world.drift.arrived
+    assert "t902-mla" not in world.auto.blocked and "t901-asn" not in world.auto.blocked
+
+
+def test_a_move_without_a_section_that_is_no_part_still_waits() -> None:
+    """The rule is the part's only: a train whose plan lacks a section between two places that
+    are not a part and its station waits, as before, and Planering says why."""
+    package = with_a_yard().model_dump(mode="json")
+    yard = next(p for p in package["places"] if p["id"] == "asn-bgd")
+    yard["part_of"] = None
+    world = World(package=MeetPackage.model_validate(package))
+    world.until("06:35")
+    assert world.auto.blocked.get("t901-asn") == "Väntar på föregående ankomst"

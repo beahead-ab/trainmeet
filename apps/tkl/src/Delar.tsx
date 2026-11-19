@@ -12,8 +12,8 @@
 // is what the screen shows (STV-43). The look follows the prototype's box (the reference
 // interlocking with ?roll=rangerare in the specification).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type Interlocking, type InterlockingAnswer, type PartCalls, type PartRouteOut, type PartShown, type PartSide, type PartStreet, type PartTrains, type TrackPlan } from "./api";
-import { areaOf, atEnd, boxOf, givePress, outPress, partOf, readyLine, stepTo } from "./delar";
+import { api, Problem, type Connection, type Interlocking, type InterlockingAnswer, type PartCalls, type PartRouteOut, type PartShown, type PartSide, type PartStreet, type PartTrains, type TrackPlan } from "./api";
+import { areaOf, atEnd, boxOf, givePress, outPress, partOf, placeLine, readyLine, stepTo } from "./delar";
 import { tone } from "./ljud";
 import { Panelen } from "./Panelen";
 import { skinOf } from "./skal";
@@ -24,6 +24,22 @@ import "./delar.css";
 type Work = () => Promise<InterlockingAnswer>;
 
 type BoxProps = { state: Interlocking; say: Say; working: boolean; onWork: (work: Work) => void };
+
+/** The parts' driftplatser in Hubben, one small line each: "Väntar på trafikledningen",
+ * "Nekad" (#87 del b, TRAFIK-35). Nothing for a part that is no driftplats of its own. */
+export function PartPlaces({ parts, connection }: { parts: { id: string; name: string; own_place?: boolean | null }[]; connection: Connection | null | undefined }) {
+  const lines = parts.map((p) => [p.id, placeLine(p, connection?.parts, !!connection?.connected)] as const).filter(([, line]) => !!line);
+  if (!lines.length) return null;
+  return (
+    <p className="liten del-platser" data-part-places="">
+      {lines.map(([id, line]) => (
+        <span key={id} data-part-place={id}>
+          {line}{" "}
+        </span>
+      ))}
+    </p>
+  );
+}
 
 /** The box at the top of the station's Ställverket. Nothing in it acts by itself. */
 export function PartBox(props: BoxProps) {
@@ -128,9 +144,18 @@ const SIDES: [PartSide, string][] = [
 
 /** The part's own screen at /del/<id>: the model and the state fetched here, and followed with
  * the interlocking's wait, as every screen of Ställverket (STV-05). */
-export function DelSida({ partId, initial }: { partId: string; initial?: { plan: TrackPlan; state: Interlocking; trains?: PartTrains } }) {
+export function DelSida({ partId, initial }: { partId: string; initial?: { plan: TrackPlan; state: Interlocking; trains?: PartTrains; connection?: Connection | null } }) {
   const [plan, setPlan] = useState<TrackPlan | null | undefined>(initial?.plan);
   const [state, setState] = useState<Interlocking | null | undefined>(initial?.state);
+  const [connection, setConnection] = useState<Connection | null>(initial?.connection ?? null);
+  // The part's driftplats in Hubben: how the dispatcher answered, followed now and then.
+  useEffect(() => {
+    if (initial) return;
+    const read = () => api.connection().then(setConnection).catch(() => undefined);
+    void read();
+    const every = setInterval(read, 15_000);
+    return () => clearInterval(every);
+  }, [initial]);
   const revision = useRef<number | null>(null);
   revision.current = state?.revision ?? null;
   useEffect(() => {
@@ -172,13 +197,13 @@ export function DelSida({ partId, initial }: { partId: string; initial?: { plan:
   if (!plan?.panel || !state || !part) {
     return <p className="tom">Stationen har inget delställverk som heter {partId}. Delarna ritas i Studio och står i stationsmodellen.</p>;
   }
-  return <DelPanel plan={plan} state={state} part={part} calls={calls} onState={setState} trains={initial?.trains} />;
+  return <DelPanel plan={plan} state={state} part={part} calls={calls} onState={setState} trains={initial?.trains} connection={connection} />;
 }
 
-type PanelProps = { plan: TrackPlan; state: Interlocking; part: PartShown; calls: PartCalls; onState: (state: Interlocking) => void; trains?: PartTrains };
+type PanelProps = { plan: TrackPlan; state: Interlocking; part: PartShown; calls: PartCalls; onState: (state: Interlocking) => void; trains?: PartTrains; connection?: Connection | null };
 
 /** The part's screen with its state: the panel, the streets and routes out, the buttons. */
-export function DelPanel({ plan, state: raw, part, calls, onState, trains: given }: PanelProps) {
+export function DelPanel({ plan, state: raw, part, calls, onState, trains: given, connection = null }: PanelProps) {
   const panel = plan.panel as NonNullable<TrackPlan["panel"]>;
   const state = filled(raw);
   const [side, setSide] = useState<PartSide>("left");
@@ -277,6 +302,7 @@ export function DelPanel({ plan, state: raw, part, calls, onState, trains: given
         <span className="tm-fyll" />
         <span className="klocka tm-mono">{nowText().slice(0, 5)}</span>
       </div>
+      <PartPlaces parts={[part]} connection={connection} />
       {valet.said ? (
         <p className={`stv-svar ${valet.said.ok ? "ja" : "nej"}`} role={valet.said.ok ? "status" : "alert"}>
           {valet.said.ok ? null : <b>Nej: </b>}

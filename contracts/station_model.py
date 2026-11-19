@@ -564,6 +564,11 @@ class StationPart(Contract):
     place: Id | None = Field(
         default=None, description="Driftplatsens id i Hubben, när delen är en egen driftplats."
     )
+    code: Text | None = Field(
+        default=None,
+        description="Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). "
+        "Tomt: namnet används.",
+    )
     rules: PartRules = Field(default_factory=PartRules)
     streets: list[SwitchStreet] = Field(default_factory=list, description="Växelgatorna.")
     routes_out: list[RouteOut] = Field(

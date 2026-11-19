@@ -17,6 +17,10 @@
     PUT  /api/tkl/1/studio/rita           TklDrawing -> TklRita (sparas som utkast, med problemen)
     POST /api/tkl/1/studio/rita/use       TklRita (Använd ritningen: 422 med problem, 409 med vägar)
     DELETE /api/tkl/1/studio/rita         TklRita (släng utkastet)
+    GET  /api/tkl/1/studio/dela           TklDela: Dela stationen, delarna som utkast eller i bruk
+    PUT  /api/tkl/1/studio/dela           TklDelaEdit -> TklDela (utkast, med kontrollerna)
+    POST /api/tkl/1/studio/dela/use       TklDela (Använd: 422 med problem, 409 med vägar)
+    DELETE /api/tkl/1/studio/dela         TklDela (släng utkastet)
     GET  /api/tkl/1/studio/manover        TklManover: Manövers inställningar (STV-46)
     PUT  /api/tkl/1/studio/manover        TklManover -> TklManover (sparas med modellen)
     GET  /api/tkl/1/hubs                  [FoundHub]
@@ -47,7 +51,11 @@ no with the reason, and the state:
     POST /api/tkl/1/stallverk/function            TklFunctionAsk: en panelfunktion (STV-04)
 
 What the interlocking reports goes up to the hub as station commands when TKL is connected and
-approved for one place (tkl/hub_reports.py, STV-10).
+approved for the station's place (tkl/hub_reports.py, STV-10). A station with parts that are
+their own driftplatser is approved per place (TRAFIK-35, tkl/hub_places.py): a report goes as the
+place whose snapshot knows it, the part's first when it is about a track in the part's area.
+TKL keeps following the approval after it has its key, since a part approved later comes with
+the same key.
 
 Delställverk (#87, TKL97–TKL103): a part opens its own screen at /del/<id>, on any screen on the
 station's network behind the same PIN (TKL102). The station answers in Ställverket; the part
@@ -204,12 +212,13 @@ from pydantic import ValidationError
 
 from contracts import station
 from contracts.hub import Version
-from contracts.station_model import StationModel, dump
+from contracts.station_model import StationModel, StationPart, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
     DeckConnection,
     DeckModelId,
+    Panel,
     TklAnswer,
     TklCardModule,
     TklCommand,
@@ -229,6 +238,8 @@ from contracts.tkl import (
     TklDeckStatus,
     TklDeckSuggest,
     TklDeckTouch,
+    TklDelaEdit,
+    TklDelaState,
     TklDrawing,
     TklDrawingState,
     TklEmergencyRelease,
@@ -275,7 +286,7 @@ from contracts.tkl import (
     TklView,
     TklWait,
 )
-from tkl import VERSION, hub_reports, id_login, manover, prova, track_plan
+from tkl import VERSION, hub_places, hub_reports, id_login, manover, prova, track_plan
 from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
@@ -297,7 +308,7 @@ from tkl.loconet import service as loconet
 from tkl.provkor import NoQuestion, Provkor, idle
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
 from tkl.stallverk.interlocking import KOPPLA_IN, Order
-from tkl.stallverk.parts import plan_trains
+from tkl.stallverk.parts import Part, plan_trains
 from tkl.standard import LayoutError, RouteKind, problems
 from tkl.store import (
     LOCAL,
@@ -315,7 +326,7 @@ from tkl.store import (
     WrongPin,
     token_hash,
 )
-from tkl.studio import rita
+from tkl.studio import dela, rita
 
 SESSION = "tkl_session"
 SLOT = "tkl_station"
@@ -806,6 +817,116 @@ def create_app(
         made, state = drawn(found)
         return rita.view(made, state).model_dump(mode="json")
 
+    # --- Dela stationen (#87 del b): the parts, kept as a draft until they are used ----------
+
+    panels: dict[str, Panel | None] = {}
+
+    def to_json_parts(parts: list[StationPart]) -> str:
+        """The parts as the model file keeps them: equal parts with their switches in another
+        order are not the same streets (street_end walks them in order)."""
+        return TklDelaEdit(parts=parts).model_dump_json()
+
+    def dela_panel(model: StationModel, key: str) -> Panel | None:
+        """The panel the sides are read from, made once per model."""
+        if key not in panels:
+            if len(panels) >= 4:
+                panels.pop(next(iter(panels)))
+            panels[key] = track_plan.panel_of(model)
+        return panels[key]
+
+    def dela_view(found: str, given: list[StationPart] | None = None) -> dict[str, Any]:
+        """The parts as the draft has them, else as the model does, with what Studio works out
+        for them and the checks."""
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        draft = given if given is not None else store.parts_draft(found)
+        state = TklDelaState.DRAFT if draft is not None else TklDelaState.IN_USE
+        plant = plant_of(model)
+        shown = dela.view(
+            model,
+            plant,
+            draft if draft is not None else list(model.parts),
+            state,
+            dela_panel(model, plant.fingerprint),
+        )
+        return shown.model_dump(mode="json")
+
+    @routes.get("/studio/dela")
+    def parts_view(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        no_store(response)
+        return dela_view(unlocked(slot, session))
+
+    @routes.put("/studio/dela")
+    def save_parts(
+        given: TklDelaEdit,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """The parts as the owner has them, kept as a draft, checks and all. Parts that are the
+        model's as they are make no draft."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        plant = plant_of(model)
+        panel = dela_panel(model, plant.fingerprint)
+        cells = {n.id: n.cell for n in panel.nodes} if panel is not None else {}
+        parts = dela.ordered(plant, list(given.parts), cells)
+        if to_json_parts(parts) == to_json_parts(list(model.parts)):
+            store.forget_parts_draft(found)
+            return dela_view(found)
+        store.save_parts_draft(found, parts)
+        return dela_view(found, parts)
+
+    @routes.post("/studio/dela/use")
+    def use_parts(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Använd: the draft's parts become the station model's, which the interlocking runs
+        and the outside follows. Only without problems, and never under set routes or train
+        numbers."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        draft = store.parts_draft(found)
+        if draft is None:
+            return dela_view(found)
+        model = store.station_model(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        wrong = [c.text for c in dela.checks(plant_of(model), draft) if c.problem]
+        if wrong:
+            refuse_model("Delarna kan inte användas än. Rätta problemen först.", wrong)
+        try:
+            store.save_parts(found, draft)
+        except InterlockingBusy as error:
+            raise HTTPException(409, BUSY) from error
+        return dela_view(found)
+
+    @routes.delete("/studio/dela")
+    def forget_parts(
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Släng utkastet: back to the model's parts."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        store.forget_parts_draft(found)
+        return dela_view(found)
+
     # --- Manöver, the owner's free panel (STV-46) ---------------------------------------------
 
     @routes.get("/studio/manover")
@@ -1019,27 +1140,34 @@ def create_app(
     def shown(made: Connection | None) -> dict[str, Any]:
         if made is None:
             return TklConnection(connected=False).model_dump(mode="json")
+        approved = made.status == station.ApprovalStatus.APPROVED and made.key is not None
         return TklConnection(
             connected=True,
             address=made.address,
             hub_name=made.hub_name,
             status=made.status,
             places=made.places,
+            place=hub_places.home_place(made) if approved else None,
+            parts=hub_places.part_places(made),
             outside_version=made.outside_version,
             message=made.message,
             preview=made.preview,
         ).model_dump(mode="json")
 
     def follow(found: str, made: Connection) -> Connection:
-        """Ask the hub how the approval stands while TKL waits; the key comes once."""
-        if made.status != station.ApprovalStatus.WAITING and made.key is not None:
+        """Ask the hub how the approval stands; the key comes once. After the approval TKL
+        keeps asking, since a part approved later comes with the same key (TRAFIK-35): as
+        often as before while a place waits, more seldom once each has its answer."""
+        settled = made.status != station.ApprovalStatus.WAITING and made.key is not None
+        if settled and time.time() - made.asked < hub_places.next_question(made):
             return made
         try:
             reply = hub(made).connection(made.client_id)
         except Unreachable:
-            return made
+            store.asked(found)
+            return store.connection(found) or made
         except HubError as error:
-            if error.status == 404:
+            if error.status == 404 and made.key is None:
                 store.approval(
                     found,
                     station.ApprovalStatus.REVOKED,
@@ -1047,9 +1175,12 @@ def create_app(
                     None,
                     "Hubben känner inte igen TKL längre. Anslut igen.",
                 )
-                return store.connection(found) or made
-            return made
-        store.approval(found, reply.status, reply.places, reply.key, reply.message)
+            else:
+                store.asked(found)
+            return store.connection(found) or made
+        store.approval(
+            found, reply.status, reply.places, reply.key, reply.message, list(reply.wanted)
+        )
         return store.connection(found) or made
 
     @routes.get("/connection")
@@ -1126,6 +1257,8 @@ def create_app(
                 message=reply.message,
                 key=reply.key,
                 preview=reply.preview,
+                wanted=list(reply.wanted),
+                asked=time.time(),
             ),
         )
         return shown(store.connection(found))
@@ -1151,6 +1284,8 @@ def create_app(
             made = follow(found, made)
         if made is None or made.key is None:
             raise HTTPException(409, NOT_CONNECTED)
+        if place not in made.places:
+            made = follow(found, made)
         if place not in made.places:
             raise HTTPException(403, "TKL är inte godkänd för den driftplatsen.")
         return made
@@ -1357,32 +1492,88 @@ def create_app(
         return reports
 
     def one_place(found: str) -> tuple[Connection, str] | str:
+        """The connection and the station's own place in Hubben. With parts that are their
+        own driftplatser TKL is approved for several places; the station's is the one that is
+        no part (TRAFIK-35)."""
         made = store.connection(found)
-        if made is not None and made.key is None:
+        if made is not None:
             made = follow(found, made)
         if made is None or made.key is None:
             return NOT_CONNECTED
-        if len(made.places) != 1:
-            return "TKL är godkänd för flera driftplatser."
-        return made, made.places[0]
+        home = hub_places.home_place(made)
+        if home is None:
+            return "TKL är inte godkänd för stationens driftplats."
+        return made, home
+
+    def part_tracks(found: str, made: Connection) -> dict[str, str]:
+        """The station tracks in the parts' areas, by their id in the outside, with the
+        approved place of the part (TKL101): a report about such a track is the part's first."""
+        model, _, _ = store.interlocking(found)
+        if model is None:
+            return {}
+        plant = plant_of(model)
+        found_tracks: dict[str, str] = {}
+        for part in plant.parts.values():
+            place = hub_places.part_place(made, part.id, part.spec.place)
+            if not part.spec.own_place or place is None:
+                continue
+            area = set(part.pieces)
+            for track in model.station_tracks:
+                if track.pieces and set(track.pieces) <= area:
+                    found_tracks[plant.track_outside.get(track.id, track.id)] = place
+        return found_tracks
 
     def report(found: str, reports: list[TklReport]) -> list[TklReport]:
-        """Up to the hub (STV-10), with the place's own snapshot for the calls."""
+        """Up to the hub (STV-10), each as the place whose snapshot knows it: the station's
+        first, a part's first when it is about a track in the part's area (TKL101)."""
         reached = one_place(found)
         if isinstance(reached, str):
             said = f"{reached} Inget rapporterades till hubben."
             return [r.model_copy(update={"message": said}) for r in reports]
-        made, place = reached
+        made, _ = reached
         if service is not None and service.pretending and not made.preview:
             return [r.model_copy(update={"message": NOT_TO_A_MEET}) for r in reports]
-        try:
-            snapshot = hub(made).snapshot(place)
-        except Unreachable:
-            return [r.model_copy(update={"message": NO_CONTACT}) for r in reports]
-        except HubError as error:
-            return [r.model_copy(update={"message": error.detail}) for r in reports]
-        done, last = hub_reports.send(hub(made), made.client_id, place, snapshot, reports)
-        store.remember(found, last)
+        places = hub_places.places_of(made)
+        tracks = part_tracks(found, made) if len(places) > 1 else {}
+        seen_now: dict[str, station.Snapshot | str] = {}
+
+        def snapshot_of(place: str) -> station.Snapshot | str:
+            if place not in seen_now:
+                try:
+                    seen_now[place] = hub(made).snapshot(place)
+                except Unreachable:
+                    seen_now[place] = NO_CONTACT
+                except HubError as error:
+                    seen_now[place] = error.detail
+            return seen_now[place]
+
+        done: list[TklReport] = []
+        for given in reports:
+            first = tracks.get(given.track or "")
+            order = [first, *(p for p in places if p != first)] if first else places
+            why: str | None = None
+            chosen: tuple[str, station.Snapshot] | None = None
+            for place in order:
+                snapshot = snapshot_of(place)
+                if isinstance(snapshot, str):
+                    why = why or snapshot
+                    continue
+                planned = hub_reports.plan(snapshot, given)
+                if isinstance(planned, str):
+                    why = why or planned
+                    continue
+                chosen = place, snapshot
+                break
+            if chosen is None:
+                done.append(given.model_copy(update={"message": why}))
+                continue
+            place, snapshot = chosen
+            sent, last = hub_reports.send(hub(made), made.client_id, place, snapshot, [given])
+            seen_now[place] = last
+            done += sent
+        for snapshot in seen_now.values():
+            if not isinstance(snapshot, str):
+                store.remember(found, snapshot)
         return done
 
     @routes.get("/stallverk")
@@ -1683,29 +1874,30 @@ def create_app(
         no_store(response)
         return operate(unlocked(slot, session), lambda made: made.ready_sent(ask.number))
 
-    def part_snapshots(found: str, place: str | None) -> tuple[Any, Any]:
+    def part_snapshots(found: str, part: Part) -> tuple[Any, Any, str | None]:
         """The station's own snapshot and, when TKL is approved for the part's driftplats too,
-        the part's (#87 del c, TRAFIK-35): fresh from the hub, else the last one seen."""
+        the part's, found by its link (#87 del c and del b, TRAFIK-35): fresh from the hub,
+        else the last one seen. And the part's place in Hubben, approved or not."""
         made = store.connection(found)
-        if made is not None and made.key is None:
+        if made is not None:
             made = follow(found, made)
-        here: station.Snapshot | None = None
-        own: station.Snapshot | None = None
         if made is None or made.key is None:
-            return here, own
-        for approved_place in made.places:
+            return None, None, None
+
+        def read(place: str | None) -> station.Snapshot | None:
+            if place is None:
+                return None
             try:
-                fresh = hub(made).snapshot(approved_place)
-                store.remember(found, fresh)
-                seen_now: station.Snapshot | None = fresh
+                fresh = hub(made).snapshot(place)
             except (Unreachable, HubError):
-                last = store.last_seen(found, approved_place)
-                seen_now = last[0] if last is not None else None
-            if approved_place == place:
-                own = seen_now
-            elif here is None:
-                here = seen_now
-        return here, own
+                last = store.last_seen(found, place)
+                return last[0] if last is not None else None
+            store.remember(found, fresh)
+            return fresh
+
+        link = next((w.place for w in made.wanted if w.part == part.id), part.spec.place)
+        own = hub_places.part_place(made, part.id, part.spec.place)
+        return read(hub_places.home_place(made)), read(own), link
 
     def part_trains(found: str, part_id: str) -> TklPartTrains:
         model, _, _ = store.interlocking(found)
@@ -1715,8 +1907,8 @@ def create_app(
         part = plant.parts.get(part_id)
         if part is None:
             raise HTTPException(404, f"Delställverket {part_id} finns inte i stationsmodellen.")
-        here, own = part_snapshots(found, part.spec.place)
-        return plan_trains(part, plant, here, own)
+        here, own, place = part_snapshots(found, part)
+        return plan_trains(part, plant, here, own, place)
 
     @routes.get("/stallverk/parts/{part}/trains")
     def part_trains_route(
@@ -2057,8 +2249,9 @@ def create_app(
         selection = room.selection(found, workplace)
         heard = None
         reached = store.connection(found)
-        if reached is not None and len(reached.places) == 1:
-            last = store.last_seen(found, reached.places[0])
+        home = hub_places.home_place(reached) if reached is not None else None
+        if home is not None:
+            last = store.last_seen(found, home)
             heard = last[1] if last else None
         drift = store.deck_drift(found)
         return (

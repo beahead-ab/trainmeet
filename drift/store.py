@@ -883,10 +883,12 @@ class PreviewStore:
         )
 
     def connection(self, client_id: str) -> station.ConnectReply:
-        """How the approval stands. The key comes once, in the first answer after it."""
+        """How the approval stands. The key comes once, in the first answer after it. Each
+        place the client wants comes with its own answer and the part of the station it is,
+        so that a TKL knows the station's place from a part's (TRAFIK-35, PLAN-34)."""
         with self._transaction() as db:
             row = db.execute(
-                "SELECT c.status, c.places, c.key_once FROM station_client c "
+                "SELECT c.status, c.places, c.key_once, c.request FROM station_client c "
                 "JOIN preview_run r ON r.id=c.run_id WHERE c.client_id=? AND r.expires>?",
                 (client_id, now_utc().timestamp()),
             ).fetchone()
@@ -897,8 +899,15 @@ class PreviewStore:
                 db.execute(
                     "UPDATE station_client SET key_once=NULL WHERE client_id=?", (client_id,)
                 )
+            asked = station.ConnectRequest.model_validate_json(row[3])
+            wanted = self._wanted(asked, places, self._refused_places(db, client_id), str(row[0]))
         return station.ConnectReply(
-            client_id=client_id, status=status, places=places, key=key, preview=self.preview
+            client_id=client_id,
+            status=status,
+            places=places,
+            wanted=[station.ClientPlace.model_validate(w) for w in wanted],
+            key=key,
+            preview=self.preview,
         )
 
     def approve(self, run_id: str, approval: events.Approve) -> list[dict[str, Any]]:

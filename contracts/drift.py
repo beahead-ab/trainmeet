@@ -58,6 +58,7 @@ from contracts.station import (
     ApprovalStatus,
     Clearance,
     ClearanceStatus,
+    ClientPlace,
     Clock,
     DriverMessageKind,
     ExitQuestion,
@@ -427,24 +428,6 @@ class Assign(Contract):
     places: list[Id] = Field(min_length=1)
     side: Literal["both", "left", "right"] = "both"
     language: BoxLanguage | None = None
-
-
-class ClientPlace(Contract):
-    """En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
-    (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
-    driftplats (PLAN-34)."""
-
-    place: Id
-    status: ApprovalStatus = Field(
-        description="Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela "
-        "klienten är det."
-    )
-    part: Id | None = Field(
-        default=None, description="Delen av stationen, med delens id i utsidan."
-    )
-    part_of: Id | None = Field(
-        default=None, description="Stationens driftplats, när driftplatsen är en del av den."
-    )
 
 
 class Client(Contract):

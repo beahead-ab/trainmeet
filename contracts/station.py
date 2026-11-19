@@ -104,6 +104,25 @@ class ApprovalStatus(StrEnum):
     REVOKED = "revoked"
 
 
+class ClientPlace(Contract):
+    """En driftplats som en TKL eller appen vill köra, med trafikledningens svar för just den
+    (TRAFIK-35). En del av stationen som är egen driftplats står för sig, med stationens
+    driftplats (PLAN-34). Klienter visar dem, och klienten själv får dem i ConnectReply, så att
+    en TKL vet vilken driftplats som är stationens och vilken som är en dels."""
+
+    place: Id
+    status: ApprovalStatus = Field(
+        description="Väntar, godkänd eller nekad för den här driftplatsen; återkallad när hela "
+        "klienten är det."
+    )
+    part: Id | None = Field(
+        default=None, description="Delen av stationen, med delens id i utsidan."
+    )
+    part_of: Id | None = Field(
+        default=None, description="Stationens driftplats, när driftplatsen är en del av den."
+    )
+
+
 class ConnectReply(Contract):
     protocol: Literal["trainmeet.station/1"] = PROTOCOL
     client_id: Id
@@ -112,6 +131,12 @@ class ConnectReply(Contract):
         default_factory=list,
         description="Godkända driftplatser. Godkännandet gäller per driftplats, så en del som "
         "godkänns senare kommer med här, med samma nyckel (TRAFIK-35).",
+    )
+    wanted: list[ClientPlace] = Field(
+        default_factory=list,
+        description="Varje driftplats klienten vill köra eller är godkänd för, med svaret för "
+        "just den och vilken del av stationen den är (TRAFIK-35, PLAN-34). Tomt från en äldre "
+        "hubb.",
     )
     key: str | None = Field(
         default=None,

@@ -636,6 +636,80 @@
         }
       }
     },
+    "/api/tkl/1/studio/dela": {
+      "get": {
+        "operationId": "tklParts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.dela"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "tklSaveParts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.dela"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "tklForgetParts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.dela"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/tkl/1/studio/dela/use": {
+      "post": {
+        "operationId": "tklUseParts",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.tkl-1.dela"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tkl/1/studio/manover": {
       "get": {
         "operationId": "tklManover",
@@ -4541,6 +4615,21 @@
             "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
             "title": "Place"
           },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+            "title": "Code"
+          },
           "rules": {
             "$ref": "#/components/schemas/trainmeet.station-model-1.PartRules"
           },
@@ -7126,6 +7215,28 @@
             "title": "Places",
             "type": "array"
           },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Stationens egen driftplats, när den är godkänd.",
+            "title": "Place"
+          },
+          "parts": {
+            "description": "Delarnas driftplatser, var och en med trafikledningens svar.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.connection.TklPartPlace"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
           "outside_version": {
             "anyOf": [
               {
@@ -7175,6 +7286,32 @@
         ],
         "title": "ApprovalStatus",
         "type": "string"
+      },
+      "trainmeet.tkl-1.connection.TklPartPlace": {
+        "additionalProperties": true,
+        "description": "A part's driftplats in Hubben, with the dispatcher's answer for it (TKL101,\nTRAFIK-35): found by its link, the part's id in the station's outside.",
+        "properties": {
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "place": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Place",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.connection.ApprovalStatus"
+          }
+        },
+        "required": [
+          "part",
+          "place",
+          "status"
+        ],
+        "title": "TklPartPlace",
+        "type": "object"
       },
       "trainmeet.tkl-1.view": {
         "additionalProperties": true,
@@ -11279,6 +11416,21 @@
             "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
             "title": "Place"
           },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+            "title": "Code"
+          },
           "rules": {
             "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.PartRules"
           },
@@ -13439,6 +13591,21 @@
             "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
             "title": "Place"
           },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+            "title": "Code"
+          },
           "rules": {
             "$ref": "#/components/schemas/trainmeet.tkl-1.rita.PartRules"
           },
@@ -14226,6 +14393,1047 @@
           "angle"
         ],
         "title": "TurntableTrack",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela": {
+        "additionalProperties": true,
+        "description": "Studio, Dela stationen: the parts as a draft or as the model has them, the station's\nsections to click the area with, what Studio works out per part, and the checks.",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela.TklDelaState"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.StationPart"
+            },
+            "title": "Parts",
+            "type": "array"
+          },
+          "sections": {
+            "additionalProperties": {
+              "items": {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "Stationens sektioner med sina spårbitar: området väljs sektion för sektion.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Sections",
+            "type": "object"
+          },
+          "found": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.TklDelaFound"
+            },
+            "title": "Found",
+            "type": "array"
+          },
+          "checks": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.TklDelaCheck"
+            },
+            "title": "Checks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "TklDela",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.BorderSwitch": {
+        "additionalProperties": true,
+        "description": "Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.\n\nIts owner lays it both ways. The other side may always lay it towards the part's area, where\nit keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.\nA route out over it is a request that the station's interlocking sets.",
+        "properties": {
+          "switch": {
+            "description": "Växelns nummer, eller en korsningsväxels del.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Switch",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela.PartOwner",
+            "default": "station"
+          },
+          "towards_part": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela.Position",
+            "description": "Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut."
+          }
+        },
+        "required": [
+          "switch",
+          "towards_part"
+        ],
+        "title": "BorderSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.Origin": {
+        "additionalProperties": true,
+        "description": "The source of one item, and whether the owner has confirmed it (RS5, RS7).",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela.Source"
+          },
+          "confirmed": {
+            "default": false,
+            "description": "Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.",
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.",
+            "title": "Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Origin",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.PartOwner": {
+        "description": "Who steers a border switch (TKL99).",
+        "enum": [
+          "station",
+          "part"
+        ],
+        "title": "PartOwner",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela.PartRules": {
+        "additionalProperties": true,
+        "description": "The rules at the border, set per station in Studio (TKL99). The defaults are those of\nthe first station divided into parts (TKL99): the station steers the border switches, the\npart may lay them towards its area and never out, and an approved request can only be\nreturned.",
+        "properties": {
+          "lays_towards_part": {
+            "default": true,
+            "description": "Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.",
+            "title": "Lays Towards Part",
+            "type": "boolean"
+          },
+          "one_way": {
+            "default": true,
+            "description": "Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.",
+            "title": "One Way",
+            "type": "boolean"
+          }
+        },
+        "title": "PartRules",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.PartSide": {
+        "description": "Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "PartSide",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela.Position": {
+        "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+        "enum": [
+          "+",
+          "-"
+        ],
+        "title": "Position",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela.RouteOut": {
+        "additionalProperties": true,
+        "description": "Begärd väg (RANG-03): a station route out over the border that the part may request.\nThe station's interlocking sets it when the request is approved; until the part returns it\nthe route is the part's (envägsregeln).",
+        "properties": {
+          "id": {
+            "description": "Till exempel H3.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Som knappen säger det, till exempel H 3.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela.PartSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Änden vägen går ut från."
+          },
+          "track": {
+            "description": "Stationens spår vägen leder till, till exempel 3.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "start": {
+            "description": "Vägens start, en signal i delens område.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "description": "Vägens mål på stationen.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "track",
+          "start",
+          "end"
+        ],
+        "title": "RouteOut",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.Source": {
+        "description": "Where an item in the model comes from (§2 \"source\", TKL41).",
+        "enum": [
+          "drawn",
+          "photo",
+          "signal_plan",
+          "anyrail",
+          "jmri",
+          "assumed",
+          "layout"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela.StationPart": {
+        "additionalProperties": true,
+        "description": "Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against\nthe station's one interlocking, which locks every route.\n\nIts area is the same kind of area as local release's (TKL103): track circuits or pieces,\nthe switches the part lays freely and the signals in it. Its border is the border switches,\nwith their owner, and the signals at the border. The part may be its own driftplats in\nHubben (TKL101). Its switch streets and the routes out it may request belong to it.",
+        "properties": {
+          "id": {
+            "description": "Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Till exempel Rangerbangården.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "track_circuits": {
+            "description": "Området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Området, utan spårledningar.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "description": "Delens egna växlar, som den lägger fritt.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna i området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "border": {
+            "description": "Gränsväxlarna.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.BorderSwitch"
+            },
+            "title": "Border",
+            "type": "array"
+          },
+          "border_signals": {
+            "description": "Signalerna vid gränsen, där vägarna ut går över.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Border Signals",
+            "type": "array"
+          },
+          "own_place": {
+            "default": false,
+            "description": "En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.",
+            "title": "Own Place",
+            "type": "boolean"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
+            "title": "Place"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+            "title": "Code"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela.PartRules"
+          },
+          "streets": {
+            "description": "Växelgatorna.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.SwitchStreet"
+            },
+            "title": "Streets",
+            "type": "array"
+          },
+          "routes_out": {
+            "description": "Vägarna ut över gränsen som delen får begära.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.RouteOut"
+            },
+            "title": "Routes Out",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.SwitchStreet": {
+        "additionalProperties": true,
+        "description": "Växelgata (RANG-02): the part's switches laid straight out to a track with one press,\nwithout a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked\nroute refuses the whole street.",
+        "properties": {
+          "id": {
+            "description": "Till exempel V51.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Som knappen säger det, till exempel V 51.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela.PartSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Änden gatan hör till."
+          },
+          "track": {
+            "description": "Spåret gatan leder till, till exempel 51 eller Lastspår 1.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "positions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.Position"
+            },
+            "description": "Växlarna i gatan, med sina lägen.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Positions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "track",
+          "positions"
+        ],
+        "title": "SwitchStreet",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.TklDelaCheck": {
+        "additionalProperties": true,
+        "description": "One of Studio's checks of the parts: a problem stops Använd, a note does not.",
+        "properties": {
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "problem": {
+            "default": true,
+            "title": "Problem",
+            "type": "boolean"
+          },
+          "part": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen kontrollen gäller.",
+            "title": "Part"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela.TklDelaRefKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "id": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Det kontrollen gäller, att klicka på.",
+            "title": "Id"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "TklDelaCheck",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.TklDelaFound": {
+        "additionalProperties": true,
+        "description": "What Studio works out for one part from the station's track plan: where its area meets\nthe rest, and the switch streets and routes out it can be given.",
+        "properties": {
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "edge": {
+            "description": "Noderna där området möter resten av stationen.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Edge",
+            "type": "array"
+          },
+          "border_switches": {
+            "description": "Växlarna vid gränsen: de leder ut ur området och ska vara gränsväxlar. Med stationen som ägare och det läge mot delen som Studio föreslår: benet som stannar i området.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.BorderSwitch"
+            },
+            "title": "Border Switches",
+            "type": "array"
+          },
+          "streets": {
+            "description": "Växelgatorna Studio kan räkna fram ur spårgrafen: en per ände och spår.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.SwitchStreet"
+            },
+            "title": "Streets",
+            "type": "array"
+          },
+          "routes_out": {
+            "description": "Stationens växlingsvägar som börjar i området och lämnar det.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela.RouteOut"
+            },
+            "title": "Routes Out",
+            "type": "array"
+          }
+        },
+        "required": [
+          "part"
+        ],
+        "title": "TklDelaFound",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela.TklDelaRefKind": {
+        "description": "What a check is about, so that a click on it shows it.",
+        "enum": [
+          "part",
+          "piece",
+          "switch",
+          "signal",
+          "street",
+          "route_out"
+        ],
+        "title": "TklDelaRefKind",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela.TklDelaState": {
+        "enum": [
+          "draft",
+          "in_use"
+        ],
+        "title": "TklDelaState",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela-edit": {
+        "additionalProperties": true,
+        "description": "The parts as the owner has them now: saved as the draft.",
+        "properties": {
+          "parts": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.StationPart"
+            },
+            "maxItems": 20,
+            "title": "Parts",
+            "type": "array"
+          }
+        },
+        "title": "TklDelaEdit",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.BorderSwitch": {
+        "additionalProperties": true,
+        "description": "Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.\n\nIts owner lays it both ways. The other side may always lay it towards the part's area, where\nit keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.\nA route out over it is a request that the station's interlocking sets.",
+        "properties": {
+          "switch": {
+            "description": "Växelns nummer, eller en korsningsväxels del.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Switch",
+            "type": "string"
+          },
+          "owner": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.PartOwner",
+            "default": "station"
+          },
+          "towards_part": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.Position",
+            "description": "Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut."
+          }
+        },
+        "required": [
+          "switch",
+          "towards_part"
+        ],
+        "title": "BorderSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.Origin": {
+        "additionalProperties": true,
+        "description": "The source of one item, and whether the owner has confirmed it (RS5, RS7).",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.Source"
+          },
+          "confirmed": {
+            "default": false,
+            "description": "Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.",
+            "title": "Confirmed",
+            "type": "boolean"
+          },
+          "ref": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.",
+            "title": "Ref"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "title": "Origin",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.PartOwner": {
+        "description": "Who steers a border switch (TKL99).",
+        "enum": [
+          "station",
+          "part"
+        ],
+        "title": "PartOwner",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela-edit.PartRules": {
+        "additionalProperties": true,
+        "description": "The rules at the border, set per station in Studio (TKL99). The defaults are those of\nthe first station divided into parts (TKL99): the station steers the border switches, the\npart may lay them towards its area and never out, and an approved request can only be\nreturned.",
+        "properties": {
+          "lays_towards_part": {
+            "default": true,
+            "description": "Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.",
+            "title": "Lays Towards Part",
+            "type": "boolean"
+          },
+          "one_way": {
+            "default": true,
+            "description": "Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.",
+            "title": "One Way",
+            "type": "boolean"
+          }
+        },
+        "title": "PartRules",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.PartSide": {
+        "description": "Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).",
+        "enum": [
+          "left",
+          "right"
+        ],
+        "title": "PartSide",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela-edit.Position": {
+        "description": "A switch's two positions. + is straight (rakt), - is diverging (avvikande).",
+        "enum": [
+          "+",
+          "-"
+        ],
+        "title": "Position",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela-edit.RouteOut": {
+        "additionalProperties": true,
+        "description": "Begärd väg (RANG-03): a station route out over the border that the part may request.\nThe station's interlocking sets it when the request is approved; until the part returns it\nthe route is the part's (envägsregeln).",
+        "properties": {
+          "id": {
+            "description": "Till exempel H3.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Som knappen säger det, till exempel H 3.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.PartSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Änden vägen går ut från."
+          },
+          "track": {
+            "description": "Stationens spår vägen leder till, till exempel 3.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "start": {
+            "description": "Vägens start, en signal i delens område.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Start",
+            "type": "string"
+          },
+          "end": {
+            "description": "Vägens mål på stationen.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "End",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "track",
+          "start",
+          "end"
+        ],
+        "title": "RouteOut",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.Source": {
+        "description": "Where an item in the model comes from (§2 \"source\", TKL41).",
+        "enum": [
+          "drawn",
+          "photo",
+          "signal_plan",
+          "anyrail",
+          "jmri",
+          "assumed",
+          "layout"
+        ],
+        "title": "Source",
+        "type": "string"
+      },
+      "trainmeet.tkl-1.dela-edit.StationPart": {
+        "additionalProperties": true,
+        "description": "Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against\nthe station's one interlocking, which locks every route.\n\nIts area is the same kind of area as local release's (TKL103): track circuits or pieces,\nthe switches the part lays freely and the signals in it. Its border is the border switches,\nwith their owner, and the signals at the border. The part may be its own driftplats in\nHubben (TKL101). Its switch streets and the routes out it may request belong to it.",
+        "properties": {
+          "id": {
+            "description": "Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Till exempel Rangerbangården.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "track_circuits": {
+            "description": "Området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Track Circuits",
+            "type": "array"
+          },
+          "pieces": {
+            "description": "Området, utan spårledningar.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Pieces",
+            "type": "array"
+          },
+          "switches": {
+            "description": "Delens egna växlar, som den lägger fritt.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Switches",
+            "type": "array"
+          },
+          "signals": {
+            "description": "Signalerna i området.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Signals",
+            "type": "array"
+          },
+          "border": {
+            "description": "Gränsväxlarna.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.BorderSwitch"
+            },
+            "title": "Border",
+            "type": "array"
+          },
+          "border_signals": {
+            "description": "Signalerna vid gränsen, där vägarna ut går över.",
+            "items": {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            "title": "Border Signals",
+            "type": "array"
+          },
+          "own_place": {
+            "default": false,
+            "description": "En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.",
+            "title": "Own Place",
+            "type": "boolean"
+          },
+          "place": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens id i Hubben, när delen är en egen driftplats.",
+            "title": "Place"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.",
+            "title": "Code"
+          },
+          "rules": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.PartRules"
+          },
+          "streets": {
+            "description": "Växelgatorna.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.SwitchStreet"
+            },
+            "title": "Streets",
+            "type": "array"
+          },
+          "routes_out": {
+            "description": "Vägarna ut över gränsen som delen får begära.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.RouteOut"
+            },
+            "title": "Routes Out",
+            "type": "array"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Note"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "StationPart",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.dela-edit.SwitchStreet": {
+        "additionalProperties": true,
+        "description": "Växelgata (RANG-02): the part's switches laid straight out to a track with one press,\nwithout a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked\nroute refuses the whole street.",
+        "properties": {
+          "id": {
+            "description": "Till exempel V51.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "description": "Som knappen säger det, till exempel V 51.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "side": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.PartSide"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Änden gatan hör till."
+          },
+          "track": {
+            "description": "Spåret gatan leder till, till exempel 51 eller Lastspår 1.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Track",
+            "type": "string"
+          },
+          "positions": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.dela-edit.Position"
+            },
+            "description": "Växlarna i gatan, med sina lägen.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Positions",
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "track",
+          "positions"
+        ],
+        "title": "SwitchStreet",
         "type": "object"
       },
       "trainmeet.tkl-1.manover": {

@@ -229,5 +229,11 @@
    "signals": []
   }
  ],
- "sides": []
+ "sides": [],
+ "parts": [
+  {
+   "id": "rangerbangarden",
+   "name": "Rangerbangården"
+  }
+ ]
 }

@@ -98,10 +98,11 @@ class Part:
         return self.rules.lays_towards_part and position == border.towards_part
 
 
-def resolve(plant: Plant) -> dict[str, Part]:
-    """The model's parts, by id: the first of two with the same id counts."""
+def resolve(plant: Plant, specs: Iterable[StationPart] | None = None) -> dict[str, Part]:
+    """The model's parts, by id: the first of two with the same id counts. specs: other parts
+    to resolve against the same plant, such as Studio's draft (#87 del b)."""
     found: dict[str, Part] = {}
-    for spec in plant.model.parts:
+    for spec in plant.model.parts if specs is None else specs:
         if spec.id in found:
             continue
         listed = set(spec.pieces)
@@ -160,7 +161,9 @@ def street_end(plant: Plant, positions: Mapping[str, Position]) -> str | None:
     """Where a switch street leads: from its first switch along the track with the street's
     positions, the station track it reaches first, by its id, else the stop point or buffer
     stop. Of the ways out of the first switch, the one that passes most of the street's
-    switches counts. None when no way out of the first switch fits the positions."""
+    switches counts, and of two that pass as many, the leg the first switch is laid to before
+    its trunk: a street of one switch leads where that switch points (#87 del b). None when no
+    way out of the first switch fits the positions."""
     graph = plant.graph
     if not positions:
         return None
@@ -169,7 +172,11 @@ def street_end(plant: Plant, positions: Mapping[str, Position]) -> str | None:
         return None
     track_of_piece = {p: t.id for t in plant.model.station_tracks for p in t.pieces}
     best: tuple[int, str] | None = None
-    for leg in (first.trunk, first.straight, first.diverging):
+    laid = positions.get(first.number)
+    legs = (first.straight, first.diverging)
+    if laid == Position.MINUS:
+        legs = (first.diverging, first.straight)
+    for leg in (*legs, first.trunk):
         if leg is None or leg not in graph.pieces:
             continue
         found = _walk(plant, first.node, leg, positions, track_of_piece)
@@ -232,6 +239,7 @@ def plan_trains(
     plant: Plant,
     here: station.Snapshot | None,
     own: station.Snapshot | None = None,
+    place: str | None = None,
 ) -> TklPartTrains:
     """The trains a part chooses among for Klart att skicka, the earliest first.
 
@@ -240,16 +248,20 @@ def plan_trains(
     (#87 del c, TRAFIK-35), else from the station's own snapshot, which TKL already gets: the
     calls coming from the part's driftplats, with their time at the station. Another part, and
     one whose driftplats Hubben does not know yet, has the station's trains that by the plan
-    stand on a track in its area (TKL110). Another number may always be typed."""
+    stand on a track in its area (TKL110). Another number may always be typed.
+
+    place: the part's driftplats in Hubben, found by its link when TKL connected (#87 del b);
+    else the one the model names."""
     found: list[TklPartTrain] = []
     spec = part.spec
+    place = place or spec.place
     if spec.own_place and own is not None:
         for call in own.calls:
             if call.to_place and call.departure_state == station.DepartureState.PLANNED:
                 found.append(_train(call, call.departure, call.track or call.planned_track))
-    elif spec.own_place and spec.place and here is not None:
+    elif spec.own_place and place and here is not None:
         for call in here.calls:
-            if call.from_place == spec.place and _waiting(call):
+            if call.from_place == place and _waiting(call):
                 found.append(_train(call, call.arrival or call.departure, None))
     else:
         tracks = _tracks_in(part, plant)
