@@ -5841,7 +5841,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -6734,9 +6737,65 @@
         "title": "OfferHere",
         "type": "object"
       },
+      "trainmeet.station-1.reply.PartAnswered": {
+        "additionalProperties": true,
+        "description": "An answer to a part's request from whoever controls the station (part.answer), until the\nstation has done it: it is no longer waiting, or route.state lists it in answered (FR50).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på svaret: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "by": {
+            "description": "Vem som svarade: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "part",
+          "request_id",
+          "approve",
+          "by"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -6744,7 +6803,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -6755,6 +6814,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -6777,9 +6881,55 @@
         "title": "PlaceMode",
         "type": "string"
       },
+      "trainmeet.station-1.reply.ReadyAsked": {
+        "additionalProperties": true,
+        "description": "A move in the list Klara att skicka, or Skickat, from whoever controls the station, until\nthe station has done it (FR51).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på ändringen: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget: Skickat.",
+            "title": "To"
+          },
+          "by": {
+            "description": "Vem som gjorde det: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "train_number",
+          "by"
+        ],
+        "title": "ReadyAsked",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -6825,6 +6975,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -6913,7 +7099,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -7047,6 +7235,22 @@
               "$ref": "#/components/schemas/trainmeet.station-1.reply.LocalRequestHere"
             },
             "title": "Local Requests",
+            "type": "array"
+          },
+          "part_answers": {
+            "description": "Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.PartAnswered"
+            },
+            "title": "Part Answers",
+            "type": "array"
+          },
+          "ready_asks": {
+            "description": "Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.ReadyAsked"
+            },
+            "title": "Ready Asks",
             "type": "array"
           }
         },
@@ -7271,6 +7475,14 @@
               "$ref": "#/components/schemas/trainmeet.station-1.reply.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -8921,7 +9133,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -9739,9 +9954,65 @@
         "title": "OfferHere",
         "type": "object"
       },
+      "trainmeet.tkl-1.view.PartAnswered": {
+        "additionalProperties": true,
+        "description": "An answer to a part's request from whoever controls the station (part.answer), until the\nstation has done it: it is no longer waiting, or route.state lists it in answered (FR50).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på svaret: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "by": {
+            "description": "Vem som svarade: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "part",
+          "request_id",
+          "approve",
+          "by"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
       "trainmeet.tkl-1.view.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -9749,7 +10020,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -9760,6 +10031,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -9782,9 +10098,55 @@
         "title": "PlaceMode",
         "type": "string"
       },
+      "trainmeet.tkl-1.view.ReadyAsked": {
+        "additionalProperties": true,
+        "description": "A move in the list Klara att skicka, or Skickat, from whoever controls the station, until\nthe station has done it (FR51).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på ändringen: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget: Skickat.",
+            "title": "To"
+          },
+          "by": {
+            "description": "Vem som gjorde det: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "train_number",
+          "by"
+        ],
+        "title": "ReadyAsked",
+        "type": "object"
+      },
       "trainmeet.tkl-1.view.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -9830,6 +10192,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -9918,7 +10316,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -10052,6 +10452,22 @@
               "$ref": "#/components/schemas/trainmeet.tkl-1.view.LocalRequestHere"
             },
             "title": "Local Requests",
+            "type": "array"
+          },
+          "part_answers": {
+            "description": "Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.view.PartAnswered"
+            },
+            "title": "Part Answers",
+            "type": "array"
+          },
+          "ready_asks": {
+            "description": "Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.view.ReadyAsked"
+            },
+            "title": "Ready Asks",
             "type": "array"
           }
         },
@@ -10232,6 +10648,14 @@
               "$ref": "#/components/schemas/trainmeet.tkl-1.view.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -10670,7 +11094,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -20031,7 +20458,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -24915,18 +25345,21 @@
           "ande",
           "gata",
           "begar",
-          "klart-tag"
+          "klart-tag",
+          "fjarrvag",
+          "erbjudande"
         ],
         "title": "DeckKeyType",
         "type": "string"
       },
       "trainmeet.tkl-1.deck-profile.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -24962,7 +25395,8 @@
           "hela",
           "utsnitt",
           "egen",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckPageKind",
         "type": "string"
@@ -25276,6 +25710,20 @@
             ],
             "default": null,
             "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+            "title": "Remote"
           },
           "text": {
             "default": "",
@@ -25905,12 +26353,13 @@
         "type": "string"
       },
       "trainmeet.tkl-1.deck-view.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -26000,6 +26449,8 @@
               "street",
               "request",
               "fika",
+              "remote",
+              "offer",
               "empty"
             ],
             "title": "Type",
@@ -26379,7 +26830,7 @@
               }
             ],
             "default": null,
-            "description": "Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+            "description": "Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.",
             "title": "Role"
           }
         },
@@ -26773,12 +27224,13 @@
         "type": "string"
       },
       "trainmeet.tkl-1.decks.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -26879,7 +27331,7 @@
       },
       "trainmeet.tkl-1.decks.TklDeckRole": {
         "additionalProperties": true,
-        "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård.",
+        "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck\nis made from the remote catalogues of the stations TKL controls.",
         "properties": {
           "part": {
             "anyOf": [
@@ -26892,7 +27344,7 @@
               }
             ],
             "default": null,
-            "description": "Delens id; inget för tågklareraren.",
+            "description": "Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.",
             "title": "Part"
           },
           "name": {
@@ -26900,6 +27352,12 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "remote": {
+            "default": false,
+            "description": "Fjärrtågklareraren (SD37).",
+            "title": "Remote",
+            "type": "boolean"
           }
         },
         "required": [
@@ -27038,7 +27496,7 @@
               }
             ],
             "default": null,
-            "description": "Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+            "description": "Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.",
             "title": "Role"
           }
         },
@@ -27237,18 +27695,21 @@
           "ande",
           "gata",
           "begar",
-          "klart-tag"
+          "klart-tag",
+          "fjarrvag",
+          "erbjudande"
         ],
         "title": "DeckKeyType",
         "type": "string"
       },
       "trainmeet.tkl-1.deck-deviations.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -27284,7 +27745,8 @@
           "hela",
           "utsnitt",
           "egen",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckPageKind",
         "type": "string"
@@ -27723,6 +28185,20 @@
             "default": null,
             "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
           },
+          "remote": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+            "title": "Remote"
+          },
           "text": {
             "default": "",
             "description": "Knappens text, när den är given.",
@@ -28033,18 +28509,21 @@
           "ande",
           "gata",
           "begar",
-          "klart-tag"
+          "klart-tag",
+          "fjarrvag",
+          "erbjudande"
         ],
         "title": "DeckKeyType",
         "type": "string"
       },
       "trainmeet.tkl-1.deck-studio.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -28080,7 +28559,8 @@
           "hela",
           "utsnitt",
           "egen",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckPageKind",
         "type": "string"
@@ -28460,6 +28940,8 @@
               "street",
               "request",
               "fika",
+              "remote",
+              "offer",
               "empty"
             ],
             "title": "Type",
@@ -28920,6 +29402,20 @@
             ],
             "default": null,
             "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+            "title": "Remote"
           },
           "text": {
             "default": "",
@@ -29452,7 +29948,7 @@
       },
       "trainmeet.tkl-1.deck-studio.TklDeckRole": {
         "additionalProperties": true,
-        "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård.",
+        "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck\nis made from the remote catalogues of the stations TKL controls.",
         "properties": {
           "part": {
             "anyOf": [
@@ -29465,7 +29961,7 @@
               }
             ],
             "default": null,
-            "description": "Delens id; inget för tågklareraren.",
+            "description": "Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.",
             "title": "Part"
           },
           "name": {
@@ -29473,6 +29969,12 @@
             "minLength": 1,
             "title": "Name",
             "type": "string"
+          },
+          "remote": {
+            "default": false,
+            "description": "Fjärrtågklareraren (SD37).",
+            "title": "Remote",
+            "type": "boolean"
           }
         },
         "required": [
@@ -30791,18 +31293,21 @@
           "ande",
           "gata",
           "begar",
-          "klart-tag"
+          "klart-tag",
+          "fjarrvag",
+          "erbjudande"
         ],
         "title": "DeckKeyType",
         "type": "string"
       },
       "trainmeet.tkl-1.deck-edit.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -30838,7 +31343,8 @@
           "hela",
           "utsnitt",
           "egen",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckPageKind",
         "type": "string"
@@ -31277,6 +31783,20 @@
             "default": null,
             "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
           },
+          "remote": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+            "title": "Remote"
+          },
           "text": {
             "default": "",
             "description": "Knappens text, när den är given.",
@@ -31496,18 +32016,21 @@
           "ande",
           "gata",
           "begar",
-          "klart-tag"
+          "klart-tag",
+          "fjarrvag",
+          "erbjudande"
         ],
         "title": "DeckKeyType",
         "type": "string"
       },
       "trainmeet.tkl-1.deck-suggest.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -31543,7 +32066,8 @@
           "hela",
           "utsnitt",
           "egen",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckPageKind",
         "type": "string"
@@ -31991,6 +32515,20 @@
             ],
             "default": null,
             "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+            "title": "Remote"
           },
           "text": {
             "default": "",
@@ -32472,12 +33010,13 @@
         "type": "string"
       },
       "trainmeet.tkl-1.deck-change.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -32586,12 +33125,13 @@
         "type": "string"
       },
       "trainmeet.tkl-1.deck-status.DeckMode": {
-        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+        "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
         "enum": [
           "tagen",
           "platser",
           "sparplan",
-          "bangard"
+          "bangard",
+          "fjarr"
         ],
         "title": "DeckMode",
         "type": "string"
@@ -32820,7 +33360,7 @@
               }
             ],
             "default": null,
-            "description": "Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+            "description": "Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.",
             "title": "Role"
           }
         },
@@ -33853,7 +34393,7 @@
       },
       "trainmeet.tkl-1.fjarr.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -33861,7 +34401,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -33872,6 +34412,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -33896,7 +34481,7 @@
       },
       "trainmeet.tkl-1.fjarr.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -33942,6 +34527,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -34030,7 +34651,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -34320,6 +34943,14 @@
               "$ref": "#/components/schemas/trainmeet.tkl-1.fjarr.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },

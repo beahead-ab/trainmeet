@@ -81,7 +81,10 @@ acts under its own path, and the interlocking checks the part's rights at the bo
     POST /api/tkl/1/stallverk/parts/{part}/ready       TklReadyAsk: klart att skicka (TKL108)
 
 The messages between a part and the station are handed to `forward`, the seam for a station
-that is remote-controlled through Hubben (TKL100, #36).
+that is remote-controlled through Hubben (TKL100, #36 del d): while it is, the station's
+route.state carries its parts' waiting requests and the list Klara att skicka up at once, and
+whoever controls it answers with part.answer, ready.move and ready.sent; the station's own box
+only shows them then.
 
 Fjärrstyrning, the station's side (#36 del b): Studio, Inställningar, Fjärrstyrning, and the
 station automats on the spot. TKL itself answers the routes asked for from afar, switches what
@@ -252,6 +255,7 @@ from contracts.station_model import StationModel, StationPart, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
+    DECK_REMOTE_ROLE,
     DeckConnection,
     DeckModelId,
     Panel,
@@ -268,7 +272,9 @@ from contracts.tkl import (
     TklDeckOpen,
     TklDeckPin,
     TklDeckPress,
+    TklDeckProfile,
     TklDeckProvaAsk,
+    TklDeckRole,
     TklDeckRoute,
     TklDecks,
     TklDeckSettings,
@@ -334,6 +340,7 @@ from tkl import VERSION, fjarr, hub_places, hub_reports, id_login, manover, prov
 from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
+from tkl.deck import remote as deck_remote
 from tkl.deck import render as deck_render
 from tkl.deck import service as deck_service
 from tkl.deck import studio as deck_studio
@@ -398,6 +405,8 @@ BUSY = (
 )
 WAIT_SECONDS = 25.0
 DECK_FRESH = 5.0
+REMOTE_DECK_FRESH = 1.0
+"""The fjärrtågklarerare's deck reads the fjärrbild's data at most this often (#36 del d)."""
 """The deck reads the place's snapshot from Hubben when the last one is older than this."""
 WAIT_STEP = 0.2
 LOCKED = "TKL är låst. PIN-koden låser upp."
@@ -1486,6 +1495,9 @@ def create_app(
         except HubError as error:
             refused(found, error)
         store.remember(found, reply.snapshot)
+        if given.action == station.Action.PLACE_TAKE_BACK:
+            # Taken back: the station's own panel lays again at once, not at the next look.
+            remote.soon(found)
         return reply.model_dump(mode="json")
 
     @routes.post("/places/{place}/exits")
@@ -1598,7 +1610,7 @@ def create_app(
         if outcome.accepted and "Nödutlösning" in outcome.message:
             LOGGER.warning("Ställverket: %s", outcome.message)
         if outcome.messages:
-            forward(found, list(outcome.messages))
+            forward(found, list(outcome.messages), state)
         return answered(outcome, state, reports)
 
     def note(found: str, lines: list[str]) -> TklInterlocking | None:
@@ -1980,15 +1992,17 @@ def create_app(
 
     # --- Delställverk (#87, TKL97–TKL103): the station's answers, and a part's own screen ------
 
-    def forward(found: str, messages: list[TklPartMessage]) -> None:
+    def forward(found: str, messages: list[TklPartMessage], state: TklInterlocking) -> None:
         """The five messages between a part and the station (TKL98), as the interlocking hands
         them on. Locally the station's interlocking is the whole exchange, and nothing more is
         sent. When the station is remote-controlled they go through Hubben to whoever
-        remote-controls it, who answers as the station would (TKL100, DRIFT-40): that waits for
-        #36, and is sent from here."""
+        remote-controls it, who answers as the station would (TKL100, DRIFT-40, #36 del d): the
+        parts' waiting requests and the list Klara att skicka are in the station's route.state,
+        which goes up at once rather than at the next look."""
         for message in messages:
             LOGGER.debug("Delställverk %s: %s", message.part, message.kind.value)
-        del found
+        if state.fjarr.controller is not None:
+            remote.soon(found)
 
     @routes.post("/stallverk/parts/reply")
     def part_reply(
@@ -2495,6 +2509,7 @@ def create_app(
         )
         drift = store.deck_drift(found)
         return (
+            remote_shown.get(found),
             store.interlocking_revision(found),
             heard,
             selection.revision,
@@ -2528,7 +2543,124 @@ def create_app(
             raise HTTPException(422, f"Delen {part} finns inte i stationsmodellen.")
         return part
 
-    def deck_view(found: str, serial: str, locked: bool, act: Act | None = None) -> Shown:
+    # --- Fjärr (#36 del d, SD37): the fjärrtågklarerare's deck, from the remote catalogues ----
+
+    RemoteAct = Callable[[deck_logic.Deck, deck_remote.RemoteWorld], None]
+    remote_pictures: dict[str, tuple[float, TklFjarr | None]] = {}
+    remote_shown: dict[str, str] = {}
+    """What the fjärrtågklarerare's deck shows of the picture, in short, for its revision."""
+
+    def remote_role(found: str, role: str | None) -> bool:
+        """The fjärrtågklarerare's deck: chosen for the deck, or every deck of a remote
+        interlocking, which has no station of its own (FR1)."""
+        return role == DECK_REMOTE_ROLE or roles.role(found) is not None
+
+    def deck_fjarr(found: str) -> TklFjarr | None:
+        """The fjärrbild's data for the deck, at most a second old: None without contact, never
+        an old picture (SD21)."""
+        kept = remote_pictures.get(found)
+        if kept is not None and time.monotonic() - kept[0] < REMOTE_DECK_FRESH:
+            return kept[1]
+        made = store.connection(found)
+        if made is not None and made.key is None:
+            made = follow(found, made)
+        seen: TklFjarr | None = None
+        if made is not None and made.key is not None:
+            home = None if roles.role(found) else hub_places.home_place(made)
+            try:
+                seen = fjarr.picture(hub(made), made, home)
+            except (Unreachable, HubError):
+                seen = None
+        remote_pictures[found] = (time.monotonic(), seen)
+        remote_shown[found] = deck_remote.shown_of(seen)
+        return seen
+
+    def remote_clock(seen: TklFjarr | None) -> str:
+        if seen is None or seen.overview is None or seen.heard is None:
+            return datetime.now().astimezone().strftime("%H:%M")
+        c = seen.overview.clock
+        passed = (datetime.now(UTC) - seen.heard).total_seconds() if c.running else 0.0
+        minutes = int((c.seconds + passed * c.speed) // 60)
+        return f"{(minutes // 60) % 24:02d}:{minutes % 60:02d}"
+
+    def remote_send(
+        found: str, place: str, action: station.Action, payload: dict[str, object]
+    ) -> deck_logic.Said:
+        """A station command from the deck, the same way as the fjärrbild's /fjarr/commands:
+        Hubben's answer is what counts (FR11, FR13)."""
+        seen = deck_fjarr(found)
+        made = store.connection(found)
+        if seen is None or seen.overview is None or made is None or made.key is None:
+            return deck_logic.Said(False, NO_CONTACT)
+        given = TklCommand(
+            message_id=f"tkl-fjarr-deck-{secrets.token_hex(8)}",
+            place=place,
+            context=seen.overview.context,
+            action=action,
+            payload=payload,
+        )
+        try:
+            reply = fjarr_command(found, made, given)
+        except HTTPException as error:
+            return deck_logic.Said(False, str(error.detail))
+        remote_pictures.pop(found, None)
+        accepted = reply.status != station.ReplyStatus.REJECTED
+        return deck_logic.Said(accepted, reply.message or ("Ja." if accepted else "Nej."))
+
+    class RemoteDeckHands:
+        def __init__(self, found: str) -> None:
+            self.found = found
+
+        def command(
+            self, place: str, action: station.Action, payload: dict[str, object]
+        ) -> deck_logic.Said:
+            return remote_send(self.found, place, action, payload)
+
+    def remote_deck_view(
+        found: str, serial: str, locked: bool, settings: TklDeckSettings, act: RemoteAct | None
+    ) -> Shown:
+        """The fjärrtågklarerare's deck now: its profile from the stations TKL controls."""
+        here = store.station_of(found)
+        remote = roles.role(found)
+
+        def world_now(is_locked: bool) -> deck_remote.RemoteWorld:
+            seen = None if is_locked else deck_fjarr(found)
+            name = remote.name if remote is not None else (here.name if here else "")
+            return deck_remote.RemoteWorld(
+                fjarr=seen, locked=is_locked, time=remote_clock(seen), name=name
+            )
+
+        def profile_of(seen: deck_remote.RemoteWorld) -> TklDeckProfile:
+            return deck_remote.build(
+                settings.grid, settings.model, deck_remote.stations(seen.fjarr)
+            )
+
+        world = world_now(locked)
+        with room.lock:
+            kept = room.decks.get((found, serial))
+            deck = room.deck(found, settings, profile_of(world), None, deck_remote.open_deck)
+            if kept is not None and kept is not deck:
+                deck_remote.carry(kept, deck)
+            if act is not None and not locked:
+                act(deck, world)
+                world = world_now(locked or store.station_locked(found))
+                # A station taken or given back changes the pages: the deck follows at once.
+                before = deck
+                deck = room.deck(found, settings, profile_of(world), None, deck_remote.open_deck)
+                if before is not deck:
+                    deck_remote.carry(before, deck)
+            room.revision(found, serial, deck_signature(found, serial, deck.settings.workplace))
+            shown = Shown(deck_render.stamp(deck_remote.view(deck, world), None), None)
+            room.keep(found, serial, shown)
+            return shown
+
+    def deck_view(
+        found: str,
+        serial: str,
+        locked: bool,
+        act: Act | None = None,
+        remote_act: RemoteAct | None = None,
+    ) -> Shown:
         settings = store.deck(found, serial)
         if settings is None:
             raise HTTPException(
@@ -2536,6 +2668,8 @@ def create_app(
             )
         room.heard(found, serial)
         role = settings.role
+        if remote_role(found, role):
+            return remote_deck_view(found, serial, locked, settings, remote_act)
         world, panel = deck_world(found, locked, role)
         # The owner's profile of the deck's size (SD40), the default when the owner changed none;
         # a part's deck has the shunter's, Bangård, and never the tågklarerare's modes (#87).
@@ -2571,7 +2705,10 @@ def create_app(
             and room.connection(found, serial) == DeckConnection.USB
         ):
             raise HTTPException(409, OWNED)
-        if given.role is not None:
+        if roles.role(found) is not None:
+            # A remote interlocking's decks are the fjärrtågklarerare's (#36 del d, SD37).
+            given = given.model_copy(update={"role": DECK_REMOTE_ROLE})
+        elif given.role is not None and given.role != DECK_REMOTE_ROLE:
             part_given(found, given.role)
         known = store.deck(found, serial)
         settings = deck_service.settings_for(known, serial, given)
@@ -2601,7 +2738,10 @@ def create_app(
         ) -> None:
             deck_logic.press(deck, chosen, world, hands, key, hold)
 
-        return deck_view(found, serial, locked, act)
+        def remote_act(deck: deck_logic.Deck, world: deck_remote.RemoteWorld) -> None:
+            deck_remote.press(deck, world, RemoteDeckHands(found), key, hold)
+
+        return deck_view(found, serial, locked, act, remote_act)
 
     def deck_turn(found: str, serial: str, locked: bool, ask: TklDeckDialAsk) -> Shown:
         hands = DeckHands(found)
@@ -2611,7 +2751,10 @@ def create_app(
         ) -> None:
             deck_logic.dial(deck, chosen, world, hands, ask.dial, ask.turn, ask.press)
 
-        return deck_view(found, serial, locked, act)
+        def remote_act(deck: deck_logic.Deck, world: deck_remote.RemoteWorld) -> None:
+            deck_remote.dial(deck, world, ask.turn)
+
+        return deck_view(found, serial, locked, act, remote_act)
 
     def deck_touched(found: str, serial: str, locked: bool, point: Literal[-1, 1]) -> Shown:
         def act(
@@ -2619,7 +2762,10 @@ def create_app(
         ) -> None:
             deck_logic.touch(deck, world, point)
 
-        return deck_view(found, serial, locked, act)
+        def remote_act(deck: deck_logic.Deck, world: deck_remote.RemoteWorld) -> None:
+            deck_remote.touch(deck, world, point)
+
+        return deck_view(found, serial, locked, act, remote_act)
 
     class UsbDesk:
         """The decks a local TKL owns over USB (SD50): the same deck service as the API's, for
@@ -2741,11 +2887,18 @@ def create_app(
         found = unlocked(slot, session)
         listed = [deck_status(found, settings) for settings in store.decks(found)]
         problem = usb.problem if usb is not None else None
-        model = store.station_model(found)
-        roles = deck_studio.roles_of(plant_of(model)) if model is not None else []
         return TklDecks(
-            usb=usb is not None, usb_problem=problem, decks=listed, roles=roles
+            usb=usb is not None, usb_problem=problem, decks=listed, roles=deck_roles(found)
         ).model_dump(mode="json")
+
+    def deck_roles(found: str) -> list[TklDeckRole]:
+        """The roles a deck can have here: the tågklarerare and the parts, and the
+        fjärrtågklarerare (#36 del d, SD37); a remote interlocking's decks have only that."""
+        remote = TklDeckRole(part=DECK_REMOTE_ROLE, name="Fjärrtågklareraren", remote=True)
+        if roles.role(found) is not None:
+            return [remote]
+        model = store.station_model(found)
+        return [*(deck_studio.roles_of(plant_of(model)) if model is not None else []), remote]
 
     @routes.post("/deck/{serial}")
     def deck_open(
@@ -2988,8 +3141,10 @@ def create_app(
             if cleared in given and not str(given[cleared]).strip():
                 given[cleared] = None
         if given.get("role") is not None:
-            # Rollen (#87 del d): a part of the station; empty is the tågklarerare.
-            given["role"] = part_given(found, str(given["role"]).strip())
+            # Rollen (#87 del d): a part of the station, or the fjärrtågklarerare (#36 del d);
+            # empty is the tågklarerare.
+            wanted = str(given["role"]).strip()
+            given["role"] = wanted if wanted == DECK_REMOTE_ROLE else part_given(found, wanted)
         made = settings.model_copy(update=given)
         made = TklDeckSettings.model_validate(made.model_dump())
         store.save_deck(found, made)
@@ -3783,7 +3938,11 @@ def create_app(
         same_site(request)
         no_store(response)
         found = unlocked(slot, session)
-        made = keyed(found)
+        return fjarr_command(found, keyed(found), given).model_dump(mode="json")
+
+    def fjarr_command(found: str, made: Connection, given: TklCommand) -> station.Reply:
+        """A station command at a station TKL controls or is offered, from the fjärrbild or the
+        fjärrtågklarerare's deck (#36 del d): the same path for both."""
         sent = station.Command(client_id=made.client_id, **given.model_dump())
         try:
             reply = hub(made).command(sent)
@@ -3792,7 +3951,7 @@ def create_app(
         except HubError as error:
             refused(found, error)
         store.remember(found, reply.snapshot)
-        return reply.model_dump(mode="json")
+        return reply
 
     app.include_router(routes)
 

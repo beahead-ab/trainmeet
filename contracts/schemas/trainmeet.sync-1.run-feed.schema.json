@@ -231,7 +231,11 @@
         "local_release.requested",
         "local_release.answered",
         "local_release.ended",
-        "automat.set"
+        "automat.set",
+        "part.requested",
+        "part.answered",
+        "ready.moved",
+        "ready.sent"
       ],
       "title": "EventKind",
       "type": "string"

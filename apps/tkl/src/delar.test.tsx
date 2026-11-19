@@ -83,6 +83,17 @@ const button = (found: ReactElement<Record<string, unknown>>[], label: string) =
 
 afterEach(() => vi.restoreAllMocks());
 
+describe("the box while the station is remote-controlled (#36 del d)", () => {
+  it("only shows, and says why: whoever controls the station answers and keeps the list", () => {
+    const remote = { ...state, fjarr: { controller: "Fjärr Väster", automats: [], magazine: [] } } as Interlocking;
+    const markup = renderToStaticMarkup(<PartBoxView state={remote} say={say} working={false} onWork={() => undefined} dragged={null} onDrag={() => undefined} />);
+    expect(markup).toContain("Stationen fjärrstyrs från Fjärr Väster. Den som fjärrstyr svarar på delarnas begäran");
+    const found = elements(PartBoxView({ state: remote, say, working: false, onWork: vi.fn(), dragged: null, onDrag: vi.fn() }));
+    for (const label of ["Godkänn", "Neka", "Tåg 3795 är skickat", "Flytta tåg 3811 uppåt"]) expect(button(found, label).props.disabled, label).toBe(true);
+    expect(button(found, "Svara").props.disabled).toBe(false);
+  });
+});
+
 describe("the box in Ställverket", () => {
   const box = (onWork = vi.fn(), onDrag = vi.fn()) => elements(PartBoxView({ state, say, working: false, onWork, dragged: null, onDrag }));
 

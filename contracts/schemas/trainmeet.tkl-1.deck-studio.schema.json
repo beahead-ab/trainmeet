@@ -103,18 +103,21 @@
         "ande",
         "gata",
         "begar",
-        "klart-tag"
+        "klart-tag",
+        "fjarrvag",
+        "erbjudande"
       ],
       "title": "DeckKeyType",
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
       "enum": [
         "tagen",
         "platser",
         "sparplan",
-        "bangard"
+        "bangard",
+        "fjarr"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -150,7 +153,8 @@
         "hela",
         "utsnitt",
         "egen",
-        "bangard"
+        "bangard",
+        "fjarr"
       ],
       "title": "DeckPageKind",
       "type": "string"
@@ -530,6 +534,8 @@
             "street",
             "request",
             "fika",
+            "remote",
+            "offer",
             "empty"
           ],
           "title": "Type",
@@ -990,6 +996,20 @@
           ],
           "default": null,
           "description": "Änden knappen alltid gäller; inget: den ände Ände har valt (STREET, REQUEST)."
+        },
+        "remote": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tågvägens id i stationens fjärrkatalog, med driftplatsen i place (REMOTE_ROUTE, #36 del d).",
+          "title": "Remote"
         },
         "text": {
           "default": "",
@@ -1522,7 +1542,7 @@
     },
     "TklDeckRole": {
       "additionalProperties": true,
-      "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård.",
+      "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck\nis made from the remote catalogues of the stations TKL controls.",
       "properties": {
         "part": {
           "anyOf": [
@@ -1535,7 +1555,7 @@
             }
           ],
           "default": null,
-          "description": "Delens id; inget för tågklareraren.",
+          "description": "Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.",
           "title": "Part"
         },
         "name": {
@@ -1543,6 +1563,12 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
+        },
+        "remote": {
+          "default": false,
+          "description": "Fjärrtågklareraren (SD37).",
+          "title": "Remote",
+          "type": "boolean"
         }
       },
       "required": [

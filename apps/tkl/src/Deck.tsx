@@ -12,9 +12,14 @@
 //
 // The shunter's deck (#87 del d): on a part's screen /del/<id> the panel opens the deck in the
 // part's role, the mode Bangård only. Tuta and Ring sound on the screen, and Fika draws a cup.
+//
+// The fjärrtågklarerare's deck (#36 del d, SD37): in the fjärrbild the panel opens the deck in
+// the role Fjärrtågklareraren, the mode Fjärr: a page per station TKL controls, a key per route in
+// its remote catalogue, the offers and Läge. A route blinks after the first press and is sent with
+// the second.
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type WheelEvent } from "react";
 import { api, type DeckFace, type DeckModel, type Decks, type DeckTile, type DeckView, type Panel } from "./api";
-import { facesOf, Holds, KEY, keyStyle, PLAN_COLOURS, readDeck, RELAY_DARK, RELAY_TRACK, saveDeck, serialFor, soundOf, textSize, type Stored } from "./deck";
+import { facesOf, Holds, KEY, keyStyle, PLAN_COLOURS, readDeck, RELAY_DARK, RELAY_TRACK, REMOTE_ROLE, saveDeck, serialFor, soundOf, textSize, type Stored } from "./deck";
 import { bridges, connect, fetchPixels, hasHid, NOT_HERE, OWNED, type Bridge, type BridgeApi, type HidDeck } from "./deckhid";
 import { tone } from "./ljud";
 import type { Drawing } from "./stallverk";
@@ -441,7 +446,7 @@ export function DeckPanel({ screen, plan, initial, role = null }: { screen: numb
     if (sound) tone(sound);
     send(() => api.deckPress(serial, key, hold));
   };
-  // A part's deck has no pedal (TKL122).
+  // A part's deck has no pedal (TKL122), and neither has the fjärrtågklarerare's.
   const offered = role ? models.filter((m) => m.id !== "pedal") : models;
   return (
     <section className="sd-panel" aria-label="Stream Deck">
@@ -459,7 +464,11 @@ export function DeckPanel({ screen, plan, initial, role = null }: { screen: numb
         </label>
         <span className="liten">
           Klick är ett tryck, håll nere {((view?.hold_ms ?? 600) / 1000).toLocaleString("sv-SE")} s för håll in.{" "}
-          {role ? "Ände byter ände, ett spår lägger växelgatan och en väg ut begärs av tågklareraren. Håll in tågknappen för nästa tåg." : "Läge byter läge; håll in Läge för alla sidor."}
+          {role === REMOTE_ROLE
+            ? "En tågväg blinkar efter första trycket och läggs med det andra. Håll in en lagd väg för att ta bort den. Erbjudande tar emot med ett tryck. Läge visar stationerna."
+            : role
+              ? "Ände byter ände, ett spår lägger växelgatan och en väg ut begärs av tågklareraren. Håll in tågknappen för nästa tåg."
+              : "Läge byter läge; håll in Läge för alla sidor."}
         </span>
       </div>
       {view ? (

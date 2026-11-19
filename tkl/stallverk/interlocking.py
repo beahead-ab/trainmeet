@@ -207,6 +207,8 @@ DISCONNECTED_HELD: Final = "LocoNet kopplades från: lägg vägen på nytt"
 STATION_BY: Final = "Tågklareraren"
 """Who the station is in the events (RANG-05): whoever runs its interlocking."""
 WAITING, APPROVED = TklPartRequestState.WAITING, TklPartRequestState.APPROVED
+READY_WORDS: Final = "flyttar tågen i Klara att skicka och trycker Skickat"
+"""What whoever remote-controls the station does with the list instead of the box (FR51)."""
 BY_CIRCUITS: Final = (
     "Med LocoNet följer tågnumret spårledningarna (STV-15): Kör, Ankommit och Avgått görs "
     "av tåget självt."
@@ -1686,15 +1688,41 @@ class Interlocking:
                     return self.plant.parts[part_id], asked
         return None
 
+    def box_refusal(self, what: str) -> Outcome | None:
+        """While the station is remote-controlled its own box only shows: whoever controls it
+        answers the parts and keeps the list Klara att skicka (FR50, FR51, TKL100)."""
+        controller = self.fjarr.controller
+        if controller is None:
+            return None
+        return Outcome(
+            False,
+            f"Stationen fjärrstyrs från {controller}. Den som fjärrstyr {what}; ta tillbaka "
+            "stationen för att göra det här.",
+        )
+
     def part_reply(self, request_id: int, approved: bool) -> Outcome:
         """Svar (TKL98): the station approves a request, and its interlocking sets the route,
         which is then the part's (RANG-09); or refuses it. A route that cannot be set now is a
         no to the station, and the request waits. While the station is remote-controlled the one
-        who controls it answers instead (FR50)."""
+        who controls it answers instead (FR50), through remote_reply."""
         if (stale := self._refuse_stale()) is not None:
             return stale
-        if (remote := self.remote_refusal()) is not None:
+        if (remote := self.box_refusal("svarar på delarnas begäran")) is not None:
             return remote
+        return self._reply(request_id, approved, STATION_BY)
+
+    def remote_reply(
+        self, request_id: int, approved: bool, by: str, reason: str | None = None
+    ) -> Outcome:
+        """Svar from whoever remote-controls the station (part.answer, FR50, TKL100): exactly as
+        the clearer's Godkänn or Neka in the box, written in the events with who answered."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        return self._reply(request_id, approved, by, reason)
+
+    def _reply(
+        self, request_id: int, approved: bool, by: str, reason: str | None = None
+    ) -> Outcome:
         found = self._request(request_id)
         if found is None:
             return Outcome(False, "Begäran finns inte längre.")
@@ -1705,9 +1733,10 @@ class Interlocking:
         state = self.parts[part.id]
         if not approved:
             state.requests.remove(asked)
-            text = f"{STATION_BY} nekade {_genitive(part.name)} begäran {asked.said}."
+            because = f": {reason.rstrip('.')}" if reason else ""
+            text = f"{by} nekade {_genitive(part.name)} begäran {asked.said}{because}."
             self._part_no(part, text)
-            self._log(text, STATION_BY)
+            self._log(text, by)
             message = self._message(
                 TklPartMessageKind.REPLY,
                 part,
@@ -1721,10 +1750,8 @@ class Interlocking:
         for chain in self.plant.candidates(RouteKind.SHUNTING, out.start, out.end):
             planned, why = self._plan(chain)
             if why is None:
-                intro = f"{STATION_BY} godkände {_genitive(part.name)} begäran {asked.said}. "
-                laid = self._lay(
-                    chain, planned, part=part.id, request=asked.id, by=STATION_BY, intro=intro
-                )
+                intro = f"{by} godkände {_genitive(part.name)} begäran {asked.said}. "
+                laid = self._lay(chain, planned, part=part.id, request=asked.id, by=by, intro=intro)
                 asked.state, asked.route, asked.answered = APPROVED, laid.route, self.now()
                 message = self._message(
                     TklPartMessageKind.REPLY,
@@ -1982,10 +2009,13 @@ class Interlocking:
         message = self._message(TklPartMessageKind.READY, part, text, number=number)
         return Outcome(True, text, None, (), (message,))
 
-    def ready_move(self, number: str, to: int) -> Outcome:
-        """Flytta i listan Klara att skicka: the station decides the order (TKL108)."""
+    def ready_move(self, number: str, to: int, by: str | None = None) -> Outcome:
+        """Flytta i listan Klara att skicka: the station decides the order (TKL108). While the
+        station is remote-controlled whoever controls it does, by: its name (FR51)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if by is None and (remote := self.box_refusal(READY_WORDS)) is not None:
+            return remote
         at = next((i for i, r in enumerate(self.ready) if r.number == number), None)
         if at is None:
             return Outcome(False, f"Tåg {number} är inte anmält klart att skicka.")
@@ -1994,19 +2024,24 @@ class Interlocking:
             return Outcome(True, f"Tåg {number} står redan där.")
         entry = self.ready.pop(at)
         self.ready.insert(to, entry.model_copy(update={"moved": True}))
-        return self._done(
-            f"Tåg {number} flyttat till plats {to + 1} av {len(self.ready)}.", log=False
-        )
+        said = f"Tåg {number} flyttat till plats {to + 1} av {len(self.ready)}."
+        if by is not None:
+            return self._done(f"{by}: {said[0].lower()}{said[1:]}", by=by)
+        return self._done(said, log=False)
 
-    def ready_sent(self, number: str) -> Outcome:
-        """Skickat: the train leaves the list Klara att skicka."""
+    def ready_sent(self, number: str, by: str | None = None) -> Outcome:
+        """Skickat: the train leaves the list Klara att skicka. While the station is
+        remote-controlled whoever controls it does it, by: its name (FR51)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        if by is None and (remote := self.box_refusal(READY_WORDS)) is not None:
+            return remote
         entry = next((r for r in self.ready if r.number == number), None)
         if entry is None:
             return Outcome(False, f"Tåg {number} är inte anmält klart att skicka.")
         self.ready.remove(entry)
-        return self._done(f"Tåg {number} från {entry.part_name} är skickat.", by=STATION_BY)
+        who = by or STATION_BY
+        return self._done(f"Tåg {number} från {entry.part_name} är skickat.", by=who)
 
     def part_targets(self, part_id: str, start: str) -> TklTargets:
         """The goals a part may set from a start inside its area, with whether each can be set

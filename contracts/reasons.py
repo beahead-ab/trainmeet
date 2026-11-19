@@ -109,6 +109,9 @@ class Reason(StrEnum):
     # The station automats and the local areas (#36 del b)
     UNKNOWN_AUTOMAT = "unknown_automat"
     LOCAL_AREA_NOT_GIVEN = "local_area_not_given"
+    # The parts when the station is remote-controlled (#36 del d)
+    PART_REQUEST_NOT_PENDING = "part_request_not_pending"
+    NOT_READY_TO_SEND = "not_ready_to_send"
 
 
 TEXT_SV: dict[Reason, str] = {
@@ -211,6 +214,8 @@ TEXT_SV: dict[Reason, str] = {
     Reason.ROUTE_REFUSED: "Stationens ställverk sa nej.",
     Reason.UNKNOWN_AUTOMAT: "Stationen har ingen automat eller lokal frigivning med den koden.",
     Reason.LOCAL_AREA_NOT_GIVEN: "Det lokala området är inte givet.",
+    Reason.PART_REQUEST_NOT_PENDING: "Delens begäran väntar inte längre på svar.",
+    Reason.NOT_READY_TO_SEND: "Tåget står inte i stationens lista Klara att skicka.",
 }
 
 

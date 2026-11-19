@@ -44,6 +44,7 @@ import {
   type Route,
 } from "./api";
 import { DeckKey as DeckKeyFace, hidApi } from "./Deck";
+import { REMOTE_ROLE } from "./deck";
 import { connect, hasHid, NOT_HERE, OWNED, type HidDeck } from "./deckhid";
 import { PanelView } from "./Sparplan";
 import {
@@ -731,7 +732,11 @@ function DeckSettingsView({ deck, decks, pages, busy, onChange, onForget }: Deck
           </select>
         </label>
       ) : null}
-      {s?.role ? <p className="liten">Decket öppnar i Bangård, rangerarens deck, och når bara delens lägen (#87).</p> : null}
+      {s?.role === REMOTE_ROLE ? (
+        <p className="liten">Decket öppnar i Fjärr, fjärrtågklarerarens deck: en sida per station TKL fjärrstyr, räknad ur stationernas fjärrkataloger. En tågväg blinkar tills trycket upprepas (SD37).</p>
+      ) : s?.role ? (
+        <p className="liten">Decket öppnar i Bangård, rangerarens deck, och når bara delens lägen (#87).</p>
+      ) : null}
       <label>
         Ljusstyrka
         <input type="range" aria-label="Ljusstyrka" min={0} max={100} step={5} value={s?.brightness ?? 70} disabled={busy} onChange={(e) => set({ brightness: Number(e.target.value) })} />

@@ -29,7 +29,9 @@ The automats (FR24–FR27):
 The state at the overview level (route_state, FR13): every catalogue route the interlocking holds
 set, with who laid it and the request it answered, also those laid on the spot; the automats that
 are on and who switched them; the local areas; and at level 3 the occupied station tracks. Routes
-stay until their train has gone, also when the station is taken back (FR15).
+stay until their train has gone, also when the station is taken back (FR15). While the station is
+remote-controlled, also its parts' waiting requests and the list Klara att skicka (#36 del d,
+DRIFT-40, FR50, FR51).
 
 Pure Python without I/O. No code here names a station (RS13).
 """
@@ -42,10 +44,18 @@ from typing import Final
 
 from contracts.common import Side
 from contracts.reasons import Reason
-from contracts.station import AutomatOn, LocalArea, LockedRoute, RouteBy, RouteState
+from contracts.station import (
+    AutomatOn,
+    LocalArea,
+    LockedRoute,
+    PartRequest,
+    ReadyToSend,
+    RouteBy,
+    RouteState,
+)
 from contracts.station_outside import AutomatKind, RemoteRoute, RouteDirection
 from contracts.tkl import TklAutomatOn, TklAutomatSpec, TklMagazined
-from tkl.stallverk.interlocking import Interlocking, Outcome
+from tkl.stallverk.interlocking import WAITING, Interlocking, Outcome
 from tkl.standard import RouteKind
 
 MAGAZINE_DELAY: Final = 5.0
@@ -350,12 +360,55 @@ def route_state(
             continue
         if it.on.get(spec.function):
             areas.append(LocalArea(code=spec.code, tracks=it.area_tracks(spec.function)))
+    requests, ready = forwarded(it)
     return RouteState(
         locked=locked,
         automats=[AutomatOn(code=a.code, by=a.by) for a in it.fjarr.automats],
         local_areas=areas,
         occupied=it.occupied_tracks() if it.level == 3 else [],
+        part_requests=requests,
+        ready_to_send=ready,
     )
+
+
+def forwarded(it: Interlocking) -> tuple[list[PartRequest], list[ReadyToSend]]:
+    """What the station forwards of its parts while it is remote-controlled (DRIFT-40, FR50,
+    FR51, TKL100): the requests that wait for an answer, the oldest first, and the list Klara att
+    skicka in the station's order. Nothing while the station is manned: the clearer answers in
+    its own box then."""
+    if it.fjarr.controller is None:
+        return [], []
+    requests = []
+    for part_id, state in it.parts.items():
+        part = it.plant.parts[part_id]
+        for asked in state.requests:
+            if asked.state != WAITING:
+                continue
+            requests.append(
+                (
+                    asked.asked,
+                    PartRequest(
+                        request_id=str(asked.id),
+                        part=part.id,
+                        part_name=part.name,
+                        said=asked.said,
+                        text=f"{part.name} begär {asked.said}.",
+                    ),
+                )
+            )
+    ready = [
+        ReadyToSend(
+            train_number=r.number,
+            call=r.call,
+            part=r.part,
+            part_name=r.part_name,
+            departure=r.departure,
+            track=r.track,
+            moved=r.moved,
+        )
+        for r in it.ready
+    ]
+    return [r for _, r in sorted(requests, key=lambda found: found[0])], ready
 
 
 def local_function(specs: Sequence[TklAutomatSpec], code: str) -> str | None:

@@ -210,3 +210,13 @@
   font-size: 96px;
   line-height: 1;
 }
+
+/* #36 del d: while the station is remote-controlled the box only shows, and says why. */
+.del-ruta.fjarrstyrd {
+  border-color: #64748b;
+}
+.del-rad.fjarr {
+  color: #cbd5e1;
+  font-size: 12px;
+  margin: 0 0 6px;
+}

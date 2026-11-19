@@ -23,6 +23,14 @@ interlocking answers with `route.response`, and reports the state at the overvie
 `route.state`, whole each time it changes. The remote picture draws only what the station reports
 (FR13). The safety stays in the station; the inside never leaves it.
 
+The parts when the station is remote-controlled (#36 del d, DRIFT-40, FR50, FR51, TKL100): a
+station with parts forwards its parts' waiting requests and its list of trains ready to send in
+route.state. Whoever controls it answers a request with `part.answer`, and moves a train in the
+list or marks it sent with `ready.move` and `ready.sent`. Hubben checks who sends and that the
+request or the train is in the station's route.state, never decides, and keeps the answer in
+`RemoteHere.part_answers` and `.ready_asks` until the station's route.state says it is done. The
+station's own interlocking does it as the clearer's Godkänn, Neka, move and Skickat.
+
 The station automats and the local area (#36 del b): whoever controls the station switches its
 automats from afar with `automat.set` (FR25); the people on a remote-controlled station ask for a
 local area with `local_release.request`, the controller gives or refuses it with
@@ -208,7 +216,8 @@ class ConnectReply(Contract):
 class Action(StrEnum):
     # DRIFT-40: when a station with parts (delställverk, TKL97) is remote-controlled, the parts'
     # requests and the list of trains ready to send travel in route.state (TKL100, TKL108); the
-    # station forwards them (#36 del b).
+    # station forwards them, and whoever controls it answers with part.answer, ready.move and
+    # ready.sent, which Hubben keeps in RemoteHere until the station has done them (#36 del d).
     TRAIN_LOOKUP = "train.lookup"
     TRAIN_TRACK_CHANGE = "train.track.change"
     TRAIN_DEPARTED = "train.departed"
@@ -237,6 +246,10 @@ class Action(StrEnum):
     LOCAL_RELEASE_REQUEST = "local_release.request"  # stationen ber om ett lokalt område
     LOCAL_RELEASE_RESPONSE = "local_release.response"  # den som fjärrstyr ger eller nekar det
     LOCAL_RELEASE_END = "local_release.end"  # endera lämnar tillbaka eller tar tillbaka det
+    # Delarna när stationen fjärrstyrs (#36 del d, DRIFT-40, FR50, FR51, TKL100)
+    PART_ANSWER = "part.answer"  # den som fjärrstyr godkänner eller nekar en dels begäran
+    READY_MOVE = "ready.move"  # den som fjärrstyr flyttar ett tåg i listan Klara att skicka
+    READY_SENT = "ready.sent"  # den som fjärrstyr: Skickat, tåget lämnar listan
 
 
 class RevisionScope(StrEnum):
@@ -449,20 +462,36 @@ class LocalArea(Contract):
 
 class PartRequest(Contract):
     """DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the
-    clearer, when a station with parts is remote-controlled. The station forwards it."""
+    clearer, when a station with parts is remote-controlled. The station forwards it, waiting,
+    until it is answered with part.answer (#36 del d)."""
 
     request_id: Id
-    part: Id = Field(description="Delens id i utsidan.")
+    part: Id = Field(description="Delens id i stationen, som i utsidan när delen är en egen plats.")
     text: Text = Field(description="Vad delen begär, som stationen skriver det.")
+    # #36 del d: the part's name and the route as the box says them, and what came of an answer.
+    part_name: Text | None = Field(default=None, description="Delens namn, som rutan säger det.")
+    said: Text | None = Field(
+        default=None, description="Vägen som rutan säger den, till exempel 52 → 3."
+    )
+    note: Text | None = Field(
+        default=None,
+        description="Varför ett godkännande inte gick att göra än, i ställverkets egna ord: "
+        "begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+    )
 
 
 class ReadyToSend(Contract):
-    """FR51: a train ready to send, as the clearer's list shows it, in the plan's order."""
+    """FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before
+    the first with a later planned departure, and where the controller or the clearer moved it."""
 
     train_number: Text
     call: Id | None = None
     part: Id | None = None
     departure: TimeOfDay | None = None
+    # #36 del d: as the clearer's list shows it.
+    part_name: Text | None = Field(default=None, description="Delen som anmälde tåget.")
+    track: Text | None = Field(default=None, description="Spåret tåget står på.")
+    moved: bool = Field(default=False, description="Flyttat i listan, inte i planens ordning.")
 
 
 class RouteState(Contract):
@@ -485,6 +514,11 @@ class RouteState(Contract):
     ready_to_send: list[ReadyToSend] = Field(
         default_factory=list,
         description="Tåg som är klara att skicka, i avgångstidens ordning (FR51).",
+    )
+    answered: list[int] = Field(
+        default_factory=list,
+        description="Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer "
+        "ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
     )
 
 
@@ -525,6 +559,37 @@ class LocalReleaseEnd(Contract):
     code: Text = Field(max_length=12)
 
 
+# --- Delarna när stationen fjärrstyrs (#36 del d, DRIFT-40, FR50, FR51) -------------------------
+
+
+class PartAnswer(Contract):
+    """part.answer (FR50, TKL100): whoever controls the station approves or refuses a part's
+    request from route.state's part_requests, as the clearer's Godkänn or Neka in the box. Hubben
+    checks who answers and that the request is waiting, and keeps the answer in RemoteHere; the
+    station's own interlocking does it, as for the clearer, and says so in route.state."""
+
+    part: Id
+    request_id: Id
+    approve: bool
+    reason: Text | None = Field(
+        default=None, max_length=200, description="Varför, vid ett nej; delen läser det."
+    )
+
+
+class ReadyMove(Contract):
+    """ready.move (FR51): whoever controls the station moves a train in the list Klara att
+    skicka, to its new place counted from 0, as the clearer does."""
+
+    train_number: Text
+    to: int = Field(ge=0)
+
+
+class ReadySent(Contract):
+    """ready.sent (FR51): Skickat, and the train leaves the list Klara att skicka."""
+
+    train_number: Text
+
+
 PAYLOADS: dict[Action, type[Contract]] = {
     Action.TRAIN_LOOKUP: TrainLookup,
     Action.TRAIN_TRACK_CHANGE: TrackChange,
@@ -552,6 +617,9 @@ PAYLOADS: dict[Action, type[Contract]] = {
     Action.LOCAL_RELEASE_REQUEST: LocalReleaseRequest,
     Action.LOCAL_RELEASE_RESPONSE: LocalReleaseResponse,
     Action.LOCAL_RELEASE_END: LocalReleaseEnd,
+    Action.PART_ANSWER: PartAnswer,
+    Action.READY_MOVE: ReadyMove,
+    Action.READY_SENT: ReadySent,
 }
 
 
@@ -825,6 +893,28 @@ class LocalRequestHere(Contract):
     asked_at: TimeOfDay
 
 
+class PartAnswered(Contract):
+    """An answer to a part's request from whoever controls the station (part.answer), until the
+    station has done it: it is no longer waiting, or route.state lists it in answered (FR50)."""
+
+    seq: int = Field(ge=1, description="Hubbens nummer på svaret: drifthändelsen.")
+    part: Id
+    request_id: Id
+    approve: bool
+    reason: Text | None = None
+    by: Text = Field(description="Vem som svarade: den som fjärrstyr, med sitt namn.")
+
+
+class ReadyAsked(Contract):
+    """A move in the list Klara att skicka, or Skickat, from whoever controls the station, until
+    the station has done it (FR51)."""
+
+    seq: int = Field(ge=1, description="Hubbens nummer på ändringen: drifthändelsen.")
+    train_number: Text
+    to: int | None = Field(default=None, ge=0, description="Den nya platsen; inget: Skickat.")
+    by: Text = Field(description="Vem som gjorde det: den som fjärrstyr, med sitt namn.")
+
+
 class RemoteHere(Contract):
     """Fjärrstyrningen vid platsen: who controls it, the offer out, whom it can be handed to,
     the routes asked for and the station's last route.state, which Hubben keeps (FR15)."""
@@ -858,6 +948,17 @@ class RemoteHere(Contract):
     )
     local_requests: list[LocalRequestHere] = Field(
         default_factory=list, description="Lokala områden stationen har bett om, utan svar än."
+    )
+    # #36 del d: the parts' requests answered and the ready list changed from afar.
+    part_answers: list[PartAnswered] = Field(
+        default_factory=list,
+        description="Svaren på delarnas begäran från den som fjärrstyr, tills stationen har "
+        "gjort dem (FR50).",
+    )
+    ready_asks: list[ReadyAsked] = Field(
+        default_factory=list,
+        description="Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, "
+        "tills stationen har gjort det (FR51).",
     )
 
 

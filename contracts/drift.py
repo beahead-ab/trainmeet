@@ -541,6 +541,12 @@ class EventKind(StrEnum):
     LOCAL_RELEASE_ANSWERED = "local_release.answered"
     LOCAL_RELEASE_ENDED = "local_release.ended"
     AUTOMAT_SET = "automat.set"
+    # The parts when the station is remote-controlled (#36 del d, FR37, FR50, FR51): a part's
+    # request forwarded by the station, the controller's answer, and the ready list changed.
+    PART_REQUESTED = "part.requested"
+    PART_ANSWERED = "part.answered"
+    READY_MOVED = "ready.moved"
+    READY_SENT = "ready.sent"
 
 
 class ActorKind(StrEnum):
@@ -1134,6 +1140,34 @@ class AutomatSet(Contract):
     asked: bool = Field(default=False, description="Med automat.set, inte ur stationens läge.")
 
 
+class PartRequested(Contract):
+    """A part's request the station forwarded in route.state, while it is remote-controlled
+    (FR50). For Logg; the request itself is in the station's route.state."""
+
+    part: Id
+    request_id: Id
+    text: Text
+
+
+class PartAnswered(Contract):
+    """Whoever controls the station approved or refused a part's request (part.answer, FR50).
+    Kept for the station until its route.state shows it done."""
+
+    part: Id
+    request_id: Id
+    approve: bool
+    reason: Text | None = None
+
+
+class ReadyChanged(Contract):
+    """Whoever controls the station moved a train in the list Klara att skicka, or marked it
+    Skickat (ready.move, ready.sent, FR51). Kept for the station until its route.state shows it
+    done."""
+
+    train_number: Text
+    to: int | None = Field(default=None, ge=0, description="Den nya platsen; inget vid Skickat.")
+
+
 class AutomationTrain(Contract):
     call: Id
     train: Text
@@ -1210,6 +1244,10 @@ EVENT_PAYLOADS: dict[EventKind, type[Contract]] = {
     EventKind.LOCAL_RELEASE_ANSWERED: LocalReleaseSet,
     EventKind.LOCAL_RELEASE_ENDED: LocalReleaseSet,
     EventKind.AUTOMAT_SET: AutomatSet,
+    EventKind.PART_REQUESTED: PartRequested,
+    EventKind.PART_ANSWERED: PartAnswered,
+    EventKind.READY_MOVED: ReadyChanged,
+    EventKind.READY_SENT: ReadyChanged,
 }
 
 
@@ -1237,6 +1275,10 @@ _ON_A_PLACE: Final = frozenset(
         EventKind.LOCAL_RELEASE_ANSWERED,
         EventKind.LOCAL_RELEASE_ENDED,
         EventKind.AUTOMAT_SET,
+        EventKind.PART_REQUESTED,
+        EventKind.PART_ANSWERED,
+        EventKind.READY_MOVED,
+        EventKind.READY_SENT,
     }
 )
 

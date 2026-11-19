@@ -14,12 +14,13 @@
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
       "enum": [
         "tagen",
         "platser",
         "sparplan",
-        "bangard"
+        "bangard",
+        "fjarr"
       ],
       "title": "DeckMode",
       "type": "string"

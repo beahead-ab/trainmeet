@@ -8041,6 +8041,51 @@
               "action",
               "payload"
             ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "part.answer",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.PartAnswer"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "ready.move",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ReadyMove"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "ready.sent",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.ReadySent"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
           }
         ]
       },
@@ -8071,7 +8116,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -8599,7 +8647,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -8750,7 +8800,7 @@
       },
       "trainmeet.station-1.command.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -8758,7 +8808,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -8769,6 +8819,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -8781,7 +8876,7 @@
       },
       "trainmeet.station-1.command.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -8827,6 +8922,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -8893,6 +9024,14 @@
               "$ref": "#/components/schemas/trainmeet.station-1.command.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -8983,6 +9122,88 @@
           "code"
         ],
         "title": "LocalReleaseEnd",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.PartAnswer": {
+        "additionalProperties": true,
+        "description": "part.answer (FR50, TKL100): whoever controls the station approves or refuses a part's\nrequest from route.state's part_requests, as the clearer's Godkänn or Neka in the box. Hubben\nchecks who answers and that the request is waiting, and keeps the answer in RemoteHere; the\nstation's own interlocking does it, as for the clearer, and says so in route.state.",
+        "properties": {
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför, vid ett nej; delen läser det.",
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "part",
+          "request_id",
+          "approve"
+        ],
+        "title": "PartAnswer",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ReadyMove": {
+        "additionalProperties": true,
+        "description": "ready.move (FR51): whoever controls the station moves a train in the list Klara att\nskicka, to its new place counted from 0, as the clearer does.",
+        "properties": {
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "minimum": 0,
+            "title": "To",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "train_number",
+          "to"
+        ],
+        "title": "ReadyMove",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.ReadySent": {
+        "additionalProperties": true,
+        "description": "ready.sent (FR51): Skickat, and the train leaves the list Klara att skicka.",
+        "properties": {
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          }
+        },
+        "required": [
+          "train_number"
+        ],
+        "title": "ReadySent",
         "type": "object"
       },
       "trainmeet.station-1.reply": {
@@ -9122,7 +9343,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -10015,9 +10239,65 @@
         "title": "OfferHere",
         "type": "object"
       },
+      "trainmeet.station-1.reply.PartAnswered": {
+        "additionalProperties": true,
+        "description": "An answer to a part's request from whoever controls the station (part.answer), until the\nstation has done it: it is no longer waiting, or route.state lists it in answered (FR50).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på svaret: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "by": {
+            "description": "Vem som svarade: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "part",
+          "request_id",
+          "approve",
+          "by"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -10025,7 +10305,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -10036,6 +10316,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -10058,9 +10383,55 @@
         "title": "PlaceMode",
         "type": "string"
       },
+      "trainmeet.station-1.reply.ReadyAsked": {
+        "additionalProperties": true,
+        "description": "A move in the list Klara att skicka, or Skickat, from whoever controls the station, until\nthe station has done it (FR51).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på ändringen: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget: Skickat.",
+            "title": "To"
+          },
+          "by": {
+            "description": "Vem som gjorde det: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "train_number",
+          "by"
+        ],
+        "title": "ReadyAsked",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -10106,6 +10477,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -10194,7 +10601,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -10328,6 +10737,22 @@
               "$ref": "#/components/schemas/trainmeet.station-1.reply.LocalRequestHere"
             },
             "title": "Local Requests",
+            "type": "array"
+          },
+          "part_answers": {
+            "description": "Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.PartAnswered"
+            },
+            "title": "Part Answers",
+            "type": "array"
+          },
+          "ready_asks": {
+            "description": "Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.ReadyAsked"
+            },
+            "title": "Ready Asks",
             "type": "array"
           }
         },
@@ -10552,6 +10977,14 @@
               "$ref": "#/components/schemas/trainmeet.station-1.reply.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -11087,7 +11520,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -11905,9 +12341,65 @@
         "title": "OfferHere",
         "type": "object"
       },
+      "trainmeet.station-1.snapshot.PartAnswered": {
+        "additionalProperties": true,
+        "description": "An answer to a part's request from whoever controls the station (part.answer), until the\nstation has done it: it is no longer waiting, or route.state lists it in answered (FR50).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på svaret: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "by": {
+            "description": "Vem som svarade: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "part",
+          "request_id",
+          "approve",
+          "by"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
       "trainmeet.station-1.snapshot.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -11915,7 +12407,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -11926,6 +12418,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -11948,9 +12485,55 @@
         "title": "PlaceMode",
         "type": "string"
       },
+      "trainmeet.station-1.snapshot.ReadyAsked": {
+        "additionalProperties": true,
+        "description": "A move in the list Klara att skicka, or Skickat, from whoever controls the station, until\nthe station has done it (FR51).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på ändringen: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget: Skickat.",
+            "title": "To"
+          },
+          "by": {
+            "description": "Vem som gjorde det: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "train_number",
+          "by"
+        ],
+        "title": "ReadyAsked",
+        "type": "object"
+      },
       "trainmeet.station-1.snapshot.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -11996,6 +12579,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -12084,7 +12703,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -12218,6 +12839,22 @@
               "$ref": "#/components/schemas/trainmeet.station-1.snapshot.LocalRequestHere"
             },
             "title": "Local Requests",
+            "type": "array"
+          },
+          "part_answers": {
+            "description": "Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.PartAnswered"
+            },
+            "title": "Part Answers",
+            "type": "array"
+          },
+          "ready_asks": {
+            "description": "Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.ReadyAsked"
+            },
+            "title": "Ready Asks",
             "type": "array"
           }
         },
@@ -12398,6 +13035,14 @@
               "$ref": "#/components/schemas/trainmeet.station-1.snapshot.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -13696,7 +14341,7 @@
       },
       "trainmeet.station-1.overview.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -13704,7 +14349,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -13715,6 +14360,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -13739,7 +14429,7 @@
       },
       "trainmeet.station-1.overview.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -13785,6 +14475,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -13873,7 +14599,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -14163,6 +14891,14 @@
               "$ref": "#/components/schemas/trainmeet.station-1.overview.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -18673,6 +19409,66 @@
           {
             "properties": {
               "kind": {
+                "const": "part.requested",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PartRequested"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "part.answered",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.PartAnswered"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "ready.moved",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ReadyChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
+                "const": "ready.sent",
+                "type": "string"
+              },
+              "data": {
+                "$ref": "#/components/schemas/trainmeet.drift-1.event.ReadyChanged"
+              }
+            },
+            "required": [
+              "kind",
+              "data"
+            ]
+          },
+          {
+            "properties": {
+              "kind": {
                 "not": {
                   "enum": [
                     "meet.started",
@@ -18733,7 +19529,11 @@
                     "local_release.requested",
                     "local_release.answered",
                     "local_release.ended",
-                    "automat.set"
+                    "automat.set",
+                    "part.requested",
+                    "part.answered",
+                    "ready.moved",
+                    "ready.sent"
                   ]
                 }
               }
@@ -18864,7 +19664,11 @@
           "local_release.requested",
           "local_release.answered",
           "local_release.ended",
-          "automat.set"
+          "automat.set",
+          "part.requested",
+          "part.answered",
+          "ready.moved",
+          "ready.sent"
         ],
         "title": "EventKind",
         "type": "string"
@@ -21233,7 +22037,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -21449,7 +22255,7 @@
       },
       "trainmeet.drift-1.event.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -21457,7 +22263,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -21468,6 +22274,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -21480,7 +22331,7 @@
       },
       "trainmeet.drift-1.event.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -21526,6 +22377,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -21582,6 +22469,14 @@
               "$ref": "#/components/schemas/trainmeet.drift-1.event.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },
@@ -21675,6 +22570,107 @@
           "on"
         ],
         "title": "AutomatSet",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.PartRequested": {
+        "additionalProperties": true,
+        "description": "A part's request the station forwarded in route.state, while it is remote-controlled\n(FR50). For Logg; the request itself is in the station's route.state.",
+        "properties": {
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "part",
+          "request_id",
+          "text"
+        ],
+        "title": "PartRequested",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.PartAnswered": {
+        "additionalProperties": true,
+        "description": "Whoever controls the station approved or refused a part's request (part.answer, FR50).\nKept for the station until its route.state shows it done.",
+        "properties": {
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          }
+        },
+        "required": [
+          "part",
+          "request_id",
+          "approve"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
+      "trainmeet.drift-1.event.ReadyChanged": {
+        "additionalProperties": true,
+        "description": "Whoever controls the station moved a train in the list Klara att skicka, or marked it\nSkickat (ready.move, ready.sent, FR51). Kept for the station until its route.state shows it\ndone.",
+        "properties": {
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget vid Skickat.",
+            "title": "To"
+          }
+        },
+        "required": [
+          "train_number"
+        ],
+        "title": "ReadyChanged",
         "type": "object"
       },
       "trainmeet.drift-1.now": {
@@ -24703,7 +25699,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -43215,7 +44213,11 @@
           "local_release.requested",
           "local_release.answered",
           "local_release.ended",
-          "automat.set"
+          "automat.set",
+          "part.requested",
+          "part.answered",
+          "ready.moved",
+          "ready.sent"
         ],
         "title": "EventKind",
         "type": "string"
@@ -43516,7 +44518,11 @@
           "local_release.requested",
           "local_release.answered",
           "local_release.ended",
-          "automat.set"
+          "automat.set",
+          "part.requested",
+          "part.answered",
+          "ready.moved",
+          "ready.sent"
         ],
         "title": "EventKind",
         "type": "string"
@@ -47658,7 +48664,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -48672,7 +49681,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -49913,7 +50925,10 @@
           "automat.set",
           "local_release.request",
           "local_release.response",
-          "local_release.end"
+          "local_release.end",
+          "part.answer",
+          "ready.move",
+          "ready.sent"
         ],
         "title": "Action",
         "type": "string"
@@ -51440,9 +52455,65 @@
         "title": "OverviewTrack",
         "type": "object"
       },
+      "trainmeet.sync-1.relay-answer.PartAnswered": {
+        "additionalProperties": true,
+        "description": "An answer to a part's request from whoever controls the station (part.answer), until the\nstation has done it: it is no longer waiting, or route.state lists it in answered (FR50).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på svaret: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "part": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Part",
+            "type": "string"
+          },
+          "request_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Request Id",
+            "type": "string"
+          },
+          "approve": {
+            "title": "Approve",
+            "type": "boolean"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Reason"
+          },
+          "by": {
+            "description": "Vem som svarade: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "part",
+          "request_id",
+          "approve",
+          "by"
+        ],
+        "title": "PartAnswered",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-answer.PartRequest": {
         "additionalProperties": true,
-        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+        "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -51450,7 +52521,7 @@
             "type": "string"
           },
           "part": {
-            "description": "Delens id i utsidan.",
+            "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
             "title": "Part",
             "type": "string"
@@ -51461,6 +52532,51 @@
             "minLength": 1,
             "title": "Text",
             "type": "string"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delens namn, som rutan säger det.",
+            "title": "Part Name"
+          },
+          "said": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+            "title": "Said"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+            "title": "Note"
           }
         },
         "required": [
@@ -51483,9 +52599,55 @@
         "title": "PlaceMode",
         "type": "string"
       },
+      "trainmeet.sync-1.relay-answer.ReadyAsked": {
+        "additionalProperties": true,
+        "description": "A move in the list Klara att skicka, or Skickat, from whoever controls the station, until\nthe station has done it (FR51).",
+        "properties": {
+          "seq": {
+            "description": "Hubbens nummer på ändringen: drifthändelsen.",
+            "minimum": 1,
+            "title": "Seq",
+            "type": "integer"
+          },
+          "train_number": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Train Number",
+            "type": "string"
+          },
+          "to": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Den nya platsen; inget: Skickat.",
+            "title": "To"
+          },
+          "by": {
+            "description": "Vem som gjorde det: den som fjärrstyr, med sitt namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "By",
+            "type": "string"
+          }
+        },
+        "required": [
+          "seq",
+          "train_number",
+          "by"
+        ],
+        "title": "ReadyAsked",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-answer.ReadyToSend": {
         "additionalProperties": true,
-        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+        "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
         "properties": {
           "train_number": {
             "maxLength": 500,
@@ -51531,6 +52693,42 @@
             ],
             "default": null,
             "title": "Departure"
+          },
+          "part_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Delen som anmälde tåget.",
+            "title": "Part Name"
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spåret tåget står på.",
+            "title": "Track"
+          },
+          "moved": {
+            "default": false,
+            "description": "Flyttat i listan, inte i planens ordning.",
+            "title": "Moved",
+            "type": "boolean"
           }
         },
         "required": [
@@ -51619,7 +52817,9 @@
           "area_released",
           "route_refused",
           "unknown_automat",
-          "local_area_not_given"
+          "local_area_not_given",
+          "part_request_not_pending",
+          "not_ready_to_send"
         ],
         "title": "Reason",
         "type": "string"
@@ -51762,6 +52962,22 @@
               "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.LocalRequestHere"
             },
             "title": "Local Requests",
+            "type": "array"
+          },
+          "part_answers": {
+            "description": "Svaren på delarnas begäran från den som fjärrstyr, tills stationen har gjort dem (FR50).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.PartAnswered"
+            },
+            "title": "Part Answers",
+            "type": "array"
+          },
+          "ready_asks": {
+            "description": "Den som fjärrstyr har flyttat ett tåg i Klara att skicka eller skickat det, tills stationen har gjort det (FR51).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ReadyAsked"
+            },
+            "title": "Ready Asks",
             "type": "array"
           }
         },
@@ -52128,6 +53344,14 @@
               "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.ReadyToSend"
             },
             "title": "Ready To Send",
+            "type": "array"
+          },
+          "answered": {
+            "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Answered",
             "type": "array"
           }
         },

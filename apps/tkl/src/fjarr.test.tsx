@@ -10,9 +10,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { Snapshot } from "./api";
 import { remoteTab } from "./App";
 import { placesIn, readFjarrScreen } from "./Fjarr";
-import { arrowOf, choose, COLOURS, drawPicture, fjarrHappenings, lineOrder, modeOf, reasonText, routeLabel, routesFrom, sentState, SKIN, timeLeft, type Choice } from "./fjarr";
+import { arrowOf, choose, COLOURS, drawPicture, fjarrHappenings, lineOrder, modeOf, partAsks, readyLists, readyStep, reasonText, routeLabel, routesFrom, sentState, SKIN, timeLeft, type Choice } from "./fjarr";
 import type { Fjarr, OverviewPlace, RemoteRouteHere } from "./fjarrapi";
-import { FjarrbildView, Lagda, Vantar } from "./Fjarrbild";
+import { FjarrbildView, KlaraAttSkicka, Lagda, Vantar } from "./Fjarrbild";
 import { STANDARD } from "./skal";
 
 const ME = "remote-1";
@@ -401,5 +401,68 @@ describe("the remote role and the station's own TKL", () => {
     expect(readFjarrScreen(1, { getItem: () => "bild" })).toBe("bild");
     expect(readFjarrScreen(2, { getItem: () => null })).toBe("allt");
     expect(readFjarrScreen(3, null)).toBe("allt");
+  });
+});
+
+// --- The parts of a remote-controlled station (#36 del d, FR50, FR51) ---------------------------
+
+const parted = {
+  locked: [],
+  automats: [],
+  local_areas: [],
+  occupied: [],
+  part_requests: [{ request_id: "12", part: "bangarden", part_name: "Bangården", said: "52 → 3", text: "Bangården begär 52 → 3.", note: null }],
+  ready_to_send: [
+    { train_number: "3795", call: null, part: "bangarden", part_name: "Bangården", departure: "10:42", track: "52", moved: false },
+    { train_number: "3811", call: null, part: "bangarden", part_name: "Bangården", departure: "11:15", track: null, moved: false },
+  ],
+  answered: [],
+};
+
+describe("the parts of a station TKL controls", () => {
+  it("shows a part's request under Väntar på dig with Godkänn and Neka (FR50)", () => {
+    const fjarr = picture({ route_state: parted } as Partial<OverviewPlace>, { route_state: parted } as Partial<OverviewPlace>);
+    // Only the station TKL controls: Östby is manned, its clearer answers in its own box.
+    expect(partAsks(fjarr).map((a) => [a.place, a.request.request_id])).toEqual([["vby", "12"]]);
+    const onPart = vi.fn();
+    const markup = renderToStaticMarkup(<Vantar {...panel(fjarr, { onPart })} />);
+    expect(markup).toContain("<b>Bangården</b> begär <b>52 → 3</b> vid Västby");
+    expect(markup).toContain('data-part-request="12"');
+    const found = elements(Vantar(panel(fjarr, { onPart })));
+    button(found, "Godkänn").props.onClick();
+    button(found, "Neka").props.onClick();
+    expect(onPart.mock.calls).toEqual([
+      ["vby", "bangarden", "12", true],
+      ["vby", "bangarden", "12", false],
+    ]);
+    const waiting = renderToStaticMarkup(<Vantar {...panel(fjarr, { onPart, answered: new Set(["vby:12"]) })} />);
+    expect(waiting).toContain("Svar skickat · väntar på Västbys ställverk");
+    expect(waiting).not.toContain(">Godkänn<");
+    const noted = { ...parted, part_requests: [{ ...parted.part_requests[0], note: "Vägen kan inte läggas nu." }] };
+    const again = renderToStaticMarkup(<Vantar {...panel(picture({ route_state: noted } as Partial<OverviewPlace>), { onPart })} />);
+    expect(again).toContain("Godkänd men inte lagd än: Vägen kan inte läggas nu.");
+    const before = picture();
+    const now = picture({ route_state: parted } as Partial<OverviewPlace>);
+    expect(fjarrHappenings(before, now).map((h) => h.text)).toContain("Västby: Bangården begär 52 → 3.");
+  });
+
+  it("lists Klara att skicka per station in the station's order, moves a train and marks it Skickat (FR51)", () => {
+    const fjarr = picture({ route_state: parted } as Partial<OverviewPlace>);
+    const [list] = readyLists(fjarr);
+    expect(list?.trains.map((t) => t.train_number)).toEqual(["3795", "3811"]);
+    expect(readyStep(list?.trains ?? [], "3811", -1)).toBe(0);
+    expect(readyStep(list?.trains ?? [], "3811", 1)).toBeNull();
+    const onMove = vi.fn();
+    const onSent = vi.fn();
+    const markup = renderToStaticMarkup(<KlaraAttSkicka fjarr={fjarr} busy={false} onMove={onMove} onSent={onSent} />);
+    expect(markup.indexOf("3795")).toBeLessThan(markup.indexOf("3811"));
+    expect(markup).toContain("Bangården · spår 52 · avgår 10:42");
+    const found = elements(KlaraAttSkicka({ fjarr, busy: false, onMove, onSent }));
+    expect(button(found, "Flytta tåg 3795 uppåt").props.disabled).toBe(true);
+    button(found, "Flytta tåg 3811 uppåt").props.onClick();
+    button(found, "Tåg 3795 är skickat").props.onClick();
+    expect(onMove.mock.calls).toEqual([["vby", "3811", 0]]);
+    expect(onSent.mock.calls).toEqual([["vby", "3795"]]);
+    expect(renderToStaticMarkup(<KlaraAttSkicka fjarr={picture()} busy={false} onMove={onMove} onSent={onSent} />)).toContain("Inga tåg är anmälda");
   });
 });

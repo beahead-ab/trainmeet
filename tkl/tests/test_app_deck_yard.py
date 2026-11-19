@@ -14,6 +14,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from contracts.tkl import (
+    DECK_REMOTE_ROLE,
     DeckChange,
     DeckKeyType,
     DeckMode,
@@ -84,7 +85,11 @@ def test_the_role_is_set_in_studio_deck(client: TestClient) -> None:
     reaches the other role's modes."""
     view(client.post(D + "/skarm-1", json={"model": "xl"}))
     decks = TklDecks.model_validate(client.get(API + "/decks").json())
-    assert [(r.part, r.name) for r in decks.roles] == [(None, "Tågklareraren"), (PART, "Bangården")]
+    assert [(r.part, r.name) for r in decks.roles] == [
+        (None, "Tågklareraren"),
+        (PART, "Bangården"),
+        (DECK_REMOTE_ROLE, "Fjärrtågklareraren"),
+    ], "and the fjärrtågklarerare's (#36 del d)"
     changed = client.put(D + "/skarm-1", json={"role": PART})
     assert changed.status_code == 200, changed.text
     settings = TklDeckStatus.model_validate(changed.json()).settings

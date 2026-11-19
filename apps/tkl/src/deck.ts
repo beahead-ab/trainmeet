@@ -7,10 +7,14 @@
 import type { CSSProperties } from "react";
 import type { DeckFace, DeckView } from "./api";
 
+/** The fjärrtågklarerare's role on a deck (#36 del d, SD37), as contracts/tkl.py has it. */
+export const REMOTE_ROLE = "fjarrtagklarerare";
+
 /** One deck per screen, known by its serial number like a real one (SD35). On a part's screen
- * /del/<id> the deck is the part's own, in its role (#87 del d). */
+ * /del/<id> the deck is the part's own, in its role (#87 del d); in the fjärrbild it is the
+ * fjärrtågklarerare's (#36 del d). */
 export const serialFor = (screen: number, role: string | null = null) =>
-  role ? `del-${role.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 48)}-${screen}` : `skarm-${screen}`;
+  role === REMOTE_ROLE ? `fjarr-${screen}` : role ? `del-${role.replace(/[^A-Za-z0-9._-]/g, "-").slice(0, 48)}-${screen}` : `skarm-${screen}`;
 export const KEY = 64;
 export const STORED = "tkl.streamdeck";
 

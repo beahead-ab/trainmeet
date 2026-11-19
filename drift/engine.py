@@ -105,6 +105,10 @@ _CONTROLLER_ACTIONS: Final = frozenset(
         station.Action.AUTOMAT_SET,
         station.Action.LOCAL_RELEASE_RESPONSE,
         station.Action.LOCAL_RELEASE_END,
+        # #36 del d: the parts' requests and the list Klara att skicka (FR50, FR51).
+        station.Action.PART_ANSWER,
+        station.Action.READY_MOVE,
+        station.Action.READY_SENT,
     }
 )
 # What the station's own clients still do while it is remote-controlled: look, take it back,
@@ -125,13 +129,17 @@ _STATION_WHILE_REMOTE: Final = frozenset(
         station.Action.LOCAL_RELEASE_END,
     }
 )
-# Only whoever controls the station decides these (FR11, FR22, FR25).
+# Only whoever controls the station decides these (FR11, FR22, FR25, FR50, FR51). On a manned
+# station the clearer answers the parts in its own box; nothing goes through Hubben then.
 _CONTROLLER_ONLY: Final = frozenset(
     {
         station.Action.ROUTE_REQUEST,
         station.Action.ROUTE_CANCEL,
         station.Action.AUTOMAT_SET,
         station.Action.LOCAL_RELEASE_RESPONSE,
+        station.Action.PART_ANSWER,
+        station.Action.READY_MOVE,
+        station.Action.READY_SENT,
     }
 )
 # What someone approved for the place, or offered it, who neither runs nor controls it may do:
@@ -310,6 +318,30 @@ class LocalRequest:
 
 
 @dataclass(frozen=True)
+class PartAnswerAsk:
+    """An answer to a part's request from whoever controls the station (part.answer, FR50),
+    until the station's route.state shows it done (#36 del d)."""
+
+    seq: int
+    part: str
+    request_id: str
+    approve: bool
+    reason: str | None
+    by: str
+
+
+@dataclass(frozen=True)
+class ReadyAsk:
+    """A train moved in the list Klara att skicka, or Skickat (to None), from whoever controls
+    the station (FR51), until the station's route.state shows it done (#36 del d)."""
+
+    seq: int
+    train_number: str
+    to: int | None
+    by: str
+
+
+@dataclass(frozen=True)
 class Caller:
     """What the store knows of the client behind a command, for remote control (FR4–FR16). Drift
     knows who controls each place; the store knows who the client is, what the station's outside
@@ -434,6 +466,10 @@ class Drift:
         # until the station's route.state shows it, and the local areas asked for.
         self.automats_asked: dict[tuple[str, str], bool] = {}
         self.local_requests: dict[tuple[str, str], LocalRequest] = {}
+        # #36 del d: the controller's answers to the parts' requests and its changes to the
+        # list Klara att skicka, by place and the event's seq, until the station has done them.
+        self.part_answers: dict[tuple[str, int], PartAnswerAsk] = {}
+        self.ready_asks: dict[tuple[str, int], ReadyAsk] = {}
         self._set_traffic_day(self.traffic_day)
         for event in history:
             self._apply(event)
@@ -1115,6 +1151,31 @@ class Drift:
                 for code in [c for (p, c) in self.automats_asked if p == event.place]:
                     if self.automats_asked[(event.place, code)] == _is_on(reported, code):
                         del self.automats_asked[(event.place, code)]
+                self._done_answers(event.place, reported)
+                self._touch_places(event.place, *self._watching(event.place))
+            case events.EventKind.PART_ANSWERED:
+                assert event.place is not None
+                by_part = events.PartAnswered.model_validate(event.data)
+                self.part_answers[(event.place, event.seq)] = PartAnswerAsk(
+                    event.seq,
+                    by_part.part,
+                    by_part.request_id,
+                    by_part.approve,
+                    by_part.reason,
+                    event.actor.id or "",
+                )
+                self._touch_places(event.place, *self._watching(event.place))
+            case events.EventKind.READY_MOVED | events.EventKind.READY_SENT:
+                assert event.place is not None
+                listed = events.ReadyChanged.model_validate(event.data)
+                to = listed.to if event.kind == events.EventKind.READY_MOVED else None
+                self.ready_asks[(event.place, event.seq)] = ReadyAsk(
+                    event.seq, listed.train_number, to, event.actor.id or ""
+                )
+                self._touch_places(event.place, *self._watching(event.place))
+            case events.EventKind.PART_REQUESTED:
+                # For Logg (FR37): the request itself is in the station's route.state.
+                assert event.place is not None
                 self._touch_places(event.place, *self._watching(event.place))
             case (
                 events.EventKind.LOCAL_RELEASE_REQUESTED
@@ -1324,11 +1385,29 @@ class Drift:
                 self.automats_asked[key] = False
         self._touch_places(place, *self._watching(place))
 
+    def _done_answers(self, place: str, reported: station.RouteState) -> None:
+        """The controller's answers the station's route.state shows done (#36 del d): those it
+        lists in answered, an answer to a request that no longer waits, and Skickat for a train
+        no longer in the list."""
+        waiting = {r.request_id for r in reported.part_requests}
+        ready = {r.train_number for r in reported.ready_to_send}
+        done = set(reported.answered)
+        for key, answer in list(self.part_answers.items()):
+            if key[0] == place and (answer.seq in done or answer.request_id not in waiting):
+                del self.part_answers[key]
+        for key, asked in list(self.ready_asks.items()):
+            gone = asked.to is None and asked.train_number not in ready
+            if key[0] == place and (asked.seq in done or gone):
+                del self.ready_asks[key]
+
     def _end_remote(self, place: str) -> None:
         """The place is no longer remote-controlled nor offered: left, taken back or given."""
         for key in [k for k in [*self.automats_asked, *self.local_requests] if k[0] == place]:
             self.automats_asked.pop(key, None)
             self.local_requests.pop(key, None)
+        for seq in [k for k in [*self.part_answers, *self.ready_asks] if k[0] == place]:
+            self.part_answers.pop(seq, None)
+            self.ready_asks.pop(seq, None)
         ended = self.remote.pop(place, None)
         offer = self.offers.pop(place, None)
         told = [*self.places_of(ended.controller)] if ended else []
@@ -1627,6 +1706,50 @@ class Drift:
         data = {"code": end.code, "asked": True}
         self._record(events.EventKind.LOCAL_RELEASE_ENDED, data, now, command=command)
 
+    # --- #36 del d: the parts and the list Klara att skicka when the station is remote ---------
+
+    def _part_answer(self, command: station.Command, now: datetime) -> None:
+        """part.answer (FR50, TKL100): whoever controls the station approves or refuses a part's
+        request that the station's route.state shows waiting. Hubben never decides: the station's
+        interlocking does it, as the clearer's Godkänn or Neka."""
+        answer = station.PartAnswer.model_validate(command.payload)
+        state = self.route_states.get(command.place, station.RouteState())
+        waiting = any(
+            r.request_id == answer.request_id and r.part == answer.part for r in state.part_requests
+        )
+        answered = any(
+            a.request_id == answer.request_id
+            for (place, _), a in self.part_answers.items()
+            if place == command.place
+        )
+        if not waiting or answered:
+            raise Refused(Reason.PART_REQUEST_NOT_PENDING)
+        data: dict[str, object] = {
+            "part": answer.part,
+            "request_id": answer.request_id,
+            "approve": answer.approve,
+        }
+        if answer.reason is not None and not answer.approve:
+            data["reason"] = answer.reason
+        self._record(events.EventKind.PART_ANSWERED, data, now, command=command)
+
+    def _ready_change(self, command: station.Command, now: datetime) -> None:
+        """ready.move and ready.sent (FR51): whoever controls the station moves a train in the
+        list Klara att skicka, or marks it Skickat, as the clearer does; the station does it."""
+        if command.action == station.Action.READY_MOVE:
+            moved = station.ReadyMove.model_validate(command.payload)
+            number, to, kind = moved.train_number, moved.to, events.EventKind.READY_MOVED
+        else:
+            sent = station.ReadySent.model_validate(command.payload)
+            number, to, kind = sent.train_number, None, events.EventKind.READY_SENT
+        state = self.route_states.get(command.place, station.RouteState())
+        if all(r.train_number != number for r in state.ready_to_send):
+            raise Refused(Reason.NOT_READY_TO_SEND)
+        data: dict[str, object] = {"train_number": number}
+        if to is not None:
+            data["to"] = to
+        self._record(kind, data, now, command=command)
+
     def _route_state(self, command: station.Command, now: datetime, level: int) -> None:
         """route.state: the station at the overview level, kept whole (FR13, FR15). What it
         says has changed is written as its own event for Logg (FR37): a route laid from afar or
@@ -1677,6 +1800,17 @@ class Drift:
             if asked.get(code) is False:
                 continue
             self._record(events.EventKind.LOCAL_RELEASE_ENDED, {"code": code}, now, command=command)
+        # A part's request the station forwards, for Logg (#36 del d, FR37, FR50).
+        forwarded = {r.request_id for r in before.part_requests}
+        for request in state.part_requests:
+            if request.request_id in forwarded:
+                continue
+            self._record(
+                events.EventKind.PART_REQUESTED,
+                {"part": request.part, "request_id": request.request_id, "text": request.text},
+                now,
+                command=command,
+            )
 
     def set_automation(self, settings: events.AutomationSettings, now: datetime) -> None:
         self._record(
@@ -2717,6 +2851,12 @@ class Drift:
                 return Outcome(revision=self._place_revision(command.place))
             case station.Action.LOCAL_RELEASE_END:
                 self._local_end(command, caller, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.PART_ANSWER:
+                self._part_answer(command, now)
+                return Outcome(revision=self._place_revision(command.place))
+            case station.Action.READY_MOVE | station.Action.READY_SENT:
+                self._ready_change(command, now)
                 return Outcome(revision=self._place_revision(command.place))
             case station.Action.SIGNAL_EXIT:
                 self._exit_signal(command, now)

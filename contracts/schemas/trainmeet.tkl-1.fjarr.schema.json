@@ -744,7 +744,7 @@
     },
     "PartRequest": {
       "additionalProperties": true,
-      "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it.",
+      "description": "DRIFT-40, FR50: a part's request (begär väg) that the controller answers instead of the\nclearer, when a station with parts is remote-controlled. The station forwards it, waiting,\nuntil it is answered with part.answer (#36 del d).",
       "properties": {
         "request_id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -752,7 +752,7 @@
           "type": "string"
         },
         "part": {
-          "description": "Delens id i utsidan.",
+          "description": "Delens id i stationen, som i utsidan när delen är en egen plats.",
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
           "title": "Part",
           "type": "string"
@@ -763,6 +763,51 @@
           "minLength": 1,
           "title": "Text",
           "type": "string"
+        },
+        "part_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delens namn, som rutan säger det.",
+          "title": "Part Name"
+        },
+        "said": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vägen som rutan säger den, till exempel 52 → 3.",
+          "title": "Said"
+        },
+        "note": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Varför ett godkännande inte gick att göra än, i ställverkets egna ord: begäran väntar, och den som fjärrstyr kan neka den eller godkänna den igen.",
+          "title": "Note"
         }
       },
       "required": [
@@ -787,7 +832,7 @@
     },
     "ReadyToSend": {
       "additionalProperties": true,
-      "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order.",
+      "description": "FR51: a train ready to send, as the clearer's list shows it, in the plan's order: before\nthe first with a later planned departure, and where the controller or the clearer moved it.",
       "properties": {
         "train_number": {
           "maxLength": 500,
@@ -833,6 +878,42 @@
           ],
           "default": null,
           "title": "Departure"
+        },
+        "part_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Delen som anmälde tåget.",
+          "title": "Part Name"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spåret tåget står på.",
+          "title": "Track"
+        },
+        "moved": {
+          "default": false,
+          "description": "Flyttat i listan, inte i planens ordning.",
+          "title": "Moved",
+          "type": "boolean"
         }
       },
       "required": [
@@ -921,7 +1002,9 @@
         "area_released",
         "route_refused",
         "unknown_automat",
-        "local_area_not_given"
+        "local_area_not_given",
+        "part_request_not_pending",
+        "not_ready_to_send"
       ],
       "title": "Reason",
       "type": "string"
@@ -1211,6 +1294,14 @@
             "$ref": "#/$defs/ReadyToSend"
           },
           "title": "Ready To Send",
+          "type": "array"
+        },
+        "answered": {
+          "description": "Svaren från den som fjärrstyr som stationen har gjort, med Hubbens nummer ur RemoteHere, så länge Hubben har dem kvar (#36 del d).",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Answered",
           "type": "array"
         }
       },

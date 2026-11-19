@@ -24,12 +24,13 @@
       "type": "string"
     },
     "DeckMode": {
-      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74).",
+      "description": "Lägena (SD63): a group of pages with the same way of working. Bangård is the shunter's\ndeck, for a deck with a part's role (#87 del d, SD74). Fjärr is the fjärrtågklarerare's,\na page per station it controls (#36 del d, SD37).",
       "enum": [
         "tagen",
         "platser",
         "sparplan",
-        "bangard"
+        "bangard",
+        "fjarr"
       ],
       "title": "DeckMode",
       "type": "string"
@@ -130,7 +131,7 @@
     },
     "TklDeckRole": {
       "additionalProperties": true,
-      "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård.",
+      "description": "A role a deck opens as (#87 del d): the tågklarerare, or a part of the station by its id,\nwhose deck is the shunter's, Bangård; or the fjärrtågklarerare (#36 del d, SD37), whose deck\nis made from the remote catalogues of the stations TKL controls.",
       "properties": {
         "part": {
           "anyOf": [
@@ -143,7 +144,7 @@
             }
           ],
           "default": null,
-          "description": "Delens id; inget för tågklareraren.",
+          "description": "Rollens id i decket: delens id, fjarrtagklarerare för fjärrtågklareraren; inget för tågklareraren.",
           "title": "Part"
         },
         "name": {
@@ -151,6 +152,12 @@
           "minLength": 1,
           "title": "Name",
           "type": "string"
+        },
+        "remote": {
+          "default": false,
+          "description": "Fjärrtågklareraren (SD37).",
+          "title": "Remote",
+          "type": "boolean"
         }
       },
       "required": [
@@ -289,7 +296,7 @@
             }
           ],
           "default": null,
-          "description": "Rollen: inget för tågklareraren, eller en del av stationen med sitt id (#87 del d). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen.",
+          "description": "Rollen: inget för tågklareraren, en del av stationen med sitt id (#87 del d), eller fjarrtagklarerare för fjärrtågklareraren (#36 del d, SD37). Ett deck med en dels roll öppnar i Bangård och når bara delens lägen; fjärrtågklarerarens i Fjärr.",
           "title": "Role"
         }
       },

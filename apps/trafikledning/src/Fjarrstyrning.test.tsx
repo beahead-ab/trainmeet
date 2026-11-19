@@ -135,4 +135,13 @@ describe("Logg: överlämningarna och fjärrtågvägarna (FR37)", () => {
     expect(shown(event("route.state"))).toBe(false);
     expect(shown(event("route.requested"))).toBe(true);
   });
+
+  it("says what became of a part's request and the list Klara att skicka, and who (#36 del d)", () => {
+    const by = { kind: "client" as const, id: "remote-1a2b" };
+    expect(says(event("part.requested", { part: "bangarden", request_id: "7", text: "Bangården begär 52 → 3." }))).toBe("Vidare från stationen: Bangården begär 52 → 3.");
+    expect(says({ ...event("part.answered", { part: "bangarden", request_id: "7", approve: true }), actor: by }, null, clients)).toBe("Fjärr Västra godkände delens begäran");
+    expect(says({ ...event("part.answered", { part: "bangarden", request_id: "7", approve: false, reason: "Tåg 102 kommer." }), actor: by }, null, clients)).toBe("Fjärr Västra nekade delens begäran: Tåg 102 kommer.");
+    expect(says({ ...event("ready.moved", { train_number: "3795", to: 0 }), actor: by }, null, clients)).toBe("Fjärr Västra flyttade tåg 3795 till plats 1 i Klara att skicka");
+    expect(says({ ...event("ready.sent", { train_number: "3795" }), actor: by }, null, clients)).toBe("Fjärr Västra: tåg 3795 skickat");
+  });
 });

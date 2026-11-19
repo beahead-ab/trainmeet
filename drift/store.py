@@ -27,7 +27,14 @@ from drift.drivers import messages_here
 from drift.engine import OFFER_SECONDS, Caller, Drift, Outcome, Refused, model_time, now_utc
 from drift.exits import ExitMemory, couple
 from drift.notices import notices
-from drift.snapshot import automats_asked, local_requests, remote_routes, snapshot
+from drift.snapshot import (
+    automats_asked,
+    local_requests,
+    part_answers,
+    ready_asks,
+    remote_routes,
+    snapshot,
+)
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
 from drift.track_display import base_order, checked, shown
@@ -1520,6 +1527,11 @@ class PreviewStore:
         controllable = self._controllable(clients, drift, place)
         control = drift.remote.get(place)
         offer = drift.offers.get(place)
+
+        def name(client: str) -> str:
+            kind = clients[client].request.kind if client in clients else station.ClientKind.TKL
+            return self._receiver(clients, drift, client, kind).name
+
         return station.RemoteHere(
             controllable=controllable,
             controller=self._receiver(clients, drift, control.controller, control.kind)
@@ -1536,6 +1548,8 @@ class PreviewStore:
             route_state=drift.route_states.get(place),
             automats_asked=automats_asked(drift, place),
             local_requests=local_requests(drift, place),
+            part_answers=part_answers(drift, place, name),
+            ready_asks=ready_asks(drift, place, name),
         )
 
     def _offer_here(

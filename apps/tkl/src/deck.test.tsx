@@ -7,8 +7,8 @@ import { isValidElement, type ReactElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { DeckFace, DeckView, Interlocking, Panel } from "./api";
-import { DeckGrid, DeckKey } from "./Deck";
-import { facesOf, Holds, keyStyle, readDeck, saveDeck, serialFor, soundOf, textSize } from "./deck";
+import { DeckGrid, DeckKey, DeckPanel } from "./Deck";
+import { facesOf, Holds, keyStyle, readDeck, REMOTE_ROLE, saveDeck, serialFor, soundOf, textSize } from "./deck";
 import { drawing, filled } from "./stallverk";
 
 const panel: Panel = {
@@ -381,5 +381,43 @@ describe("Bangård on the screen as a 15 (#87 del d)", () => {
     const cup = renderToStaticMarkup(<DeckKey face={face({ type: "fika", text: "Fika", under: "tryck: tillbaka", bg: "#1c1917", fg: "#a8a29e" })} now={0} plan={null} />);
     expect(cup).toContain("sd-kopp");
     expect(cup).not.toContain("☕");
+  });
+});
+
+describe("the fjärrtågklarerare's deck on the screen (#36 del d, SD37)", () => {
+  /** A 15 in the role Fjärrtågklareraren as TKL's server describes it: a station's routes, the
+   * one chosen blinking, one locked green, the offer, and the fixed row. */
+  const remote = () =>
+    deckView(
+      "15",
+      (n) => {
+        const keys = Array.from({ length: n }, () => face({}));
+        keys[0] = face({ type: "remote", text: "51→1", top: "ÅSN", under: "in", bg: "#1f2937", fg: "#e6e9ec", label: "Åsen: tågväg 51→1" });
+        keys[1] = face({ type: "remote", text: "51→3", top: "ÅSN", under: "tryck igen", bg: "#2563eb", fg: "#ffffff", blink: "#0b1220", frame: "#60a5fa", label: "Åsen: tågväg 51→3, vald" });
+        keys[2] = face({ type: "remote", text: "22→2", top: "ÅSN", under: "låst", bg: "#15803d", fg: "#ffffff", band: "#bbf7d0", label: "Åsen: tågväg 22→2, låst" });
+        keys[10] = face({ type: "offer", text: "Mittby", top: "erbjuden", under: "ta emot · 0:42", bg: "#a16207", fg: "#ffffff", blink: "#422006" });
+        keys[14] = face({ type: "mode", text: "Läge", under: "Fjärr" });
+        return keys;
+      },
+      { settings: { ...deckView("15").settings, serial: "fjarr-1", role: REMOTE_ROLE }, modes: ["fjarr"], mode: "fjarr", page: "Åsen" },
+    );
+
+  it("opens with its own serial and says how a route is laid", () => {
+    expect(serialFor(1, REMOTE_ROLE)).toBe("fjarr-1");
+    expect(serialFor(2, REMOTE_ROLE)).toBe("fjarr-2");
+    const view = remote();
+    const markup = renderToStaticMarkup(<DeckPanel screen={1} plan={null} role={REMOTE_ROLE} initial={{ view, models: [] }} />);
+    expect(markup).toContain("En tågväg blinkar efter första trycket och läggs med det andra");
+    expect(markup).not.toContain("Ände byter ände");
+  });
+
+  it("draws the chosen route blinking, the locked one green and the offer", () => {
+    const view = remote();
+    const markup = renderToStaticMarkup(<DeckGrid view={view} faces={view.keys ?? []} now={0} plan={null} />);
+    expect(markup).toContain('data-type="remote"');
+    expect(markup).toMatch(/data-type="remote" data-blink="ja"[^>]*>(<span[^>]*>[^<]*<\/span>)*<span[^>]*>51→3/);
+    expect(markup).toContain("background:#15803d");
+    expect(markup).toContain('data-type="offer" data-blink="ja"');
+    expect(markup).toContain("ta emot · 0:42");
   });
 });

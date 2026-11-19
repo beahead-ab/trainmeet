@@ -203,6 +203,11 @@ const T = {
   readyDown: { sv: "Flytta tåg {number} nedåt", en: "Move train {number} down" },
   readySent: { sv: "Skickat", en: "Sent" },
   readySentLabel: { sv: "Tåg {number} är skickat", en: "Train {number} is sent" },
+  // #36 del d: while the station is remote-controlled the box only shows (FR50, FR51, TKL100)
+  partBoxRemote: {
+    sv: "Stationen fjärrstyrs från {controller}. Den som fjärrstyr svarar på delarnas begäran och sköter Klara att skicka; rutan visar bara. Ta tillbaka stationen för att svara här.",
+    en: "The station is remote-controlled from {controller}. The controller answers the parts and keeps Ready to send; the box only shows. Take the station back to answer here.",
+  },
 } satisfies Record<string, Record<Language, string>>;
 
 export type TextKey = keyof typeof T;

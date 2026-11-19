@@ -3,6 +3,8 @@
 // - PartBox, at the top of the station's Ställverket: a part's request with Godkänn and Neka
 //   (RANG-03), the ring with a sound and a visible mark (TKL98), Fika, and the list Klara att
 //   skicka, ordered by the planned departure and moved by drag or ▲ ▼, with Skickat (TKL108).
+//   While the station is remote-controlled the box only shows, and says why: whoever controls
+//   the station answers and keeps the list, through Hubben (#36 del d, FR50, FR51, TKL100).
 // - DelSida, the part's own screen at /del/<id>, on any screen on the station's network behind
 //   the same PIN (TKL102): the station's panel with the part's area active and the rest greyed,
 //   the switch streets and the routes out per end, Lämna, Klart, Grindar, Ring, Tuta, Fika and
@@ -52,11 +54,19 @@ export function PartBox(props: BoxProps) {
 }
 
 /** The box itself, without state of its own: the dragged train comes from PartBox. */
-export function PartBoxView({ state, say, working, onWork, dragged, onDrag }: BoxProps & { dragged: string | null; onDrag: (number: string | null) => void }) {
+export function PartBoxView({ state, say, working: busy, onWork, dragged, onDrag }: BoxProps & { dragged: string | null; onDrag: (number: string | null) => void }) {
   const box = boxOf(state);
   if (!box.asking.length && !box.ringing.length && !box.fika.length && !box.ready.length) return null;
+  // Read-only while remote-controlled: the interlocking says no to the box, so it never asks.
+  const controller = state.fjarr?.controller ?? null;
+  const working = busy || controller !== null;
   return (
-    <section className="del-ruta" aria-label={say("partBox")}>
+    <section className={`del-ruta${controller ? " fjarrstyrd" : ""}`} aria-label={say("partBox")} data-remote={controller ? "ja" : undefined}>
+      {controller ? (
+        <p className="del-rad fjarr" role="note" data-box-remote="">
+          {say("partBoxRemote", { controller })}
+        </p>
+      ) : null}
       {box.asking.map(({ part, request }) => (
         <div key={request.id} className="del-rad begaran" data-request={request.id}>
           <span>
@@ -76,7 +86,7 @@ export function PartBoxView({ state, say, working, onWork, dragged, onDrag }: Bo
             ☎
           </span>
           <span>{say("partRings", { part: part.name })}</span>
-          <button type="button" disabled={working} onClick={() => onWork(() => api.partRingAnswer(part.id))}>
+          <button type="button" disabled={busy} onClick={() => onWork(() => api.partRingAnswer(part.id))}>
             {say("answerRing")}
           </button>
         </div>
@@ -102,7 +112,7 @@ export function PartBoxView({ state, say, working, onWork, dragged, onDrag }: Bo
                   key={r.number}
                   className={`del-rad${dragged === r.number ? " dras" : ""}`}
                   data-ready={r.number}
-                  draggable
+                  draggable={!controller}
                   onDragStart={(event) => {
                     onDrag(r.number);
                     event.dataTransfer?.setData("text/plain", r.number);

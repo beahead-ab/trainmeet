@@ -93,6 +93,7 @@ MODE_NAMES: Final = {
     DeckMode.PLACES: ("Platser", "från och till i klartext"),
     DeckMode.TRACK_PLAN: ("Spårplan", "signaler och växlar"),
     DeckMode.YARD: ("Bangård", "rangerarens deck"),
+    DeckMode.REMOTE: ("Fjärr", "fjärrtågklarerarens deck"),
 }
 KIND_WORD: Final = {RouteKind.TRAIN: "tåg", RouteKind.SHUNTING: "växling"}
 FAMILIES: Final = {
@@ -218,6 +219,11 @@ class Deck:
     """Bangård: the requests the deck last saw waiting, by route out."""
     refusal_seen: datetime | None = None
     """Bangård: the part's latest no the deck has seen."""
+    chosen_route: tuple[str, str] | None = None
+    """Fjärr: the station and the catalogue route the first press chose, blinking until the
+    second press sends it (#36 del d, SD37)."""
+    sent_routes: dict[str, tuple[str, str]] = field(default_factory=dict)
+    """Fjärr: the routes the deck asked for, by request id, until the station has answered."""
 
 
 @dataclass
