@@ -9,7 +9,7 @@ olika programversioner förstår varandra eller säger att de inte gör det (GRU
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, Final
 
@@ -279,6 +279,47 @@ class StationVersions(Contract):
 
     station_id: Id
     versions: list[StationVersionInfo] = Field(default_factory=list)
+
+
+class StationList(Contract):
+    """Ägarens stationer i Synk (TKL5, TKLMOLN-02): den senaste versionen av var och en, för
+    Dina stationer i TKL i molnet. Bara den som ID:s token säger, aldrig någon annans."""
+
+    stations: list[StationVersionInfo] = Field(default_factory=list, max_length=500)
+
+
+# --- Träffarna genom reläet (TKLMOLN-03, TKLMOLN-06) ------------------------------------------
+
+
+class RelayWay(StrEnum):
+    """Hur molnets TKL når träffen."""
+
+    HERE = "here"  # molnhubben kör träffen själv: anslut direkt, som förut
+    RELAY = "relay"  # en Pi leder träffen: anslut genom molnhubbens relä till Pi:n
+    NONE = "none"  # träffen körs inte just nu, eller Pi:n är inte ansluten till molnet
+
+
+class RelayMeet(Contract):
+    """En träff som kontot kan ansluta en station till, enligt rollerna i TrainMeet ID (#78 del
+    b): träffarna i personens klubbar som molnhubben har. Nyckeln och adressen till Pi:n följer
+    aldrig med; reläet nås under molnhubbens egen adress."""
+
+    meet: Id = Field(description="Hubbens träff.")
+    meet_name: Text
+    club_name: Text | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    way: RelayWay
+    hub_name: Text | None = Field(default=None, description="Hubben som leder träffen.")
+    relay: str | None = Field(
+        default=None,
+        pattern=r"^/relay/[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        description="Sökvägen till reläet under molnhubbens adress, när en Pi leder träffen.",
+    )
+
+
+class RelayMeets(Contract):
+    meets: list[RelayMeet] = Field(default_factory=list, max_length=200)
 
 
 class PiLoginStart(Contract):

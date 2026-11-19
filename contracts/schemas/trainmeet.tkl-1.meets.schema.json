@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.meets.schema.json",
+  "title": "trainmeet.tkl-1.meets",
+  "$defs": {
+    "TklMeet": {
+      "additionalProperties": true,
+      "description": "En träff att ansluta till i TKL i molnet: kontots träffar enligt rollerna i ID, och\nProvbanan. Adressen är molnhubbens, eller dess relä till Pi:n; aldrig Pi:ns egen.",
+      "properties": {
+        "meet": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hubbens träff; tomt för Provbanan.",
+          "title": "Meet"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "club_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Club Name"
+        },
+        "starts_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Starts On"
+        },
+        "ends_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ends On"
+        },
+        "way": {
+          "$ref": "#/$defs/TklMeetWay"
+        },
+        "hub_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hubben som leder träffen.",
+          "title": "Hub Name"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Där TKL ansluter, med koden.",
+          "title": "Address"
+        }
+      },
+      "required": [
+        "name",
+        "way"
+      ],
+      "title": "TklMeet",
+      "type": "object"
+    },
+    "TklMeetWay": {
+      "description": "Hur TKL i molnet når en träff (TKLMOLN-03, TKLMOLN-06).",
+      "enum": [
+        "here",
+        "relay",
+        "none",
+        "preview"
+      ],
+      "title": "TklMeetWay",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "meets": {
+      "items": {
+        "$ref": "#/$defs/TklMeet"
+      },
+      "title": "Meets",
+      "type": "array"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför kontots träffar inte går att läsa just nu.",
+      "title": "Message"
+    }
+  },
+  "type": "object"
+}

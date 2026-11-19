@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.new-station.schema.json",
+  "title": "trainmeet.tkl-1.new-station",
+  "additionalProperties": true,
+  "description": "Ny station i TKL i molnet: namnet och det korta namnet. Version 1 sparas i Synk direkt.",
+  "properties": {
+    "name": {
+      "maxLength": 40,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "station_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Station Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "name",
+    "station_id"
+  ],
+  "type": "object"
+}

@@ -34,6 +34,7 @@ import { Handelser, Klarering, Tag } from "./Stallverket";
 import { DeckPanel } from "./Deck";
 import { readDeck, REMOTE_ROLE, saveDeck } from "./deck";
 import "./fjarr.css";
+import { ProvChip } from "./Provmarkering";
 
 const EVERY_MS = 2000;
 const WAITING_MS = 1000;
@@ -76,7 +77,8 @@ export function FirstStartChoice({ cloud, onSetUp, onRemote }: { cloud: boolean;
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$/;
 export const placesIn = (text: string): string[] => [...new Set(text.split(/[\s,;]+/).filter((p) => p.length > 0))];
 
-export function FirstStartRemote({ cloud, onSetUp }: { cloud: boolean; onSetUp: (name: string, area: string | null, places: string[], pin: string) => Promise<void> }) {
+/** pinless: TKL in the cloud with TrainMeet ID, where the login locks and opens (#88). */
+export function FirstStartRemote({ cloud, pinless = false, onSetUp }: { cloud: boolean; pinless?: boolean; onSetUp: (name: string, area: string | null, places: string[], pin: string) => Promise<void> }) {
   const [name, setName] = useState("");
   const [area, setArea] = useState("");
   const [places, setPlaces] = useState("");
@@ -84,7 +86,7 @@ export function FirstStartRemote({ cloud, onSetUp }: { cloud: boolean; onSetUp: 
   const [again, setAgain] = useState("");
   const [message, setMessage] = useState("");
   const written = placesIn(places);
-  const same = /^[0-9]{4,12}$/.test(pin) && pin === again;
+  const same = pinless || (/^[0-9]{4,12}$/.test(pin) && pin === again);
   const ready = name.trim().length > 0 && (!area.trim() || ID.test(area.trim())) && written.every((p) => ID.test(p)) && same;
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -101,7 +103,7 @@ export function FirstStartRemote({ cloud, onSetUp }: { cloud: boolean; onSetUp: 
       <p className="overrad">Första start · fjärrställverk</p>
       <h1>Gör den här datorn till ett fjärrställverk.</h1>
       <p>Fjärrställverket har ingen egen station. Det styr ett fjärrområde av stationer i serie längs linjen, när stationerna lämnar över till det.</p>
-      {cloud ? <p className="liten">TKL i molnet: fjärrställverket hör till den här webbläsaren tills TrainMeet ID finns i TKL.</p> : null}
+      {cloud ? <p className="liten">{pinless ? "TKL i molnet: fjärrställverket hör till den här webbläsaren, och inloggningen med TrainMeet ID låser upp det." : "TKL i molnet utan TrainMeet ID: fjärrställverket hör till den här webbläsaren."}</p> : null}
       <div className="rutor">
         <fieldset className="ruta">
           <legend>1 · Fjärrställverket</legend>
@@ -119,18 +121,20 @@ export function FirstStartRemote({ cloud, onSetUp }: { cloud: boolean; onSetUp: 
           </label>
           <p className="liten">Planens fjärrområde, eller driftplatserna i ordning längs linjen. Båda går att välja när TKL ansluter.</p>
         </fieldset>
-        <fieldset className="ruta">
-          <legend>2 · PIN</legend>
-          <label>
-            Välj PIN
-            <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} inputMode="numeric" type="password" autoComplete="new-password" maxLength={12} />
-          </label>
-          <label>
-            Skriv den igen
-            <input value={again} onChange={(e) => setAgain(e.target.value.replace(/\D/g, ""))} inputMode="numeric" type="password" autoComplete="new-password" maxLength={12} />
-          </label>
-          <p className="liten">{same ? "✓ Lika. " : again ? "Inte lika än. " : ""}Minst fyra siffror.</p>
-        </fieldset>
+        {pinless ? null : (
+          <fieldset className="ruta">
+            <legend>2 · PIN</legend>
+            <label>
+              Välj PIN
+              <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} inputMode="numeric" type="password" autoComplete="new-password" maxLength={12} />
+            </label>
+            <label>
+              Skriv den igen
+              <input value={again} onChange={(e) => setAgain(e.target.value.replace(/\D/g, ""))} inputMode="numeric" type="password" autoComplete="new-password" maxLength={12} />
+            </label>
+            <p className="liten">{same ? "✓ Lika. " : again ? "Inte lika än. " : ""}Minst fyra siffror.</p>
+          </fieldset>
+        )}
       </div>
       {message ? (
         <p className="fel" role="alert">
@@ -138,7 +142,7 @@ export function FirstStartRemote({ cloud, onSetUp }: { cloud: boolean; onSetUp: 
         </p>
       ) : null}
       <button type="submit" className="primar" disabled={!ready}>
-        Lås med PIN och starta fjärrställverket
+        {pinless ? "Starta fjärrställverket" : "Lås med PIN och starta fjärrställverket"}
       </button>
     </form>
   );
@@ -171,7 +175,7 @@ export function FjarrApp({ state, path, navigate, onLocked }: { state: State; pa
   ];
   const approved = connection?.connected && connection.status === "approved";
   const fail = (error: unknown) => {
-    if (error instanceof Problem && error.status === 401 && /PIN/.test(error.message)) {
+    if (error instanceof Problem && error.status === 401 && /PIN|TrainMeet ID/.test(error.message)) {
       void api.state().then(onLocked);
       return;
     }
@@ -185,6 +189,12 @@ export function FjarrApp({ state, path, navigate, onLocked }: { state: State; pa
           <span className={`tm-chip ${approved ? "gron" : "gul"}`}>
             {connection.hub_name ?? "Hubben"} · {approved ? "godkänd" : connection.status === "waiting" ? "väntar" : "inte godkänd"}
           </span>
+        ) : null}
+        {connection?.connected && connection.preview ? <ProvChip /> : null}
+        {state.login ? (
+          <button type="button" className="lank ljus" onClick={() => navigate("/stationer")}>
+            Dina stationer
+          </button>
         ) : null}
         <button type="button" className="lank ljus" onClick={() => void api.lock().then(onLocked)}>
           Lås

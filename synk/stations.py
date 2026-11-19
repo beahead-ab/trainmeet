@@ -155,6 +155,29 @@ class Stations:
             for version, saved, checksum, name in rows
         ]
 
+    def owned(self, owner: str) -> list[StationVersionInfo]:
+        """Dina stationer (TKL5): the latest version of each station the owner has, by name.
+        Only the owner's; another owner's stations are never listed."""
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT s.station_id, s.version, s.saved, s.checksum, s.name FROM sync_station s "
+                "JOIN (SELECT station_id, max(version) AS latest FROM sync_station "
+                "WHERE owner=? GROUP BY station_id) l "
+                "ON s.station_id = l.station_id AND s.version = l.latest "
+                "WHERE s.owner=? ORDER BY s.name, s.station_id",
+                (owner, owner),
+            ).fetchall()
+        return [
+            StationVersionInfo(
+                station_id=station,
+                version=version,
+                saved=datetime.fromtimestamp(saved, UTC),
+                checksum=checksum,
+                name=name,
+            )
+            for station, version, saved, checksum, name in rows
+        ]
+
     def package(self, owner: str, station: str, version: int) -> bytes:
         """The whole package of a version, as it came: only to its owner."""
         with self._transaction() as db:

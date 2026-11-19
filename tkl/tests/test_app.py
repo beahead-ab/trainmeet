@@ -109,6 +109,7 @@ def test_not_connected_says_so(tmp_path: Path) -> None:
         "outside_version": None,
         "message": None,
         "preview": False,
+        "relayed": False,
     }
     assert client.get(API + "/places/exb").status_code == 409
     assert client.get(API + "/hubs").json() == []
@@ -117,7 +118,8 @@ def test_not_connected_says_so(tmp_path: Path) -> None:
 
 
 def test_in_the_cloud_each_browser_has_its_station(tmp_path: Path) -> None:
-    """TKL5 until TrainMeet ID: a station per browser, and only the hubs TKL is set up for."""
+    """TKL in the cloud without TrainMeet ID (#76): a station per browser, and only the hubs TKL
+    is set up for. With ID the station belongs to the account (tests/test_tkl_moln.py)."""
     cloud = create_app(
         tmp_path, mode=TklMode.CLOUD, over_internet=["https://hub.invalid"], discover=lambda: []
     )

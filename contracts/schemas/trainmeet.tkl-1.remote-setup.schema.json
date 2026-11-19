@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.remote-setup.schema.json",
   "title": "trainmeet.tkl-1.remote-setup",
   "additionalProperties": true,
-  "description": "Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en.",
+  "description": "Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en.\nI TKL i molnet med TrainMeet ID låser inloggningen i stället, och PIN:en utelämnas.",
   "properties": {
     "name": {
       "maxLength": 40,
@@ -34,15 +34,22 @@
       "type": "array"
     },
     "pin": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9]{4,12}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
       "description": "4–12 siffror. Skrivs aldrig ut.",
-      "pattern": "^[0-9]{4,12}$",
-      "title": "Pin",
-      "type": "string"
+      "title": "Pin"
     }
   },
   "required": [
-    "name",
-    "pin"
+    "name"
   ],
   "type": "object"
 }

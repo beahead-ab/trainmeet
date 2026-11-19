@@ -13,6 +13,12 @@ export type Exit = Schemas["trainmeet.station-outside-1.Exit"];
 export type FoundHub = Schemas["trainmeet.tkl-1.found-hub"];
 export type Connection = Schemas["trainmeet.tkl-1.connection"];
 export type IdState = Schemas["trainmeet.tkl-1.id-state"];
+// TKL i molnet (#88, TKL5): the account, Dina stationer and the meets the account may join.
+export type Account = Schemas["trainmeet.tkl-1.state.TklAccount"];
+export type CloudStations = Schemas["trainmeet.tkl-1.cloud-stations"];
+export type CloudStation = Schemas["trainmeet.tkl-1.cloud-stations.TklCloudStation"];
+export type Meets = Schemas["trainmeet.tkl-1.meets"];
+export type Meet = Schemas["trainmeet.tkl-1.meets.TklMeet"];
 // Spårplan (#83): the station's model, the reference stations and the panel.
 export type TrackPlan = Schemas["trainmeet.tkl-1.track-plan"];
 export type Reference = Schemas["trainmeet.tkl-1.reference"];
@@ -231,6 +237,12 @@ export const api = {
   idState: () => call<IdState>(`${TKL}/id`),
   idLogOut: () => call<IdState>(`${TKL}/id/logout`, "POST"),
   saveInCloud: (onTop: number | null) => call<Saved>(`${TKL}/id/save`, "POST", onTop === null ? {} : { on_top: onTop }),
+  // TKL i molnet (#88): Dina stationer from Synk, a working copy opened from it, and the meets.
+  cloudStations: () => call<CloudStations>(`${TKL}/konto/stationer`),
+  newStation: (name: string, station_id: string) => call<State>(`${TKL}/konto/stationer`, "POST", { name, station_id }),
+  openStation: (stationId: string) => call<State>(`${TKL}/konto/stationer/${encodeURIComponent(stationId)}/oppna`, "POST"),
+  meets: () => call<Meets>(`${TKL}/konto/traffar`),
+  remoteSetUpInCloud: (name: string, area: string | null, places: string[]) => call<State>(`${TKL}/fjarr/setup`, "POST", { name, area, places }),
   // Spårplan (#83): the station's model, imported or copied from a reference station.
   stationModel: async () => {
     try {

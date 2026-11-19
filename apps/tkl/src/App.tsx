@@ -4,6 +4,8 @@
 // hints that it changed, and every ten seconds besides; the last good one stays, marked old,
 // when the hub cannot be reached. TKL started as a remote interlocking has its own pages
 // (Fjarr.tsx, #36 del c), and a station's TKL gets the tab Fjärr while it controls a neighbour.
+// TKL in the cloud with TrainMeet ID (#88, Konto.tsx) starts with the login instead, then Dina
+// stationer; the account row stands over the pages, and a preview run is marked PROV.
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, full, Problem, TKL, type Action, type CallHere, type Clearance, type Connection, type FoundHub, type Snapshot, type State, type Studio as StudioData, type View } from "./api";
@@ -14,11 +16,13 @@ import { fjarrApi } from "./fjarrapi";
 import { Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
+import { DinaStationer, Inloggning, Kontorad, STATIONER } from "./Konto";
 import { KopplaIn } from "./KopplaIn";
 import { Rita } from "./Rita";
 import { play, readSounds, saveSounds, type Sounds } from "./ljud";
 import { clockAt, revisionOf } from "./niva0";
 import { Prova } from "./Prova";
+import { ProvChip, ProvRad } from "./Provmarkering";
 import { Sparplan } from "./Sparplan";
 import { StallverketSida } from "./Stallverk12";
 import { StudioInstallningar } from "./StreamDeckStudio";
@@ -52,6 +56,8 @@ export function App() {
   const [page, setPage] = useState<Page>(pageOf(location.pathname));
   const [path, setPath] = useState(location.pathname);
   const [message, setMessage] = useState("");
+  // A working copy read in anew from the cloud (#88): every page starts over with it.
+  const [copy, setCopy] = useState(0);
   useEffect(() => {
     api
       .state()
@@ -70,6 +76,28 @@ export function App() {
     setPath(href);
   };
   if (!state) return <p className="tom">{message || "Startar TKL …"}</p>;
+  // TKL in the cloud with TrainMeet ID (#88): the login first, one for everything (TKLMOLN-10).
+  if (state.login && (!state.account || (state.set_up && !state.unlocked))) {
+    return (
+      <Frame state={state} page={page} navigate={navigate}>
+        <Inloggning state={state} failed={new URLSearchParams(location.search).get("id") === "fel"} />
+      </Frame>
+    );
+  }
+  if (state.login && (!state.set_up || path.startsWith(STATIONER))) {
+    return (
+      <Frame state={state} page={page} navigate={navigate}>
+        <DinaStationer
+          state={state}
+          onState={(next) => {
+            setState(next);
+            navigate("/");
+          }}
+          onBack={state.set_up ? () => navigate("/") : null}
+        />
+      </Frame>
+    );
+  }
   if (!state.set_up) {
     return (
       <Frame state={state} page={page} navigate={navigate}>
@@ -92,7 +120,20 @@ export function App() {
   if (state.remote) return <FjarrApp state={state} path={path} navigate={navigate} onLocked={setState} />;
   const part = PART.exec(path);
   if (part) return <PartScreen state={state} part={decodeURIComponent(part[1] ?? "")} />;
-  return <Unlocked state={state} page={page} path={path} navigate={navigate} onLocked={setState} />;
+  return (
+    <Unlocked
+      key={copy}
+      state={state}
+      page={page}
+      path={path}
+      navigate={navigate}
+      onLocked={setState}
+      onOpened={(next) => {
+        setState(next);
+        setCopy((n) => n + 1);
+      }}
+    />
+  );
 }
 
 /** Delställverk (#87, TKL102): a part's own screen, a role with an area against the station's
@@ -127,6 +168,7 @@ function Frame({ state, page, navigate, connection, clock, onLock, remote = fals
             {connection.hub_name ?? "Hubben"} · {approved ? "godkänd" : connection.status === "waiting" ? "väntar" : "inte godkänd"}
           </span>
         ) : null}
+        {connection?.connected && connection.preview ? <ProvChip /> : null}
         {clock ? <span className="klocka tm-mono">{clock}</span> : null}
         {onLock ? (
           <button type="button" className="lank ljus" onClick={onLock}>
@@ -140,7 +182,7 @@ function Frame({ state, page, navigate, connection, clock, onLock, remote = fals
   );
 }
 
-function Unlocked({ state, page, path, navigate, onLocked }: { state: State; page: Page; path: string; navigate: (href: string) => void; onLocked: (state: State) => void }) {
+function Unlocked({ state, page, path, navigate, onLocked, onOpened }: { state: State; page: Page; path: string; navigate: (href: string) => void; onLocked: (state: State) => void; onOpened: (state: State) => void }) {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [studio, setStudio] = useState<StudioData | null>(null);
   const [view, setView] = useState<View | null>(null);
@@ -159,7 +201,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   const place = connection?.status === "approved" ? (connection.place ?? connection.places?.[0] ?? null) : null;
 
   const fail = (error: unknown) => {
-    if (error instanceof Problem && error.status === 401 && /PIN/.test(error.message)) {
+    if (error instanceof Problem && error.status === 401 && /PIN|TrainMeet ID/.test(error.message)) {
       void api.state().then(onLocked);
       return;
     }
@@ -428,6 +470,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   }
   return (
     <Frame state={state} page={page} navigate={navigate} connection={connection} clock={clock} onLock={() => void api.lock().then(onLocked)} remote={remoteTab(snapshot)}>
+      {state.login && state.account ? <Kontorad state={state} onState={onLocked} onOpened={onOpened} onStations={() => navigate(STATIONER)} /> : null}
       {notice ? (
         <p className="notis" role="alert">
           {notice}{" "}
@@ -436,6 +479,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           </button>
         </p>
       ) : null}
+      {page === "stallverket" && connection?.connected && connection.preview ? <ProvRad hub={connection.hub_name} /> : null}
       {page === "stallverket" && (state.station?.level ?? 0) >= 1 && !state.station?.tried ? <Untried onGo={() => navigate(PROVA)} /> : null}
       {body}
     </Frame>

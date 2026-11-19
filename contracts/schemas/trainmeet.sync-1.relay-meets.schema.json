@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.relay-meets.schema.json",
+  "title": "trainmeet.sync-1.relay-meets",
+  "$defs": {
+    "RelayMeet": {
+      "additionalProperties": true,
+      "description": "En träff som kontot kan ansluta en station till, enligt rollerna i TrainMeet ID (#78 del\nb): träffarna i personens klubbar som molnhubben har. Nyckeln och adressen till Pi:n följer\naldrig med; reläet nås under molnhubbens egen adress.",
+      "properties": {
+        "meet": {
+          "description": "Hubbens träff.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "meet_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Meet Name",
+          "type": "string"
+        },
+        "club_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Club Name"
+        },
+        "starts_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Starts On"
+        },
+        "ends_on": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ends On"
+        },
+        "way": {
+          "$ref": "#/$defs/RelayWay"
+        },
+        "hub_name": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hubben som leder träffen.",
+          "title": "Hub Name"
+        },
+        "relay": {
+          "anyOf": [
+            {
+              "pattern": "^/relay/[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Sökvägen till reläet under molnhubbens adress, när en Pi leder träffen.",
+          "title": "Relay"
+        }
+      },
+      "required": [
+        "meet",
+        "meet_name",
+        "way"
+      ],
+      "title": "RelayMeet",
+      "type": "object"
+    },
+    "RelayWay": {
+      "description": "Hur molnets TKL når träffen.",
+      "enum": [
+        "here",
+        "relay",
+        "none"
+      ],
+      "title": "RelayWay",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "meets": {
+      "items": {
+        "$ref": "#/$defs/RelayMeet"
+      },
+      "maxItems": 200,
+      "title": "Meets",
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

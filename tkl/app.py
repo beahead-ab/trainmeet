@@ -223,6 +223,27 @@ the same client (FR3). Hubben decides which places TKL may read and act on:
 Everything but the state, first start and unlocking needs the PIN: a session in an HttpOnly
 cookie (TKL18). TKL in the cloud also keeps which station is the browser's in a cookie, and
 reaches only the hubs it is set up for, never an address someone types (TKL5).
+
+TKL i molnet with TrainMeet ID (#88, TKL5, TKLMOLN-01–TKLMOLN-11): the station belongs to the
+account and lives in Hubbens Synk; TKL has no store of its own (TKLMOLN-05, TKLMOLN-07). The login
+with ID takes the place of first start and the PIN, one login for everything (TKLMOLN-10); Lås
+locks as before, and logging in again opens. The browser keeps a working copy of the station it
+opened (tkl/store.py says what is kept), and Spara i molnet writes a new version to Synk, refused
+on top of a newer one with the choice Läs in den nya or Spara ändå ovanpå (H71, TKLMOLN-09):
+
+    GET  /api/tkl/1/konto/stationer               TklCloudStations: Dina stationer, from Synk
+    POST /api/tkl/1/konto/stationer               TklNewStation -> TklState: Ny station, saved
+                                                  as version 1 in Synk at once
+    POST /api/tkl/1/konto/stationer/{id}/oppna    TklState: the latest version, outside and
+                                                  inside, as the browser's working copy
+    GET  /api/tkl/1/konto/traffar                 TklMeets: the meets the account may join from
+                                                  ID's roles, and Provbanan with its code
+
+A meet the cloud hub runs is joined directly, as before; one a Pi leads is joined through the
+cloud hub's relay, /relay/{hub}/api/station/1, which the Pi answers on the connection it already
+has open (TKLMOLN-03, TKLMOLN-06, SYNK-11). TKL in the cloud reaches only its hubs and their
+relays, and never an address a hub gives for the relay that is not one of them. Without
+TKL_ID_ISSUER, TKL in the cloud keeps one station per browser as before #88.
 """
 
 from __future__ import annotations
@@ -253,15 +274,18 @@ from contracts import station
 from contracts.hub import Version
 from contracts.station_model import StationModel, StationPart, dump
 from contracts.station_outside import StationOutside
-from contracts.sync import StationPackage
+from contracts.sync import RelayWay, StationPackage
 from contracts.tkl import (
     DECK_REMOTE_ROLE,
     DeckConnection,
     DeckModelId,
     Panel,
+    TklAccount,
     TklAnswer,
     TklAutomatAsk,
     TklCardModule,
+    TklCloudStation,
+    TklCloudStations,
     TklCommand,
     TklConnect,
     TklConnection,
@@ -300,7 +324,11 @@ from contracts.tkl import (
     TklListen,
     TklLoconetConnect,
     TklManover,
+    TklMeet,
+    TklMeets,
+    TklMeetWay,
     TklMode,
+    TklNewStation,
     TklObjectChange,
     TklPartFika,
     TklPartMessage,
@@ -330,13 +358,14 @@ from contracts.tkl import (
     TklSaved,
     TklSetUp,
     TklState,
+    TklStation,
     TklTrainPut,
     TklTrainRef,
     TklUnlock,
     TklView,
     TklWait,
 )
-from tkl import VERSION, fjarr, hub_places, hub_reports, id_login, manover, prova, track_plan
+from tkl import VERSION, fjarr, hub_places, hub_reports, id_login, manover, moln, prova, track_plan
 from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
@@ -371,12 +400,14 @@ from tkl.store import (
     Connection,
     Full,
     HasModel,
+    IdAccount,
     InterlockingBusy,
     NoModel,
     NotSetUp,
     TklStore,
     TooManyAttempts,
     WrongPin,
+    first_outside,
     token_hash,
 )
 from tkl.studio import dela, rita
@@ -434,6 +465,19 @@ PROVKOR_BUSY = (
 )
 PROVKOR_IDLE = "Provkör är inte igång."
 PROVKOR_WAITS = "Provkör väntar på återrapporten. Svara när vägen ligger, eller hoppa över den."
+LOG_IN = "Logga in med TrainMeet ID."
+BOUND_SET_UP = (
+    "TKL i molnet loggar in med TrainMeet ID. Skapa stationen under Dina stationer, så sparas den "
+    "i molnet."
+)
+BOUND_UNLOCK = "TKL i molnet låses upp genom att logga in med TrainMeet ID igen."
+BOUND_PIN = "TKL i molnet har ingen PIN-kod. Inloggningen med TrainMeet ID låser upp."
+BOUND_BUSY = (
+    "Ställverket har lagda vägar eller tågnummer. Lös ut vägarna och ta bort tågnumren i "
+    "Ställverket, eller nollställ det, innan en annan version öppnas."
+)
+UNREADABLE = "Stationspaketet i molnet gick inte att läsa i den här TKL."
+RELAY_PATH = re.compile(r"^(?P<hub>https?://[^/]+)/relay/[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")
 
 
 def web_dir() -> Path:
@@ -452,17 +496,26 @@ def create_app(
     id_settings: TklIdSettings | None = None,
     loconet_settings: loconet.Settings | None = None,
     usb_finder: deck_usb.Finder | None = None,
+    account: bool = True,
 ) -> FastAPI:
     """mode: one station on the station's computer, or one per browser in the cloud.
     over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones.
     id_settings: the login with TrainMeet ID and the cloud hub for the station packages (#78).
     loconet_settings: how a local TKL reaches LocoNet (#85); the cloud never does.
     usb_finder: how a local TKL finds its Stream Decks on USB (#86, SD50), by default through
-    libhidapi; the cloud never looks. The driver runs while the app's lifespan does."""
+    libhidapi; the cloud never looks. The driver runs while the app's lifespan does.
+    account: in the cloud with TrainMeet ID, whether the station belongs to the account (#88,
+    TKL5). from_environment turns it on only with TKL_KONTO, so that a test environment whose ID
+    cannot be reached yet keeps the station per browser."""
     store = TklStore(data_dir / "tkl.sqlite3")
     roles = fjarr.Roles(data_dir / "fjarr.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
     cloud = mode == TklMode.CLOUD
+    # TKL i molnet with TrainMeet ID (#88, TKL5): the station belongs to the account.
+    bound = cloud and id_settings is not None and account
+    cloud_hub = id_settings.cloud.rstrip("/") if id_settings and id_settings.cloud else None
+    # The hubs TKL in the cloud reaches: those it is set up for, and its cloud hub.
+    allowed = [*internet, *([cloud_hub] if cloud_hub and cloud_hub not in internet else [])]
     services: list[loconet.Service] = []
     starting: list[Callable[[], None]] = []
     stopping: list[Callable[[], None]] = []
@@ -502,6 +555,14 @@ def create_app(
             request.headers.get("x-forwarded-proto") == "https"
         )
 
+    def account_of(slot: str | None, found: TklStation | None) -> TklAccount | None:
+        """The account logged in with ID in this browser, in TKL in the cloud (#88)."""
+        account = store.cloud_account(slot) if bound else None
+        if account is None or slot is None:
+            return None
+        changed = found is not None and roles.role(slot) is None and store.cloud_changed(slot)
+        return TklAccount(person=account.name, base=account.saved, changed=changed)
+
     def state(slot: str | None, session: str | None) -> dict[str, Any]:
         found = store.station_of(slot)
         return TklState(
@@ -512,6 +573,8 @@ def create_app(
             station=found,
             locked=found is not None and store.station_locked(slot),
             remote=roles.role(slot) if found is not None else None,
+            login=bound,
+            account=account_of(slot, found),
         ).model_dump(mode="json")
 
     def opened(request: Request, response: Response, token: str) -> None:
@@ -527,6 +590,8 @@ def create_app(
     def unlocked(slot: str | None, session: str | None) -> str:
         found = slot_of(slot)
         if found is None or not store.unlocked(found, session):
+            if bound:
+                raise HTTPException(401, LOG_IN)
             raise HTTPException(401, "Lås upp TKL med PIN-koden.")
         return found
 
@@ -543,9 +608,12 @@ def create_app(
     @routes.post("/setup", status_code=201)
     def set_up(change: TklSetUp, request: Request, response: Response) -> dict[str, Any]:
         """Första start: Gör den här datorn till stationens ställverk. In the cloud each
-        browser gets a station of its own."""
+        browser gets a station of its own; with TrainMeet ID the account's stations come from
+        Synk instead (#88)."""
         same_site(request)
         no_store(response)
+        if bound:
+            raise HTTPException(409, BOUND_SET_UP)
         given = token_urlsafe(32) if cloud else None
         slot = token_hash(given) if given else LOCAL
         try:
@@ -572,6 +640,8 @@ def create_app(
     ) -> dict[str, Any]:
         same_site(request)
         no_store(response)
+        if bound:
+            raise HTTPException(409, BOUND_UNLOCK)
         found = slot_of(slot)
         if found is None:
             raise HTTPException(404, "Ingen station i den här webbläsaren.")
@@ -612,6 +682,8 @@ def create_app(
         session: SessionCookie = None,
     ) -> Response:
         same_site(request)
+        if bound:
+            raise HTTPException(409, BOUND_PIN)
         found = unlocked(slot, session)
         try:
             store.change_pin(found, change.old, change.new, session or "")
@@ -1107,6 +1179,37 @@ def create_app(
 
     with_id = TklIdLogin(id_settings, client) if id_settings is not None else None
 
+    def account_here(found: str) -> IdAccount | None:
+        """Who is logged in with ID: per browser in the cloud (#88), else with the station."""
+        if with_id is None:
+            return None
+        return store.cloud_account(found) if bound else store.account(found)
+
+    def access_of(found: str, account: IdAccount) -> str:
+        """ID's access token, renewed with the refresh token when it has run out."""
+        if time.time() <= account.access_until - 30:
+            return account.access
+        if account.refresh is None or with_id is None:
+            raise HTTPException(401, "Logga in med TrainMeet ID igen.")
+        try:
+            access, refresh, until = with_id.refreshed(account.refresh)
+        except id_login.IdFailed as failed:
+            LOGGER.warning("ID:s token förnyades inte: %s", failed)
+            raise HTTPException(401, "Logga in med TrainMeet ID igen.") from failed
+        if bound:
+            store.cloud_tokens(found, access, refresh, until)
+        else:
+            store.new_tokens(found, access, refresh, until)
+        return access
+
+    def synk_of(found: str, account: IdAccount) -> moln.Synk:
+        if cloud_hub is None:
+            raise HTTPException(409, "Ingen molnhubb är inställd för stationspaketen.")
+        return moln.Synk(client, cloud_hub, access_of(found, account))
+
+    def synk_failed(error: moln.SynkError) -> NoReturn:
+        raise HTTPException(error.status, error.detail) from error
+
     @routes.get("/id")
     def id_state(
         response: Response, slot: SlotCookie = None, session: SessionCookie = None
@@ -1114,28 +1217,54 @@ def create_app(
         """Vem som är inloggad med ID, och stationspaketet i molnet."""
         no_store(response)
         found = unlocked(slot, session)
-        account = store.account(found) if with_id is not None else None
-        versions = store.studio(found).versions
+        account = account_here(found)
+        studio = store.studio(found)
+        versions = studio.versions
         return TklIdState(
             available=with_id is not None,
             person=account.name if account else None,
-            cloud=id_settings.cloud if id_settings else None,
+            cloud=cloud_hub,
             saved=account.saved if account else None,
             local=versions[0].number if versions else None,
+            bound=bound,
+            changed=bound and roles.role(found) is None and store.cloud_changed(found),
         ).model_dump(mode="json")
+
+    def slot_cookie(request: Request, response: Response, given: str) -> None:
+        response.set_cookie(
+            SLOT,
+            given,
+            max_age=int(SLOT_LIFETIME.total_seconds()),
+            httponly=True,
+            samesite="strict",
+            secure=secure(request),
+        )
 
     @routes.get("/id/login")
     def id_log_in(
         request: Request, slot: SlotCookie = None, session: SessionCookie = None
     ) -> Response:
-        """To ID's login page, and back to TKL."""
-        found = unlocked(slot, session)
+        """To ID's login page, and back to TKL. In the cloud (#88) this is where TKL starts:
+        no station or PIN first, and the browser gets its slot here."""
         if with_id is None:
             raise HTTPException(404, "TKL har ingen inloggning med TrainMeet ID.")
+        given = None
+        if bound:
+            if request.headers.get("sec-fetch-site") == "cross-site":
+                # Only from TKL's own page: another site never starts a login here.
+                return RedirectResponse("/", status_code=303)
+            found = slot_of(slot)
+            if found is None:
+                given = token_urlsafe(32)
+                found = token_hash(given)
+        else:
+            found = unlocked(slot, session)
         state, nonce = token_urlsafe(24), token_urlsafe(24)
         verifier = token_urlsafe(48)
         key = store.begin_id_login(found, state, nonce, verifier)
         response = RedirectResponse(with_id.address(state, nonce, verifier), status_code=303)
+        if given:
+            slot_cookie(request, response, given)
         response.set_cookie(
             id_login.COOKIE,
             key,
@@ -1149,12 +1278,14 @@ def create_app(
 
     @routes.get("/id/callback")
     def id_callback(
+        request: Request,
         attempt: IdLoginCookie = None,
         code: str | None = None,
         state: str | None = None,
         error: str | None = None,
     ) -> Response:
-        """Back from ID: the person and ID's tokens are kept with the station."""
+        """Back from ID: the person and ID's tokens are kept with the station, or in the cloud
+        with the browser, where logging in also opens a locked working copy (TKLMOLN-10)."""
         if with_id is None:
             raise HTTPException(404, "TKL har ingen inloggning med TrainMeet ID.")
         taken = store.take_id_login(attempt)
@@ -1172,9 +1303,30 @@ def create_app(
         except id_login.IdFailed as failed:
             LOGGER.warning("Inloggningen med ID i TKL gick inte: %s", failed)
             return response
-        store.keep_account(
-            found, tokens.person, tokens.name, tokens.access, tokens.refresh, tokens.access_until
-        )
+        if bound:
+            try:
+                token = store.keep_cloud_account(
+                    found,
+                    tokens.person,
+                    tokens.name,
+                    tokens.access,
+                    tokens.refresh,
+                    tokens.access_until,
+                )
+            except Full:
+                LOGGER.warning("TKL i molnet har inte plats för fler inloggningar.")
+                return response
+            if token is not None:
+                opened(request, response, token)
+        else:
+            store.keep_account(
+                found,
+                tokens.person,
+                tokens.name,
+                tokens.access,
+                tokens.refresh,
+                tokens.access_until,
+            )
         response.headers["location"] = "/"
         return response
 
@@ -1185,10 +1337,39 @@ def create_app(
         slot: SlotCookie = None,
         session: SessionCookie = None,
     ) -> dict[str, Any]:
+        """Logga ut från ID. In the cloud the working copy goes too: what is not saved in the
+        cloud is gone, which the web app says before (#88)."""
         same_site(request)
+        no_store(response)
+        if bound:
+            found = slot_of(slot)
+            if found is not None:
+                store.forget_cloud(found)
+                roles.forget(found)
+            response.delete_cookie(SESSION)
+            response.delete_cookie(SLOT)
+            return TklIdState(available=True, cloud=cloud_hub, bound=True).model_dump(mode="json")
         found = unlocked(slot, session)
         store.forget_account(found)
         return id_state(response, slot, session)
+
+    def package_of(found: str) -> StationPackage:
+        """The station package of the latest version: the outside, and the inside with the
+        model and the owner's settings that go with it (SYNK-12, SD49, #36 del b)."""
+        number, outside, model = store.latest_package(found)
+        inside: dict[str, object] = {} if model is None else {"station_model": dump(model)}
+        if model is not None:
+            settings = store.manover_of_version(found, number)
+            if settings is not None:
+                inside["manover"] = settings.model_dump(mode="json", exclude_defaults=True)
+            own = store.deck_deviations_of_version(found, number)
+            if own is not None:
+                # The owner's Stream Deck profiles, as deviations per size (SD49).
+                inside["streamdeck"] = own.model_dump(mode="json", exclude_defaults=True)
+            chosen = store.fjarr_of_version(found, number)
+            if chosen is not None:
+                inside["fjarrstyrning"] = chosen.model_dump(mode="json", exclude_defaults=True)
+        return StationPackage(station_id=outside.station_id, outside=outside, inside=inside)
 
     @routes.post("/id/save")
     def save_in_cloud(
@@ -1199,62 +1380,186 @@ def create_app(
         session: SessionCookie = None,
     ) -> dict[str, Any]:
         """Spara i molnet: the latest version of the outside as a new version of the station
-        package, on top of the one TKL knows, or the one the owner chose (H71)."""
+        package, on top of the one TKL knows, or the one the owner chose (H71). In the cloud
+        (#88) the working copy as it is now is what is saved, on top of the version it was
+        opened from or last saved as; a newer one in Synk refuses it, and the owner chooses
+        Läs in den nya or Spara ändå ovanpå (TKLMOLN-09)."""
         same_site(request)
         no_store(response)
         found = unlocked(slot, session)
-        account = store.account(found) if with_id is not None else None
-        if with_id is None or account is None:
+        account = account_here(found)
+        if account is None:
             raise HTTPException(401, "Logga in med TrainMeet ID först.")
-        if id_settings is None or not id_settings.cloud:
-            raise HTTPException(409, "Ingen molnhubb är inställd för stationspaketen.")
-        access = account.access
-        if time.time() > account.access_until - 30:
-            if account.refresh is None:
-                raise HTTPException(401, "Logga in med TrainMeet ID igen.")
-            try:
-                access, refresh, until = with_id.refreshed(account.refresh)
-            except id_login.IdFailed as failed:
-                LOGGER.warning("ID:s token förnyades inte: %s", failed)
-                raise HTTPException(401, "Logga in med TrainMeet ID igen.") from failed
-            store.new_tokens(found, access, refresh, until)
-        number, outside, model = store.latest_package(found)
-        inside: dict[str, object] = {} if model is None else {"station_model": dump(model)}
-        settings = store.manover_of_version(found, number) if model is not None else None
-        if settings is not None:
-            inside["manover"] = settings.model_dump(mode="json", exclude_defaults=True)
-        own = store.deck_deviations_of_version(found, number) if model is not None else None
-        if own is not None:
-            # The owner's Stream Deck profiles, as deviations per size (SD49).
-            inside["streamdeck"] = own.model_dump(mode="json", exclude_defaults=True)
-        package = StationPackage(station_id=outside.station_id, outside=outside, inside=inside)
+        if bound and roles.role(found) is not None:
+            raise HTTPException(409, "Ett fjärrställverk har inget stationspaket att spara.")
+        synk = synk_of(found, account)
+        if bound:
+            store.new_version(found)
+        number = store.latest_outside(found)[0]
+        package = package_of(found)
         base = asked.on_top if asked.on_top is not None else (account.saved or 0)
-        address = f"{id_settings.cloud}/api/sync/1/stations/{outside.station_id}/versions"
         try:
-            answer = client.post(
-                address,
-                params={"base": base},
-                content=package.model_dump_json(),
-                headers={"Authorization": f"Bearer {access}", "Content-Type": "application/json"},
-            )
-        except httpx.HTTPError as error:
-            raise HTTPException(503, "Molnhubben svarar inte. Försök igen.") from error
-        if answer.status_code == 201:
-            version = int(answer.json()["version"])
-            store.saved_in_cloud(found, version)
-            return TklSaved(version=version).model_dump(mode="json")
-        if answer.status_code == 409 and answer.headers.get("TrainMeet-Latest", "").isdigit():
-            latest = int(answer.headers["TrainMeet-Latest"])
-            store.saved_in_cloud(found, latest)
+            version = synk.save(package, base)
+        except moln.Behind as behind:
+            if not bound:
+                store.saved_in_cloud(found, behind.latest)
+                return TklSaved(
+                    behind=behind.latest,
+                    message=f"Molnet har version {behind.latest}, sparad från en annan dator. "
+                    "Spara ovanpå den om stationen på den här datorn är den som gäller.",
+                ).model_dump(mode="json")
             return TklSaved(
-                behind=latest,
-                message=f"Molnet har version {latest}, sparad från en annan dator. Spara ovanpå "
-                "den om stationen på den här datorn är den som gäller.",
+                behind=behind.latest,
+                message=f"Molnet har version {behind.latest}, sparad från en annan dator eller "
+                "flik efter den du arbetar i. Läs in den nya, eller spara ändå ovanpå om "
+                "stationen här är den som gäller.",
             ).model_dump(mode="json")
-        if answer.status_code in (401, 403):
-            raise HTTPException(401, "Molnhubben godtog inte inloggningen. Logga in med ID igen.")
-        LOGGER.warning("Molnhubben svarade %s på stationspaketet.", answer.status_code)
-        raise HTTPException(502, "Molnhubben sparade inte stationspaketet.")
+        except moln.SynkError as error:
+            if error.status == 401:
+                raise HTTPException(401, error.detail) from error
+            synk_failed(error)
+        if bound:
+            store.cloud_base(found, version, number)
+        else:
+            store.saved_in_cloud(found, version)
+        return TklSaved(version=version).model_dump(mode="json")
+
+    # --- TKL i molnet: the station belongs to the account (#88, TKL5, TKLMOLN-02) -------------
+
+    def logged_in(slot: str | None) -> tuple[str, IdAccount]:
+        """The browser's login with ID, in TKL in the cloud; never while TKL is locked."""
+        if not bound:
+            raise HTTPException(404, "TKL har ingen inloggning med TrainMeet ID i molnet.")
+        found = slot_of(slot)
+        account = store.cloud_account(found)
+        if found is None or account is None:
+            raise HTTPException(401, LOG_IN)
+        if store.station_locked(found):
+            raise HTTPException(401, BOUND_UNLOCK)
+        return found, account
+
+    def open_into(
+        found: str, package: StationPackage, version: int, request: Request, response: Response
+    ) -> dict[str, Any]:
+        try:
+            token = store.open_copy(found, package, version)
+        except InterlockingBusy as error:
+            raise HTTPException(409, BOUND_BUSY) from error
+        except ValueError as error:
+            LOGGER.warning("Stationspaketet gick inte att läsa: %s", type(error).__name__)
+            raise HTTPException(502, UNREADABLE) from error
+        roles.forget(found)
+        opened(request, response, token)
+        return state(found, token)
+
+    @routes.get("/konto/stationer")
+    def cloud_stations(response: Response, slot: SlotCookie = None) -> dict[str, Any]:
+        """Dina stationer: the account's station packages in Synk, the latest of each."""
+        no_store(response)
+        found, account = logged_in(slot)
+        try:
+            listed = synk_of(found, account).stations()
+        except moln.SynkError as error:
+            synk_failed(error)
+        own = store.station_of(found)
+        return TklCloudStations(
+            stations=[
+                TklCloudStation(
+                    station_id=s.station_id, name=s.name, version=s.version, saved=s.saved
+                )
+                for s in listed
+            ],
+            open=own.station_id if own is not None and roles.role(found) is None else None,
+        ).model_dump(mode="json")
+
+    @routes.post("/konto/stationer", status_code=201)
+    def new_cloud_station(
+        change: TklNewStation, request: Request, response: Response, slot: SlotCookie = None
+    ) -> dict[str, Any]:
+        """Ny station: version 1 is saved in Synk at once, so that nothing lives only here
+        (TKLMOLN-05), and it becomes the browser's working copy."""
+        same_site(request)
+        no_store(response)
+        found, account = logged_in(slot)
+        name = " ".join(change.name.split())
+        package = StationPackage(
+            station_id=change.station_id, outside=first_outside(change.station_id, name)
+        )
+        try:
+            version = synk_of(found, account).save(package, 0)
+        except moln.Behind as error:
+            raise HTTPException(
+                409,
+                f"Du har redan en station med det korta namnet {change.station_id}. Öppna den "
+                "under Dina stationer.",
+            ) from error
+        except moln.SynkError as error:
+            if error.status == 403:
+                raise HTTPException(
+                    409,
+                    f"Det korta namnet {change.station_id} är någon annans station i molnet. "
+                    "Välj ett annat.",
+                ) from error
+            synk_failed(error)
+        return open_into(found, package, version, request, response)
+
+    @routes.post("/konto/stationer/{station_id}/oppna")
+    def open_cloud_station(
+        station_id: PartId, request: Request, response: Response, slot: SlotCookie = None
+    ) -> dict[str, Any]:
+        """Öppna, and Läs in den nya: the latest version in Synk, the outside and the inside,
+        in place of the working copy the browser had."""
+        same_site(request)
+        no_store(response)
+        found, account = logged_in(slot)
+        try:
+            version, package = synk_of(found, account).latest(station_id)
+        except moln.SynkError as error:
+            synk_failed(error)
+        return open_into(found, package, version, request, response)
+
+    @routes.get("/konto/traffar")
+    def cloud_meets(response: Response, slot: SlotCookie = None) -> dict[str, Any]:
+        """Anslutning in the cloud: the meets the account may join from ID's roles, each with
+        the way there, and Provbanan on the cloud hub with its code (TKLMOLN-03, TKLMOLN-11)."""
+        no_store(response)
+        found, account = logged_in(slot)
+        if cloud_hub is None:
+            return TklMeets(message="Ingen molnhubb är inställd.").model_dump(mode="json")
+        message = None
+        try:
+            listed = synk_of(found, account).meets()
+        except moln.SynkError as error:
+            listed, message = [], error.detail
+        meets = []
+        for meet in listed:
+            address = None
+            if meet.way == RelayWay.HERE:
+                address = cloud_hub
+            elif meet.way == RelayWay.RELAY and meet.relay:
+                address = cloud_hub + meet.relay
+            meets.append(
+                TklMeet(
+                    meet=meet.meet,
+                    name=meet.meet_name,
+                    club_name=meet.club_name,
+                    starts_on=meet.starts_on,
+                    ends_on=meet.ends_on,
+                    way=TklMeetWay(meet.way.value),
+                    hub_name=meet.hub_name,
+                    address=address,
+                )
+            )
+        described = HubClient(client, cloud_hub).describe(nearby=False)
+        meets.append(
+            TklMeet(
+                name="Provbanan",
+                way=TklMeetWay.PREVIEW,
+                hub_name=described.name if described else None,
+                address=cloud_hub,
+            )
+        )
+        return TklMeets(meets=meets, message=message).model_dump(mode="json")
 
     # --- Connecting to the meet ----------------------------------------------------------------
 
@@ -1285,6 +1590,7 @@ def create_app(
             outside_version=made.outside_version,
             message=made.message,
             preview=made.preview,
+            relayed=RELAY_PATH.match(made.address) is not None,
         ).model_dump(mode="json")
 
     def follow(found: str, made: Connection) -> Connection:
@@ -1325,13 +1631,39 @@ def create_app(
         made = store.connection(found)
         return shown(follow(found, made) if made else None)
 
+    def hub_part(address: str) -> str:
+        """The hub of an address: itself, or the cloud hub whose relay it is (SYNK-11)."""
+        through = RELAY_PATH.match(address)
+        return through.group("hub") if through else address
+
     def checked(address: str) -> str:
+        """A hub's address, or its relay to the hub that leads the meet (TKLMOLN-03). In the
+        cloud only TKL's own hubs and their relays, never an address someone types (TKL5)."""
         address = address.strip().rstrip("/")
-        if cloud and address not in internet:
+        if cloud and hub_part(address) not in allowed:
             raise HTTPException(422, "TKL i molnet når bara de hubbar den är inställd för.")
-        if not ADDRESS.match(address):
+        if not ADDRESS.match(hub_part(address)):
             raise HTTPException(422, "Skriv hubbens adress, till exempel http://trainmeet.local.")
         return address
+
+    def relay_of(reply: station.ConnectReply) -> str | None:
+        """The relay the hub says it has, as the way round. In the cloud only one under TKL's
+        own hubs: an address a hub gives is never reached otherwise."""
+        if reply.relay is None:
+            return None
+        given = reply.relay.strip().rstrip("/")
+        if cloud and hub_part(given) not in allowed:
+            return None
+        return given
+
+    def hub_name_of(address: str) -> str | None:
+        """The hub's name; through the relay, the cloud hub's, said as the way there."""
+        described = HubClient(client, hub_part(address)).describe(nearby=address not in allowed)
+        if described is None:
+            return None
+        if RELAY_PATH.match(address):
+            return f"Träffens hubb genom {described.name}"
+        return described.name
 
     @routes.post("/connection")
     def connect(
@@ -1376,13 +1708,12 @@ def create_app(
             ) from error
         if in_prova and not reply.preview:
             raise HTTPException(409, NOT_PREVIEW)
-        described = reaching.describe(nearby=address not in internet)
         store.connected(
             found,
             Connection(
                 address=address,
-                relay=reply.relay,
-                hub_name=described.name if described else None,
+                relay=relay_of(reply),
+                hub_name=hub_name_of(address),
                 client_id=reply.client_id,
                 status=reply.status,
                 places=reply.places,
@@ -3782,35 +4113,41 @@ def create_app(
 
     @routes.post("/fjarr/setup", status_code=201)
     def remote_set_up(
-        change: TklRemoteSetUp, request: Request, response: Response
+        change: TklRemoteSetUp, request: Request, response: Response, slot: SlotCookie = None
     ) -> dict[str, Any]:
         """Första start som Fjärrställverk (ingen egen station, FR1, TKL47): the same PIN and
-        lock as a station's TKL, with the remote interlocking's name and its remote area."""
+        lock as a station's TKL, with the remote interlocking's name and its remote area. In
+        TKL in the cloud with TrainMeet ID (#88) the login locks instead of a PIN, and the
+        remote interlocking takes the place of the browser's working copy."""
         same_site(request)
         no_store(response)
-        given = token_urlsafe(32) if cloud else None
-        slot = token_hash(given) if given else LOCAL
         remote = TklRemote(
             name=" ".join(change.name.split()), area=change.area, places=change.places
         )
+        if bound:
+            found, _ = logged_in(slot)
+            try:
+                token = store.open_remote(found, fjarr.remote_id(remote.name), remote.name)
+            except InterlockingBusy as error:
+                raise HTTPException(409, BOUND_BUSY) from error
+            roles.keep(found, remote)
+            opened(request, response, token)
+            return state(found, token)
+        if change.pin is None:
+            raise HTTPException(422, "Välj en PIN-kod med minst fyra siffror.")
+        given = token_urlsafe(32) if cloud else None
+        slot_id = token_hash(given) if given else LOCAL
         try:
-            token = store.set_up(slot, fjarr.remote_id(remote.name), remote.name, change.pin)
+            token = store.set_up(slot_id, fjarr.remote_id(remote.name), remote.name, change.pin)
         except AlreadySetUp as error:
             raise HTTPException(409, "TKL har redan en station.") from error
         except Full as error:
             raise HTTPException(429, "TKL i molnet har inte plats för fler stationer.") from error
-        roles.keep(slot, remote)
+        roles.keep(slot_id, remote)
         if given:
-            response.set_cookie(
-                SLOT,
-                given,
-                max_age=int(SLOT_LIFETIME.total_seconds()),
-                httponly=True,
-                samesite="strict",
-                secure=secure(request),
-            )
+            slot_cookie(request, response, given)
         opened(request, response, token)
-        return state(slot, token)
+        return state(slot_id, token)
 
     @routes.get("/fjarr/areas")
     def remote_areas(
@@ -3848,13 +4185,12 @@ def create_app(
             raise HTTPException(
                 error.status if error.status < 500 else 502, error.detail
             ) from error
-        described = reaching.describe(nearby=address not in internet)
         store.connected(
             found,
             Connection(
                 address=address,
-                relay=reply.relay,
-                hub_name=described.name if described else None,
+                relay=relay_of(reply),
+                hub_name=hub_name_of(address),
                 client_id=reply.client_id,
                 status=reply.status,
                 places=reply.places,
@@ -3989,10 +4325,12 @@ def create_app(
 
 
 def from_environment() -> FastAPI:
-    """TKL_DATA_DIR, TKL_MODE (local or cloud) and TKL_HUBBAR, the hubs over the internet; and
-    the login with TrainMeet ID (tkl/id_login.py)."""
+    """TKL_DATA_DIR, TKL_MODE (local or cloud) and TKL_HUBBAR, the hubs over the internet; the
+    login with TrainMeet ID (tkl/id_login.py); and TKL_KONTO (on/off, off by default): in the
+    cloud, the station belongs to the account and is opened from Synk (#88, TKL5)."""
     data = Path(os.environ.get("TKL_DATA_DIR", "").strip() or Path.home() / ".trainmeet-tkl")
     mode = TklMode(os.environ.get("TKL_MODE", "local").strip() or "local")
     hubs = [h.strip() for h in os.environ.get("TKL_HUBBAR", "").split(",") if h.strip()]
     found = id_login.settings_from(hubs=hubs if mode == TklMode.CLOUD else None)
-    return create_app(data, mode=mode, over_internet=hubs, id_settings=found)
+    account = os.environ.get("TKL_KONTO", "").strip().lower() in {"1", "on", "ja", "true"}
+    return create_app(data, mode=mode, over_internet=hubs, id_settings=found, account=account)

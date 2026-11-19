@@ -3,6 +3,44 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.state.schema.json",
   "title": "trainmeet.tkl-1.state",
   "$defs": {
+    "TklAccount": {
+      "additionalProperties": true,
+      "description": "TKL i molnet (TKL5, TKLMOLN-07): kontot i TrainMeet ID som är inloggat, och versionen i\nSynk som den öppna stationen bygger på. TKL håller bara en arbetskopia; stationspaketet ägs\nav stationsägaren och ligger i Synk (TKLMOLN-05).",
+      "properties": {
+        "person": {
+          "description": "Namnet i ID. Aldrig adressen.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Person",
+          "type": "string"
+        },
+        "base": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Versionen i Synk som arbetskopian bygger på.",
+          "title": "Base"
+        },
+        "changed": {
+          "default": false,
+          "description": "Arbetskopian har ändringar som inte är sparade i molnet.",
+          "title": "Changed",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "person"
+      ],
+      "title": "TklAccount",
+      "type": "object"
+    },
     "TklMode": {
       "enum": [
         "local",
@@ -137,6 +175,24 @@
       ],
       "default": null,
       "description": "TKL körs som fjärrställverk, utan egen station (FR1, TKL47, #36 del c)."
+    },
+    "login": {
+      "default": false,
+      "description": "TKL i molnet loggar in med TrainMeet ID i stället för första start och PIN: stationen hör till kontot och öppnas ur Hubbens Synk (TKL5, TKLMOLN-01, TKLMOLN-10).",
+      "title": "Login",
+      "type": "boolean"
+    },
+    "account": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklAccount"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Kontot som är inloggat i den här webbläsaren, i TKL i molnet."
     }
   },
   "required": [

@@ -41,7 +41,7 @@ export function FirstStart({ cloud, onSetUp }: { cloud: boolean; onSetUp: (name:
     <form className="forsta" onSubmit={submit}>
       <p className="overrad">Första start · tre rutor</p>
       <h1>{name.trim() ? `Gör den här datorn till ${name.trim()}s ställverk.` : "Gör den här datorn till stationens ställverk."}</h1>
-      {cloud ? <p className="liten">TKL i molnet: stationen hör till den här webbläsaren tills TrainMeet ID finns i TKL.</p> : null}
+      {cloud ? <p className="liten">TKL i molnet utan TrainMeet ID: stationen hör till den här webbläsaren.</p> : null}
       <div className="rutor">
         <fieldset className="ruta">
           <legend>1 · Stationen</legend>

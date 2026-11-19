@@ -148,6 +148,12 @@
       "description": "En provkörning i Provbanan, inte en riktig träff (STUDIO-12).",
       "title": "Preview",
       "type": "boolean"
+    },
+    "relayed": {
+      "default": false,
+      "description": "Genom molnhubbens relä till Pi:n som leder träffen (TKLMOLN-03, SYNK-11).",
+      "title": "Relayed",
+      "type": "boolean"
     }
   },
   "required": [

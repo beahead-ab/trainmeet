@@ -81,7 +81,7 @@ FR17); the station automats are switched on the spot with /api/tkl/1/stallverk/a
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Final, Literal
 
@@ -129,7 +129,7 @@ LEVEL_0: Final = 0
 
 class TklMode(StrEnum):
     LOCAL = "local"  # on the station's computer or a Pi: one station
-    CLOUD = "cloud"  # TKL i molnet: one station per browser until TrainMeet ID (TKL5)
+    CLOUD = "cloud"  # TKL i molnet: the station belongs to the account in TrainMeet ID (TKL5)
 
 
 class TklStation(Contract):
@@ -160,6 +160,54 @@ class TklState(Contract):
         default=None,
         description="TKL körs som fjärrställverk, utan egen station (FR1, TKL47, #36 del c).",
     )
+    login: bool = Field(
+        default=False,
+        description="TKL i molnet loggar in med TrainMeet ID i stället för första start och PIN: "
+        "stationen hör till kontot och öppnas ur Hubbens Synk (TKL5, TKLMOLN-01, TKLMOLN-10).",
+    )
+    account: TklAccount | None = Field(
+        default=None,
+        description="Kontot som är inloggat i den här webbläsaren, i TKL i molnet.",
+    )
+
+
+class TklAccount(Contract):
+    """TKL i molnet (TKL5, TKLMOLN-07): kontot i TrainMeet ID som är inloggat, och versionen i
+    Synk som den öppna stationen bygger på. TKL håller bara en arbetskopia; stationspaketet ägs
+    av stationsägaren och ligger i Synk (TKLMOLN-05)."""
+
+    person: Text = Field(description="Namnet i ID. Aldrig adressen.")
+    base: int | None = Field(
+        default=None, ge=1, description="Versionen i Synk som arbetskopian bygger på."
+    )
+    changed: bool = Field(
+        default=False, description="Arbetskopian har ändringar som inte är sparade i molnet."
+    )
+
+
+class TklCloudStation(Contract):
+    """En station i Dina stationer: den senaste versionen i Synk."""
+
+    station_id: Id
+    name: Text
+    version: int = Field(ge=1)
+    saved: datetime
+
+
+class TklCloudStations(Contract):
+    """Dina stationer (TKLMOLN-02): stationspaketen som kontot äger i Hubbens Synk."""
+
+    stations: list[TklCloudStation] = Field(default_factory=list)
+    open: Id | None = Field(
+        default=None, description="Stationen som är öppen i den här webbläsaren."
+    )
+
+
+class TklNewStation(Contract):
+    """Ny station i TKL i molnet: namnet och det korta namnet. Version 1 sparas i Synk direkt."""
+
+    name: str = Field(min_length=1, max_length=40)
+    station_id: Id
 
 
 class TklSetUp(Contract):
@@ -244,6 +292,40 @@ class TklConnection(Contract):
     preview: bool = Field(
         default=False, description="En provkörning i Provbanan, inte en riktig träff (STUDIO-12)."
     )
+    relayed: bool = Field(
+        default=False,
+        description="Genom molnhubbens relä till Pi:n som leder träffen (TKLMOLN-03, SYNK-11).",
+    )
+
+
+class TklMeetWay(StrEnum):
+    """Hur TKL i molnet når en träff (TKLMOLN-03, TKLMOLN-06)."""
+
+    HERE = "here"  # molnhubben kör träffen: direkt till den
+    RELAY = "relay"  # en Pi leder träffen: genom molnhubbens relä
+    NONE = "none"  # träffen körs inte just nu
+    PREVIEW = "preview"  # Provbanan på molnhubben, med provkörningens kod (TKLMOLN-11)
+
+
+class TklMeet(Contract):
+    """En träff att ansluta till i TKL i molnet: kontots träffar enligt rollerna i ID, och
+    Provbanan. Adressen är molnhubbens, eller dess relä till Pi:n; aldrig Pi:ns egen."""
+
+    meet: Id | None = Field(default=None, description="Hubbens träff; tomt för Provbanan.")
+    name: Text
+    club_name: Text | None = None
+    starts_on: date | None = None
+    ends_on: date | None = None
+    way: TklMeetWay
+    hub_name: Text | None = Field(default=None, description="Hubben som leder träffen.")
+    address: Text | None = Field(default=None, description="Där TKL ansluter, med koden.")
+
+
+class TklMeets(Contract):
+    meets: list[TklMeet] = Field(default_factory=list)
+    message: Text | None = Field(
+        default=None, description="Varför kontots träffar inte går att läsa just nu."
+    )
 
 
 class TklView(Contract):
@@ -277,6 +359,12 @@ class TklIdState(Contract):
         default=None, description="Den senaste versionen i molnet som TKL har sparat eller sett."
     )
     local: int | None = Field(default=None, description="Utsidans senaste version på datorn.")
+    bound: bool = Field(
+        default=False,
+        description="TKL i molnet: stationen hör till kontot, och Spara i molnet är hur den "
+        "sparas (TKL5). Arbetskopian i TKL är bara en kopia.",
+    )
+    changed: bool = Field(default=False, description="Ändringar som inte är sparade i molnet än.")
 
 
 class TklSave(Contract):
@@ -2774,12 +2862,15 @@ class TklRemote(Contract):
 
 
 class TklRemoteSetUp(Contract):
-    """Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en."""
+    """Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en.
+    I TKL i molnet med TrainMeet ID låser inloggningen i stället, och PIN:en utelämnas."""
 
     name: str = Field(min_length=1, max_length=40)
     area: Id | None = None
     places: list[Id] = Field(default_factory=list, max_length=40)
-    pin: str = TKL_PIN
+    pin: str | None = Field(
+        default=None, pattern=r"^[0-9]{4,12}$", description="4–12 siffror. Skrivs aldrig ut."
+    )
 
 
 class TklRemoteArea(Contract):
