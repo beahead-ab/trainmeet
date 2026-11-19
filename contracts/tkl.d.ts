@@ -628,6 +628,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/fjarrstyrning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklFjarrStudio"];
+        put: operations["tklSaveFjarr"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/stallverk/automat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklStationAutomat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/stallverk/parts/reply": {
         parameters: {
             query?: never;
@@ -2955,12 +2987,26 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.station-1.reply.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * ArrivalState
          * @enum {string}
          */
         "trainmeet.station-1.reply.ArrivalState": "none" | "on_the_way" | "arrived";
+        /**
+         * AutomatAsked
+         * @description What whoever controls the station has decided for one of its automats or local areas,
+         *     with automat.set or local_release.response and .end, until the station's route.state shows
+         *     it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).
+         */
+        "trainmeet.station-1.reply.AutomatAsked": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * AutomatOn
          * @description A station automat that is switched on, and who switched it on (FR25, FR29).
@@ -3257,6 +3303,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LocalRequestHere
+         * @description A local area the people on the station have asked for and not yet been answered (FR20).
+         */
+        "trainmeet.station-1.reply.LocalRequestHere": {
+            /** Code */
+            code: string;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Asked At */
+            asked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LockedRoute
          * @description A catalogue route the station's interlocking holds locked. It stays until the train has
          *     gone, also when the station is taken back (FR15).
@@ -3424,7 +3487,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.station-1.reply.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -3484,6 +3547,16 @@ export interface components {
              * @default null
              */
             route_state: components["schemas"]["trainmeet.station-1.reply.RouteState"] | null;
+            /**
+             * Automats Asked
+             * @description Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.
+             */
+            automats_asked?: components["schemas"]["trainmeet.station-1.reply.AutomatAsked"][];
+            /**
+             * Local Requests
+             * @description Lokala områden stationen har bett om, utan svar än.
+             */
+            local_requests?: components["schemas"]["trainmeet.station-1.reply.LocalRequestHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -3512,6 +3585,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.station-1.reply.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -4483,12 +4561,26 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.view.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.tkl-1.view.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * ArrivalState
          * @enum {string}
          */
         "trainmeet.tkl-1.view.ArrivalState": "none" | "on_the_way" | "arrived";
+        /**
+         * AutomatAsked
+         * @description What whoever controls the station has decided for one of its automats or local areas,
+         *     with automat.set or local_release.response and .end, until the station's route.state shows
+         *     it (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).
+         */
+        "trainmeet.tkl-1.view.AutomatAsked": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * AutomatOn
          * @description A station automat that is switched on, and who switched it on (FR25, FR29).
@@ -4785,6 +4877,23 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LocalRequestHere
+         * @description A local area the people on the station have asked for and not yet been answered (FR20).
+         */
+        "trainmeet.tkl-1.view.LocalRequestHere": {
+            /** Code */
+            code: string;
+            /**
+             * All Day
+             * @default false
+             */
+            all_day: boolean;
+            /** Asked At */
+            asked_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LockedRoute
          * @description A catalogue route the station's interlocking holds locked. It stays until the train has
          *     gone, also when the station is taken back (FR15).
@@ -4923,7 +5032,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.tkl-1.view.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.tkl-1.view.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -4983,6 +5092,16 @@ export interface components {
              * @default null
              */
             route_state: components["schemas"]["trainmeet.tkl-1.view.RouteState"] | null;
+            /**
+             * Automats Asked
+             * @description Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.
+             */
+            automats_asked?: components["schemas"]["trainmeet.tkl-1.view.AutomatAsked"][];
+            /**
+             * Local Requests
+             * @description Lokala områden stationen har bett om, utan svar än.
+             */
+            local_requests?: components["schemas"]["trainmeet.tkl-1.view.LocalRequestHere"][];
         } & {
             [key: string]: unknown;
         };
@@ -5011,6 +5130,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.tkl-1.view.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -5283,7 +5407,7 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.tkl-1.command.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * MeetContext
          * @description Which meet, version and game day the client saw. A command for another is refused
@@ -9040,6 +9164,8 @@ export interface components {
              * @description Klara att skicka, i stationens ordning: efter avgångstiden i planen, och som stationen har flyttat dem (TKL108).
              */
             ready?: components["schemas"]["trainmeet.tkl-1.interlocking.TklReady"][];
+            /** @description Fjärrstyrningen: vem som styr, automaterna och magasinet (#36 del b). */
+            fjarr?: components["schemas"]["trainmeet.tkl-1.interlocking.TklFjarrState"];
         } & {
             [key: string]: unknown;
         };
@@ -9049,6 +9175,12 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.AddressState": "grey" | "yellow" | "green" | "without";
+        /**
+         * AutomatKind
+         * @description The station automats (FR24, FR39), as in interlockings 85 and 95.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.AutomatKind": "a1" | "a2" | "a3" | "an" | "au" | "local_release";
         /**
          * BorderSwitch
          * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
@@ -9123,6 +9255,12 @@ export interface components {
          */
         "trainmeet.tkl-1.interlocking.Position": "+" | "-";
         /**
+         * RouteBy
+         * @description Who laid a route, or switched an automat (FR33, FR37).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking.RouteBy": "remote" | "station" | "automat";
+        /**
          * RouteKind
          * @enum {string}
          */
@@ -9139,6 +9277,34 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.TklAspect": "stop" | "proceed" | "shunt" | "local";
+        /**
+         * TklAutomatOn
+         * @description A station automat switched on in the station's interlocking (FR24–FR27): who switched it,
+         *     and for A1, A2, AN and AU the trains it has taken in and laid out.
+         */
+        "trainmeet.tkl-1.interlocking.TklAutomatOn": {
+            /** Code */
+            code: string;
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking.AutomatKind"];
+            by: components["schemas"]["trainmeet.tkl-1.interlocking.RouteBy"];
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Trains
+             * @description Tågbesöken den har tagit in.
+             */
+            trains?: string[];
+            /**
+             * Out
+             * @description Tågbesöken den har lagt ut.
+             */
+            out?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklExitShown
          * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
@@ -9215,6 +9381,24 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking.TklFieldMode": "loconet" | "pretend";
+        /**
+         * TklFjarrState
+         * @description The station's remote control in its interlocking (#36 del b): who controls it, the
+         *     automats that are on and the magazine. Kept with the interlocking.
+         */
+        "trainmeet.tkl-1.interlocking.TklFjarrState": {
+            /**
+             * Controller
+             * @description Fjärrstyrs från …: stationens egen panel lägger då inget (FR6, FR17).
+             */
+            controller?: string | null;
+            /** Automats */
+            automats?: components["schemas"]["trainmeet.tkl-1.interlocking.TklAutomatOn"][];
+            /** Magazine */
+            magazine?: components["schemas"]["trainmeet.tkl-1.interlocking.TklMagazined"][];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklFunctionMode
          * @description One of a function's positions: a traction current's mode, or a turntable's track.
@@ -9319,6 +9503,47 @@ export interface components {
              * @default null
              */
             by: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklMagazined
+         * @description A route in the magazine (magasinering, FR45): it conflicts with a set route, and is laid
+         *     by itself once that route is released, after a delay so that the train is wholly in.
+         */
+        "trainmeet.tkl-1.interlocking.TklMagazined": {
+            /**
+             * Route
+             * @description Tågvägens id i fjärrkatalogen.
+             */
+            route: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Automat */
+            automat: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Blocked By
+             * @description Vägarna den krockar med.
+             */
+            blocked_by?: number[];
+            /**
+             * Free Since
+             * @description När de vägarna var lösta.
+             * @default null
+             */
+            free_since: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -9776,6 +10001,23 @@ export interface components {
              * @default null
              */
             request: number | null;
+            /**
+             * Catalogue
+             * @description Tågvägens id i fjärrkatalogen.
+             */
+            catalogue?: string | null;
+            /** @description Den som fjärrstyr eller en automat; tomt: på platsen. */
+            by?: components["schemas"]["trainmeet.tkl-1.interlocking.RouteBy"] | null;
+            /**
+             * Request Id
+             * @description Fjärrbegäran vägen lades för.
+             */
+            request_id?: string | null;
+            /**
+             * Automat
+             * @description Automaten som lade den.
+             */
+            automat?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -9913,13 +10155,19 @@ export interface components {
          * Action
          * @enum {string}
          */
-        "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state";
+        "trainmeet.tkl-1.interlocking-answer.Action": "train.lookup" | "train.track.change" | "train.departed" | "train.arrived" | "train.position.set" | "train.crew_ready.set" | "train.set_aside" | "clearance.request" | "clearance.response" | "clearance.cancel" | "line.available.publish" | "line.available.acknowledge" | "section.occupancy" | "signal.exit" | "place.leave" | "place.take_back" | "place.offer" | "place.offer.answer" | "route.request" | "route.cancel" | "route.response" | "route.state" | "automat.set" | "local_release.request" | "local_release.response" | "local_release.end";
         /**
          * AddressState
          * @description An object's four states in Koppla in (STUDIO-17, TKL26).
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.AddressState": "grey" | "yellow" | "green" | "without";
+        /**
+         * AutomatKind
+         * @description The station automats (FR24, FR39), as in interlockings 85 and 95.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.AutomatKind": "a1" | "a2" | "a3" | "an" | "au" | "local_release";
         /**
          * BorderSwitch
          * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
@@ -9994,6 +10242,12 @@ export interface components {
          */
         "trainmeet.tkl-1.interlocking-answer.Position": "+" | "-";
         /**
+         * RouteBy
+         * @description Who laid a route, or switched an automat (FR33, FR37).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.interlocking-answer.RouteBy": "remote" | "station" | "automat";
+        /**
          * RouteKind
          * @enum {string}
          */
@@ -10010,6 +10264,34 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.TklAspect": "stop" | "proceed" | "shunt" | "local";
+        /**
+         * TklAutomatOn
+         * @description A station automat switched on in the station's interlocking (FR24–FR27): who switched it,
+         *     and for A1, A2, AN and AU the trains it has taken in and laid out.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklAutomatOn": {
+            /** Code */
+            code: string;
+            kind: components["schemas"]["trainmeet.tkl-1.interlocking-answer.AutomatKind"];
+            by: components["schemas"]["trainmeet.tkl-1.interlocking-answer.RouteBy"];
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Trains
+             * @description Tågbesöken den har tagit in.
+             */
+            trains?: string[];
+            /**
+             * Out
+             * @description Tågbesöken den har lagt ut.
+             */
+            out?: string[];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklExitShown
          * @description A line exit: the line's pieces outside the entry signal, which belong to the line and
@@ -10086,6 +10368,24 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.interlocking-answer.TklFieldMode": "loconet" | "pretend";
+        /**
+         * TklFjarrState
+         * @description The station's remote control in its interlocking (#36 del b): who controls it, the
+         *     automats that are on and the magazine. Kept with the interlocking.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklFjarrState": {
+            /**
+             * Controller
+             * @description Fjärrstyrs från …: stationens egen panel lägger då inget (FR6, FR17).
+             */
+            controller?: string | null;
+            /** Automats */
+            automats?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAutomatOn"][];
+            /** Magazine */
+            magazine?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklMagazined"][];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * TklFunctionMode
          * @description One of a function's positions: a traction current's mode, or a turntable's track.
@@ -10301,6 +10601,49 @@ export interface components {
              * @description Klara att skicka, i stationens ordning: efter avgångstiden i planen, och som stationen har flyttat dem (TKL108).
              */
             ready?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklReady"][];
+            /** @description Fjärrstyrningen: vem som styr, automaterna och magasinet (#36 del b). */
+            fjarr?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklFjarrState"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklMagazined
+         * @description A route in the magazine (magasinering, FR45): it conflicts with a set route, and is laid
+         *     by itself once that route is released, after a delay so that the train is wholly in.
+         */
+        "trainmeet.tkl-1.interlocking-answer.TklMagazined": {
+            /**
+             * Route
+             * @description Tågvägens id i fjärrkatalogen.
+             */
+            route: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Automat */
+            automat: string;
+            /**
+             * Call
+             * @default null
+             */
+            call: string | null;
+            /**
+             * Since
+             * Format: date-time
+             */
+            since: string;
+            /**
+             * Blocked By
+             * @description Vägarna den krockar med.
+             */
+            blocked_by?: number[];
+            /**
+             * Free Since
+             * @description När de vägarna var lösta.
+             * @default null
+             */
+            free_since: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -10822,6 +11165,23 @@ export interface components {
              * @default null
              */
             request: number | null;
+            /**
+             * Catalogue
+             * @description Tågvägens id i fjärrkatalogen.
+             */
+            catalogue?: string | null;
+            /** @description Den som fjärrstyr eller en automat; tomt: på platsen. */
+            by?: components["schemas"]["trainmeet.tkl-1.interlocking-answer.RouteBy"] | null;
+            /**
+             * Request Id
+             * @description Fjärrbegäran vägen lades för.
+             */
+            request_id?: string | null;
+            /**
+             * Automat
+             * @description Automaten som lade den.
+             */
+            automat?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14673,6 +15033,578 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TklFjarrChoice
+         * @description Studio, Inställningar, Fjärrstyrning: the owner's choice, kept with the station's model
+         *     and versioned with it like Manöver's settings. Level 0 has none (FR16).
+         */
+        "trainmeet.tkl-1.fjarr-choice": {
+            /**
+             * Routes
+             * @description Fjärrkatalogen: de valda tågvägarnas id.
+             */
+            routes?: string[];
+            /** Automats */
+            automats?: components["schemas"]["trainmeet.tkl-1.fjarr-choice.TklAutomatSpec"][];
+            /**
+             * Receivers
+             * @description Vilka som får ta emot stationen. Tomt: grannar och fjärrställverk.
+             */
+            receivers?: components["schemas"]["trainmeet.tkl-1.fjarr-choice.ReceiverKind"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AutomatKind
+         * @description The station automats (FR24, FR39), as in interlockings 85 and 95.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-choice.AutomatKind": "a1" | "a2" | "a3" | "an" | "au" | "local_release";
+        /**
+         * ReceiverKind
+         * @description Who may receive the station when it is handed over (FR3, TKL46, TKL47).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-choice.ReceiverKind": "neighbours" | "remote";
+        /**
+         * TklAutomatSpec
+         * @description A station automat as the owner sets it up (FR24, FR39, FR40): A1, A2 and A3 for the
+         *     whole station, AN and AU for the entry signals of the down and up track, and a local release
+         *     automat for one of the station's local release functions.
+         */
+        "trainmeet.tkl-1.fjarr-choice.TklAutomatSpec": {
+            /**
+             * Code
+             * @description Koden vid stationsnamnet: A3, AN21 eller L01.
+             */
+            code: string;
+            kind: components["schemas"]["trainmeet.tkl-1.fjarr-choice.AutomatKind"];
+            /**
+             * Signals
+             * @description Infartssignalerna automaten sköter, för AN och AU. Tomt: alla.
+             */
+            signals?: string[];
+            /**
+             * Function
+             * @description Panelfunktionen, för en lokalfrigivningsautomat.
+             */
+            function?: string | null;
+            /**
+             * Default
+             * @description Förvald: kopplas in efter 90 sekunder utan kontakt (FR29).
+             * @default false
+             */
+            default: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFjarrStudio
+         * @description The page in Studio: the owner's choice, the routes to choose from, the automats
+         *     suggested, what is wrong, and the outside the choice gives.
+         */
+        "trainmeet.tkl-1.fjarr-studio": {
+            settings: components["schemas"]["trainmeet.tkl-1.fjarr-studio.TklFjarrChoice"];
+            /**
+             * Kept
+             * @description Ägaren har sparat ett val; annars är det förslaget.
+             */
+            kept: boolean;
+            /** Level */
+            level: number;
+            /** Candidates */
+            candidates?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.TklRemoteCandidate"][];
+            /**
+             * Entry Signals
+             * @description Infartssignalerna, att välja för AN och AU.
+             */
+            entry_signals?: string[];
+            /**
+             * Functions
+             * @description Stationens panelfunktioner för lokal frigivning.
+             */
+            functions?: string[];
+            /**
+             * Suggested
+             * @description Förslaget ur stationens tågvägar och modell.
+             */
+            suggested?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.TklAutomatSpec"][];
+            /** Problems */
+            problems?: string[];
+            /**
+             * @description Utsidan med fjärrkatalogen, automaterna och översikten.
+             * @default null
+             */
+            outside: components["schemas"]["trainmeet.tkl-1.fjarr-studio.StationOutside"] | null;
+            /**
+             * Note
+             * @description Varför stationen inte har någon katalog.
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Automat
+         * @description A station automat in the station's own interlocking (FR24). Switched on and off by whoever
+         *     controls the station: on the spot when manned, from the remote picture when remote-controlled
+         *     (FR25).
+         */
+        "trainmeet.tkl-1.fjarr-studio.Automat": {
+            /**
+             * Code
+             * @description Koden vid stationsnamnet, till exempel A3, AU21 eller L01. Flera av samma slag skiljs åt med infartssignalens nummer (FR40).
+             */
+            code: string;
+            kind: components["schemas"]["trainmeet.tkl-1.fjarr-studio.AutomatKind"];
+            /**
+             * Default
+             * @description Förvald: stationen kopplar in den själv efter 90 sekunder utan kontakt med den som fjärrstyr (FR29).
+             * @default false
+             */
+            default: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AutomatKind
+         * @description The station automats (FR24, FR39), as in interlockings 85 and 95.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-studio.AutomatKind": "a1" | "a2" | "a3" | "an" | "au" | "local_release";
+        /** BoxSide */
+        "trainmeet.tkl-1.fjarr-studio.BoxSide": {
+            side: components["schemas"]["trainmeet.tkl-1.fjarr-studio.Side"];
+            /**
+             * Label
+             * @description Det boxen visar för sidan, till exempel Väster.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Exit */
+        "trainmeet.tkl-1.fjarr-studio.Exit": {
+            /**
+             * Id
+             * @description Utfartens fasta id. Kopplas till en sträcka per träff (H26).
+             */
+            id: string;
+            /** @description Vilken sida utfarten ligger på. */
+            side: components["schemas"]["trainmeet.tkl-1.fjarr-studio.Side"];
+            /**
+             * Name
+             * @description Till exempel Mot Norrby.
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når utfarten, vid gränsen.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen, med sina namn.
+             */
+            signals?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OverviewDrawing
+         * @description The outside's overview (FR31, FR48, TKL88): a simple drawing, in a grid read from left to
+         *     right, of the tracks, switches and main signals that are controlled centrally. Every signal
+         *     and switch sits on a horizontal line, as in the remote picture. Tracks no catalogue route
+         *     reaches are left out, and there are no switch numbers, dwarf signals or addresses. Each
+         *     catalogue route names the pieces and links it lays, in order, so that a locked route can be
+         *     drawn and the switches' lie seen. Studio makes it from the drawing.
+         */
+        "trainmeet.tkl-1.fjarr-studio.OverviewDrawing": {
+            /**
+             * Columns
+             * @description Rutnätets bredd i kolumner.
+             */
+            columns: number;
+            /**
+             * Rows
+             * @description Rutnätets höjd i rader.
+             */
+            rows: number;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.OverviewTrack"][];
+            /** Links */
+            links?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.OverviewLink"][];
+            /** Signals */
+            signals?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.OverviewSignal"][];
+            /** Exits */
+            exits?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.OverviewExit"][];
+            /**
+             * Routes
+             * @description Katalogvägens id → bitarna och strecken den lägger, i ordning.
+             */
+            routes?: {
+                [key: string]: string[];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OverviewExit
+         * @description Where a line end leaves the drawing.
+         */
+        "trainmeet.tkl-1.fjarr-studio.OverviewExit": {
+            /**
+             * Exit
+             * @description Utfartens id i utsidan.
+             */
+            exit: string;
+            /** Row */
+            row: number;
+            /** Column */
+            column: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OverviewLink
+         * @description A switch as a line between two rows (växeln som streck, FR31, FR36): from a point on one
+         *     row to a point on another. No number, no address.
+         */
+        "trainmeet.tkl-1.fjarr-studio.OverviewLink": {
+            /**
+             * Id
+             * @description Streckets id i översikten. Aldrig växelns nummer.
+             */
+            id: string;
+            /** From Row */
+            from_row: number;
+            /** From Column */
+            from_column: number;
+            /** To Row */
+            to_row: number;
+            /** To Column */
+            to_column: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OverviewSignal
+         * @description A main signal with its number, where it stands and which way it faces. The catalogue's
+         *     routes start and end at them (FR31). Dwarf signals are never in the overview (FR36).
+         */
+        "trainmeet.tkl-1.fjarr-studio.OverviewSignal": {
+            /**
+             * Name
+             * @description Signalens nummer, som i tågvägarna.
+             */
+            name: string;
+            /** Row */
+            row: number;
+            /** Column */
+            column: number;
+            /** @description Åt vilket håll signalen visar. */
+            towards: components["schemas"]["trainmeet.tkl-1.fjarr-studio.Side"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * OverviewTrack
+         * @description A horizontal piece of track in the overview, on one row of the grid.
+         */
+        "trainmeet.tkl-1.fjarr-studio.OverviewTrack": {
+            /**
+             * Id
+             * @description Bitens id i översikten. Inte ett nummer eller en adress.
+             */
+            id: string;
+            /**
+             * Row
+             * @description Raden, uppifrån och från 0.
+             */
+            row: number;
+            /**
+             * Start
+             * @description Kolumnen där biten börjar, från vänster och från 0.
+             */
+            start: number;
+            /**
+             * End
+             * @description Kolumnen där biten slutar, till höger om start.
+             */
+            end: number;
+            /**
+             * Track
+             * @description Stationsspåret biten är, med spårets id i utsidan.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Platform
+             * @description Biten har plattform.
+             * @default false
+             */
+            platform: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReceiverKind
+         * @description Who may receive the station when it is handed over (FR3, TKL46, TKL47).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-studio.ReceiverKind": "neighbours" | "remote";
+        /**
+         * RemoteRoute
+         * @description A route in the remote catalogue (fjärrkatalog, TKL46, FR10): one of the station's own
+         *     train routes that may be requested from afar. Shunting routes never are. The catalogue only
+         *     says what may be asked for; the station's interlocking tries each request as if it had been
+         *     laid on the spot (FR12).
+         */
+        "trainmeet.tkl-1.fjarr-studio.RemoteRoute": {
+            /**
+             * Id
+             * @description Tågvägens fasta id i stationen, till exempel 21-33.
+             */
+            id: string;
+            /**
+             * Start
+             * @description Start som i stationens egen tabell: en signal, ett spår eller A1.
+             */
+            start: string;
+            /**
+             * End
+             * @description Mål som i stationens egen tabell.
+             */
+            end: string;
+            /**
+             * Exit
+             * @description Linjeänden: utfartens id i utsidan.
+             */
+            exit: string;
+            /**
+             * Track
+             * @description Stationsspåret.
+             */
+            track: string;
+            /** @description in från linjen till spåret, out från spåret mot linjen. */
+            direction: components["schemas"]["trainmeet.tkl-1.fjarr-studio.RouteDirection"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteDirection
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-studio.RouteDirection": "in" | "out";
+        /**
+         * Side
+         * @description Which side of a place a section or exit leaves from, as the box shows it.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.fjarr-studio.Side": "left" | "right";
+        /**
+         * StationOutside
+         * @description The outside of one station. Level 0 stations write tracks and exits as a list (TKL21).
+         */
+        "trainmeet.tkl-1.fjarr-studio.StationOutside": {
+            /**
+             * Format
+             * @default trainmeet.station-outside/1
+             * @constant
+             */
+            format: "trainmeet.station-outside/1";
+            /**
+             * Station Id
+             * @description Stationens id, skapat i TKL Studio.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.tkl-1.fjarr-studio.StationTrack"][];
+            /** Exits */
+            exits: components["schemas"]["trainmeet.tkl-1.fjarr-studio.Exit"][];
+            /** Sides */
+            sides?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.BoxSide"][];
+            /**
+             * Parts
+             * @description Delarna som är egna driftplatser i Hubben, de som bemannas för sig (TKL101, PLAN-34). Tomt för en station utan sådana delar.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.StationPart"][];
+            /**
+             * Remote Routes
+             * @description Fjärrkatalogen: de av stationens tågvägar som får begäras från fjärr (TKL46, FR10). Tomt: stationen kan inte fjärrstyras, som på nivå 0 (FR16).
+             */
+            remote_routes?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.RemoteRoute"][];
+            /**
+             * Automats
+             * @description Stationsautomaterna med sina koder (FR24, FR39).
+             */
+            automats?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.Automat"][];
+            /** @description En enkel ritning av det som styrs centralt, för fjärrbilden (FR31, FR48). */
+            overview?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.OverviewDrawing"] | null;
+            /**
+             * Remote Receivers
+             * @description Vilket slag som får ta emot stationen: grannar, fjärrställverk eller båda. Tomt: båda. Vilka grannarna är avgörs per träff (H26).
+             */
+            remote_receivers?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.ReceiverKind"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationPart
+         * @description A part of the station that is its own driftplats in Hubben (TKL101, PLAN-34).
+         */
+        "trainmeet.tkl-1.fjarr-studio.StationPart": {
+            /**
+             * Id
+             * @description Delens fasta id i stationen, satt i TKL Studio.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Delens namn, som driftplatsen får i planen.
+             */
+            name: string;
+            /**
+             * Code
+             * @description Delens signatur som driftplats. Tomt: namnet används, som när planen saknar en signatur.
+             * @default null
+             */
+            code: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationTrack */
+        "trainmeet.tkl-1.fjarr-studio.StationTrack": {
+            /**
+             * Id
+             * @description Spårets korta namn i stationen, till exempel 1a. Fast id.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Det som står på skärmen, till exempel Spår 1a.
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklAutomatSpec
+         * @description A station automat as the owner sets it up (FR24, FR39, FR40): A1, A2 and A3 for the
+         *     whole station, AN and AU for the entry signals of the down and up track, and a local release
+         *     automat for one of the station's local release functions.
+         */
+        "trainmeet.tkl-1.fjarr-studio.TklAutomatSpec": {
+            /**
+             * Code
+             * @description Koden vid stationsnamnet: A3, AN21 eller L01.
+             */
+            code: string;
+            kind: components["schemas"]["trainmeet.tkl-1.fjarr-studio.AutomatKind"];
+            /**
+             * Signals
+             * @description Infartssignalerna automaten sköter, för AN och AU. Tomt: alla.
+             */
+            signals?: string[];
+            /**
+             * Function
+             * @description Panelfunktionen, för en lokalfrigivningsautomat.
+             */
+            function?: string | null;
+            /**
+             * Default
+             * @description Förvald: kopplas in efter 90 sekunder utan kontakt (FR29).
+             * @default false
+             */
+            default: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFjarrChoice
+         * @description Studio, Inställningar, Fjärrstyrning: the owner's choice, kept with the station's model
+         *     and versioned with it like Manöver's settings. Level 0 has none (FR16).
+         */
+        "trainmeet.tkl-1.fjarr-studio.TklFjarrChoice": {
+            /**
+             * Routes
+             * @description Fjärrkatalogen: de valda tågvägarnas id.
+             */
+            routes?: string[];
+            /** Automats */
+            automats?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.TklAutomatSpec"][];
+            /**
+             * Receivers
+             * @description Vilka som får ta emot stationen. Tomt: grannar och fjärrställverk.
+             */
+            receivers?: components["schemas"]["trainmeet.tkl-1.fjarr-studio.ReceiverKind"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklRemoteCandidate
+         * @description A train route that may be in the remote catalogue (FR10): in from a line end to a
+         *     station track, or out from a station track to a line end, through the signals between where
+         *     it must be (TKL53). Studio lists them from the model; shunting routes never are.
+         */
+        "trainmeet.tkl-1.fjarr-studio.TklRemoteCandidate": {
+            /**
+             * Id
+             * @description Tågvägens fasta id i stationen, som i fjärrkatalogen.
+             */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /**
+             * Via
+             * @description Signalerna mellan, när vägen läggs genom flera.
+             */
+            via?: string[];
+            /**
+             * Exit
+             * @description Utfartens id i utsidan.
+             */
+            exit: string;
+            /**
+             * Exit Name
+             * @description Utfarten som stationsmodellen kallar den.
+             */
+            exit_name: string;
+            /**
+             * Track
+             * @description Stationsspårets id i utsidan.
+             */
+            track: string;
+            /** Track Label */
+            track_label: string;
+            direction: components["schemas"]["trainmeet.tkl-1.fjarr-studio.RouteDirection"];
+            /**
+             * Chosen
+             * @description I fjärrkatalogen.
+             * @default false
+             */
+            chosen: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklAutomatAsk
+         * @description Koppla in eller ur en stationsautomat på platsen, när stationen är bemannad (FR25).
+         */
+        "trainmeet.tkl-1.automat-ask": {
+            /** Code */
+            code: string;
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TklDeckEdit
          * @description The owner's deviations for one size: shown before they are saved, or saved (SD40).
          */
@@ -16248,7 +17180,7 @@ export interface components {
          * Reason
          * @enum {string}
          */
-        "trainmeet.tkl-1.fjarr.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released";
+        "trainmeet.tkl-1.fjarr.Reason": "unsupported_protocol" | "unknown_action" | "not_approved" | "wrong_place" | "stale_meet_context" | "stale_revision" | "no_active_meet" | "train_number_required" | "unknown_train_number" | "ambiguous_train_number" | "unknown_call" | "unknown_track" | "track_occupied" | "unknown_section" | "channel_occupied" | "call_already_requested" | "clearance_not_pending" | "unknown_clearance" | "not_sender" | "not_receiver" | "train_already_departed" | "departure_not_reserved" | "invalid_departure" | "invalid_arrival" | "train_not_departed" | "unknown_line_message" | "already_acknowledged" | "not_level_3" | "station_automatic" | "automatic_station_manned" | "automation_off" | "client_not_present" | "no_jump_to_undo" | "other_game_day" | "day_still_running" | "unknown_place" | "unknown_train" | "no_route" | "invalid_time" | "train_number_taken" | "unknown_change" | "section_closed" | "unknown_version" | "same_version" | "no_switch_waiting" | "drift_locked" | "not_locked" | "not_leader" | "already_leader" | "unknown_service" | "service_taken" | "one_service" | "no_service" | "unknown_driver" | "not_in_service" | "unknown_paper" | "paper_decided" | "paper_no_places" | "paper_few_places" | "paper_no_times" | "paper_no_number" | "not_controller" | "not_in_catalog" | "route_already_requested" | "route_not_pending" | "offer_not_pending" | "offer_pending" | "station_not_answering" | "place_remote" | "no_catalog" | "not_station" | "unknown_receiver" | "no_contact" | "conflicting_route" | "switch_not_in_control" | "area_released" | "route_refused" | "unknown_automat" | "local_area_not_given";
         /**
          * Receiver
          * @description Someone a station can be handed to, or who controls it (FR3, TKL47).
@@ -16340,6 +17272,11 @@ export interface components {
              * @default null
              */
             reason: components["schemas"]["trainmeet.tkl-1.fjarr.Reason"] | null;
+            /**
+             * Message
+             * @description Ställverkets egna ord om nejet.
+             */
+            message?: string | null;
             /**
              * By
              * @description Klienten som begärde.
@@ -17640,6 +18577,74 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["trainmeet.tkl-1.function-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-answer"];
+                };
+            };
+        };
+    };
+    tklFjarrStudio: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.fjarr-studio"];
+                };
+            };
+        };
+    };
+    tklSaveFjarr: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.fjarr-choice"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.fjarr-studio"];
+                };
+            };
+        };
+    };
+    tklStationAutomat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.automat-ask"];
             };
         };
         responses: {

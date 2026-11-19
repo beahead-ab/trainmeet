@@ -7981,6 +7981,66 @@
               "action",
               "payload"
             ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "automat.set",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.AutomatSetAsk"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "local_release.request",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.LocalReleaseRequest"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "local_release.response",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.LocalReleaseResponse"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
+          },
+          {
+            "properties": {
+              "action": {
+                "const": "local_release.end",
+                "type": "string"
+              },
+              "payload": {
+                "$ref": "#/components/schemas/trainmeet.station-1.command.LocalReleaseEnd"
+              }
+            },
+            "required": [
+              "action",
+              "payload"
+            ]
           }
         ]
       },
@@ -8007,7 +8067,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -8532,14 +8596,17 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
       },
       "trainmeet.station-1.command.RouteResponse": {
         "additionalProperties": true,
-        "description": "route.response: the station's interlocking has locked the route, or says no with a reason\nof its own: conflicting_route, switch_not_in_control, area_released or track_occupied.",
+        "description": "route.response: the station's interlocking has locked the route, or says no with a reason\nof its own: conflicting_route, switch_not_in_control, area_released or track_occupied, else\nroute_refused with its own words (#36 del b).",
         "properties": {
           "request_id": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -8560,6 +8627,20 @@
               }
             ],
             "default": null
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ställverkets egna ord om nejet, som stationen säger det.",
+            "title": "Message"
           }
         },
         "required": [
@@ -8818,6 +8899,92 @@
         "title": "RouteState",
         "type": "object"
       },
+      "trainmeet.station-1.command.AutomatSetAsk": {
+        "additionalProperties": true,
+        "description": "automat.set: whoever remote-controls the station switches one of its automats on or off,\nfrom the remote picture (FR25). It goes to the station's TKL, which switches it in its own\ninterlocking and says so in route.state. A local release automat's code gives or takes back\nthe local area, as local_release.response and .end do. On the spot, when the station is\nmanned, the station's own panel switches them; nothing goes through Hubben then.",
+        "properties": {
+          "code": {
+            "description": "Automatens kod i utsidan, till exempel A3.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "on"
+        ],
+        "title": "AutomatSetAsk",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.LocalReleaseRequest": {
+        "additionalProperties": true,
+        "description": "local_release.request: the people on a remote-controlled station ask whoever controls it\nfor a local area, with the local release's code, a while or all day (FR20, FR39).",
+        "properties": {
+          "code": {
+            "description": "Lokalfrigivningens kod, till exempel L01.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "all_day": {
+            "default": false,
+            "description": "Hela dagen; annars en stund.",
+            "title": "All Day",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LocalReleaseRequest",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.LocalReleaseResponse": {
+        "additionalProperties": true,
+        "description": "local_release.response: whoever controls the station gives the local area, or refuses\nit. Given, the station switches it in when no route goes to, from or through it (FR42).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "give": {
+            "title": "Give",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "give"
+        ],
+        "title": "LocalReleaseResponse",
+        "type": "object"
+      },
+      "trainmeet.station-1.command.LocalReleaseEnd": {
+        "additionalProperties": true,
+        "description": "local_release.end: the station gives the area back, or whoever controls it takes it back\nafter a question; the station switches it out when the area is empty (FR23, FR44).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "LocalReleaseEnd",
+        "type": "object"
+      },
       "trainmeet.station-1.reply": {
         "additionalProperties": true,
         "properties": {
@@ -8951,7 +9118,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -8964,6 +9135,28 @@
         ],
         "title": "ArrivalState",
         "type": "string"
+      },
+      "trainmeet.station-1.reply.AutomatAsked": {
+        "additionalProperties": true,
+        "description": "What whoever controls the station has decided for one of its automats or local areas,\nwith automat.set or local_release.response and .end, until the station's route.state shows\nit (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "on"
+        ],
+        "title": "AutomatAsked",
+        "type": "object"
       },
       "trainmeet.station-1.reply.AutomatOn": {
         "additionalProperties": true,
@@ -9563,6 +9756,34 @@
         "title": "LocalArea",
         "type": "object"
       },
+      "trainmeet.station-1.reply.LocalRequestHere": {
+        "additionalProperties": true,
+        "description": "A local area the people on the station have asked for and not yet been answered (FR20).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "all_day": {
+            "default": false,
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "asked_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Asked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "asked_at"
+        ],
+        "title": "LocalRequestHere",
+        "type": "object"
+      },
       "trainmeet.station-1.reply.LockedRoute": {
         "additionalProperties": true,
         "description": "A catalogue route the station's interlocking holds locked. It stays until the train has\ngone, also when the station is taken back (FR15).",
@@ -9970,7 +10191,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -10089,6 +10313,22 @@
             ],
             "default": null,
             "description": "Stationens senaste route.state."
+          },
+          "automats_asked": {
+            "description": "Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.AutomatAsked"
+            },
+            "title": "Automats Asked",
+            "type": "array"
+          },
+          "local_requests": {
+            "description": "Lokala områden stationen har bett om, utan svar än.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.reply.LocalRequestHere"
+            },
+            "title": "Local Requests",
+            "type": "array"
           }
         },
         "title": "RemoteHere",
@@ -10149,6 +10389,20 @@
             ],
             "default": null,
             "description": "Skälet till ett nej."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ställverkets egna ord om nejet.",
+            "title": "Message"
           },
           "by": {
             "description": "Klienten som begärde.",
@@ -10829,7 +11083,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -10842,6 +11100,28 @@
         ],
         "title": "ArrivalState",
         "type": "string"
+      },
+      "trainmeet.station-1.snapshot.AutomatAsked": {
+        "additionalProperties": true,
+        "description": "What whoever controls the station has decided for one of its automats or local areas,\nwith automat.set or local_release.response and .end, until the station's route.state shows\nit (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "on"
+        ],
+        "title": "AutomatAsked",
+        "type": "object"
       },
       "trainmeet.station-1.snapshot.AutomatOn": {
         "additionalProperties": true,
@@ -11441,6 +11721,34 @@
         "title": "LocalArea",
         "type": "object"
       },
+      "trainmeet.station-1.snapshot.LocalRequestHere": {
+        "additionalProperties": true,
+        "description": "A local area the people on the station have asked for and not yet been answered (FR20).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "all_day": {
+            "default": false,
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "asked_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Asked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "asked_at"
+        ],
+        "title": "LocalRequestHere",
+        "type": "object"
+      },
       "trainmeet.station-1.snapshot.LockedRoute": {
         "additionalProperties": true,
         "description": "A catalogue route the station's interlocking holds locked. It stays until the train has\ngone, also when the station is taken back (FR15).",
@@ -11773,7 +12081,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -11892,6 +12203,22 @@
             ],
             "default": null,
             "description": "Stationens senaste route.state."
+          },
+          "automats_asked": {
+            "description": "Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.AutomatAsked"
+            },
+            "title": "Automats Asked",
+            "type": "array"
+          },
+          "local_requests": {
+            "description": "Lokala områden stationen har bett om, utan svar än.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-1.snapshot.LocalRequestHere"
+            },
+            "title": "Local Requests",
+            "type": "array"
           }
         },
         "title": "RemoteHere",
@@ -11952,6 +12279,20 @@
             ],
             "default": null,
             "description": "Skälet till ett nej."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ställverkets egna ord om nejet.",
+            "title": "Message"
           },
           "by": {
             "description": "Klienten som begärde.",
@@ -13529,7 +13870,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -13692,6 +14036,20 @@
             ],
             "default": null,
             "description": "Skälet till ett nej."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ställverkets egna ord om nejet.",
+            "title": "Message"
           },
           "by": {
             "description": "Klienten som begärde.",
@@ -20872,7 +21230,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -20900,6 +21261,21 @@
               }
             ],
             "default": null
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Ställverkets egna ord om nejet.",
+            "title": "Message"
           },
           "timed_out": {
             "default": false,
@@ -21214,7 +21590,7 @@
       },
       "trainmeet.drift-1.event.LocalReleaseSet": {
         "additionalProperties": true,
-        "description": "A local area asked for, given or refused, or ended (TKL44, TKL48).",
+        "description": "A local area asked for, given or refused, or ended (TKL44, TKL48). asked: the request,\nanswer or end came over the protocol (#36 del b), and the station switches it when it can;\nwithout, it is what the station's route.state showed.",
         "properties": {
           "code": {
             "maxLength": 500,
@@ -21234,6 +21610,25 @@
             "default": null,
             "description": "Vid svaret: gavs eller nekades.",
             "title": "Given"
+          },
+          "all_day": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Vid begäran: hela dagen.",
+            "title": "All Day"
+          },
+          "asked": {
+            "default": false,
+            "description": "Över protokollet, inte ur stationens läge.",
+            "title": "Asked",
+            "type": "boolean"
           }
         },
         "required": [
@@ -21244,7 +21639,7 @@
       },
       "trainmeet.drift-1.event.AutomatSet": {
         "additionalProperties": true,
-        "description": "A station automat switched on or off, by someone or by itself (FR25, FR29).",
+        "description": "A station automat switched on or off, by someone or by itself (FR25, FR29). asked: whoever\ncontrols the station decided it with automat.set (#36 del b), and the station switches it;\nwithout, it is what the station's route.state showed.",
         "properties": {
           "code": {
             "maxLength": 500,
@@ -21267,6 +21662,12 @@
             ],
             "default": null,
             "description": "Vem som kopplade in den; tomt när det inte syns i läget."
+          },
+          "asked": {
+            "default": false,
+            "description": "Med automat.set, inte ur stationens läge.",
+            "title": "Asked",
+            "type": "boolean"
           }
         },
         "required": [
@@ -24299,7 +24700,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -47250,7 +47654,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -48260,7 +48668,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -49497,7 +49909,11 @@
           "route.request",
           "route.cancel",
           "route.response",
-          "route.state"
+          "route.state",
+          "automat.set",
+          "local_release.request",
+          "local_release.response",
+          "local_release.end"
         ],
         "title": "Action",
         "type": "string"
@@ -49547,6 +49963,28 @@
           "kind"
         ],
         "title": "Automat",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-answer.AutomatAsked": {
+        "additionalProperties": true,
+        "description": "What whoever controls the station has decided for one of its automats or local areas,\nwith automat.set or local_release.response and .end, until the station's route.state shows\nit (#36 del b). The station's TKL switches it when its interlocking allows (FR23, FR42).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "on": {
+            "title": "On",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "code",
+          "on"
+        ],
+        "title": "AutomatAsked",
         "type": "object"
       },
       "trainmeet.sync-1.relay-answer.AutomatKind": {
@@ -50375,6 +50813,34 @@
         "title": "LocalArea",
         "type": "object"
       },
+      "trainmeet.sync-1.relay-answer.LocalRequestHere": {
+        "additionalProperties": true,
+        "description": "A local area the people on the station have asked for and not yet been answered (FR20).",
+        "properties": {
+          "code": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "all_day": {
+            "default": false,
+            "title": "All Day",
+            "type": "boolean"
+          },
+          "asked_at": {
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "title": "Asked At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "asked_at"
+        ],
+        "title": "LocalRequestHere",
+        "type": "object"
+      },
       "trainmeet.sync-1.relay-answer.LockedRoute": {
         "additionalProperties": true,
         "description": "A catalogue route the station's interlocking holds locked. It stays until the train has\ngone, also when the station is taken back (FR15).",
@@ -51150,7 +51616,10 @@
           "no_contact",
           "conflicting_route",
           "switch_not_in_control",
-          "area_released"
+          "area_released",
+          "route_refused",
+          "unknown_automat",
+          "local_area_not_given"
         ],
         "title": "Reason",
         "type": "string"
@@ -51278,6 +51747,22 @@
             ],
             "default": null,
             "description": "Stationens senaste route.state."
+          },
+          "automats_asked": {
+            "description": "Det den som fjärrstyr har bestämt om automaterna och de lokala områdena, tills stationens läge visar det.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.AutomatAsked"
+            },
+            "title": "Automats Asked",
+            "type": "array"
+          },
+          "local_requests": {
+            "description": "Lokala områden stationen har bett om, utan svar än.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-answer.LocalRequestHere"
+            },
+            "title": "Local Requests",
+            "type": "array"
           }
         },
         "title": "RemoteHere",
@@ -51390,6 +51875,20 @@
             ],
             "default": null,
             "description": "Skälet till ett nej."
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Ställverkets egna ord om nejet.",
+            "title": "Message"
           },
           "by": {
             "description": "Klienten som begärde.",

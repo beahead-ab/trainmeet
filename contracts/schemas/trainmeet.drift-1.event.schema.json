@@ -2471,7 +2471,10 @@
         "no_contact",
         "conflicting_route",
         "switch_not_in_control",
-        "area_released"
+        "area_released",
+        "route_refused",
+        "unknown_automat",
+        "local_area_not_given"
       ],
       "title": "Reason",
       "type": "string"
@@ -2499,6 +2502,21 @@
             }
           ],
           "default": null
+        },
+        "message": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ställverkets egna ord om nejet.",
+          "title": "Message"
         },
         "timed_out": {
           "default": false,
@@ -2813,7 +2831,7 @@
     },
     "LocalReleaseSet": {
       "additionalProperties": true,
-      "description": "A local area asked for, given or refused, or ended (TKL44, TKL48).",
+      "description": "A local area asked for, given or refused, or ended (TKL44, TKL48). asked: the request,\nanswer or end came over the protocol (#36 del b), and the station switches it when it can;\nwithout, it is what the station's route.state showed.",
       "properties": {
         "code": {
           "maxLength": 500,
@@ -2833,6 +2851,25 @@
           "default": null,
           "description": "Vid svaret: gavs eller nekades.",
           "title": "Given"
+        },
+        "all_day": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Vid begäran: hela dagen.",
+          "title": "All Day"
+        },
+        "asked": {
+          "default": false,
+          "description": "Över protokollet, inte ur stationens läge.",
+          "title": "Asked",
+          "type": "boolean"
         }
       },
       "required": [
@@ -2843,7 +2880,7 @@
     },
     "AutomatSet": {
       "additionalProperties": true,
-      "description": "A station automat switched on or off, by someone or by itself (FR25, FR29).",
+      "description": "A station automat switched on or off, by someone or by itself (FR25, FR29). asked: whoever\ncontrols the station decided it with automat.set (#36 del b), and the station switches it;\nwithout, it is what the station's route.state showed.",
       "properties": {
         "code": {
           "maxLength": 500,
@@ -2866,6 +2903,12 @@
           ],
           "default": null,
           "description": "Vem som kopplade in den; tomt när det inte syns i läget."
+        },
+        "asked": {
+          "default": false,
+          "description": "Med automat.set, inte ur stationens läge.",
+          "title": "Asked",
+          "type": "boolean"
         }
       },
       "required": [

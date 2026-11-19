@@ -53,6 +53,9 @@ def test_the_actions_kept_from_v2_and_the_new_ones_for_tkl() -> None:
     # Fjärrstyrning (#36, TKL89): handing over, and the routes asked for from afar.
     new |= {"place.offer", "place.offer.answer"}
     new |= {"route.request", "route.cancel", "route.response", "route.state"}
+    # #36 del b: the station automats from afar, and the local area over the protocol.
+    new |= {"automat.set", "local_release.request", "local_release.response"}
+    new |= {"local_release.end"}
     assert {a.value for a in station.Action} == kept | new
 
 

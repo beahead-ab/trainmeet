@@ -27,7 +27,7 @@ from drift.drivers import messages_here
 from drift.engine import OFFER_SECONDS, Caller, Drift, Outcome, Refused, model_time, now_utc
 from drift.exits import ExitMemory, couple
 from drift.notices import notices
-from drift.snapshot import remote_routes, snapshot
+from drift.snapshot import automats_asked, local_requests, remote_routes, snapshot
 from drift.terminal import Box, Boxes
 from drift.terminal_text import COUNTRY_LANGUAGE
 from drift.track_display import base_order, checked, shown
@@ -1534,6 +1534,8 @@ class PreviewStore:
             else None,
             routes=remote_routes(drift, place, now),
             route_state=drift.route_states.get(place),
+            automats_asked=automats_asked(drift, place),
+            local_requests=local_requests(drift, place),
         )
 
     def _offer_here(
@@ -1575,6 +1577,7 @@ class PreviewStore:
             controllable=self._controllable(clients, drift, place),
             controller_heard=automatik.client_heard(client_id),
             station_heard=automatik.station_heard(place),
+            automats={a.code: a.kind for a in outside.automats} if outside else {},
         )
 
     @staticmethod

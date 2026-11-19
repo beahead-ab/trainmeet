@@ -274,6 +274,8 @@ function remoteText(event: DriftEvent, clients: Client[]): string | null {
       const by = typeof data["by"] === "string" ? ` ${BY_WHOM[data["by"]] ?? ""}`.trimEnd() : "";
       return `Stationsautomat ${String(data["code"])} ${data["on"] ? "inkopplad" : "urkopplad"}${by}`;
     }
+    case "local_release.requested":
+      return `Lokalt område ${String(data["code"])} begärt` + (data["all_day"] ? " för hela dagen" : "");
     case "local_release.answered":
       return `Lokalt område ${String(data["code"])} ${data["given"] === false ? "nekat" : "givet"}`;
     case "local_release.ended":

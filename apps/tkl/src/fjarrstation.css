@@ -1,0 +1,105 @@
+/* Fjärrstyrning, the station's side (#36 del b): the operating form, the station row and
+   Studio's catalogue. */
+.driftform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.4rem 0;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--tm-line);
+  border-radius: 6px;
+  background: var(--tm-panel);
+}
+.driftform-lage {
+  font-weight: 700;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.driftform.lage-remote .driftform-lage,
+.driftform.lage-no_contact .driftform-lage {
+  background: var(--tm-panel-2);
+  color: var(--tm-mute);
+}
+.driftform.lage-offered .driftform-lage {
+  background: #fff3c4;
+  color: #6b4e00;
+}
+.driftform-fraga {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+.stationsrad {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.9rem;
+  margin: 0.2rem 0 0.4rem;
+  padding: 0.3rem 0.6rem;
+  background: #101414;
+  border-radius: 6px;
+  font-family: var(--tm-mono);
+}
+.stationsrad .kod {
+  background: none;
+  border: none;
+  padding: 0 0.15rem;
+  font-family: var(--tm-mono);
+  font-weight: 700;
+  cursor: pointer;
+}
+.stationsrad .kod:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.stationsrad .kod.magasin {
+  text-decoration: underline;
+}
+.stationsrad-namn {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.stationsrad-automater,
+.stationsrad-lokala,
+.lokal-begar {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: baseline;
+}
+.stationsrad .liten {
+  color: #c5cbd0;
+}
+.fjarr-studio .fjarr-utfart fieldset {
+  border: 1px solid var(--tm-line);
+  border-radius: 6px;
+  margin: 0.3rem 0;
+}
+.fjarr-studio .fjarr-vag,
+.fjarr-studio label.rad {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.1rem 0;
+}
+.fjarr-studio input[type="checkbox"],
+.fjarr-studio input[type="radio"],
+.stationsrad input[type="checkbox"] {
+  width: auto;
+  flex: none;
+  margin: 0;
+}
+.stationsrad label,
+.driftform label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin: 0;
+}
+.driftform select {
+  width: auto;
+}

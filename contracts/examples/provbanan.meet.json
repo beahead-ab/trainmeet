@@ -137,6 +137,123 @@
               "side": "right",
               "label": "Öster"
             }
+          ],
+          "remote_routes": [
+            {
+              "id": "51-61",
+              "start": "51",
+              "end": "61",
+              "exit": "v",
+              "track": "1",
+              "direction": "in"
+            },
+            {
+              "id": "51-31",
+              "start": "51",
+              "end": "31",
+              "exit": "v",
+              "track": "2",
+              "direction": "in"
+            },
+            {
+              "id": "51-33",
+              "start": "51",
+              "end": "33",
+              "exit": "v",
+              "track": "3",
+              "direction": "in"
+            },
+            {
+              "id": "32-42",
+              "start": "32",
+              "end": "42",
+              "exit": "v",
+              "track": "1",
+              "direction": "out"
+            },
+            {
+              "id": "62-42",
+              "start": "62",
+              "end": "42",
+              "exit": "v",
+              "track": "2",
+              "direction": "out"
+            },
+            {
+              "id": "64-42",
+              "start": "64",
+              "end": "42",
+              "exit": "v",
+              "track": "3",
+              "direction": "out"
+            },
+            {
+              "id": "22-32",
+              "start": "22",
+              "end": "32",
+              "exit": "o",
+              "track": "1",
+              "direction": "in"
+            },
+            {
+              "id": "22-62",
+              "start": "22",
+              "end": "62",
+              "exit": "o",
+              "track": "2",
+              "direction": "in"
+            },
+            {
+              "id": "22-64",
+              "start": "22",
+              "end": "64",
+              "exit": "o",
+              "track": "3",
+              "direction": "in"
+            },
+            {
+              "id": "61-71",
+              "start": "61",
+              "end": "71",
+              "exit": "o",
+              "track": "1",
+              "direction": "out"
+            },
+            {
+              "id": "31-71",
+              "start": "31",
+              "end": "71",
+              "exit": "o",
+              "track": "2",
+              "direction": "out"
+            },
+            {
+              "id": "33-71",
+              "start": "33",
+              "end": "71",
+              "exit": "o",
+              "track": "3",
+              "direction": "out"
+            }
+          ],
+          "automats": [
+            {
+              "code": "A3",
+              "kind": "a3",
+              "default": true
+            },
+            {
+              "code": "A2",
+              "kind": "a2"
+            },
+            {
+              "code": "A1",
+              "kind": "a1"
+            },
+            {
+              "code": "L1",
+              "kind": "local_release"
+            }
           ]
         },
         "track_map": {

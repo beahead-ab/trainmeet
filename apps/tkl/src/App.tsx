@@ -324,7 +324,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
           </button>
         </nav>
         {installningar ? (
-          <StudioInstallningar />
+          <StudioInstallningar part={path.startsWith(`${STUDIO_INSTALLNINGAR}/fjarrstyrning`) ? "fjarrstyrning" : "stream-deck"} onPart={(to) => navigate(`${STUDIO_INSTALLNINGAR}/${to}`)} />
         ) : rita ? (
           <Rita onChanged={changedModel} />
         ) : dela ? (

@@ -383,7 +383,10 @@
         "no_contact",
         "conflicting_route",
         "switch_not_in_control",
-        "area_released"
+        "area_released",
+        "route_refused",
+        "unknown_automat",
+        "local_area_not_given"
       ],
       "title": "Reason",
       "type": "string"

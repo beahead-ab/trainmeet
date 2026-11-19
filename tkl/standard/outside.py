@@ -33,6 +33,11 @@ own driftplatser in Hubben (TKL101), with the part's id, its name and its signat
 model's order; the first of two parts with the same id counts. A part the same person runs is
 left out: Hubben never sees it (PLAN-34, TRAFIK-35).
 
+Remote control (#36 del b, TKL46, FR10, FR16): the remote catalogue, the station automats, who
+may receive the station and the overview are the owner's choice in Studio, worked out from the
+model by tkl.studio.fjarr and given here as `remote`; the outside carries them as they are. Without
+it, as at level 0 and before the owner has chosen, they are empty.
+
 The boxes' sides (`sides`) are left out, as at level 0: neither first start nor the list in
 Studio writes them, and Planering works them out when the outside has none (F3).
 
@@ -46,11 +51,21 @@ import re
 import unicodedata
 from collections import Counter
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
 from typing import Final
 
 from contracts.common import Side
 from contracts.station_model import LineExit, StationModel, SwitchControl
-from contracts.station_outside import Exit, StationOutside, StationPart, StationTrack
+from contracts.station_outside import (
+    Automat,
+    Exit,
+    OverviewDrawing,
+    ReceiverKind,
+    RemoteRoute,
+    StationOutside,
+    StationPart,
+    StationTrack,
+)
 from contracts.tkl import Panel
 from tkl.standard import plan
 from tkl.standard.graph import Graph, Step
@@ -66,6 +81,18 @@ UNFOLDED: Final = str.maketrans({"æ": "ae", "Æ": "AE", "ø": "o", "Ø": "O", "
 """Letters that Unicode does not split into a letter and a mark."""
 TRACKS: Final = "stationsspår"
 EXITS: Final = "linjeutfarter"
+
+
+@dataclass(frozen=True)
+class Remote:
+    """What the outside gets from the owner's choice of remote control (#36 del b): the remote
+    catalogue, the station automats, who may receive the station and the overview (FR10, FR24,
+    FR31). Empty at level 0 and before the owner has chosen (FR16)."""
+
+    routes: list[RemoteRoute] = field(default_factory=list)
+    automats: list[Automat] = field(default_factory=list)
+    receivers: list[ReceiverKind] = field(default_factory=list)
+    overview: OverviewDrawing | None = None
 
 
 class OutsideError(Exception):
@@ -156,11 +183,17 @@ def problems(model: StationModel) -> list[str]:
 
 
 def outside_of(
-    model: StationModel, station_id: str, name: str, *, panel: Panel | None = None
+    model: StationModel,
+    station_id: str,
+    name: str,
+    *,
+    panel: Panel | None = None,
+    remote: Remote | None = None,
 ) -> StationOutside:
     """The station's outside from its model, under the station's own id and name.
 
-    panel: the station's panel, when the caller has made it already. Raises OutsideError when
+    panel: the station's panel, when the caller has made it already. remote: the remote
+    catalogue, the automats, the receivers and the overview (#36 del b). Raises OutsideError when
     the model gives no outside.
     """
     found = problems(model)
@@ -201,6 +234,10 @@ def outside_of(
         ],
         exits=exits,
         parts=_parts(model),
+        remote_routes=list(remote.routes) if remote else [],
+        automats=list(remote.automats) if remote else [],
+        remote_receivers=list(remote.receivers) if remote else [],
+        overview=remote.overview if remote else None,
     )
 
 
@@ -219,6 +256,12 @@ def _name(line: LineExit) -> str:
     """The owner's name of the exit, with the neighbour after it when the model knows it."""
     said = f"{line.id} mot {line.neighbour}" if line.neighbour else line.id
     return said[:TEXT_LENGTH]
+
+
+def panel_of(model: StationModel) -> Panel:
+    """The station's panel: its own track plan, else the engine's. OutsideError when neither
+    can be made."""
+    return _panel(model)
 
 
 def _panel(model: StationModel) -> Panel:

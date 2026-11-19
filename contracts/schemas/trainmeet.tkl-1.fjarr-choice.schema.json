@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.fjarr-choice.schema.json",
+  "title": "trainmeet.tkl-1.fjarr-choice",
+  "$defs": {
+    "AutomatKind": {
+      "description": "The station automats (FR24, FR39), as in interlockings 85 and 95.",
+      "enum": [
+        "a1",
+        "a2",
+        "a3",
+        "an",
+        "au",
+        "local_release"
+      ],
+      "title": "AutomatKind",
+      "type": "string"
+    },
+    "ReceiverKind": {
+      "description": "Who may receive the station when it is handed over (FR3, TKL46, TKL47).",
+      "enum": [
+        "neighbours",
+        "remote"
+      ],
+      "title": "ReceiverKind",
+      "type": "string"
+    },
+    "TklAutomatSpec": {
+      "additionalProperties": true,
+      "description": "A station automat as the owner sets it up (FR24, FR39, FR40): A1, A2 and A3 for the\nwhole station, AN and AU for the entry signals of the down and up track, and a local release\nautomat for one of the station's local release functions.",
+      "properties": {
+        "code": {
+          "description": "Koden vid stationsnamnet: A3, AN21 eller L01.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutomatKind"
+        },
+        "signals": {
+          "description": "Infartssignalerna automaten sköter, för AN och AU. Tomt: alla.",
+          "items": {
+            "maxLength": 80,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Signals",
+          "type": "array"
+        },
+        "function": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Panelfunktionen, för en lokalfrigivningsautomat.",
+          "title": "Function"
+        },
+        "default": {
+          "type": "boolean",
+          "default": false,
+          "description": "Förvald: kopplas in efter 90 sekunder utan kontakt (FR29).",
+          "title": "Default"
+        }
+      },
+      "required": [
+        "code",
+        "kind"
+      ],
+      "title": "TklAutomatSpec",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Studio, Inställningar, Fjärrstyrning: the owner's choice, kept with the station's model\nand versioned with it like Manöver's settings. Level 0 has none (FR16).",
+  "properties": {
+    "routes": {
+      "description": "Fjärrkatalogen: de valda tågvägarnas id.",
+      "items": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+        "type": "string"
+      },
+      "title": "Routes",
+      "type": "array"
+    },
+    "automats": {
+      "items": {
+        "$ref": "#/$defs/TklAutomatSpec"
+      },
+      "title": "Automats",
+      "type": "array"
+    },
+    "receivers": {
+      "description": "Vilka som får ta emot stationen. Tomt: grannar och fjärrställverk.",
+      "items": {
+        "$ref": "#/$defs/ReceiverKind"
+      },
+      "title": "Receivers",
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

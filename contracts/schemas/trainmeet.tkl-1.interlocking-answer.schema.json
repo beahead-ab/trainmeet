@@ -26,7 +26,11 @@
         "route.request",
         "route.cancel",
         "route.response",
-        "route.state"
+        "route.state",
+        "automat.set",
+        "local_release.request",
+        "local_release.response",
+        "local_release.end"
       ],
       "title": "Action",
       "type": "string"
@@ -40,6 +44,19 @@
         "without"
       ],
       "title": "AddressState",
+      "type": "string"
+    },
+    "AutomatKind": {
+      "description": "The station automats (FR24, FR39), as in interlockings 85 and 95.",
+      "enum": [
+        "a1",
+        "a2",
+        "a3",
+        "an",
+        "au",
+        "local_release"
+      ],
+      "title": "AutomatKind",
       "type": "string"
     },
     "BorderSwitch": {
@@ -139,6 +156,16 @@
       "title": "Position",
       "type": "string"
     },
+    "RouteBy": {
+      "description": "Who laid a route, or switched an automat (FR33, FR37).",
+      "enum": [
+        "remote",
+        "station",
+        "automat"
+      ],
+      "title": "RouteBy",
+      "type": "string"
+    },
     "RouteKind": {
       "enum": [
         "train",
@@ -168,6 +195,55 @@
       ],
       "title": "TklAspect",
       "type": "string"
+    },
+    "TklAutomatOn": {
+      "additionalProperties": true,
+      "description": "A station automat switched on in the station's interlocking (FR24–FR27): who switched it,\nand for A1, A2, AN and AU the trains it has taken in and laid out.",
+      "properties": {
+        "code": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/AutomatKind"
+        },
+        "by": {
+          "$ref": "#/$defs/RouteBy"
+        },
+        "since": {
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "trains": {
+          "description": "Tågbesöken den har tagit in.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Trains",
+          "type": "array"
+        },
+        "out": {
+          "description": "Tågbesöken den har lagt ut.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Out",
+          "type": "array"
+        }
+      },
+      "required": [
+        "code",
+        "kind",
+        "by",
+        "since"
+      ],
+      "title": "TklAutomatOn",
+      "type": "object"
     },
     "TklExitShown": {
       "additionalProperties": true,
@@ -322,6 +398,42 @@
       ],
       "title": "TklFieldMode",
       "type": "string"
+    },
+    "TklFjarrState": {
+      "additionalProperties": true,
+      "description": "The station's remote control in its interlocking (#36 del b): who controls it, the\nautomats that are on and the magazine. Kept with the interlocking.",
+      "properties": {
+        "controller": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fjärrstyrs från …: stationens egen panel lägger då inget (FR6, FR17).",
+          "title": "Controller"
+        },
+        "automats": {
+          "items": {
+            "$ref": "#/$defs/TklAutomatOn"
+          },
+          "title": "Automats",
+          "type": "array"
+        },
+        "magazine": {
+          "items": {
+            "$ref": "#/$defs/TklMagazined"
+          },
+          "title": "Magazine",
+          "type": "array"
+        }
+      },
+      "title": "TklFjarrState",
+      "type": "object"
     },
     "TklFunctionMode": {
       "additionalProperties": true,
@@ -754,6 +866,10 @@
           },
           "title": "Ready",
           "type": "array"
+        },
+        "fjarr": {
+          "$ref": "#/$defs/TklFjarrState",
+          "description": "Fjärrstyrningen: vem som styr, automaterna och magasinet (#36 del b)."
         }
       },
       "required": [
@@ -763,6 +879,85 @@
         "revision"
       ],
       "title": "TklInterlocking",
+      "type": "object"
+    },
+    "TklMagazined": {
+      "additionalProperties": true,
+      "description": "A route in the magazine (magasinering, FR45): it conflicts with a set route, and is laid\nby itself once that route is released, after a delay so that the train is wholly in.",
+      "properties": {
+        "route": {
+          "description": "Tågvägens id i fjärrkatalogen.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Route",
+          "type": "string"
+        },
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "automat": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Automat",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "since": {
+          "format": "date-time",
+          "title": "Since",
+          "type": "string"
+        },
+        "blocked_by": {
+          "description": "Vägarna den krockar med.",
+          "items": {
+            "type": "integer"
+          },
+          "title": "Blocked By",
+          "type": "array"
+        },
+        "free_since": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "När de vägarna var lösta.",
+          "title": "Free Since"
+        }
+      },
+      "required": [
+        "route",
+        "start",
+        "end",
+        "automat",
+        "since"
+      ],
+      "title": "TklMagazined",
       "type": "object"
     },
     "TklNumber": {
@@ -1854,6 +2049,57 @@
           "default": null,
           "description": "Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och stationen löser inte ut den (RANG-09).",
           "title": "Request"
+        },
+        "catalogue": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tågvägens id i fjärrkatalogen.",
+          "title": "Catalogue"
+        },
+        "by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RouteBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Den som fjärrstyr eller en automat; tomt: på platsen."
+        },
+        "request_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Fjärrbegäran vägen lades för.",
+          "title": "Request Id"
+        },
+        "automat": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Automaten som lade den.",
+          "title": "Automat"
         }
       },
       "required": [

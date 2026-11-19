@@ -6,7 +6,9 @@
 // those skins as it is, with the owner's labels and only what the owner shows. The turntable is
 // drawn in every skin, the pit as a circle and the bridge at its angle; a click on one of its
 // tracks turns it through its function. Clicks go to the page, which asks the interlocking: the
-// panel decides nothing (STV-43).
+// panel decides nothing (STV-43). While the station is remote-controlled a small arrow sits by
+// each main signal the remote catalogue uses, over or under it by its direction: red when the
+// one who controls the station lays the routes, green when a station automat does (FR33, #36).
 import type { KeyboardEvent, ReactNode } from "react";
 import type { Panel } from "./api";
 import { EVERYTHING, type OwnerChoices, type Shape, type Skin } from "./skal";
@@ -39,6 +41,8 @@ type Props = {
   owner?: OwnerChoices | null;
   /** A part's own screen (TKL102): its area is active, the rest greyed and not clicked. */
   area?: Area | null;
+  /** Fjärrstyrning (FR33): the arrow by a main signal, red from afar and green by an automat. */
+  arrows?: Record<string, "red" | "green">;
 };
 
 /** A part's area on the panel (TKL97): its pieces, signals and switches. */
@@ -50,7 +54,10 @@ const unit = (v: Cell): Cell => {
   return [v[0] / n, v[1] / n];
 };
 
-export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton, onTable, owner = null, area = null }: Props) {
+/** The arrow's colours (FR33): as in the remote picture, the same in every skin. */
+export const ARROW = { red: "#e02020", green: "#18c018" } as const;
+
+export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton, onTable, owner = null, area = null, arrows = {} }: Props) {
   const outside = (piece: string) => !!area && !area.pieces.has(piece);
   const signalOutside = (name: string) => !!area && !area.signals.has(name);
   const switchOutside = (parts: string[]) => !!area && !parts.some((p) => area.switches.has(p));
@@ -265,6 +272,22 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
               {placed(look(s).shapes, s.symbol, s.toward, s.name, sideOf(s))}
             </g>
           ))}
+        </g>
+        <g className="pilar">
+          {drawn.signals
+            .filter((s) => arrows[s.name])
+            .map((s) => {
+              // Beside the signal, on the other side from its id, so that both are read; the arrow
+              // points the way the signal shows.
+              const h = 1.15;
+              const colour = ARROW[arrows[s.name] ?? "red"];
+              const shape: Shape = { points: [[-0.35, h - 0.28], [0.45, h], [-0.35, h + 0.28]], closed: true, fill: colour, stroke: colour, width: 0.04 };
+              return (
+                <g key={`pil${s.name}`} data-arrow={s.name} data-arrow-colour={arrows[s.name]}>
+                  {placed([shape], s.symbol, s.toward, `pil${s.name}`, -sideOf(s))}
+                </g>
+              );
+            })}
         </g>
         <g className="stoppbockar">
           {drawn.buffers.map((b) => (

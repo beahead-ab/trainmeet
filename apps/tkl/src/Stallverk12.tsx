@@ -12,9 +12,14 @@
 // Every operation asks TKL's interlocking, and its answer, yes or no with the reason, is what
 // the page shows (STV-43). Every screen waits for the next change, so a second screen follows
 // the first (STV-05); the skin, the proportion and the view are chosen per screen and kept in
-// this browser. Klarering is level 0's, as it is.
+// this browser. Klarering is level 0's, as it is. Fjärrstyrning (#36 del b): the operating form
+// in a bar over the panel, with Lämna till … and Ta tillbaka, and the station row with the
+// automats and the name; while the station is remote-controlled the panel only shows, and the
+// arrows at the main signals say who lays the routes (FR33).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type Connection, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
+import { api, Problem, type AutomatSpec, type Connection, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
+import { DriftformBar, Stationsrad } from "./Fjarrstyrning";
+import { arrowsOf, controlled, specsOf } from "./fjarrstation";
 import { Foto, FotoGreyed } from "./Foto";
 import { hasRealForm } from "./foto";
 import type { Happening } from "./handelser";
@@ -65,7 +70,7 @@ type Props = {
   onSend: Send;
   onExit: (section: string, exit: string) => void;
   /** For tests and a second render: the model and the state, without fetching them. */
-  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language; manover?: Manover | null };
+  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language; manover?: Manover | null; automats?: AutomatSpec[] };
 };
 
 const storage = (): Storage | null => (typeof localStorage === "undefined" ? null : localStorage);
@@ -78,6 +83,7 @@ export function StallverketSida(props: Props) {
   const [plan, setPlan] = useState<TrackPlan | null | undefined>(initial ? initial.plan : undefined);
   const [state, setState] = useState<Interlocking | null | undefined>(initial ? initial.state : undefined);
   const [manover, setManover] = useState<Manover | null>(initial?.manover ?? null);
+  const [automats, setAutomats] = useState<AutomatSpec[]>(initial?.automats ?? []);
   const [failed, setFailed] = useState("");
   const revision = useRef<number | null>(null);
   revision.current = state?.revision ?? null;
@@ -87,11 +93,12 @@ export function StallverketSida(props: Props) {
     let alive = true;
     void (async () => {
       try {
-        const [found, now, owners] = await Promise.all([api.stationModel(), api.interlocking().catch(() => null), api.manover().catch(() => null)]);
+        const [found, now, owners, remote] = await Promise.all([api.stationModel(), api.interlocking().catch(() => null), api.manover().catch(() => null), api.fjarr().catch(() => null)]);
         if (!alive) return;
         setPlan(found);
         setState(now);
         setManover(owners);
+        setAutomats(specsOf(remote));
       } catch (error) {
         if (alive) {
           setPlan(null);
@@ -133,12 +140,12 @@ export function StallverketSida(props: Props) {
       </>
     );
   }
-  return <Stallverk12 {...props} plan={plan} panel={plan.panel} state={state} manover={manover} onState={setState} />;
+  return <Stallverk12 {...props} plan={plan} panel={plan.panel} state={state} manover={manover} automats={automats} onState={setState} />;
 }
 
-type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; manover?: Manover | null; onState: (state: Interlocking) => void };
+type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; manover?: Manover | null; automats?: AutomatSpec[]; onState: (state: Interlocking) => void };
 
-export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, connection = null, outside, journal, sounds, busy, onSend, onExit, initial }: PanelProps) {
+export function Stallverk12({ plan, panel, state: raw, manover = null, automats = [], onState, view, hubNote, connection = null, outside, journal, sounds, busy, onSend, onExit, initial }: PanelProps) {
   const [screen] = useState(() => (typeof location === "undefined" ? 1 : screenNumber(location.search)));
   const [settings, setSettings] = useState<Screen>(() => initial?.screen ?? readScreen(screen, storage()));
   const [language, setLanguage] = useState<Language>(() => initial?.language ?? readLanguage(storage()));
@@ -157,6 +164,9 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
   const fotoReady = hasRealForm(panel);
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
   const drawn = drawing(panel, state, busyLines(state, snapshot), ends);
+  // Fjärrstyrning (#36 del b): while remote-controlled the station's own panel only shows.
+  const remote = controlled(snapshot, raw.fjarr);
+  const arrows = arrowsOf(outside, automats, raw.fjarr, remote);
 
   // Delställverk (#87): a new request, a ring or a train ready to send rings on this screen.
   const heard = useRef<Set<string> | null>(null);
@@ -228,6 +238,19 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
           {say("deck")}
         </button>
       </div>
+      <DriftformBar snapshot={snapshot} busy={busy} onSend={onSend} />
+      <Stationsrad
+        name={snapshot?.place.name ?? plan.summary.name}
+        signature={snapshot?.place.code ?? state.station_id.toUpperCase()}
+        specs={automats}
+        state={raw.fjarr}
+        functions={state.functions}
+        snapshot={snapshot}
+        working={working}
+        onAutomat={(code, on) => void run(() => trainCall(valet, () => api.stationAutomat(code, on)))}
+        onLocal={(fn, on) => operate({ function: fn, action: on ? "on" : "off", value: null, confirm: false })}
+        onAsk={onSend}
+      />
       <PartPlaces parts={raw.parts ?? []} connection={connection} />
       <PartBox state={raw} say={say} working={working} onWork={(work) => void run(() => trainCall(valet, work))} />
       {deckOpen ? <DeckPanel screen={screen} plan={{ panel, drawn }} /> : null}
@@ -249,8 +272,8 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
                 choice={valet.choice}
                 chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
                 height={panelHeight}
-                onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
-                onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
+                onPoint={remote ? undefined : (name) => void run(() => clickPoint(valet, name, api, say))}
+                onSwitch={remote ? undefined : (part) => void run(() => clickSwitch(valet, part, api))}
                 onRoute={(route) => setValet({ ...valet, route, confirm: null })}
                 onButton={button}
                 onTable={turn}
@@ -269,9 +292,10 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
               chosen={chosen ? { id: chosen.id, start: chosen.start } : null}
               height={panelHeight}
               owner={owner}
-              onPoint={(name) => void run(() => clickPoint(valet, name, api, say))}
-              onToggle={(name) => void run(() => clickToggle(valet, name, state.routes, api, say))}
-              onSwitch={(part) => void run(() => clickSwitch(valet, part, api))}
+              arrows={arrows}
+              onPoint={remote ? undefined : (name) => void run(() => clickPoint(valet, name, api, say))}
+              onToggle={remote ? undefined : (name) => void run(() => clickToggle(valet, name, state.routes, api, say))}
+              onSwitch={remote ? undefined : (part) => void run(() => clickSwitch(valet, part, api))}
               onRoute={(route) => setValet({ ...valet, route, confirm: null })}
               onButton={button}
               onTable={turn}
@@ -313,7 +337,7 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
               {pinned}
             </p>
           ) : null}
-          {owner && !owner.shown.functions ? null : <FunctionRow functions={state.functions} skin={skin} working={working} say={say} onOperate={operate} />}
+          {owner && !owner.shown.functions ? null : <FunctionRow functions={state.functions} skin={skin} working={working} say={say} remote={remote} onOperate={operate} />}
         </section>
       ) : null}
       {settings.view !== "panel" ? (
@@ -380,7 +404,10 @@ function Legend({ skin, say, chosen, turntable }: { skin: Skin; say: Say; chosen
 
 /** Panelens knappar (STV-04, STV-53): the station's panel functions from the catalogue, in the
  * same place in every skin; in 59 as toggle switches with a lamp above (SJH s. 152, 158). */
-function FunctionRow({ functions, skin, working, say, onOperate }: { functions: FunctionShown[]; skin: Skin; working: boolean; say: Say; onOperate: (ask: FunctionAsk) => void }) {
+function FunctionRow({ functions, skin, working, say, remote = false, onOperate }: { functions: FunctionShown[]; skin: Skin; working: boolean; say: Say; remote?: boolean; onOperate: (ask: FunctionAsk) => void }) {
+  // While remote-controlled only the local area is the station's: given back here, its switches
+  // laid with the modules' buttons (FR21, FR44); the rest is the controller's (FR17).
+  const mine = (f: FunctionShown) => !remote || (f.type === "local_release" && (f.on ?? false));
   const [confirming, setConfirming] = useState<string | null>(null);
   if (!functions.length) return null;
   const ask = (name: string, action: FunctionAsk["action"], value: string | null = null, confirm = false): FunctionAsk => ({ function: name, action, value, confirm });
@@ -408,7 +435,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
           const at = modes.findIndex((m) => m.value === f.mode);
           const next = modes[(at + 1) % Math.max(1, modes.length)];
           return (
-            <button key={f.name} type="button" className="funktion" title={title} disabled={working || !next} onClick={() => next && onOperate(ask(f.name, "set", next.value))}>
+            <button key={f.name} type="button" className="funktion" title={title} disabled={!mine(f) || working || !next} onClick={() => next && onOperate(ask(f.name, "set", next.value))}>
               {skin.style === "lamps" ? lamp(f, false) : null}
               {name} <span className="varde tm-mono">{f.mode ?? "–"}</span>
             </button>
@@ -418,7 +445,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
           return (
             <label key={f.name} className="funktion" title={title}>
               {say("turnTo", { name })}{" "}
-              <select value={f.mode ?? ""} disabled={working} onChange={(e) => onOperate(ask(f.name, "set", e.target.value))}>
+              <select value={f.mode ?? ""} disabled={!mine(f) || working} onChange={(e) => onOperate(ask(f.name, "set", e.target.value))}>
                 <option value="" disabled>
                   –
                 </option>
@@ -437,7 +464,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
               <button
                 type="button"
                 className="fara"
-                disabled={working}
+                disabled={!mine(f) || working}
                 onClick={() => {
                   setConfirming(null);
                   onOperate(ask(f.name, "release", null, true));
@@ -450,7 +477,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
               </button>
             </span>
           ) : (
-            <button key={f.name} type="button" className="funktion fara" title={title} disabled={working} onClick={() => setConfirming(f.name)}>
+            <button key={f.name} type="button" className="funktion fara" title={title} disabled={!mine(f) || working} onClick={() => setConfirming(f.name)}>
               {lamp(f, false)}
               {name}
             </button>
@@ -459,7 +486,7 @@ function FunctionRow({ functions, skin, working, say, onOperate }: { functions: 
         const on = f.on ?? false;
         return (
           <span key={f.name} className="funktion-grupp">
-            <button type="button" className="funktion" aria-pressed={on} title={title} data-function={f.name} disabled={working} onClick={() => onOperate(ask(f.name, on ? "off" : "on"))}>
+            <button type="button" className="funktion" aria-pressed={on} title={title} data-function={f.name} disabled={!mine(f) || working} onClick={() => onOperate(ask(f.name, on ? "off" : "on"))}>
               {lamp(f, on)}
               {name} <span className="varde">{on ? say("functionOn") : say("functionOff")}</span>
             </button>

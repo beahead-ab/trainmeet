@@ -74,7 +74,10 @@ def snapshot(drift: Drift, place: str, now: datetime) -> station.Snapshot:
         automatic=drift.left_here(place),
         mode=drift.mode_of(place),
         remote=station.RemoteHere(
-            routes=remote_routes(drift, place, now), route_state=drift.route_states.get(place)
+            routes=remote_routes(drift, place, now),
+            route_state=drift.route_states.get(place),
+            automats_asked=automats_asked(drift, place),
+            local_requests=local_requests(drift, place),
         ),
     )
 
@@ -108,12 +111,32 @@ def remote_routes(drift: Drift, place: str, now: datetime) -> list[station.Remot
                 else None,
                 state=ask.state,
                 reason=ask.reason,
+                message=ask.message,
                 by=ask.by,
                 asked_at=ask.asked_at,
                 answer_in=max(0, int(left)) if waiting else None,
             )
         )
     return routes
+
+
+def automats_asked(drift: Drift, place: str) -> list[station.AutomatAsked]:
+    """What the controller decided for the station's automats and local areas, not yet shown in
+    its route.state (#36 del b)."""
+    return [
+        station.AutomatAsked(code=code, on=on)
+        for (at, code), on in sorted(drift.automats_asked.items())
+        if at == place
+    ]
+
+
+def local_requests(drift: Drift, place: str) -> list[station.LocalRequestHere]:
+    """The local areas the station has asked for and not been answered (#36 del b, FR20)."""
+    return [
+        station.LocalRequestHere(code=asked.code, all_day=asked.all_day, asked_at=asked.asked_at)
+        for (at, _), asked in sorted(drift.local_requests.items())
+        if at == place
+    ]
 
 
 def _neighbour(drift: Drift, place: Place) -> station.Neighbour:

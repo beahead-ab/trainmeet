@@ -69,6 +69,14 @@ interlocking with no station of its own (FR1, TKL47), and a station's own TKL co
 neighbour with the same fjärrbild (FR3). The fjärrbild is Hubben's Overview, drawn in the skin 95
 (FR31–FR38, FR47, FR48); routes from the stations' remote catalogues are asked for and taken away,
 and the controlled stations are cleared, with ordinary station commands (FR11–FR14, FR17).
+
+Fjärrstyrning, the station's side (#36 del b): Studio, Inställningar, Fjärrstyrning, under
+/api/tkl/1/studio/fjarrstyrning, where the owner chooses which of the station's train routes may
+be requested from afar, sets up the station automats and says who may receive the station
+(FR10, FR24, FR40); kept with the model and versioned with it, and level 0 has none (FR16). The
+interlocking keeps who laid each catalogue route, the automats that are on and the magazine
+(FR24–FR27, FR45), and while the station is remote-controlled its own panel lays nothing (FR6,
+FR17); the station automats are switched on the spot with /api/tkl/1/stallverk/automat.
 """
 
 from __future__ import annotations
@@ -89,6 +97,7 @@ from contracts.station import (
     OfferHere,
     Overview,
     Revision,
+    RouteBy,
     Snapshot,
 )
 from contracts.station_model import (
@@ -111,7 +120,7 @@ from contracts.station_model import (
     SwitchStreet,
     SwitchType,
 )
-from contracts.station_outside import StationOutside
+from contracts.station_outside import AutomatKind, ReceiverKind, RouteDirection, StationOutside
 
 # "Minst fyra siffror" (TKLAPP, first start). Never written to a log.
 TKL_PIN = Field(pattern=r"^[0-9]{4,12}$", description="4–12 siffror. Skrivs aldrig ut.")
@@ -649,6 +658,132 @@ class TklManover(Contract):
     labels: TklManoverLabels = Field(default_factory=TklManoverLabels)
 
 
+# --- Fjärrstyrning, stationens sida (#36 del b, TKL46–TKL48, FR10, FR16, FR20–FR29, FR39–FR45) --
+
+
+class TklRemoteCandidate(Contract):
+    """A train route that may be in the remote catalogue (FR10): in from a line end to a
+    station track, or out from a station track to a line end, through the signals between where
+    it must be (TKL53). Studio lists them from the model; shunting routes never are."""
+
+    id: Id = Field(description="Tågvägens fasta id i stationen, som i fjärrkatalogen.")
+    start: Name
+    end: Name
+    via: list[Name] = Field(
+        default_factory=list, description="Signalerna mellan, när vägen läggs genom flera."
+    )
+    exit: Id = Field(description="Utfartens id i utsidan.")
+    exit_name: Text = Field(description="Utfarten som stationsmodellen kallar den.")
+    track: Id = Field(description="Stationsspårets id i utsidan.")
+    track_label: Text
+    direction: RouteDirection
+    chosen: bool = Field(default=False, description="I fjärrkatalogen.")
+
+
+class TklAutomatSpec(Contract):
+    """A station automat as the owner sets it up (FR24, FR39, FR40): A1, A2 and A3 for the
+    whole station, AN and AU for the entry signals of the down and up track, and a local release
+    automat for one of the station's local release functions."""
+
+    code: Text = Field(
+        min_length=1, max_length=12, description="Koden vid stationsnamnet: A3, AN21 eller L01."
+    )
+    kind: AutomatKind
+    signals: list[Name] = Field(
+        default_factory=list,
+        description="Infartssignalerna automaten sköter, för AN och AU. Tomt: alla.",
+    )
+    function: Text | None = Field(
+        default_factory=lambda: None, description="Panelfunktionen, för en lokalfrigivningsautomat."
+    )
+    default: bool = Field(
+        default=False, description="Förvald: kopplas in efter 90 sekunder utan kontakt (FR29)."
+    )
+
+
+class TklFjarrChoice(Contract):
+    """Studio, Inställningar, Fjärrstyrning: the owner's choice, kept with the station's model
+    and versioned with it like Manöver's settings. Level 0 has none (FR16)."""
+
+    routes: list[Id] = Field(
+        default_factory=list, description="Fjärrkatalogen: de valda tågvägarnas id."
+    )
+    automats: list[TklAutomatSpec] = Field(default_factory=list)
+    receivers: list[ReceiverKind] = Field(
+        default_factory=list,
+        description="Vilka som får ta emot stationen. Tomt: grannar och fjärrställverk.",
+    )
+
+
+class TklFjarrStudio(Contract):
+    """The page in Studio: the owner's choice, the routes to choose from, the automats
+    suggested, what is wrong, and the outside the choice gives."""
+
+    settings: TklFjarrChoice
+    kept: bool = Field(description="Ägaren har sparat ett val; annars är det förslaget.")
+    level: int = Field(ge=0, le=3)
+    candidates: list[TklRemoteCandidate] = Field(default_factory=list)
+    entry_signals: list[Name] = Field(
+        default_factory=list, description="Infartssignalerna, att välja för AN och AU."
+    )
+    functions: list[Text] = Field(
+        default_factory=list, description="Stationens panelfunktioner för lokal frigivning."
+    )
+    suggested: list[TklAutomatSpec] = Field(
+        default_factory=list, description="Förslaget ur stationens tågvägar och modell."
+    )
+    problems: list[Text] = Field(default_factory=list)
+    outside: StationOutside | None = Field(
+        default=None, description="Utsidan med fjärrkatalogen, automaterna och översikten."
+    )
+    note: Text | None = Field(default=None, description="Varför stationen inte har någon katalog.")
+
+
+class TklAutomatOn(Contract):
+    """A station automat switched on in the station's interlocking (FR24–FR27): who switched it,
+    and for A1, A2, AN and AU the trains it has taken in and laid out."""
+
+    code: Text = Field(max_length=12)
+    kind: AutomatKind
+    by: RouteBy
+    since: datetime
+    trains: list[Id] = Field(default_factory=list, description="Tågbesöken den har tagit in.")
+    out: list[Id] = Field(default_factory=list, description="Tågbesöken den har lagt ut.")
+
+
+class TklMagazined(Contract):
+    """A route in the magazine (magasinering, FR45): it conflicts with a set route, and is laid
+    by itself once that route is released, after a delay so that the train is wholly in."""
+
+    route: Id = Field(description="Tågvägens id i fjärrkatalogen.")
+    start: Name
+    end: Name
+    automat: Text = Field(max_length=12)
+    call: Id | None = None
+    since: datetime
+    blocked_by: list[int] = Field(default_factory=list, description="Vägarna den krockar med.")
+    free_since: datetime | None = Field(default=None, description="När de vägarna var lösta.")
+
+
+class TklFjarrState(Contract):
+    """The station's remote control in its interlocking (#36 del b): who controls it, the
+    automats that are on and the magazine. Kept with the interlocking."""
+
+    controller: Text | None = Field(
+        default_factory=lambda: None,
+        description="Fjärrstyrs från …: stationens egen panel lägger då inget (FR6, FR17).",
+    )
+    automats: list[TklAutomatOn] = Field(default_factory=list)
+    magazine: list[TklMagazined] = Field(default_factory=list)
+
+
+class TklAutomatAsk(Contract):
+    """Koppla in eller ur en stationsautomat på platsen, när stationen är bemannad (FR25)."""
+
+    code: Text = Field(max_length=12)
+    on: bool
+
+
 # --- Ställverket at level 1–2 (#84): the interlocking's state and its operations -----------
 
 TrainNumber = Annotated[str, StringConstraints(pattern=r"^[0-9A-Za-z]{1,8}$")]
@@ -756,6 +891,21 @@ class TklSetRoute(Contract):
         default=None,
         description="Begäran vägen lades för. Envägsregeln: delen lämnar tillbaka den, och "
         "stationen löser inte ut den (RANG-09).",
+    )
+    # Fjärrstyrning (#36 del b): a route of the remote catalogue, and who laid it (FR33). Made
+    # by factories, so that the schema gives no default and a client may leave them out.
+    catalogue: Id | None = Field(
+        default_factory=lambda: None, description="Tågvägens id i fjärrkatalogen."
+    )
+    by: RouteBy | None = Field(
+        default_factory=lambda: None,
+        description="Den som fjärrstyr eller en automat; tomt: på platsen.",
+    )
+    request_id: Id | None = Field(
+        default_factory=lambda: None, description="Fjärrbegäran vägen lades för."
+    )
+    automat: Text | None = Field(
+        default_factory=lambda: None, description="Automaten som lade den."
     )
 
 
@@ -1114,6 +1264,10 @@ class TklInterlocking(Contract):
         default_factory=list,
         description="Klara att skicka, i stationens ordning: efter avgångstiden i planen, och "
         "som stationen har flyttat dem (TKL108).",
+    )
+    fjarr: TklFjarrState = Field(
+        default_factory=TklFjarrState,
+        description="Fjärrstyrningen: vem som styr, automaterna och magasinet (#36 del b).",
     )
 
 

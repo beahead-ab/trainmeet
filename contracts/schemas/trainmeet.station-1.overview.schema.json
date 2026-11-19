@@ -860,7 +860,10 @@
         "no_contact",
         "conflicting_route",
         "switch_not_in_control",
-        "area_released"
+        "area_released",
+        "route_refused",
+        "unknown_automat",
+        "local_area_not_given"
       ],
       "title": "Reason",
       "type": "string"
@@ -1023,6 +1026,20 @@
           ],
           "default": null,
           "description": "Skälet till ett nej."
+        },
+        "message": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Ställverkets egna ord om nejet.",
+          "title": "Message"
         },
         "by": {
           "description": "Klienten som begärde.",

@@ -86,3 +86,9 @@ PROV_HUBB=http://127.0.0.1:8080 PROV_TKL_FJARR=http://127.0.0.1:8093 PROV_TKL_GR
 Med `PROV_TKL_GRANNE`, en andra nystartad TKL, provas också grannen: Norrbys egen TKL får fliken Fjärr när Åsen erbjuds den, tar emot och lägger en tågväg med samma fjärrbild (FR3).
 
 Station A (Åsen i Provbanan) är tills vidare ett låtsat ställverk i provet, `stationA` i skriptet: en klient på stationsprotokollet som TKL på nivå 2, med en fjärrkatalog och en översikt i Gårdsjös form, som svarar på `route.request` som stationen ska. När Studio tar fram fjärrkatalogen och översikten och ställverket svarar på begärda vägar (#36 del b) byts det mot en andra TKL med Gårdsjö som stationsmodell, som erbjuder och tar tillbaka stationen i sitt eget Ställverk.
+
+## Fjärrstyrning, stationens sida
+
+I Studio › Inställningar › Fjärrstyrning väljer ägaren vilka av stationens tågvägar in och ut som får begäras från fjärr, ställer in stationsautomaterna (A3, A2, A1, AN och AU, och lokalfrigivningen) och säger vem som får ta emot stationen. Valet sparas med stationsmodellen och följer med nästa version av utsidan, med en översikt för fjärrbilden. En station på nivå 0 har ingen fjärrkatalog.
+
+I Ställverket visar en rad driftformen: Bemannad, Erbjuden, Fjärrstyrs från …, Kontakt saknas eller Automatik, med Lämna till … och Ta tillbaka. Medan stationen fjärrstyrs lägger dess egen panel inget, utom i ett lokalt område som den som fjärrstyr har gett. TKL svarar själv på tågvägarna som begärs från fjärr, kopplar automaterna och rapporterar läget till Hubben några gånger i minuten, så länge den är ansluten.
