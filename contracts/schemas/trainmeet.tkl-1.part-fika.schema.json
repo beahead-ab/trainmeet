@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-fika.schema.json",
+  "title": "trainmeet.tkl-1.part-fika",
+  "additionalProperties": true,
+  "description": "Fika: the part's screen is locked until the part is back, and the station sees it.",
+  "properties": {
+    "on": {
+      "title": "On",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "on"
+  ],
+  "type": "object"
+}

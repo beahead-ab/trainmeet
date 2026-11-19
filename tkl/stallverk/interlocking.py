@@ -74,6 +74,31 @@ the field with `field_connect`, passes the layout's reports to `field_reports` a
 
 Without LocoNet the interlocking is as at level 1–2, with the buttons ("LocoNet ej ansluten"
 without the pretend LocoNet, or in the cloud).
+
+Delställverk (#87, TKL97–TKL103): a station may have parts, each a fixed area with its own
+operator. The interlocking is still one, and locks every route; a part is a role with an area
+against it (tkl.stallverk.parts). What a part may do:
+
+- set and release shunting routes inside its area, and lay its own switches, with the same
+  locking as the station's (part_route, part_release, part_lever);
+- lay a border switch towards its area, never out (RANG-12, TKL99): a route out over the border
+  is a request. The side that owns a border switch lays it both ways;
+- lay a switch street, every switch of it or none (RANG-02, part_street);
+- Klart and Grindar lay the border switches back towards the area; Klart also returns every
+  request (RANG-04, RANG-12).
+
+The five messages between a part and the station (TKL98): begär väg (part_request), svar
+(part_reply), lämna tillbaka (part_return), klart att skicka (part_ready) and ring (part_ring).
+A request that cannot go now is refused at once with the reason, and nothing reaches the
+station (RANG-10). On approval the station's interlocking sets the route, which is then the
+part's: the part can only return it, never set it itself, and the station cannot release it
+while it is the part's (envägsregeln, RANG-09); nödutlösning still can, confirmed and logged.
+A waiting request that a route set since has made impossible is answered no, with the reason
+(ported from cda-tkl's YardControl.tick). Every message is written in the events with who did it
+(RANG-05) and handed on with the outcome: locally that is all; when the station is
+remote-controlled the station's TKL sends them through Hubben (TKL100, #36). The trains announced
+ready to send are a list for the station, by the planned departure, which the station may move
+and mark Skickat (TKL108).
 """
 
 from __future__ import annotations
@@ -84,8 +109,9 @@ from datetime import UTC, datetime
 from typing import Final
 
 from contracts.station import ExitSignalAspect
-from contracts.station_model import PanelFunctionType, Position, SwitchControl
+from contracts.station_model import PanelFunctionType, PartOwner, Position, SwitchControl
 from contracts.tkl import (
+    PART_REFUSALS,
     AddressState,
     ObjectKind,
     TklAspect,
@@ -99,8 +125,17 @@ from contracts.tkl import (
     TklInterlocking,
     TklNumber,
     TklNumberColour,
+    TklPartMessage,
+    TklPartMessageKind,
+    TklPartRefusal,
+    TklPartRequest,
+    TklPartRequestState,
+    TklPartRouteOut,
+    TklPartShown,
+    TklPartStreet,
     TklPieceShown,
     TklPieceState,
+    TklReady,
     TklReport,
     TklReportKind,
     TklSectionPart,
@@ -120,6 +155,7 @@ from tkl.loconet.objects import (
     SignalReported,
     SwitchReported,
 )
+from tkl.stallverk.parts import Part, owner_of
 from tkl.stallverk.plant import (
     DWARFS,
     MINUS_SIGN,
@@ -155,6 +191,9 @@ FEEDBACK_SECONDS: Final = 6
 """How long a route waits for its switches' feedback at level 3 (cda-tkl: commandTimeoutMs)."""
 CONNECTED_HELD: Final = "LocoNet anslöts: lägg vägen på nytt när återrapporterna har kommit"
 DISCONNECTED_HELD: Final = "LocoNet kopplades från: lägg vägen på nytt"
+STATION_BY: Final = "Tågklareraren"
+"""Who the station is in the events (RANG-05): whoever runs its interlocking."""
+WAITING, APPROVED = TklPartRequestState.WAITING, TklPartRequestState.APPROVED
 BY_CIRCUITS: Final = (
     "Med LocoNet följer tågnumret spårledningarna (STV-15): Kör, Ankommit och Avgått görs "
     "av tåget självt."
@@ -169,6 +208,8 @@ class Outcome:
     message: str
     route: int | None = None
     reports: tuple[TklReport, ...] = ()
+    messages: tuple[TklPartMessage, ...] = ()
+    """The messages between a part and the station (TKL98), to hand on (TKL100)."""
 
 
 @dataclass(frozen=True)
@@ -203,6 +244,10 @@ class _Route:
     waiting_since: datetime | None = None
     came_from: str | None = None
     """Level 3: the section the train came from, which must be free for the passage."""
+    part: str | None = None
+    """The part the route is: set by it, or its approved request (TKL97)."""
+    request: int | None = None
+    """The request it was set for: the one-way rule holds it for the part (RANG-09)."""
 
     @property
     def name(self) -> str:
@@ -275,6 +320,30 @@ class _Train:
     @property
     def said(self) -> str:
         return f"Tåg {self.number}" if self.number else "Tåget utan nummer"
+
+
+@dataclass
+class _Request:
+    """Begäran (TKL98): a route out a part has asked for, waiting or approved."""
+
+    id: int
+    part: str
+    route_out: str
+    said: str
+    state: TklPartRequestState
+    asked: datetime
+    route: int | None = None
+    answered: datetime | None = None
+
+
+@dataclass
+class _PartState:
+    """A part's state of the moment: its requests, its ring, Fika and what it was refused."""
+
+    requests: list[_Request] = field(default_factory=list)
+    rings: datetime | None = None
+    fika: bool = False
+    refused: list[TklPartRefusal] = field(default_factory=list)
 
 
 @dataclass
@@ -359,6 +428,8 @@ class Interlocking:
         }
         self._saved: TklInterlocking | None = None
         self.field: _Field | None = None
+        self.parts: dict[str, _PartState] = {p: _PartState() for p in plant.parts}
+        self.ready: list[TklReady] = []
         if saved is not None:
             self._restore(saved)
 
@@ -407,8 +478,8 @@ class Interlocking:
         self.last_id += 1
         return self.last_id
 
-    def _log(self, text: str) -> None:
-        self.events.insert(0, TklHappening(at=self.now(), text=text))
+    def _log(self, text: str, by: str | None = None) -> None:
+        self.events.insert(0, TklHappening(at=self.now(), text=text, by=by))
         del self.events[KEPT_EVENTS:]
 
     def note(self, text: str) -> None:
@@ -416,10 +487,12 @@ class Interlocking:
         self.revision += 1
         self._log(text)
 
-    def _done(self, message: str, *, route: int | None = None, log: bool = True) -> Outcome:
+    def _done(
+        self, message: str, *, route: int | None = None, log: bool = True, by: str | None = None
+    ) -> Outcome:
         self.revision += 1
         if log:
-            self._log(message)
+            self._log(message, by)
         return Outcome(True, message, route)
 
     # --- checking a way before it is set ------------------------------------------------------
@@ -658,9 +731,12 @@ class Interlocking:
             return self._again(chosen, already)
         reasons: list[str] = []
         for chain in found:
-            planned, why = self._plan(chain)
+            why = self._border_for_station(chain)
+            planned: list[_Route] = []
             if why is None:
-                return self._lay(chain, planned)
+                planned, why = self._plan(chain)
+            if why is None:
+                return self._answer_waiting(self._lay(chain, planned))
             reasons.append(why)
         return Outcome(False, reasons[0])
 
@@ -694,17 +770,27 @@ class Interlocking:
         outcome = self._done(text, route=already.id)
         return Outcome(True, outcome.message, already.id, self._exit_reports(before))
 
-    def _lay(self, chain: Chain, planned: list[_Route]) -> Outcome:
+    def _lay(
+        self,
+        chain: Chain,
+        planned: list[_Route],
+        *,
+        part: str | None = None,
+        request: int | None = None,
+        by: str | None = None,
+        intro: str = "",
+    ) -> Outcome:
         before = self.exit_aspects()
         starting = self._at_start(chain[0])
         for route in planned:
             route.id = self._next_id()
             route.chain = planned[0].id if len(planned) > 1 else None
+            route.part, route.request = part, request
             if len(starting) == 1:
                 route.train = starting[0].id
-            for part, position in route.way.route.positions.items():
-                if self.plant.control.get(part) == SwitchControl.TKL:
-                    self.positions[part] = position
+            for switch, position in route.way.route.positions.items():
+                if self.plant.control.get(switch) == SwitchControl.TKL:
+                    self.positions[switch] = position
             if route.way.turntable is not None:
                 self.turntables[route.way.turntable[0]] = route.way.turntable[1]
         self.routes.extend(planned)
@@ -726,7 +812,7 @@ class Interlocking:
             said += f". {starting[0].said} tar vägen"
         if waiting:
             said += f". Väntar på återrapport från växel {_listed(sorted(set(waiting)))}"
-        outcome = self._done(said + ".", route=first.id)
+        outcome = self._done(f"{intro}{said}.", route=first.id, by=by)
         return Outcome(True, outcome.message, first.id, self._exit_reports(before))
 
     def _wait_for(self, route: _Route) -> list[str]:
@@ -764,16 +850,37 @@ class Interlocking:
         route = self._route(route_id)
         if route is None:
             return Outcome(False, "Vägen finns inte längre. Ingenting löstes ut.")
-        train = self._train(route.train)
-        if 0 <= route.at < route.way.last:
-            who = train.said if train else "Tåget"
-            return Outcome(
-                False, f"{who} är i vägen {route.name}. Kör fram tåget, eller nödutlös vägen."
-            )
+        held = self._held_for_part(route)
+        if held is not None:
+            return Outcome(False, held)
+        busy = self._train_in(route)
+        if busy is not None:
+            return Outcome(False, busy)
         before = self.exit_aspects()
         self._complete(route)
         outcome = self._done(f"Vägen {route.name} är utlöst.")
         return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    def _train_in(self, route: _Route) -> str | None:
+        """Why a route cannot be released now: a train is in it, short of its end."""
+        if 0 <= route.at < route.way.last:
+            train = self._train(route.train)
+            who = train.said if train else "Tåget"
+            return f"{who} är i vägen {route.name}. Kör fram tåget, eller nödutlös vägen."
+        return None
+
+    def _held_for_part(self, route: _Route) -> str | None:
+        """Envägsregeln (RANG-09): a part's approved request is the part's until it returns
+        it; the station does not release it. Nödutlösning still can."""
+        if route.request is None or route.part not in self.plant.parts:
+            return None
+        part = self.plant.parts[route.part]
+        if not part.rules.one_way:
+            return None
+        return (
+            f"Vägen {route.name} är {_genitive(part.name)} godkända begäran. {part.name} lämnar "
+            "tillbaka den (envägsregeln, RANG-09). Nödutlös den om det behövs."
+        )
 
     def emergency_release(self, route_id: int, confirm: bool) -> Outcome:
         """Nödutlös: the route goes even with a train in it. The train stays where it is."""
@@ -802,6 +909,10 @@ class Interlocking:
         """Lägg hela spaken (STV-01, STV-52, TKL104)."""
         if (stale := self._refuse_stale()) is not None:
             return stale
+        return self._lever(switch, position, None)
+
+    def _lever(self, switch: str, position: Position | None, part: Part | None) -> Outcome:
+        """A lever laid by the station, or by a part within its rights (TKL99)."""
         plant = self.plant
         lever_id, why = plant.lever_of(switch)
         if lever_id is None:
@@ -816,45 +927,22 @@ class Interlocking:
             side = Position.MINUS if current == Position.PLUS else Position.PLUS
         else:
             side = position
-        laid = plant.levers.lay(dict(lever.plus if side == Position.PLUS else lever.minus))
+        wanted = lever.plus if side == Position.PLUS else lever.minus
+        own = set(lever.plus) & set(lever.minus)
+        refused = self._lever_rights(own, wanted, part)
+        if refused is not None:
+            return Outcome(False, refused)
+        laid = plant.levers.lay(dict(wanted))
         if laid is None:
             return Outcome(
                 False,
                 f"Spaken {lever_id} kan inte läggas i {sign(side)}: den behöver en växel åt "
                 "båda hållen.",
             )
-        own = set(lever.plus) & set(lever.minus)
         moving = {p: v for p, v in laid.positions.items() if self.positions.get(p) != v}
-        locks = self._locks()
-        occupied = self._occupied()
-        for part in sorted(moving, key=lambda p: (p not in own, p)):
-            control = plant.control.get(part)
-            if control is None:
-                return Outcome(False, f"Växel {part} finns inte i stationsmodellen.")
-            if control != SwitchControl.TKL:
-                return Outcome(False, not_laid(part, control))
-            if self.field is not None:
-                why = self._refused_state(ObjectKind.SWITCH, part)
-                if why is not None:
-                    return Outcome(False, why)
-            held = locks.parts.get(part)
-            if held:
-                follow = "" if part in own else " och kan inte följa med"
-                return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}{follow}.")
-            for function in self._active(LOCAL):
-                if part in function.locked_parts:
-                    return Outcome(False, f"Växel {part} är låst av {function.name}.")
-                if part in function.switches:
-                    return Outcome(
-                        False,
-                        f"Växel {part} är lokalt frigiven ({function.name}) och läggs om med "
-                        "knappen på modulen.",
-                    )
-            under = self._under_train(part, occupied)
-            if under is not None:
-                return Outcome(
-                    False, f"Växel {part} kan inte läggas om: {plant.said(under)} är belagd."
-                )
+        why = self._may_move(moving, own)
+        if why is not None:
+            return Outcome(False, why)
         if not moving:
             return Outcome(True, f"Spaken {lever_id} ligger redan i {sign(side)}.")
         self.positions.update(moving)
@@ -862,7 +950,82 @@ class Interlocking:
         said = f"Spaken {lever_id} lagd i {sign(side)}"
         if dragged:
             said += f", drar med {', '.join(dragged)}"
-        return self._done(said + ".")
+        return self._done(said + ".", by=part.name if part is not None else None)
+
+    def _lever_rights(
+        self, own: set[str], wanted: dict[str, Position], part: Part | None
+    ) -> str | None:
+        """Who may lay a lever where (TKL99, RANG-12). The station: everything but a border
+        switch a part owns, which it lays only towards the part. A part: its own switches, and
+        a border switch towards its area, with the station's half of the same lever."""
+        if part is None:
+            for name in sorted(own):
+                found = owner_of(self.plant.parts.values(), name)
+                if found is None or found[1].owner != PartOwner.PART:
+                    continue
+                at, border = found
+                if wanted.get(name) != border.towards_part:
+                    return (
+                        f"Växel {name} är en gränsväxel och styrs av {at.name}. Stationen lägger "
+                        f"den bara mot {_genitive(at.name)} område ({sign(border.towards_part)})."
+                    )
+            return None
+        with_border = any(name in part.border for name in own)
+        for name in sorted(own):
+            if name in part.border:
+                why = self._border_why(part, name, wanted[name])
+                if why is not None:
+                    return why
+            elif name not in part.own and not with_border:
+                return _not_parts(part, name)
+        return None
+
+    def _border_why(self, part: Part, name: str, position: Position) -> str | None:
+        """Why a part may not lay a border switch in a position, or None (RANG-12)."""
+        if part.may_lay(name, position):
+            return None
+        border = part.border[name]
+        if position == border.towards_part:
+            return f"Växel {name} är en gränsväxel och läggs av stationen."
+        return (
+            f"Växel {name} är en gränsväxel: {part.name} lägger den bara mot sitt område "
+            f"({sign(border.towards_part)}). Ut går den bara med en begäran som stationen "
+            "godkänner (RANG-12)."
+        )
+
+    def _may_move(self, moving: dict[str, Position], own: set[str]) -> str | None:
+        """Why these switches cannot be laid over now, or None: a switch the interlocking does
+        not lay, at level 3 one that may not run, one locked in a route or by a local release,
+        one that is locally released, or one under a train."""
+        plant = self.plant
+        locks = self._locks()
+        occupied = self._occupied()
+        for part in sorted(moving, key=lambda p: (p not in own, p)):
+            control = plant.control.get(part)
+            if control is None:
+                return f"Växel {part} finns inte i stationsmodellen."
+            if control != SwitchControl.TKL:
+                return not_laid(part, control)
+            if self.field is not None:
+                why = self._refused_state(ObjectKind.SWITCH, part)
+                if why is not None:
+                    return why
+            held = locks.parts.get(part)
+            if held:
+                follow = "" if part in own else " och kan inte följa med"
+                return f"Växel {part} är låst i vägen {held[0][0].name}{follow}."
+            for function in self._active(LOCAL):
+                if part in function.locked_parts:
+                    return f"Växel {part} är låst av {function.name}."
+                if part in function.switches:
+                    return (
+                        f"Växel {part} är lokalt frigiven ({function.name}) och läggs om med "
+                        "knappen på modulen."
+                    )
+            under = self._under_train(part, occupied)
+            if under is not None:
+                return f"Växel {part} kan inte läggas om: {plant.said(under)} är belagd."
+        return None
 
     def _train_for(self, route: _Route) -> tuple[_Train | None, str]:
         """The train that takes the route: the one bound to it if it is at the start, else
@@ -1117,6 +1280,7 @@ class Interlocking:
             self.trains = []
             self.problem, self._saved = None, None
         self.routes = []
+        self._drop_spent()
         removed = len(self.trains) if trains else 0
         if trains:
             self.trains = []
@@ -1125,6 +1289,612 @@ class Interlocking:
             said += ", tågnumren borttagna"
         outcome = self._done(said + ".")
         return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    # --- delställverk (#87, TKL97–TKL103): what a part does, and the station's answers --------
+
+    def _part_of(self, part_id: str) -> tuple[Part | None, Outcome | None]:
+        """The part, or why nothing is done for it: a stale state, an unknown part, or Fika."""
+        if (stale := self._refuse_stale()) is not None:
+            return None, stale
+        part = self.plant.parts.get(part_id)
+        if part is None:
+            return None, Outcome(False, f"Delställverket {part_id} finns inte i stationsmodellen.")
+        if self.parts[part.id].fika:
+            return None, Outcome(False, f"{part.name} har fika. Tryck Tillbaka först.")
+        return part, None
+
+    def _part_no(self, part: Part, text: str) -> Outcome:
+        """A no to the part, kept with it so that every screen of the part shows what was refused
+        and why. Nothing goes to the station."""
+        state = self.parts[part.id]
+        state.refused.insert(0, TklPartRefusal(at=self.now(), text=text))
+        del state.refused[PART_REFUSALS:]
+        self.revision += 1
+        return Outcome(False, text)
+
+    def _message(
+        self, kind: TklPartMessageKind, part: Part, text: str, **more: object
+    ) -> TklPartMessage:
+        return TklPartMessage.model_validate(
+            {"kind": kind, "part": part.id, "at": self.now(), "text": text, **more}
+        )
+
+    def part_route(self, part_id: str, start: str, end: str) -> Outcome:
+        """Lägg en växlingsväg inside the part's area, with the same locking as the station's.
+        A border switch it lays goes towards the area (RANG-12); a route over the border is a
+        request."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        plant = self.plant
+        for name in (start, end):
+            if name not in plant.points:
+                return self._part_no(part, _unknown_point(plant, name))
+        if start == end:
+            return Outcome(False, "Start och mål är samma.")
+        found = plant.candidates(RouteKind.SHUNTING, start, end)
+        if not found:
+            return self._part_no(part, f"Ingen växlingsväg går från {start} till {end}.")
+        already = self._already(RouteKind.SHUNTING, start, end)
+        if already is not None:
+            return self._again(RouteKind.SHUNTING, already)
+        reasons: list[str] = []
+        for chain in found:
+            why = self._part_hindrance(part, chain)
+            planned: list[_Route] = []
+            if why is None:
+                planned, why = self._plan(chain)
+            if why is None:
+                laid = self._lay(chain, planned, part=part.id, by=part.name)
+                return self._answer_waiting(laid)
+            reasons.append(why)
+        return self._part_no(part, reasons[0])
+
+    def _part_hindrance(self, part: Part, chain: Chain) -> str | None:
+        """Why a part may not set a chain itself, or None: it leaves the area, or lays a switch
+        the part may not lay there (TKL99, RANG-12)."""
+        for way in chain:
+            for name, _ in way.sections:
+                if name not in part.sections:
+                    return (
+                        f"{_cap(self.plant.said(name))} är utanför {part.name}. En väg ut över "
+                        "gränsen begärs av stationen."
+                    )
+            for switch, position in way.route.positions.items():
+                if switch in part.border:
+                    why = self._border_why(part, switch, position)
+                    if why is not None:
+                        return why
+                elif switch not in part.own and switch in way.route.switches:
+                    return _not_parts(part, switch)
+        return None
+
+    def _border_for_station(self, chain: Chain) -> str | None:
+        """A border switch a part owns: the station's own routes lay it only towards the
+        part (TKL99)."""
+        for way in chain:
+            for switch, position in way.route.positions.items():
+                found = owner_of(self.plant.parts.values(), switch)
+                if found is None or found[1].owner != PartOwner.PART:
+                    continue
+                at, border = found
+                if position != border.towards_part:
+                    return (
+                        f"Växel {switch} är en gränsväxel och styrs av {at.name}. Vägen dit "
+                        f"begärs av {at.name}."
+                    )
+        return None
+
+    def part_release(self, part_id: str, route_id: int) -> Outcome:
+        """Lös ut one of the part's own routes. Its approved request is returned instead."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        route = self._route(route_id)
+        if route is None:
+            return Outcome(False, "Vägen finns inte längre. Ingenting löstes ut.")
+        if route.part != part.id:
+            return self._part_no(
+                part,
+                f"Vägen {route.name} är stationens. {part.name} löser bara ut sina egna vägar.",
+            )
+        if route.request is not None:
+            return self.part_return(part.id, route.request)
+        busy = self._train_in(route)
+        if busy is not None:
+            return self._part_no(part, busy)
+        before = self.exit_aspects()
+        self._complete(route)
+        outcome = self._done(f"Vägen {route.name} är utlöst.", by=part.name)
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    def part_lever(self, part_id: str, switch: str, position: Position | None = None) -> Outcome:
+        """A switch laid by the part: its own, or a border switch towards its area, never out
+        (RANG-12). The station's own switches are not the part's (RANG-19)."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        outcome = self._lever(switch, position, part)
+        return outcome if outcome.accepted else self._part_no(part, outcome.message)
+
+    def _street_plan(self, part: Part, street_id: str) -> tuple[dict[str, Position], str | None]:
+        """What a switch street lays over, every switch of it and those its levers take along,
+        or why it cannot be laid now (RANG-02). A switch in a locked route refuses the whole
+        street."""
+        street = part.streets.get(street_id)
+        if street is None:
+            return {}, f"{part.name} har ingen växelgata {street_id}."
+        plant = self.plant
+        moving: dict[str, Position] = {}
+        own: set[str] = set()
+        for switch, position in street.positions.items():
+            if switch in part.border:
+                why = self._border_why(part, switch, position)
+                if why is not None:
+                    return {}, why
+            elif switch not in part.own:
+                return {}, _not_parts(part, switch)
+            lever_id, why = plant.lever_of(switch)
+            if lever_id is None:
+                return {}, why or f"Växel {switch} finns inte i stationsmodellen."
+            lever = plant.levers.levers[lever_id]
+            side = Position.PLUS if lever.plus.get(switch) == position else Position.MINUS
+            wanted = lever.plus if side == Position.PLUS else lever.minus
+            laid = plant.levers.lay(dict(wanted)) if wanted.get(switch) == position else None
+            if laid is None:
+                return {}, f"Växel {switch} kan inte läggas i {sign(position)}."
+            own |= set(lever.plus) & set(lever.minus)
+            for name, value in laid.positions.items():
+                if moving.get(name, value) != value or street.positions.get(name, value) != value:
+                    return {}, f"Växelgatan {street.name} lägger växel {name} åt två håll."
+                moving[name] = value
+        moving = {p: v for p, v in moving.items() if self.positions.get(p) != v}
+        return moving, self._may_move(moving, own)
+
+    def part_street(self, part_id: str, street_id: str) -> Outcome:
+        """Lägg en växelgata (RANG-02): the part's switches straight out to a track, without a
+        route, a lock or a signal. All of it or nothing."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        moving, why = self._street_plan(part, street_id)
+        street = part.streets.get(street_id)
+        if why is not None or street is None:
+            said = f"Växelgatan {street.name}: {why}" if street is not None else why
+            return self._part_no(part, said or "")
+        if not moving:
+            return Outcome(True, f"Växelgatan {street.name} ligger redan.")
+        self.positions.update(moving)
+        laid = ", ".join(f"{p} {sign(v)}" for p, v in street.positions.items())
+        return self._done(
+            f"Växelgatan {street.name} lagd mot {street.track}: {laid}.", by=part.name
+        )
+
+    def _street_laid(self, street_positions: dict[str, Position]) -> bool:
+        return all(self.positions.get(p) == v for p, v in street_positions.items())
+
+    def _out_hindrance(self, part: Part, route_out: str) -> str | None:
+        """Why a route out cannot be set now, or None: what the station would meet."""
+        out = part.routes_out.get(route_out)
+        if out is None:
+            return f"{part.name} har ingen väg ut {route_out}."
+        chains = self.plant.candidates(RouteKind.SHUNTING, out.start, out.end)
+        if not chains:
+            return f"Ingen växlingsväg går från {out.start} till {out.end}."
+        if self._already(RouteKind.SHUNTING, out.start, out.end) is not None:
+            return f"Vägen {out.start} → {out.end} ligger redan."
+        _, why = self._settable(chains, None)
+        return why
+
+    def part_request(self, part_id: str, route_out: str) -> Outcome:
+        """Begär väg (TKL98): a route out over the border. When it cannot go now the
+        interlocking says so at once, and nothing reaches the station (RANG-10)."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        out = part.routes_out.get(route_out)
+        if out is None:
+            return self._part_no(part, f"{part.name} har ingen väg ut {route_out}.")
+        state = self.parts[part.id]
+        for asked in state.requests:
+            if asked.route_out == out.id:
+                if asked.state == WAITING:
+                    return Outcome(False, f"{asked.said} är redan begärd. Väntar på svar.")
+                return Outcome(False, f"{asked.said} ligger redan. Lämna tillbaka den först.")
+        why = self._out_hindrance(part, out.id)
+        if why is not None:
+            return self._part_no(part, f"Går inte att begära {out.name}: {why}")
+        said = out.name
+        if out.side is not None:
+            coming = next(
+                (
+                    s.track
+                    for s in part.streets.values()
+                    if s.side == out.side and self._street_laid(s.positions)
+                ),
+                None,
+            )
+            if coming is not None:
+                said = f"{coming} \N{RIGHTWARDS ARROW} {out.track}"
+        asked = _Request(self._next_id(), part.id, out.id, said, WAITING, self.now())
+        state.requests.append(asked)
+        text = f"{part.name} begär {said} ({out.start} \N{RIGHTWARDS ARROW} {out.end})."
+        self._done(text, by=part.name)
+        message = self._message(
+            TklPartMessageKind.REQUEST, part, text, request=asked.id, route_out=out.id
+        )
+        return Outcome(True, text, None, (), (message,))
+
+    def _request(self, request_id: int) -> tuple[Part, _Request] | None:
+        for part_id, state in self.parts.items():
+            for asked in state.requests:
+                if asked.id == request_id:
+                    return self.plant.parts[part_id], asked
+        return None
+
+    def part_reply(self, request_id: int, approved: bool) -> Outcome:
+        """Svar (TKL98): the station approves a request, and its interlocking sets the route,
+        which is then the part's (RANG-09); or refuses it. A route that cannot be set now is a
+        no to the station, and the request waits."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        found = self._request(request_id)
+        if found is None:
+            return Outcome(False, "Begäran finns inte längre.")
+        part, asked = found
+        if asked.state != WAITING:
+            return Outcome(False, f"{_genitive(part.name)} begäran {asked.said} är redan godkänd.")
+        out = part.routes_out[asked.route_out]
+        state = self.parts[part.id]
+        if not approved:
+            state.requests.remove(asked)
+            text = f"{STATION_BY} nekade {_genitive(part.name)} begäran {asked.said}."
+            self._part_no(part, text)
+            self._log(text, STATION_BY)
+            message = self._message(
+                TklPartMessageKind.REPLY,
+                part,
+                text,
+                request=asked.id,
+                route_out=out.id,
+                approved=False,
+            )
+            return Outcome(True, text, None, (), (message,))
+        reasons: list[str] = []
+        for chain in self.plant.candidates(RouteKind.SHUNTING, out.start, out.end):
+            planned, why = self._plan(chain)
+            if why is None:
+                intro = f"{STATION_BY} godkände {_genitive(part.name)} begäran {asked.said}. "
+                laid = self._lay(
+                    chain, planned, part=part.id, request=asked.id, by=STATION_BY, intro=intro
+                )
+                asked.state, asked.route, asked.answered = APPROVED, laid.route, self.now()
+                message = self._message(
+                    TklPartMessageKind.REPLY,
+                    part,
+                    laid.message,
+                    request=asked.id,
+                    route_out=out.id,
+                    approved=True,
+                )
+                return self._answer_waiting(
+                    Outcome(True, laid.message, laid.route, laid.reports, (message,))
+                )
+            reasons.append(why)
+        why = reasons[0] if reasons else "vägen finns inte i stationsmodellen."
+        return Outcome(
+            False,
+            f"Vägen {out.start} \N{RIGHTWARDS ARROW} {out.end} kan inte läggas nu: {why} Neka "
+            "begäran, eller godkänn den när vägen är fri.",
+        )
+
+    def _answer_waiting(self, outcome: Outcome) -> Outcome:
+        """After a route is set: a waiting request it has made impossible is answered no, with
+        the reason, so that the part learns at once (ported from cda-tkl's YardControl.tick)."""
+        if not outcome.accepted:
+            return outcome
+        messages = list(outcome.messages)
+        for part_id, state in self.parts.items():
+            part = self.plant.parts[part_id]
+            for asked in [r for r in state.requests if r.state == WAITING]:
+                why = self._out_hindrance(part, asked.route_out)
+                if why is None:
+                    continue
+                state.requests.remove(asked)
+                text = f"{_genitive(part.name)} begäran {asked.said} kan inte läggas: {why}"
+                self._part_no(part, text)
+                self._log(text)
+                messages.append(
+                    self._message(
+                        TklPartMessageKind.REPLY,
+                        part,
+                        text,
+                        request=asked.id,
+                        route_out=asked.route_out,
+                        approved=False,
+                    )
+                )
+        return Outcome(
+            outcome.accepted, outcome.message, outcome.route, outcome.reports, tuple(messages)
+        )
+
+    def _give_back(self, part: Part, asked: _Request) -> str | None:
+        """Lämna tillbaka one request: a waiting one is taken back; an approved one's routes are
+        released and the border switches it laid out go back towards the part. Why not, or
+        None."""
+        routes = [r for r in self.routes if r.request == asked.id]
+        for route in routes:
+            busy = self._train_in(route)
+            if busy is not None:
+                return busy
+        laid_out = {p for r in routes for p in r.way.route.positions if p in part.border}
+        for route in routes:
+            self._complete(route)
+        state = self.parts[part.id]
+        if asked in state.requests:
+            state.requests.remove(asked)
+        self._gates_back(part, laid_out)
+        return None
+
+    def part_return(self, part_id: str, request_id: int) -> Outcome:
+        """Lämna tillbaka (TKL98): the part returns an approved route, and the station has its
+        tracks free without doing anything; or takes back a request that waits."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        asked = next((r for r in self.parts[part.id].requests if r.id == request_id), None)
+        if asked is None:
+            return Outcome(False, "Begäran finns inte längre.")
+        before = self.exit_aspects()
+        waiting = asked.state == WAITING
+        why = self._give_back(part, asked)
+        if why is not None:
+            return self._part_no(part, why)
+        out = part.routes_out[asked.route_out]
+        if waiting:
+            text = f"{part.name} tog tillbaka sin begäran {asked.said}."
+        else:
+            text = (
+                f"{part.name} lämnade tillbaka {asked.said} ({out.start} \N{RIGHTWARDS ARROW} "
+                f"{out.end}). Gränsväxlarna ligger mot {part.name}."
+            )
+        self._done(text, by=part.name)
+        message = self._message(
+            TklPartMessageKind.RETURN, part, text, request=asked.id, route_out=out.id
+        )
+        return Outcome(True, text, None, self._exit_reports(before), (message,))
+
+    def _gates_back(self, part: Part, only: set[str] | None = None) -> tuple[list[str], list[str]]:
+        """The border switches back towards the part (TKL55): those that lie out, unless one
+        lies in a locked route, which stays until the route is released. Laid and kept."""
+        plant = self.plant
+        laid: list[str] = []
+        kept: list[str] = []
+        for name, border in part.border.items():
+            if only is not None and name not in only:
+                continue
+            if not part.may_lay(name, border.towards_part):
+                continue
+            if self.positions.get(name) == border.towards_part:
+                continue
+            lever_id, _ = plant.lever_of(name)
+            if lever_id is None:
+                continue
+            lever = plant.levers.levers[lever_id]
+            wanted = lever.plus if lever.plus.get(name) == border.towards_part else lever.minus
+            done = plant.levers.lay(dict(wanted))
+            if done is None or wanted.get(name) != border.towards_part:
+                kept.append(name)
+                continue
+            moving = {p: v for p, v in done.positions.items() if self.positions.get(p) != v}
+            if self._may_move(moving, set(lever.plus) & set(lever.minus)) is not None:
+                kept.append(name)
+                continue
+            self.positions.update(moving)
+            laid.append(f"{name} {sign(border.towards_part)}")
+        return laid, kept
+
+    def part_gates(self, part_id: str) -> Outcome:
+        """Grindar: the border switches back towards the part, without returning anything
+        (TKL55)."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        laid, kept = self._gates_back(part)
+        if not laid and not kept:
+            return Outcome(True, f"Gränsväxlarna ligger redan mot {part.name}.")
+        return self._done(_gates_said(part, laid, kept), by=part.name)
+
+    def part_done(self, part_id: str) -> Outcome:
+        """Klart (RANG-04): every request returned, waiting or approved, and the border switches
+        back towards the part. A route with a train in it stays."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        before = self.exit_aspects()
+        state = self.parts[part.id]
+        returned: list[str] = []
+        stays: list[str] = []
+        messages: list[TklPartMessage] = []
+        for asked in list(state.requests):
+            why = self._give_back(part, asked)
+            if why is not None:
+                stays.append(asked.said)
+                continue
+            returned.append(asked.said)
+            messages.append(
+                self._message(
+                    TklPartMessageKind.RETURN,
+                    part,
+                    f"{part.name} lämnade tillbaka {asked.said}.",
+                    request=asked.id,
+                    route_out=asked.route_out,
+                )
+            )
+        laid, kept = self._gates_back(part)
+        text = f"{part.name}: klart. "
+        text += f"{_listed(returned)} tillbaka." if returned else "Inga begärda vägar ute."
+        if laid or kept:
+            text += f" {_gates_said(part, laid, kept)}"
+        if stays:
+            text += f" {_listed(stays)} står kvar: ett tåg är i vägen."
+        self._done(text, by=part.name)
+        return Outcome(True, text, None, self._exit_reports(before), tuple(messages))
+
+    def part_ring(self, part_id: str) -> Outcome:
+        """Ring (TKL98): the part rings the station, until the station answers."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        state = self.parts[part.id]
+        state.rings = state.rings or self.now()
+        text = f"{part.name} ringer."
+        self._done(text, by=part.name)
+        return Outcome(True, text, None, (), (self._message(TklPartMessageKind.RING, part, text),))
+
+    def part_ring_answer(self, part_id: str) -> Outcome:
+        """The station answers the part's ring."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        part = self.plant.parts.get(part_id)
+        if part is None:
+            return Outcome(False, f"Delställverket {part_id} finns inte i stationsmodellen.")
+        state = self.parts[part.id]
+        if state.rings is None:
+            return Outcome(True, f"{part.name} ringer inte.")
+        state.rings = None
+        return self._done(f"{STATION_BY} svarar {part.name}.", by=STATION_BY)
+
+    def part_fika(self, part_id: str, on: bool) -> Outcome:
+        """Fika: the part's screen is locked until it is back, and the station sees it. Only
+        this part; TKL's lock for the whole station is Lås (SD30)."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        part = self.plant.parts.get(part_id)
+        if part is None:
+            return Outcome(False, f"Delställverket {part_id} finns inte i stationsmodellen.")
+        state = self.parts[part.id]
+        if state.fika == on:
+            return Outcome(True, f"{part.name} har {'redan fika' if on else 'inte fika'}.")
+        state.fika = on
+        said = f"{part.name} tar fika." if on else f"{part.name} är tillbaka från fikat."
+        return self._done(said, by=part.name)
+
+    def part_ready(
+        self,
+        part_id: str,
+        number: str,
+        *,
+        call: str | None = None,
+        track: str | None = None,
+        departure: str | None = None,
+    ) -> Outcome:
+        """Klart att skicka (TKL108): a train by its number, in the station's list before the
+        first with a later planned departure, else last. What has no planned time, a typed
+        number, and what the station has moved stay where they are."""
+        part, no = self._part_of(part_id)
+        if part is None:
+            return no or Outcome(False, "")
+        if any(r.number == number for r in self.ready):
+            return self._part_no(part, f"Tåg {number} är redan anmält klart att skicka.")
+        entry = TklReady(
+            number=number,
+            part=part.id,
+            part_name=part.name,
+            track=track,
+            departure=departure,
+            call=call,
+            at=self.now(),
+        )
+        at = next(
+            (
+                i
+                for i, r in enumerate(self.ready)
+                if departure and r.departure and r.departure > departure
+            ),
+            None,
+        )
+        self.ready.insert(len(self.ready) if at is None else at, entry)
+        text = f"{part.name}: tåg {number} är klart att skicka"
+        if track:
+            text += f" från spår {track}"
+        if departure:
+            text += f", avgår {departure}"
+        text += "."
+        self._done(text, by=part.name)
+        message = self._message(TklPartMessageKind.READY, part, text, number=number)
+        return Outcome(True, text, None, (), (message,))
+
+    def ready_move(self, number: str, to: int) -> Outcome:
+        """Flytta i listan Klara att skicka: the station decides the order (TKL108)."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        at = next((i for i, r in enumerate(self.ready) if r.number == number), None)
+        if at is None:
+            return Outcome(False, f"Tåg {number} är inte anmält klart att skicka.")
+        to = min(to, len(self.ready) - 1)
+        if to == at:
+            return Outcome(True, f"Tåg {number} står redan där.")
+        entry = self.ready.pop(at)
+        self.ready.insert(to, entry.model_copy(update={"moved": True}))
+        return self._done(
+            f"Tåg {number} flyttat till plats {to + 1} av {len(self.ready)}.", log=False
+        )
+
+    def ready_sent(self, number: str) -> Outcome:
+        """Skickat: the train leaves the list Klara att skicka."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        entry = next((r for r in self.ready if r.number == number), None)
+        if entry is None:
+            return Outcome(False, f"Tåg {number} är inte anmält klart att skicka.")
+        self.ready.remove(entry)
+        return self._done(f"Tåg {number} från {entry.part_name} är skickat.", by=STATION_BY)
+
+    def part_targets(self, part_id: str, start: str) -> TklTargets:
+        """The goals a part may set from a start inside its area, with whether each can be set
+        now and why not. Goals only outside the area are left out: they are requests."""
+        plant = self.plant
+        part = plant.parts.get(part_id)
+        if start not in plant.points or part is None:
+            raise UnknownStart(_unknown_point(plant, start))
+        found: list[TklTarget] = []
+        for end in plant.ends(RouteKind.SHUNTING, start):
+            chains = [
+                c
+                for c in plant.candidates(RouteKind.SHUNTING, start, end)
+                if all(part.inside(w) for w in c)
+            ]
+            if not chains:
+                continue
+            already = self._already(RouteKind.SHUNTING, start, end)
+            chosen, reason = chains[0], None
+            if self.parts[part.id].fika:
+                reason = f"{part.name} har fika."
+            elif already is None:
+                first: str | None = None
+                for chain in chains:
+                    why = self._part_hindrance(part, chain)
+                    if why is None:
+                        _, why = self._plan(chain)
+                    if why is None:
+                        chosen, first = chain, None
+                        break
+                    first = first or why
+                reason = first
+            found.append(
+                TklTarget(
+                    end=end,
+                    kind=ShownKind.SHUNTING,
+                    via=[w.end for w in chosen[:-1]],
+                    pieces=[p for w in chosen for p in w.pieces],
+                    possible=reason is None,
+                    reason=reason,
+                    route=already.id if already is not None else None,
+                )
+            )
+        kinds = [ShownKind.SHUNTING] if found else []
+        return TklTargets(start=start, kinds=kinds, targets=found)
 
     # --- the panel functions (STV-04, STV-53) -------------------------------------------------
 
@@ -1305,9 +2075,16 @@ class Interlocking:
         return Outcome(True, outcome.message, None, self._exit_reports(before))
 
     def _complete(self, route: _Route) -> None:
-        """The route is done: every lock it still holds is released."""
+        """The route is done: every lock it still holds is released. An approved request whose
+        routes are all gone, by nödutlösning or after its train, goes with them."""
         if route in self.routes:
             self.routes.remove(route)
+        self._drop_spent()
+
+    def _drop_spent(self) -> None:
+        held = {r.request for r in self.routes if r.request is not None}
+        for state in self.parts.values():
+            state.requests = [r for r in state.requests if r.state == WAITING or r.id in held]
 
     # --- level 3: LocoNet (#85, STV-11, STV-15–STV-17) -------------------------------------------
 
@@ -1867,6 +2644,78 @@ class Interlocking:
             events=list(self.events),
             last_id=self.last_id,
             field=field_.shown() if field_ is not None else None,
+            parts=[self._part_shown(part) for part in plant.parts.values()],
+            ready=list(self.ready),
+        )
+
+    def _part_shown(self, part: Part) -> TklPartShown:
+        """A part as both screens show it (TKL97–TKL103): its area and border, its streets and
+        routes out with whether each can go now, and its state."""
+        state = self.parts[part.id]
+        stale = self.problem
+        streets = []
+        for street in part.streets.values():
+            _, why = self._street_plan(part, street.id) if stale is None else ({}, stale)
+            streets.append(
+                TklPartStreet(
+                    id=street.id,
+                    name=street.name,
+                    side=street.side,
+                    track=street.track,
+                    positions=dict(street.positions),
+                    laid=self._street_laid(street.positions),
+                    possible=why is None,
+                    reason=why,
+                )
+            )
+        routes_out = []
+        for out in part.routes_out.values():
+            asked = next((r for r in state.requests if r.route_out == out.id), None)
+            why = None if asked is not None else stale or self._out_hindrance(part, out.id)
+            routes_out.append(
+                TklPartRouteOut(
+                    id=out.id,
+                    name=out.name,
+                    side=out.side,
+                    track=out.track,
+                    start=out.start,
+                    end=out.end,
+                    possible=asked is None and why is None,
+                    reason=why,
+                    request=asked.id if asked is not None else None,
+                    state=asked.state if asked is not None else None,
+                )
+            )
+        return TklPartShown(
+            id=part.id,
+            name=part.name,
+            own_place=part.spec.own_place,
+            place=part.spec.place,
+            pieces=list(part.pieces),
+            switches=sorted(part.own),
+            signals=list(part.signals),
+            border=list(part.spec.border),
+            rules=part.rules,
+            streets=streets,
+            routes_out=routes_out,
+            requests=[
+                TklPartRequest(
+                    id=r.id,
+                    part=r.part,
+                    route_out=r.route_out,
+                    said=r.said,
+                    start=part.routes_out[r.route_out].start,
+                    end=part.routes_out[r.route_out].end,
+                    state=r.state,
+                    route=r.route,
+                    asked=r.asked,
+                    answered=r.answered,
+                )
+                for r in state.requests
+            ],
+            rings=state.rings,
+            fika=state.fika,
+            refused=list(state.refused),
         )
 
     def _aspects(self, locks: _Locks | None = None) -> dict[str, TklAspect]:
@@ -1932,6 +2781,8 @@ class Interlocking:
             waiting=sorted(route.waiting),
             waiting_since=route.waiting_since,
             came_from=route.came_from,
+            part=route.part,
+            request=route.request,
         )
 
     # --- a saved state ------------------------------------------------------------------------
@@ -1994,9 +2845,27 @@ class Interlocking:
                     waiting={p: positions[p] for p in shown.waiting if p in positions},
                     waiting_since=shown.waiting_since,
                     came_from=shown.came_from if shown.came_from in plant.sections else None,
+                    part=shown.part if shown.part in plant.parts else None,
+                    request=shown.request if shown.part in plant.parts else None,
                 )
             )
-        self.trains, self.routes = trains, routes
+        parts: dict[str, _PartState] = {p: _PartState() for p in plant.parts}
+        held = {r.request for r in routes if r.request is not None}
+        for kept_part in saved.parts:
+            if kept_part.id not in plant.parts:
+                self._stale(saved)
+                return
+            outs = plant.parts[kept_part.id].routes_out
+            requests = [
+                _Request(r.id, r.part, r.route_out, r.said, r.state, r.asked, r.route, r.answered)
+                for r in kept_part.requests
+                if r.route_out in outs and (r.state == WAITING or r.id in held)
+            ]
+            parts[kept_part.id] = _PartState(
+                requests, kept_part.rings, kept_part.fika, list(kept_part.refused)
+            )
+        self.trains, self.routes, self.parts = trains, routes, parts
+        self.ready = list(saved.ready)
         if saved.field is not None and self.level == 3:
             kept = saved.field
             self.field = _Field(
@@ -2059,3 +2928,26 @@ def _unknown_point(plant: Plant, name: str) -> str:
     if name in plant.signals:
         return f"Inga vägar börjar eller slutar vid signalen {name}."
     return f"{name} finns inte bland stationens signaler och vägar."
+
+
+def _genitive(name: str) -> str:
+    """A name in the genitive, as Swedish writes it: Bangårdens, but Lunds and Gårds."""
+    return name if name[-1:].lower() in ("s", "x", "z") else f"{name}s"
+
+
+def _not_parts(part: Part, switch: str) -> str:
+    return (
+        f"Växel {switch} tillhör stationen. {part.name} lägger bara sina egna växlar och "
+        "gränsväxlarna mot sitt område."
+    )
+
+
+def _gates_said(part: Part, laid: list[str], kept: list[str]) -> str:
+    said = []
+    if laid:
+        word = "Gränsväxeln" if len(laid) == 1 else "Gränsväxlarna"
+        said.append(f"{word} {_listed(laid)} lagd{'' if len(laid) == 1 else 'a'} mot {part.name}.")
+    if kept:
+        word = "Gränsväxel" if len(kept) == 1 else "Gränsväxlarna"
+        said.append(f"{word} {_listed(kept)} ligger i en låst väg och står kvar.")
+    return " ".join(said)

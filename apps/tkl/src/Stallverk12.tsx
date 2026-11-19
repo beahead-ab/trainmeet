@@ -23,6 +23,8 @@ import { Panelen } from "./Panelen";
 import { changeScreen, codeIn, ownerChoices, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, type Screen, type ScreenView, type Skin, type SkinId, type StandardId } from "./skal";
 import { Klarering, Questions, Stallverket, type Send } from "./Stallverket";
 import { DeckPanel } from "./Deck";
+import { PartBox } from "./Delar";
+import { attention, rings } from "./delar";
 import { readDeck, saveDeck } from "./deck";
 import {
   act,
@@ -47,7 +49,7 @@ import {
   type Valet,
 } from "./stallverk";
 import { readLanguage, saveLanguage, text, type Language, type Say } from "./texter";
-import type { Sounds } from "./ljud";
+import { play, type Sounds } from "./ljud";
 
 type Props = {
   level: number;
@@ -134,7 +136,7 @@ export function StallverketSida(props: Props) {
 
 type PanelProps = Props & { plan: TrackPlan; panel: NonNullable<TrackPlan["panel"]>; state: Interlocking; manover?: Manover | null; onState: (state: Interlocking) => void };
 
-export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, outside, journal, busy, onSend, onExit, initial }: PanelProps) {
+export function Stallverk12({ plan, panel, state: raw, manover = null, onState, view, hubNote, outside, journal, sounds, busy, onSend, onExit, initial }: PanelProps) {
   const [screen] = useState(() => (typeof location === "undefined" ? 1 : screenNumber(location.search)));
   const [settings, setSettings] = useState<Screen>(() => initial?.screen ?? readScreen(screen, storage()));
   const [language, setLanguage] = useState<Language>(() => initial?.language ?? readLanguage(storage()));
@@ -153,6 +155,14 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
   const fotoReady = hasRealForm(panel);
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
   const drawn = drawing(panel, state, busyLines(state, snapshot), ends);
+
+  // Delställverk (#87): a new request, a ring or a train ready to send rings on this screen.
+  const heard = useRef<Set<string> | null>(null);
+  useEffect(() => {
+    const now = attention(raw);
+    if (rings(heard.current, now)) play("request", sounds);
+    heard.current = now;
+  }, [raw, sounds]);
 
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
@@ -216,6 +226,7 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
           {say("deck")}
         </button>
       </div>
+      <PartBox state={raw} say={say} working={working} onWork={(work) => void run(() => trainCall(valet, work))} />
       {deckOpen ? <DeckPanel screen={screen} plan={{ panel, drawn }} /> : null}
       {state.problem ? (
         <p className="notis" role="alert">
@@ -707,7 +718,8 @@ function Trains({ state, view, hubNote, working, say, onPut }: { state: Filled; 
 
 function Events({ state, refusals, journal, say }: { state: Filled; refusals: Said[]; journal: Happening[]; say: Say }) {
   const rows = [
-    ...state.events.map((e) => ({ at: e.at, text: e.text, no: false })),
+    // Who did it, when a part or the station's answer to one (RANG-05), unless the line says so.
+    ...state.events.map((e) => ({ at: e.at, text: e.by && !e.text.startsWith(e.by) ? `${e.by}: ${e.text}` : e.text, no: false })),
     ...refusals.map((r) => ({ at: r.at, text: r.text, no: true })),
   ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
   const time = (at: string) => {

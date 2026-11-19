@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-message.schema.json",
+  "title": "trainmeet.tkl-1.part-message",
+  "$defs": {
+    "TklPartMessageKind": {
+      "description": "The five messages between a part and the station (TKL98).",
+      "enum": [
+        "request",
+        "reply",
+        "return",
+        "ready",
+        "ring"
+      ],
+      "title": "TklPartMessageKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "One of the five messages, as the interlocking hands it on. Locally the station's\ninterlocking is the whole exchange; when the station is remote-controlled the message goes\nthrough Hubben to whoever remote-controls it, who answers as the station would (TKL100,\nDRIFT-40, #36).",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/TklPartMessageKind"
+    },
+    "part": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Part",
+      "type": "string"
+    },
+    "at": {
+      "format": "date-time",
+      "title": "At",
+      "type": "string"
+    },
+    "request": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request"
+    },
+    "route_out": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Route Out"
+    },
+    "approved": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approved"
+    },
+    "number": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9A-Za-z]{1,8}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Number"
+    },
+    "text": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "part",
+    "at",
+    "text"
+  ],
+  "type": "object"
+}

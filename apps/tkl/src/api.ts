@@ -38,6 +38,16 @@ export type FunctionShown = Schemas["trainmeet.tkl-1.interlocking.TklFunctionSho
 export type FunctionAsk = Schemas["trainmeet.tkl-1.function-ask"];
 export type PanelFunctionButton = Schemas["trainmeet.tkl-1.track-plan.PanelFunctionButton"];
 export type PanelTable = Schemas["trainmeet.tkl-1.track-plan.PanelTable"];
+// Delställverk (#87, TKL97–TKL103): a part's area, streets, routes out and requests, and the list
+// Klara att skicka.
+export type PartShown = Schemas["trainmeet.tkl-1.interlocking.TklPartShown"];
+export type PartRequest = Schemas["trainmeet.tkl-1.interlocking.TklPartRequest"];
+export type PartStreet = Schemas["trainmeet.tkl-1.interlocking.TklPartStreet"];
+export type PartRouteOut = Schemas["trainmeet.tkl-1.interlocking.TklPartRouteOut"];
+export type PartSide = Schemas["trainmeet.tkl-1.interlocking.PartSide"];
+export type Ready = Schemas["trainmeet.tkl-1.interlocking.TklReady"];
+export type PartTrains = Schemas["trainmeet.tkl-1.part-trains"];
+export type PartTrain = Schemas["trainmeet.tkl-1.part-trains.TklPartTrain"];
 // Rita (#85): the station drawn on the grid, the model with its panel plan, kept as a draft.
 export type Drawing = Schemas["trainmeet.tkl-1.drawing"];
 export type Rita = Schemas["trainmeet.tkl-1.rita"];
@@ -238,6 +248,12 @@ export const api = {
   resetInterlocking: (confirm: boolean, trains = false) =>
     call<InterlockingAnswer>(`${TKL}/stallverk/reset`, "POST", { confirm, trains }),
   panelFunction: (ask: FunctionAsk) => call<InterlockingAnswer>(`${TKL}/stallverk/function`, "POST", ask),
+  // Delställverk (#87): the station's answers in Ställverket, and the part's own screen.
+  partReply: (request: number, approved: boolean) => call<InterlockingAnswer>(`${TKL}/stallverk/parts/reply`, "POST", { request, approved }),
+  partRingAnswer: (part: string) => call<InterlockingAnswer>(`${TKL}/stallverk/parts/ring-answer`, "POST", { part }),
+  readyMove: (number: string, to: number) => call<InterlockingAnswer>(`${TKL}/stallverk/ready/move`, "POST", { number, to }),
+  readySent: (number: string) => call<InterlockingAnswer>(`${TKL}/stallverk/ready/sent`, "POST", { number }),
+  part: (part: string) => partCalls(part),
   // Stream Deck (#86 del a): the same API for the deck on the screen and, later, a real deck.
   deckModels: () => call<DeckModel[]>(`${TKL}/deck/models`),
   deckOpen: (serial: string, model: DeckModelId) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`, "POST", { model }),
@@ -267,3 +283,25 @@ export const api = {
   streamDeckProvaStart: (size: DeckModelId) => call<DeckProva>(`${TKL}/studio/stream-deck/prova/start`, "POST", { size }),
   streamDeckProvaStop: () => call<DeckProva>(`${TKL}/studio/stream-deck/prova/stop`, "POST"),
 };
+
+/** What a part's own screen calls (TKL102): the same interlocking, under the part's path, where
+ * the interlocking checks the part's rights at the border. */
+export function partCalls(part: string) {
+  const at = `${TKL}/stallverk/parts/${encodeURIComponent(part)}`;
+  return {
+    trains: () => call<PartTrains>(`${at}/trains`),
+    targets: (start: string) => call<Targets>(`${at}/targets?start=${encodeURIComponent(start)}`),
+    setRoute: (start: string, end: string) => call<InterlockingAnswer>(`${at}/route`, "POST", { start, end, kind: "shunting" }),
+    release: (route: number) => call<InterlockingAnswer>(`${at}/release`, "POST", { route }),
+    layLever: (sw: string) => call<InterlockingAnswer>(`${at}/lever`, "POST", { switch: sw, position: null }),
+    street: (street: string) => call<InterlockingAnswer>(`${at}/street`, "POST", { street }),
+    request: (route_out: string) => call<InterlockingAnswer>(`${at}/request`, "POST", { route_out }),
+    giveBack: (request: number) => call<InterlockingAnswer>(`${at}/return`, "POST", { request }),
+    done: () => call<InterlockingAnswer>(`${at}/done`, "POST"),
+    gates: () => call<InterlockingAnswer>(`${at}/gates`, "POST"),
+    ring: () => call<InterlockingAnswer>(`${at}/ring`, "POST"),
+    fika: (on: boolean) => call<InterlockingAnswer>(`${at}/fika`, "POST", { on }),
+    ready: (number: string, callId: string | null) => call<InterlockingAnswer>(`${at}/ready`, "POST", { number, call: callId }),
+  };
+}
+export type PartCalls = ReturnType<typeof partCalls>;

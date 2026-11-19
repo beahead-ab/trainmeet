@@ -140,6 +140,19 @@
   margin: -4px 0 0 -4px;
   border-radius: 50%;
 }
+.sd-klar {
+  position: absolute;
+  left: 14%;
+  top: 17%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: #ffffff;
+  font: 700 9px/12px system-ui, sans-serif;
+  text-align: center;
+}
 .sd-star {
   position: absolute;
   right: 6%;

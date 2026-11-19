@@ -37,14 +37,23 @@ type Props = {
   onTable?: (fn: string, piece: string) => void;
   /** Manöver (STV-46): the owner's labels and what is shown, over the skin as it is. */
   owner?: OwnerChoices | null;
+  /** A part's own screen (TKL102): its area is active, the rest greyed and not clicked. */
+  area?: Area | null;
 };
+
+/** A part's area on the panel (TKL97): its pieces, signals and switches. */
+export type Area = { pieces: Set<string>; signals: Set<string>; switches: Set<string> };
+const GREY = 0.28;
 
 const unit = (v: Cell): Cell => {
   const n = Math.hypot(v[0], v[1]) || 1;
   return [v[0] / n, v[1] / n];
 };
 
-export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton, onTable, owner = null }: Props) {
+export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen = null, height, onPoint, onToggle, onSwitch, onRoute, onButton, onTable, owner = null, area = null }: Props) {
+  const outside = (piece: string) => !!area && !area.pieces.has(piece);
+  const signalOutside = (name: string) => !!area && !area.signals.has(name);
+  const switchOutside = (parts: string[]) => !!area && !parts.some((p) => area.switches.has(p));
   const [dx, dy] = panel.cell;
   // The grid's view, with room at the ends for an exit's name and a train number beside it.
   const grid = viewBox(panel, "schematic", null);
@@ -162,6 +171,8 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
               key={l.piece}
               data-piece={l.piece}
               data-state={l.state}
+              data-outside={outside(l.piece) ? "ja" : undefined}
+              opacity={outside(l.piece) ? GREY : undefined}
               points={line(lamps ? l.cells : cut(l.cells, l.cut.start ? skin.gap : 0, l.cut.end ? skin.gap : 0))}
               stroke={skin.tracks[l.state]}
               strokeWidth={round(trackWidth(lamps ? "free" : l.state))}
@@ -250,7 +261,7 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
         <g className="luckor">{drawn.signals.map(gapOf)}</g>
         <g className="signaler">
           {drawn.signals.map((s) => (
-            <g key={s.name} data-signal={s.name} data-aspect={s.aspect} data-end={s.end ? "ja" : undefined} data-blocked={s.blocked ? "ja" : undefined} opacity={s.planned ? 0.4 : 1}>
+            <g key={s.name} data-signal={s.name} data-aspect={s.aspect} data-end={s.end ? "ja" : undefined} data-blocked={s.blocked ? "ja" : undefined} opacity={s.planned ? 0.4 : signalOutside(s.name) ? GREY : 1}>
               {placed(look(s).shapes, s.symbol, s.toward, s.name, sideOf(s))}
             </g>
           ))}
@@ -265,7 +276,7 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
         <g className="texter" fontSize={font} fontWeight={600} textAnchor="middle" style={{ paintOrder: "stroke" }} stroke={skin.ground} strokeWidth={0.12 * u}>
           {show.switch_numbers
             ? drawn.switches.map((s) => (
-                <text key={s.number} data-switch-number={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={s.laid ? 1 : 0.55} fontSize={font * 0.85}>
+                <text key={s.number} data-switch-number={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={switchOutside(s.parts) ? GREY : s.laid ? 1 : 0.55} fontSize={font * 0.85}>
                   {said(switchLabel(s.number))}
                 </text>
               ))
@@ -286,7 +297,7 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
             ? drawn.signals.map((s) => {
                 const [x, y] = labelOf(s);
                 return (
-                  <text key={s.name} data-signal-id={s.name} x={x * dx} y={y * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : 1} fontWeight={700}>
+                  <text key={s.name} data-signal-id={s.name} x={x * dx} y={y * dy + font * 0.35} fill={skin.signalId} opacity={s.planned ? 0.4 : signalOutside(s.name) ? GREY : 1} fontWeight={700}>
                     {said(signalLabel(s.name))}
                   </text>
                 );
@@ -396,7 +407,7 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
                 })
               : [],
           )}
-          {drawn.switches.map((s) => {
+          {drawn.switches.filter((s) => !switchOutside(s.parts)).map((s) => {
             const [x, y] = px(s.cell);
             const part = s.parts[0];
             const state = [s.position ?? "?", s.routes.length ? say("locked", { routes: s.routes.join(", ") }) : null, s.protection ? say("protection") : null, s.local ? say("localSwitch") : null, s.laid ? null : say("notLaid")]
@@ -419,7 +430,7 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
             );
           })}
           {[
-            ...drawn.signals.map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: signalLabel(s.name) }), toggle: lamps && s.type !== "stop_lamp" })),
+            ...drawn.signals.filter((s) => !signalOutside(s.name)).map((s) => ({ name: s.name, at: s.symbol, label: say("signal", { name: signalLabel(s.name) }), toggle: lamps && s.type !== "stop_lamp" })),
             ...drawn.points.map((p) => ({ name: p.name, at: p.cell, label: say("point", { name: p.name }), toggle: false })),
           ].map((p) => {
             const [x, y] = px(p.at);

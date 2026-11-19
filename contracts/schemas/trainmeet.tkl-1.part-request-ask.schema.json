@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-request-ask.schema.json",
+  "title": "trainmeet.tkl-1.part-request-ask",
+  "additionalProperties": true,
+  "description": "Begär väg (TKL98): a route out over the border. Refused at once when it cannot go, and\nthen nothing reaches the station (RANG-10).",
+  "properties": {
+    "route_out": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Route Out",
+      "type": "string"
+    }
+  },
+  "required": [
+    "route_out"
+  ],
+  "type": "object"
+}

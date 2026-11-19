@@ -262,6 +262,12 @@
           "description": "Blinkar mellan bg och den här.",
           "title": "Blink"
         },
+        "ready": {
+          "default": false,
+          "description": "Klart att skicka (SD62): det gröna märket på tågknappen.",
+          "title": "Ready",
+          "type": "boolean"
+        },
         "dim": {
           "default": false,
           "title": "Dim",

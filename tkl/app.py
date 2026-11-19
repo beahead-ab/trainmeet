@@ -49,6 +49,32 @@ no with the reason, and the state:
 What the interlocking reports goes up to the hub as station commands when TKL is connected and
 approved for one place (tkl/hub_reports.py, STV-10).
 
+Delställverk (#87, TKL97–TKL103): a part opens its own screen at /del/<id>, on any screen on the
+station's network behind the same PIN (TKL102). The station answers in Ställverket; the part
+acts under its own path, and the interlocking checks the part's rights at the border:
+
+    POST /api/tkl/1/stallverk/parts/reply              TklPartReply: svar, Godkänn or Neka
+    POST /api/tkl/1/stallverk/parts/ring-answer        TklPartRef: the station answers a ring
+    POST /api/tkl/1/stallverk/ready/move               TklReadyMove: Klara att skicka, moved
+    POST /api/tkl/1/stallverk/ready/sent               TklReadyRef: Skickat
+    GET  /api/tkl/1/stallverk/parts/{part}/trains      TklPartTrains: the plan's trains (TKL108)
+    GET  /api/tkl/1/stallverk/parts/{part}/targets     TklTargets: goals inside the area
+    POST /api/tkl/1/stallverk/parts/{part}/route       TklRouteAsk: a shunting route in the area
+    POST /api/tkl/1/stallverk/parts/{part}/release     TklRouteRef: one of its own routes
+    POST /api/tkl/1/stallverk/parts/{part}/lever       TklLeverAsk: its own switch, or a border
+                                                       switch towards its area (RANG-12)
+    POST /api/tkl/1/stallverk/parts/{part}/street      TklPartStreetAsk: a switch street
+    POST /api/tkl/1/stallverk/parts/{part}/request     TklPartRequestAsk: begär väg (RANG-10)
+    POST /api/tkl/1/stallverk/parts/{part}/return      TklPartRequestRef: lämna tillbaka
+    POST /api/tkl/1/stallverk/parts/{part}/done        Klart: everything back (RANG-04)
+    POST /api/tkl/1/stallverk/parts/{part}/gates       Grindar: the border switches back
+    POST /api/tkl/1/stallverk/parts/{part}/ring        Ring
+    POST /api/tkl/1/stallverk/parts/{part}/fika        TklPartFika: the part's screen locked
+    POST /api/tkl/1/stallverk/parts/{part}/ready       TklReadyAsk: klart att skicka (TKL108)
+
+The messages between a part and the station are handed to `forward`, the seam for a station
+that is remote-controlled through Hubben (TKL100, #36).
+
 Studio's Koppla in at level 3 (#85), LocoNet only in a local TKL (tkl/loconet/service.py); TKL in
 the cloud shows the objects and their addresses but never opens a port (TKLMOLN-08):
 
@@ -219,10 +245,21 @@ from contracts.tkl import (
     TklManover,
     TklMode,
     TklObjectChange,
+    TklPartFika,
+    TklPartMessage,
+    TklPartRef,
+    TklPartReply,
+    TklPartRequestAsk,
+    TklPartRequestRef,
+    TklPartStreetAsk,
+    TklPartTrains,
     TklPinChange,
     TklPretendAsk,
     TklProvkor,
     TklProvkorAnswer,
+    TklReadyAsk,
+    TklReadyMove,
+    TklReadyRef,
     TklReport,
     TklReportKind,
     TklReset,
@@ -260,6 +297,7 @@ from tkl.loconet import service as loconet
 from tkl.provkor import NoQuestion, Provkor, idle
 from tkl.stallverk import Interlocking, Outcome, UnknownStart, load, plant_of
 from tkl.stallverk.interlocking import KOPPLA_IN, Order
+from tkl.stallverk.parts import plan_trains
 from tkl.standard import LayoutError, RouteKind, problems
 from tkl.store import (
     LOCAL,
@@ -285,6 +323,7 @@ REPO = Path(__file__).resolve().parent.parent
 SessionCookie = Annotated[str | None, Cookie(alias=SESSION, max_length=120)]
 SlotCookie = Annotated[str | None, Cookie(alias=SLOT, max_length=120)]
 IdLoginCookie = Annotated[str | None, Cookie(alias="tkl_id_login", max_length=120)]
+PartId = Annotated[str, PathPart(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$")]
 LOGGER = logging.getLogger("tkl")
 ADDRESS = re.compile(r"^https?://[A-Za-z0-9.\-\[\]:]{1,120}$")
 NOT_CONNECTED = "TKL är inte ansluten till en träff."
@@ -1285,6 +1324,8 @@ def create_app(
             reports = list(outcome.reports)
         if outcome.accepted and "Nödutlösning" in outcome.message:
             LOGGER.warning("Ställverket: %s", outcome.message)
+        if outcome.messages:
+            forward(found, list(outcome.messages))
         return answered(outcome, state, reports)
 
     def note(found: str, lines: list[str]) -> TklInterlocking | None:
@@ -1576,6 +1617,299 @@ def create_app(
         return operate(
             found,
             lambda made: made.function(ask.function, ask.action, ask.value, confirm=ask.confirm),
+        )
+
+    # --- Delställverk (#87, TKL97–TKL103): the station's answers, and a part's own screen ------
+
+    def forward(found: str, messages: list[TklPartMessage]) -> None:
+        """The five messages between a part and the station (TKL98), as the interlocking hands
+        them on. Locally the station's interlocking is the whole exchange, and nothing more is
+        sent. When the station is remote-controlled they go through Hubben to whoever
+        remote-controls it, who answers as the station would (TKL100, DRIFT-40): that waits for
+        #36, and is sent from here."""
+        for message in messages:
+            LOGGER.debug("Delställverk %s: %s", message.part, message.kind.value)
+        del found
+
+    @routes.post("/stallverk/parts/reply")
+    def part_reply(
+        ask: TklPartReply,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Svar (TKL98): Godkänn lays the route out with the station's interlocking; Neka
+        refuses it."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        return operate(found, lambda made: made.part_reply(ask.request, ask.approved))
+
+    @routes.post("/stallverk/parts/ring-answer")
+    def part_ring_answer(
+        ask: TklPartRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.part_ring_answer(ask.part))
+
+    @routes.post("/stallverk/ready/move")
+    def ready_move(
+        ask: TklReadyMove,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Klara att skicka: the station moves a train in the list (TKL108)."""
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.ready_move(ask.number, ask.to))
+
+    @routes.post("/stallverk/ready/sent")
+    def ready_sent(
+        ask: TklReadyRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), lambda made: made.ready_sent(ask.number))
+
+    def part_snapshots(found: str, place: str | None) -> tuple[Any, Any]:
+        """The station's own snapshot and, when TKL is approved for the part's driftplats too,
+        the part's (#87 del c, TRAFIK-35): fresh from the hub, else the last one seen."""
+        made = store.connection(found)
+        if made is not None and made.key is None:
+            made = follow(found, made)
+        here: station.Snapshot | None = None
+        own: station.Snapshot | None = None
+        if made is None or made.key is None:
+            return here, own
+        for approved_place in made.places:
+            try:
+                fresh = hub(made).snapshot(approved_place)
+                store.remember(found, fresh)
+                seen_now: station.Snapshot | None = fresh
+            except (Unreachable, HubError):
+                last = store.last_seen(found, approved_place)
+                seen_now = last[0] if last is not None else None
+            if approved_place == place:
+                own = seen_now
+            elif here is None:
+                here = seen_now
+        return here, own
+
+    def part_trains(found: str, part_id: str) -> TklPartTrains:
+        model, _, _ = store.interlocking(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        plant = plant_of(model)
+        part = plant.parts.get(part_id)
+        if part is None:
+            raise HTTPException(404, f"Delställverket {part_id} finns inte i stationsmodellen.")
+        here, own = part_snapshots(found, part.spec.place)
+        return plan_trains(part, plant, here, own)
+
+    @routes.get("/stallverk/parts/{part}/trains")
+    def part_trains_route(
+        part: PartId, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """The trains the part chooses among for Klart att skicka (TKL108, TKL110)."""
+        no_store(response)
+        return part_trains(unlocked(slot, session), part).model_dump(mode="json")
+
+    @routes.get("/stallverk/parts/{part}/targets")
+    def part_targets(
+        part: PartId,
+        response: Response,
+        start: str = Query(min_length=1, max_length=80),
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The goals the part may set from a start inside its area."""
+        no_store(response)
+        made = interlocking_of(unlocked(slot, session))
+        try:
+            return made.part_targets(part, start).model_dump(mode="json")
+        except UnknownStart as error:
+            raise HTTPException(404, str(error)) from error
+
+    def part_act(
+        request: Request,
+        response: Response,
+        slot: str | None,
+        session: str | None,
+        act: Callable[[Interlocking], Outcome],
+    ) -> Any:
+        same_site(request)
+        no_store(response)
+        return operate(unlocked(slot, session), act)
+
+    @routes.post("/stallverk/parts/{part}/route")
+    def part_route(
+        part: PartId,
+        ask: TklRouteAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """A shunting route inside the part's area."""
+        return part_act(
+            request, response, slot, session, lambda m: m.part_route(part, ask.start, ask.end)
+        )
+
+    @routes.post("/stallverk/parts/{part}/release")
+    def part_release(
+        part: PartId,
+        ask: TklRouteRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        return part_act(request, response, slot, session, lambda m: m.part_release(part, ask.route))
+
+    @routes.post("/stallverk/parts/{part}/lever")
+    def part_lever(
+        part: PartId,
+        ask: TklLeverAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        return part_act(
+            request,
+            response,
+            slot,
+            session,
+            lambda m: m.part_lever(part, ask.switch, ask.position),
+        )
+
+    @routes.post("/stallverk/parts/{part}/street")
+    def part_street(
+        part: PartId,
+        ask: TklPartStreetAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """A switch street (RANG-02)."""
+        return part_act(request, response, slot, session, lambda m: m.part_street(part, ask.street))
+
+    @routes.post("/stallverk/parts/{part}/request")
+    def part_request(
+        part: PartId,
+        ask: TklPartRequestAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Begär väg (TKL98): refused at once when it cannot go (RANG-10)."""
+        return part_act(
+            request, response, slot, session, lambda m: m.part_request(part, ask.route_out)
+        )
+
+    @routes.post("/stallverk/parts/{part}/return")
+    def part_return(
+        part: PartId,
+        ask: TklPartRequestRef,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Lämna tillbaka (TKL98, RANG-09)."""
+        return part_act(
+            request, response, slot, session, lambda m: m.part_return(part, ask.request)
+        )
+
+    @routes.post("/stallverk/parts/{part}/done")
+    def part_done(
+        part: PartId,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Klart (RANG-04): every request returned, the border switches back."""
+        return part_act(request, response, slot, session, lambda m: m.part_done(part))
+
+    @routes.post("/stallverk/parts/{part}/gates")
+    def part_gates(
+        part: PartId,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Grindar: the border switches back, nothing returned (TKL55)."""
+        return part_act(request, response, slot, session, lambda m: m.part_gates(part))
+
+    @routes.post("/stallverk/parts/{part}/ring")
+    def part_ring(
+        part: PartId,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Ring (TKL98)."""
+        return part_act(request, response, slot, session, lambda m: m.part_ring(part))
+
+    @routes.post("/stallverk/parts/{part}/fika")
+    def part_fika(
+        part: PartId,
+        ask: TklPartFika,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Fika: the part's screen is locked until it is back, and the station sees it."""
+        return part_act(request, response, slot, session, lambda m: m.part_fika(part, ask.on))
+
+    @routes.post("/stallverk/parts/{part}/ready")
+    def part_ready(
+        part: PartId,
+        ask: TklReadyAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Klart att skicka (TKL108): a train from the plan, with its track and planned
+        departure, or a typed number."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        chosen = None
+        if store.connection(found) is not None:
+            trains = part_trains(found, part).trains
+            chosen = next(
+                (t for t in trains if (ask.call and t.call == ask.call) or t.number == ask.number),
+                None,
+            )
+        return operate(
+            found,
+            lambda m: m.part_ready(
+                part,
+                ask.number,
+                call=chosen.call if chosen else ask.call,
+                track=chosen.track if chosen else None,
+                departure=chosen.departure if chosen else None,
+            ),
         )
 
     # --- Stream Deck (#86): the deck's profile, its logic, the deck on the screen and real decks

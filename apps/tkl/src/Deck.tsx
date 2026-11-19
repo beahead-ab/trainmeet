@@ -103,6 +103,8 @@ export function DeckKey({ face, now, plan, size = KEY }: { face: DeckFace; now: 
   if (under) children.push(<span key="under" className={`sd-under${top ? " med-top" : ""}`}>{under}</span>);
   if (small) children.push(<span key="small" className="sd-small">{small}</span>);
   if (face.dot) children.push(<span key="dot" className="sd-dot" style={{ background: face.dot }} />);
+  // Klart att skicka (SD62): the green mark on the train key.
+  if (face.ready) children.push(<span key="ready" className="sd-klar" aria-hidden="true">{"✓"}</span>);
   if (face.star) children.push(<span key="star" className="sd-star">{"★"}</span>);
   if (face.line) children.push(<span key="line" className="sd-line" style={{ background: face.line }} />);
   if (face.bar) children.push(<span key="bar" className={`sd-bar${face.bar_dashed ? " streckad" : ""}`} style={{ color: face.bar, background: face.bar_dashed ? undefined : face.bar }} />);

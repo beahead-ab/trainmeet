@@ -5,7 +5,8 @@ One renderer for every real deck: the local TKL's USB driver (tkl/deck/usb.py) a
 WebHID bridge (apps/tkl/src/deckhid.ts) both show these pictures, so a deck looks the same
 everywhere. The look is the prototype's canvas (src/streamdeck.js in the specification, `rita`):
 the background, the band at the top for a route's colour, the frame, the line at the bottom for
-the chosen page, the red dot for a hindered route, and the text in the middle with a line over
+the chosen page, the red dot for a hindered route, the green mark for a train ready to send
+(SD62), and the text in the middle with a line over
 and a line under. From the deck on the screen (apps/tkl/src/deck.css) come the train number's
 chip, the place's bar, the star and the signal numbers, and Spårplan's keys draw their piece of
 the panel with the tracks in their state, the signals as triangles and the train numbers.
@@ -463,6 +464,8 @@ def _key(face: TklDeckFace, w: int, h: int, found: Picture | None, phase: int) -
         r = max(4.0, w * 0.055)
         cx, cy = w * 0.86, h * 0.17
         draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=face.dot)
+    if face.ready:
+        _ready_mark(draw, w, h)
     if face.under:
         f, shown = fitted(face.under, False, 600, round(h * 0.15), w * 0.92, 7)
         text_at(draw, shown, f, w / 2, h * (0.8 if face.top else 0.76), blend(fg, bg, 0.85))
@@ -497,6 +500,18 @@ def _frame(draw: ImageDraw.ImageDraw, w: int, h: int, colour: str, dashed: bool)
         end = min(h - 1, start + dash - 1)
         draw.rectangle([0, start, lw - 1, end], fill=colour)
         draw.rectangle([w - lw, start, w - 1, end], fill=colour)
+
+
+READY: Final = "#22c55e"
+
+
+def _ready_mark(draw: ImageDraw.ImageDraw, w: int, h: int) -> None:
+    """Klart att skicka (SD62): a green disc with a white tick, top left on the train key."""
+    r = max(4.0, w * 0.075)
+    cx, cy = w * 0.14, h * 0.17
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=READY)
+    tick = [(cx - r * 0.5, cy), (cx - r * 0.1, cy + r * 0.45), (cx + r * 0.55, cy - r * 0.45)]
+    draw.line(tick, fill="#ffffff", width=max(1, round(r * 0.35)))
 
 
 CHIP_TEXT: Final = {"red": "#b91c1c", "green": "#15803d", "": "#111827"}

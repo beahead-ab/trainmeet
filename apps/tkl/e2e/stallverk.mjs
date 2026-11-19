@@ -22,6 +22,11 @@
 // 2 på den andra sidan. Det är ärendets prov, utan ett riktigt deck. I Studio › Inställningar ›
 // Stream Deck (#86 del c) dras snabbvägen 52 → 62 ur Knappar till en tom ruta på sidan Väster för
 // en 15 och sparas; decket på skärmen har den sedan där, och den lägger vägen med ett tryck.
+// Delställverk (#87) sist, ärendets prov på Charlottendal: ställverket nollställs, Charlottendal
+// blir stationens modell, och Rangerbangården öppnas på /del/rangerbangarden i en egen
+// webbläsarprofil bakom samma PIN. Rangeraren lägger gatan till 52 från höger och begär vägen ut
+// till 3, TKL godkänner i rutan överst i Ställverket, rangeraren anmäler tåg 3795 klart att
+// skicka, och det står under Klara att skicka hos TKL. Rangeraren lämnar sedan tillbaka vägen.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -226,6 +231,67 @@ async function streamDeck(page) {
   await deck.waitFor({ state: "detached" });
 }
 
+/** Delställverk (#87): Charlottendal with Rangerbangården, the part on a screen of its own in a
+ * second browser context. Returns what the part saw when the station approved. */
+async function rangerbangarden(browser, page) {
+  const state = async () => (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json();
+  const reset = await page.request.post(`${TKL}/api/tkl/1/stallverk/reset`, { data: { confirm: true, trains: true } });
+  check(reset.ok(), `Ställverket nollställdes inte (${reset.status()}).`);
+  await page.goto(`${TKL}/studio/sparplan`);
+  await page.getByRole("button", { name: "Charlottendal" }).click();
+  await page.getByRole("button", { name: "Använd som min station" }).click();
+  await page.getByRole("heading", { name: /Charlottendal/ }).waitFor();
+  for (let i = 0; i < 50 && (await state()).parts?.[0]?.id !== "rangerbangarden"; i++) await page.waitForTimeout(100);
+  check((await state()).parts?.[0]?.id === "rangerbangarden", "Charlottendals modell har ingen rangerbangård.");
+
+  // Rangeraren: en egen webbläsarprofil, samma PIN (TKL102).
+  const yardContext = await browser.newContext({ locale: "sv-SE", viewport: { width: 1400, height: 1000 } });
+  const yard = await yardContext.newPage();
+  yard.on("pageerror", (error) => errors.push(`rangerbangården: ${String(error)}`));
+  await yard.goto(`${TKL}/del/rangerbangarden`);
+  await yard.getByLabel("PIN").fill(PIN);
+  await yard.getByRole("button", { name: "Lås upp" }).click();
+  await yard.getByRole("heading", { name: "Rangerbangården", level: 1 }).waitFor();
+  check(await yard.locator('svg.stv-panel polyline[data-outside="ja"]').count(), "Stationens del av panelen är inte grå.");
+
+  // 1. Gatan till 52 från höger, och vägen ut till 3.
+  await yard.getByRole("group", { name: "Ände" }).getByRole("button", { name: "Höger" }).click();
+  await yard.locator('[data-street="H52"]').click();
+  await yard.locator(".stv-svar.ja", { hasText: "Växelgatan H 52 lagd mot 52" }).waitFor();
+  await yard.locator('[data-route-out="H3"]').click();
+  await yard.locator('[data-route-out="H3"].vantar').waitFor();
+  await screenshot(yard, "rangerbangarden-begar");
+
+  // 2. TKL godkänner i rutan överst i Ställverket.
+  await page.goto(`${TKL}/`);
+  const box = page.locator(".del-ruta .del-rad.begaran", { hasText: "Rangerbangården begär 52 → 3" });
+  await box.waitFor({ timeout: 20_000 });
+  await screenshot(page, "tkl-rutan-begaran");
+  await box.getByRole("button", { name: "Godkänn" }).click();
+  await page.getByRole("button", { name: /^Växlingsväg 6\/8 → 3\/10/ }).waitFor();
+  const routes = (await state()).routes.map((r) => `${r.start}→${r.end}:${r.part}`);
+  check(routes.join(" ") === "6/6→6/8:rangerbangarden 6/8→3/10:rangerbangarden", `Vägen ut lades inte som rangerarens: ${routes}`);
+  await yard.locator('[data-route-out="H3"].godkand').waitFor({ timeout: 30_000 });
+
+  // 3. Rangeraren anmäler tåg 3795 klart att skicka; 4. det står i TKL:s lista.
+  await yard.getByLabel("Annat tågnummer").fill("3795");
+  await yard.getByRole("button", { name: "Anmäl klart att skicka" }).click();
+  await yard.locator(".stv-svar.ja", { hasText: "tåg 3795 är klart att skicka" }).waitFor();
+  await screenshot(yard, "rangerbangarden-skarm");
+  await page.locator(".del-klara li", { hasText: "3795" }).waitFor({ timeout: 30_000 });
+  await screenshot(page, "tkl-klara-att-skicka");
+
+  // Envägsregeln: TKL kan inte lösa ut vägen; rangeraren lämnar tillbaka den.
+  const held = await page.request.post(`${TKL}/api/tkl/1/stallverk/release`, { data: { route: (await state()).routes[0].id } });
+  check(!(await held.json()).accepted, "TKL löste ut rangerarens godkända väg.");
+  await yard.getByRole("button", { name: "Lämna", exact: true }).click();
+  await yard.locator(".stv-svar.ja", { hasText: "lämnade tillbaka 52 → 3" }).waitFor();
+  check((await state()).routes.length === 0, "Vägen ligger kvar efter Lämna.");
+  await page.locator(".del-klara li", { hasText: "3795" }).getByRole("button", { name: "Skickat" }).click();
+  await page.locator(".del-klara li", { hasText: "3795" }).waitFor({ state: "detached" });
+  await yardContext.close();
+}
+
 const errors = [];
 const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
 try {
@@ -395,10 +461,14 @@ try {
   check(!(await second.locator("svg.stv-panel").count()), "Skärm 2 glömde sitt val.");
   await page.reload();
   await panel(page).waitFor();
+
+  // Delställverk (#87): ärendets prov på Charlottendal, med Rangerbangården i en egen profil.
+  await rangerbangarden(browser, page);
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Prova i TKL: ${tried} vägar gick igenom, Klart.`);
   console.log("Stream Deck på skärmen: tågknappen lade 52 → 62, Läge bytte till Platser, och Öst 2 → 2 lade samma väg.");
   console.log("Studio › Stream Deck: snabbvägen 52 → 62 sparades på Väster och lade vägen från decket på skärmen.");
+  console.log("Delställverk: Rangerbangården begärde 52 → 3, TKL godkände i rutan, tåg 3795 stod under Klara att skicka, och vägen lämnades tillbaka.");
   console.log(`Ställverket i TKL: 102 rullade i Foto från ${onTheLineInFoto} till ${rolledTo} mm, stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
 } catch (error) {
   if (error instanceof ProvFel) {

@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-trains.schema.json",
+  "title": "trainmeet.tkl-1.part-trains",
+  "$defs": {
+    "TklPartTrain": {
+      "additionalProperties": true,
+      "description": "A train the part may announce ready to send: from the plan (TKL108, TKL110).",
+      "properties": {
+        "number": {
+          "pattern": "^[0-9A-Za-z]{1,8}$",
+          "title": "Number",
+          "type": "string"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Call"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Track"
+        },
+        "departure": {
+          "anyOf": [
+            {
+              "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Departure"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Tågets slag, till exempel Godståg.",
+          "title": "Label"
+        }
+      },
+      "required": [
+        "number"
+      ],
+      "title": "TklPartTrain",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The trains a part chooses among for Klart att skicka. A part that is its own driftplats\nhas the trains that depart from it in the timetable (TKL108); another part has the\nstation's trains that stand on a track in its area (TKL110). Another number may be typed.",
+  "properties": {
+    "part": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Part",
+      "type": "string"
+    },
+    "trains": {
+      "items": {
+        "$ref": "#/$defs/TklPartTrain"
+      },
+      "title": "Trains",
+      "type": "array"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför listan är tom, när den är det.",
+      "title": "Message"
+    }
+  },
+  "required": [
+    "part"
+  ],
+  "type": "object"
+}

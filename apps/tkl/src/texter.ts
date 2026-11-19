@@ -186,6 +186,23 @@ const T = {
     en: "Passenger trains short and rounded, goods trains (4000–9999) longer and square; Run rolls the train",
   },
   skinNameFoto: { sv: "Foto · stationen ovanifrån i sin verkliga form", en: "Foto · the station from above in its real shape" },
+  // Delställverk (#87): the box at the top of Ställverket, the part's requests and Klara att skicka
+  partBox: { sv: "Delställverken", en: "The station's parts" },
+  partAsks: { sv: "{part} begär", en: "{part} requests" },
+  approve: { sv: "Godkänn", en: "Approve" },
+  deny: { sv: "Neka", en: "Refuse" },
+  partRings: { sv: "{part} ringer", en: "{part} is ringing" },
+  answerRing: { sv: "Svara", en: "Answer" },
+  partFika: { sv: "{part} har fika", en: "{part} is on a break" },
+  partHolds: { sv: "{part} har {route}", en: "{part} holds {route}" },
+  readyTitle: { sv: "Klara att skicka", en: "Ready to send" },
+  readySub: { sv: "efter avgångstiden · dra eller flytta", en: "by departure time · drag or move" },
+  readyFrom: { sv: "{part}", en: "{part}" },
+  readyTrack: { sv: "spår {track}", en: "track {track}" },
+  readyUp: { sv: "Flytta tåg {number} uppåt", en: "Move train {number} up" },
+  readyDown: { sv: "Flytta tåg {number} nedåt", en: "Move train {number} down" },
+  readySent: { sv: "Skickat", en: "Sent" },
+  readySentLabel: { sv: "Tåg {number} är skickat", en: "Train {number} is sent" },
 } satisfies Record<string, Record<Language, string>>;
 
 export type TextKey = keyof typeof T;

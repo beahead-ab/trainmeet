@@ -619,9 +619,17 @@ def _way(turn: Turn, deck: Deck, entry: bool) -> str:
 
 
 def _train_face(d: Deck, world: World, turn: Turn | None) -> TklDeckFace:
-    """The train key (SD7): the way at the top, the number, and the next step under."""
+    """The train key (SD7): the way at the top, the number, and the next step under; a train
+    that is ready to send has the green mark (SD62)."""
     if turn is None:
         return look.EMPTY
+    face = _train_step_face(d, world, turn)
+    if not turn.ready:
+        return face
+    return face.model_copy(update={"ready": True, "label": f"{face.label}, klart att skicka"})
+
+
+def _train_step_face(d: Deck, world: World, turn: Turn) -> TklDeckFace:
     label = f"Tåg {turn.number}"
     on = f"på {_place_name(d, turn.track)}" if turn.track else "på stationen"
     match turn.step:

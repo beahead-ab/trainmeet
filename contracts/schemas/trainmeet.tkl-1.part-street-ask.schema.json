@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.part-street-ask.schema.json",
+  "title": "trainmeet.tkl-1.part-street-ask",
+  "additionalProperties": true,
+  "description": "Lägg en växelgata (RANG-02).",
+  "properties": {
+    "street": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Street",
+      "type": "string"
+    }
+  },
+  "required": [
+    "street"
+  ],
+  "type": "object"
+}
