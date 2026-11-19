@@ -2,13 +2,16 @@
 // and the PIN lock before anything else (TKL18). Ställverket is level 0's list without a station
 // model, and the panel at level 1–2 with one (#84). The place's snapshot is fetched when the hub
 // hints that it changed, and every ten seconds besides; the last good one stays, marked old,
-// when the hub cannot be reached.
+// when the hub cannot be reached. TKL started as a remote interlocking has its own pages
+// (Fjarr.tsx, #36 del c), and a station's TKL gets the tab Fjärr while it controls a neighbour.
 import { BottomNav, Header, type NavItem } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, full, Problem, TKL, type Action, type CallHere, type Clearance, type Connection, type FoundHub, type Snapshot, type State, type Studio as StudioData, type View } from "./api";
 import { DelaStationen } from "./DelaStationen";
 import { DelSida } from "./Delar";
-import { FirstStart, Locked } from "./Forsta";
+import { FirstStartChoice, FjarrApp, FjarrSida } from "./Fjarr";
+import { fjarrApi } from "./fjarrapi";
+import { Locked } from "./Forsta";
 import { happenings, type Happening } from "./handelser";
 import { Installningar, type Part } from "./Installningar";
 import { KopplaIn } from "./KopplaIn";
@@ -22,9 +25,13 @@ import { StudioInstallningar } from "./StreamDeckStudio";
 import { Stallverket } from "./Stallverket";
 import { Studio } from "./Studio";
 
-type Page = "stallverket" | "studio" | "installningar";
-const PAGES: Record<Page, string> = { stallverket: "/", studio: "/studio", installningar: "/installningar" };
-const pageOf = (path: string): Page => (path.startsWith("/studio") ? "studio" : path.startsWith("/installningar") ? "installningar" : "stallverket");
+type Page = "stallverket" | "studio" | "installningar" | "fjarr";
+const PAGES: Record<Page, string> = { stallverket: "/", studio: "/studio", installningar: "/installningar", fjarr: "/fjarr" };
+const pageOf = (path: string): Page =>
+  path.startsWith("/studio") ? "studio" : path.startsWith("/installningar") ? "installningar" : path.startsWith("/fjarr") ? "fjarr" : "stallverket";
+/** Fjärr (#36 del c, FR3): the neighbours the station's TKL controls, with the same fjärrbild as
+ * a remote interlocking, and Tåg och klarering for them. */
+const FJARR_KLARERING = "/fjarr/klarering";
 const SPARPLAN = "/studio/sparplan";
 const KOPPLA_IN = "/studio/koppla-in";
 const RITA = "/studio/rita";
@@ -66,7 +73,11 @@ export function App() {
   if (!state.set_up) {
     return (
       <Frame state={state} page={page} navigate={navigate}>
-        <FirstStart cloud={state.mode === "cloud"} onSetUp={async (name, station_id, pin) => setState(await api.setUp({ name, station_id, pin }))} />
+        <FirstStartChoice
+          cloud={state.mode === "cloud"}
+          onSetUp={async (name, station_id, pin) => setState(await api.setUp({ name, station_id, pin }))}
+          onRemote={async (name, area, places, pin) => setState(await fjarrApi.setUp({ name, area, places, pin }))}
+        />
       </Frame>
     );
   }
@@ -77,6 +88,8 @@ export function App() {
       </Frame>
     );
   }
+  // TKL in the remote role: a remote interlocking with no station of its own (FR1, TKL47).
+  if (state.remote) return <FjarrApp state={state} path={path} navigate={navigate} onLocked={setState} />;
   const part = PART.exec(path);
   if (part) return <PartScreen state={state} part={decodeURIComponent(part[1] ?? "")} />;
   return <Unlocked state={state} page={page} path={path} navigate={navigate} onLocked={setState} />;
@@ -95,11 +108,12 @@ function PartScreen({ state, part }: { state: State; part: string }) {
   );
 }
 
-function Frame({ state, page, navigate, connection, clock, onLock, children }: { state: State; page: Page; navigate: (href: string) => void; connection?: Connection | null; clock?: string; onLock?: () => void; children: React.ReactNode }) {
+function Frame({ state, page, navigate, connection, clock, onLock, remote = false, children }: { state: State; page: Page; navigate: (href: string) => void; connection?: Connection | null; clock?: string; onLock?: () => void; remote?: boolean; children: React.ReactNode }) {
   const open = state.set_up && state.unlocked;
   const tabs: NavItem[] = open
     ? [
         { href: PAGES.stallverket, label: "Ställverket", current: page === "stallverket" },
+        ...(remote || page === "fjarr" ? [{ href: PAGES.fjarr, label: "Fjärr", current: page === "fjarr" }] : []),
         { href: PAGES.studio, label: "Studio", current: page === "studio" },
         { href: PAGES.installningar, label: "Inställningar", current: page === "installningar" },
       ]
@@ -256,7 +270,24 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
   const snapshot = view?.snapshot ?? null;
   const clock = snapshot ? clockAt(snapshot, heardAt, Date.now()) : undefined;
   let body;
-  if (page === "studio") {
+  if (page === "fjarr") {
+    const klarering = path.startsWith(FJARR_KLARERING);
+    body = !place ? (
+      <NotConnected onGo={() => navigate(PAGES.installningar)} text="TKL är inte ansluten och godkänd för en träff." />
+    ) : (
+      <>
+        <nav className="studio-flikar" aria-label="Fjärr">
+          <button type="button" aria-current={klarering ? undefined : "page"} onClick={() => navigate(PAGES.fjarr)}>
+            Fjärrbild
+          </button>
+          <button type="button" aria-current={klarering ? "page" : undefined} onClick={() => navigate(FJARR_KLARERING)}>
+            Tåg och klarering
+          </button>
+        </nav>
+        <FjarrSida part={klarering ? "klarering" : "bild"} onProblem={fail} />
+      </>
+    );
+  } else if (page === "studio") {
     const plan = path.startsWith(SPARPLAN);
     const koppla = path.startsWith(KOPPLA_IN);
     const rita = path.startsWith(RITA);
@@ -396,7 +427,7 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
     body = <p className="tom">Hämtar {place} från hubben …</p>;
   }
   return (
-    <Frame state={state} page={page} navigate={navigate} connection={connection} clock={clock} onLock={() => void api.lock().then(onLocked)}>
+    <Frame state={state} page={page} navigate={navigate} connection={connection} clock={clock} onLock={() => void api.lock().then(onLocked)} remote={remoteTab(snapshot)}>
       {notice ? (
         <p className="notis" role="alert">
           {notice}{" "}
@@ -409,6 +440,11 @@ function Unlocked({ state, page, path, navigate, onLocked }: { state: State; pag
       {body}
     </Frame>
   );
+}
+
+/** The tab Fjärr (FR3): while the station's TKL controls a neighbour, or one is offered to it. */
+export function remoteTab(snapshot: Snapshot | null): boolean {
+  return !!snapshot && ((snapshot.controls ?? []).length > 0 || (snapshot.offers ?? []).length > 0);
 }
 
 /** Klart in Studio › Prova (STUDIO-05): until then Ställverket shows this note; never a lock. */

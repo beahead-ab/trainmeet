@@ -287,7 +287,7 @@ function Ljud({ sounds, onSounds }: { sounds: Sounds; onSounds: (sounds: Sounds)
   );
 }
 
-function Pin({ onPin }: { onPin: (old: string, pin: string) => Promise<void> }) {
+export function Pin({ onPin }: { onPin: (old: string, pin: string) => Promise<void> }) {
   const [old, setOld] = useState("");
   const [pin, setPin] = useState("");
   const [message, setMessage] = useState("");

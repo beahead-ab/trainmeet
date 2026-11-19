@@ -11,6 +11,47 @@
       "title": "TklMode",
       "type": "string"
     },
+    "TklRemote": {
+      "additionalProperties": true,
+      "description": "The remote interlocking TKL runs as, set at first start (FR1, TKL47): its name in\nKlienter and the remote area it asks for, the plan's area or driftplatser written by hand.",
+      "properties": {
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "area": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Planens fjärrområde (FR49).",
+          "title": "Area"
+        },
+        "places": {
+          "description": "Driftplatserna skrivna för hand, i ordning längs linjen. Tomt: planens fjärrområde.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Places",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "TklRemote",
+      "type": "object"
+    },
     "TklStation": {
       "additionalProperties": true,
       "properties": {
@@ -84,6 +125,18 @@
       "description": "Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje deck visar bara klockan, och PIN-koden låser upp.",
       "title": "Locked",
       "type": "boolean"
+    },
+    "remote": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklRemote"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "TKL körs som fjärrställverk, utan egen station (FR1, TKL47, #36 del c)."
     }
   },
   "required": [
