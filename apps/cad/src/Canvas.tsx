@@ -6,9 +6,10 @@ import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react"
 import type { CheckItem, DrawingView, EditOp, SwitchInfo } from "./api";
 import { f, kantOne, outline, pathOf, poly, turnDegrees, turner } from "./Drawing";
 import { drawnSwitchRadius, markerWord, op, segsOf, snap, type Snap, type Tool } from "./editor";
+import { PhotoImage } from "./Foto";
 import { arcThrough, furthestFromChord, gableLine, mmText, onGable, projectPath, fromA, type Point, type Seg } from "./geometry";
 
-export type Layers = { tracks: boolean; numbers: boolean; gables: boolean };
+export type Layers = { tracks: boolean; numbers: boolean; gables: boolean; photo: boolean };
 export type Selection = { kind: "switch" | "piece" | "node" | "label"; id: string } | null;
 
 type Props = {
@@ -24,6 +25,8 @@ type Props = {
   onText?: (target: string | null, at: Point) => void;
   onLock?: (piece: string | null) => void;
   onZoom?: (zoom: number) => void;
+  /** Fotot under: the measuring image under the drawing (part c1). */
+  onLayers?: (layers: Layers) => void;
   /** For the tests: the pointer position shown before any move. */
   cursor?: Point | null;
 };
@@ -45,7 +48,7 @@ function throughSegs(view: DrawingView, info: SwitchInfo): Seg[] {
   return [...(sw.trunk ? segsOf(view.graph, sw.trunk) : []), ...(sw.straight ? segsOf(view.graph, sw.straight) : [])];
 }
 
-export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, onSelect, onText, onLock, onZoom, cursor = null }: Props) {
+export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, onSelect, onText, onLock, onZoom, onLayers, cursor = null }: Props) {
   const group = useRef<SVGGElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [pointer, setPointer] = useState<Point | null>(cursor);
@@ -233,16 +236,23 @@ export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, 
   const showMeasure = drag?.kind === "measure" ? { from: drag.from, to: drag.to } : measured;
   const length = shape.kind === "curve" ? (shape.radius * shape.angle * Math.PI) / 180 : shape.length;
   const lengthY = Math.max(...ys) + pad * 0.55;
+  const under = Boolean(layers.photo && view.photo);
   return (
     <div className="cad-duk">
       <div className="cad-duk-topp">
         <div className="cad-vaxel" role="tablist" aria-label="Lager under ritningen">
-          <button type="button" role="tab" aria-selected="true" aria-pressed="true">
+          <button type="button" role="tab" aria-selected={!under} aria-pressed={!under} onClick={() => onLayers?.({ ...layers, photo: false })}>
             Ritning
           </button>
-          <button type="button" role="tab" aria-selected="false" disabled title="Kommer med fotot (del c)">
-            Fotot under <span className="cad-kommer-text">kommer</span>
-          </button>
+          {view.photo ? (
+            <button type="button" role="tab" aria-selected={under} aria-pressed={under} onClick={() => onLayers?.({ ...layers, photo: true })}>
+              Fotot under
+            </button>
+          ) : (
+            <button type="button" role="tab" aria-selected="false" disabled title="Fota modulen under Foto på modulens sida">
+              Fotot under <span className="cad-kommer-text">inget foto</span>
+            </button>
+          )}
           <button type="button" role="tab" aria-selected="false" disabled title="Kommer med landskapet (del d)">
             Landskap <span className="cad-kommer-text">kommer</span>
           </button>
@@ -273,7 +283,8 @@ export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, 
         onPointerLeave={() => setPointer(null)}
       >
         <g ref={group} transform={turnDegrees(shape) ? `rotate(${f(turnDegrees(shape))})` : undefined}>
-          <path className="cad-skiva" d={poly(board, (p) => p, true)} strokeWidth={unit * 0.25} />
+          {under && view.photo ? <PhotoImage layer={view.photo} /> : null}
+          <path className={under ? "cad-skiva genomskinlig" : "cad-skiva"} d={poly(board, (p) => p, true)} strokeWidth={unit * 0.25} />
           <path className="cad-kant1" d={poly(kantOne(shape, track1), (p) => p, false)} strokeWidth={unit * 0.9} />
           {layers.tracks
             ? (["cad-ballast", "cad-spar"] as const).map((layer) => (

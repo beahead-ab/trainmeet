@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-answers.schema.json",
+  "title": "trainmeet.cad-1.photo-answers",
+  "$defs": {
+    "PhotoAnswer": {
+      "additionalProperties": true,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z0-9][a-z0-9_.:-]{0,79}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "answer": {
+          "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+          "title": "Answer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "answer"
+      ],
+      "title": "PhotoAnswer",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "answers": {
+      "items": {
+        "$ref": "#/$defs/PhotoAnswer"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Answers",
+      "type": "array"
+    }
+  },
+  "required": [
+    "answers"
+  ],
+  "type": "object"
+}

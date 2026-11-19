@@ -4,6 +4,7 @@
 import type { DrawingView, LockProposal } from "./api";
 
 export const DRAWING: DrawingView = {
+  "photo": null,
   "module": "0e6c2f0a-1b2c-4d3e-8f40-5a6b7c8d9e0f",
   "base": 3,
   "latest": 3,
@@ -245,6 +246,7 @@ export const DRAWING: DrawingView = {
   },
   "drawing": {
     "source": "drawn",
+    "photo": null,
     "smoothing": "normal",
     "answers": [],
     "lines": [],

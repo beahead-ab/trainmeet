@@ -1494,6 +1494,914 @@
           }
         }
       }
+    },
+    "/api/cad/1/photos/consent": {
+      "get": {
+        "operationId": "cadPhotoConsent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-consent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/photos": {
+      "post": {
+        "operationId": "cadUploadPhotos",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "description": "The JSON in the part data, and the photos in the parts images: 1–4 of one module, or one close-up, each at most 30 MB.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/trainmeet.cad-1.photo-start"
+                  },
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4
+                  }
+                },
+                "required": [
+                  "data",
+                  "images"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/photos/{job}/questions/{key}/closeup": {
+      "post": {
+        "operationId": "cadCloseup",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "key",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "The JSON in the part data, and the photos in the parts images: 1–4 of one module, or one close-up, each at most 30 MB.",
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "$ref": "#/components/schemas/trainmeet.cad-1.photo-closeup"
+                  },
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    },
+                    "minItems": 1,
+                    "maxItems": 4
+                  }
+                },
+                "required": [
+                  "data",
+                  "images"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/photos/{job}": {
+      "get": {
+        "operationId": "cadPhotoJob",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/photos/{job}/read": {
+      "post": {
+        "operationId": "cadReadPhoto",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-read"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/photos/{job}/answers": {
+      "post": {
+        "operationId": "cadPhotoAnswers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-answers"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/photos/{job}/recompute": {
+      "post": {
+        "operationId": "cadRecompute",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/modules/{module}/photo": {
+      "put": {
+        "operationId": "cadPhotoSettings",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.module"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-settings"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/storage": {
+      "get": {
+        "operationId": "cadStorage",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.storage-use"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1804,7 +2712,7 @@
       },
       "trainmeet.cad-1.problem": {
         "additionalProperties": true,
-        "description": "The answer when CAD says no: 401, 403, 404, 409, 422 or 503.",
+        "description": "The answer when CAD says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or 503.",
         "properties": {
           "code": {
             "$ref": "#/components/schemas/trainmeet.cad-1.problem.ProblemCode"
@@ -1830,7 +2738,14 @@
           "forbidden",
           "changed",
           "invalid",
-          "unavailable"
+          "unavailable",
+          "no_tokens",
+          "too_many",
+          "reading_failed",
+          "bad_photo",
+          "storage_full",
+          "consent_required",
+          "busy"
         ],
         "title": "ProblemCode",
         "type": "string"
@@ -2819,7 +3734,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -3215,6 +4131,38 @@
             },
             "title": "Checks",
             "type": "array"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.module.ModulePhoto"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The Foto tab (part c1)."
+          },
+          "keep_original": {
+            "default": false,
+            "description": "Spara original: the photo's original is kept (CAD4).",
+            "title": "Keep Original",
+            "type": "boolean"
+          },
+          "training_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When the owner said yes to training TrainMeet's track model on it (CAD7, CAD-32); null: no.",
+            "title": "Training At"
           }
         },
         "required": [
@@ -3361,7 +4309,7 @@
       },
       "trainmeet.cad-1.module.CheckChoice": {
         "additionalProperties": true,
-        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
         "properties": {
           "id": {
             "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -3384,7 +4332,8 @@
               {
                 "enum": [
                   "design",
-                  "lock"
+                  "lock",
+                  "photo"
                 ],
                 "type": "string"
               },
@@ -3665,6 +4614,28 @@
             "description": "Godkänn spårplanen gave this one.",
             "title": "Plan Approved",
             "type": "boolean"
+          },
+          "questions": {
+            "description": "The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.module.CheckItem"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The photo job the drawing came from (part c1).",
+            "title": "Photo"
           }
         },
         "title": "DrawingState",
@@ -4293,6 +5264,78 @@
         "title": "LockedMeasure",
         "type": "object"
       },
+      "trainmeet.cad-1.module.ModulePhoto": {
+        "additionalProperties": true,
+        "description": "The Foto tab (part c1): the measuring image the version came from, and what is kept.",
+        "properties": {
+          "job": {
+            "format": "uuid",
+            "title": "Job",
+            "type": "string"
+          },
+          "measure_url": {
+            "description": "The measuring image, 2 px per mm, a signed address.",
+            "title": "Measure Url",
+            "type": "string"
+          },
+          "display_url": {
+            "description": "The measuring image, 1 px per mm.",
+            "title": "Display Url",
+            "type": "string"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.module.PhotoGrid"
+          },
+          "chain": {
+            "description": "The chain's version that read it.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chain",
+            "type": "string"
+          },
+          "newer_chain": {
+            "description": "A newer version of the chain can read it again.",
+            "title": "Newer Chain",
+            "type": "boolean"
+          },
+          "original_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "When the original goes, unless it is kept (CAD4).",
+            "title": "Original Until"
+          },
+          "original_kept": {
+            "description": "The original is kept: Spara original.",
+            "title": "Original Kept",
+            "type": "boolean"
+          },
+          "taken_at": {
+            "format": "date-time",
+            "title": "Taken At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job",
+          "measure_url",
+          "display_url",
+          "grid",
+          "chain",
+          "newer_chain",
+          "original_kept",
+          "taken_at"
+        ],
+        "title": "ModulePhoto",
+        "type": "object"
+      },
       "trainmeet.cad-1.module.ModuleStatus": {
         "enum": [
           "draft",
@@ -4325,7 +5368,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -4364,6 +5408,44 @@
         ],
         "title": "OwnerKind",
         "type": "string"
+      },
+      "trainmeet.cad-1.module.PhotoGrid": {
+        "additionalProperties": true,
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "properties": {
+          "x0": {
+            "title": "X0",
+            "type": "number"
+          },
+          "y0": {
+            "title": "Y0",
+            "type": "number"
+          },
+          "ppm": {
+            "exclusiveMinimum": 0,
+            "title": "Ppm",
+            "type": "number"
+          },
+          "width": {
+            "minimum": 1,
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 1,
+            "title": "Height",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x0",
+          "y0",
+          "ppm",
+          "width",
+          "height"
+        ],
+        "title": "PhotoGrid",
+        "type": "object"
       },
       "trainmeet.cad-1.module.Scale": {
         "description": "The module's scale (CAD10, CAD12).",
@@ -4830,7 +5912,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -5158,7 +6241,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -5350,7 +6434,8 @@
           "saved",
           "approved",
           "visibility",
-          "removed"
+          "removed",
+          "photo"
         ],
         "title": "ModuleEventKind",
         "type": "string"
@@ -5526,7 +6611,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -5731,7 +6817,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -5856,7 +6943,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -7689,6 +8777,18 @@
             "description": "The operations changed something.",
             "title": "Changed",
             "type": "boolean"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.drawing-view.PhotoLayer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Fotot under (part c1)."
           }
         },
         "required": [
@@ -7830,7 +8930,7 @@
       },
       "trainmeet.cad-1.drawing-view.CheckChoice": {
         "additionalProperties": true,
-        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
         "properties": {
           "id": {
             "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -7853,7 +8953,8 @@
               {
                 "enum": [
                   "design",
-                  "lock"
+                  "lock",
+                  "photo"
                 ],
                 "type": "string"
               },
@@ -8162,6 +9263,28 @@
             "description": "Godkänn spårplanen gave this one.",
             "title": "Plan Approved",
             "type": "boolean"
+          },
+          "questions": {
+            "description": "The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.drawing-view.CheckItem"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "photo": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The photo job the drawing came from (part c1).",
+            "title": "Photo"
           }
         },
         "title": "DrawingState",
@@ -8843,10 +9966,75 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
+      },
+      "trainmeet.cad-1.drawing-view.PhotoGrid": {
+        "additionalProperties": true,
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "properties": {
+          "x0": {
+            "title": "X0",
+            "type": "number"
+          },
+          "y0": {
+            "title": "Y0",
+            "type": "number"
+          },
+          "ppm": {
+            "exclusiveMinimum": 0,
+            "title": "Ppm",
+            "type": "number"
+          },
+          "width": {
+            "minimum": 1,
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 1,
+            "title": "Height",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x0",
+          "y0",
+          "ppm",
+          "width",
+          "height"
+        ],
+        "title": "PhotoGrid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.drawing-view.PhotoLayer": {
+        "additionalProperties": true,
+        "description": "Fotot under: the measuring image under the drawing, in the module's millimetres.",
+        "properties": {
+          "job": {
+            "format": "uuid",
+            "title": "Job",
+            "type": "string"
+          },
+          "url": {
+            "description": "The measuring image at 1 px per mm, a signed address.",
+            "title": "Url",
+            "type": "string"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.drawing-view.PhotoGrid"
+          }
+        },
+        "required": [
+          "job",
+          "url",
+          "grid"
+        ],
+        "title": "PhotoLayer",
+        "type": "object"
       },
       "trainmeet.cad-1.drawing-view.Scale": {
         "description": "The module's scale (CAD10, CAD12).",
@@ -9477,7 +10665,7 @@
       },
       "trainmeet.cad-1.check-item.CheckChoice": {
         "additionalProperties": true,
-        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+        "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
         "properties": {
           "id": {
             "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -9500,7 +10688,8 @@
               {
                 "enum": [
                   "design",
-                  "lock"
+                  "lock",
+                  "photo"
                 ],
                 "type": "string"
               },
@@ -10921,7 +12110,8 @@
           "mmm",
           "usms",
           "club",
-          "fremo_spur_0"
+          "fremo_spur_0",
+          "fremo_n"
         ],
         "title": "Norm",
         "type": "string"
@@ -11181,6 +12371,1550 @@
         ],
         "title": "Smoothing",
         "type": "string"
+      },
+      "trainmeet.cad-1.photo-consent": {
+        "additionalProperties": true,
+        "description": "What is sent and to whom, before a photo is first sent to AI, as Catalog's (CAT-142).",
+        "properties": {
+          "available": {
+            "description": "AI can be used here: ID's meter answers.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "given": {
+            "title": "Given",
+            "type": "boolean"
+          },
+          "version": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Version",
+            "type": "string"
+          },
+          "sent_to": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Sent To",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Own Ai"
+          },
+          "price": {
+            "minimum": 0,
+            "title": "Price",
+            "type": "integer"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Balance"
+          },
+          "payer": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Payer"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why AI cannot be used now.",
+            "title": "Message"
+          },
+          "may_read": {
+            "default": true,
+            "description": "Only the owner reads with AI, and a club's administrators for its modules.",
+            "title": "May Read",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available",
+          "given",
+          "version",
+          "sent_to",
+          "text",
+          "price"
+        ],
+        "title": "PhotoConsent",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-start": {
+        "additionalProperties": true,
+        "description": "The form's data part: a new module from the photo, or a photo for a module.",
+        "properties": {
+          "module": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Module"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Name"
+          },
+          "scale": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-start.Scale",
+            "default": "H0"
+          },
+          "kind": {
+            "default": "straight",
+            "enum": [
+              "straight",
+              "trapezoid"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "width": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Gable A's width; null: the module's.",
+            "title": "Width"
+          },
+          "width_b": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Width B"
+          },
+          "length": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null: the photo gives it.",
+            "title": "Length"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "maximum": 20000,
+                "minimum": -20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offset"
+          },
+          "keep_original": {
+            "default": false,
+            "title": "Keep Original",
+            "type": "boolean"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Owner"
+          }
+        },
+        "title": "PhotoStart",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-start.Scale": {
+        "description": "The module's scale (CAD10, CAD12).",
+        "enum": [
+          "H0",
+          "N",
+          "0"
+        ],
+        "title": "Scale",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job": {
+        "additionalProperties": true,
+        "description": "One run of the chain on a module's photos: its state and what it found. The same photos,\ninput and versions give the same job, at no cost (bildkedjan, Reproducerbarhet).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "module": {
+            "format": "uuid",
+            "title": "Module",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoJobState"
+          },
+          "progress": {
+            "maximum": 100,
+            "minimum": 0,
+            "title": "Progress",
+            "type": "integer"
+          },
+          "step": {
+            "description": "What it does now, in Swedish.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Step",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "photos": {
+            "description": "The photos as taken in, while they are kept.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoImage"
+            },
+            "title": "Photos",
+            "type": "array"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoImage"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The photos as one, for the corners."
+          },
+          "corners": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoCorners"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "quality": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoQuality"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "length": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length"
+          },
+          "length_plus_minus": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Length Plus Minus"
+          },
+          "length_given": {
+            "description": "The owner gave the length; false: the photo's.",
+            "title": "Length Given",
+            "type": "boolean"
+          },
+          "offset": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Offset"
+          },
+          "measure": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoLayer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "tracks_on_photo": {
+            "description": "The track plan drawn on the preview, in its px.",
+            "items": {
+              "items": {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Tracks On Photo",
+            "type": "array"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoFact"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "measures": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoMeasure"
+            },
+            "title": "Measures",
+            "type": "array"
+          },
+          "questions": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "sleepers": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.SleeperCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "gauge": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.GaugeCheck"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "price": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoPrice"
+          },
+          "cost": {
+            "description": "Tokens drawn for this job.",
+            "minimum": 0,
+            "title": "Cost",
+            "type": "integer"
+          },
+          "ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The AI that read it, or null.",
+            "title": "Ai"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The module version it made.",
+            "title": "Version"
+          },
+          "chain": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Chain",
+            "type": "string"
+          },
+          "key": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why it stopped, in Swedish.",
+            "title": "Message"
+          }
+        },
+        "required": [
+          "id",
+          "module",
+          "state",
+          "progress",
+          "step",
+          "created_at",
+          "photos",
+          "length_given",
+          "price",
+          "cost",
+          "chain",
+          "key"
+        ],
+        "title": "PhotoJob",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.Certainty": {
+        "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+        "enum": [
+          "certain",
+          "probable",
+          "uncertain",
+          "confirmed"
+        ],
+        "title": "Certainty",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.CheckSource": {
+        "enum": [
+          "code",
+          "ai"
+        ],
+        "title": "CheckSource",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.Deviation": {
+        "additionalProperties": true,
+        "description": "How far one line lies from another: the median and the largest distance, in mm, over\ncount points.",
+        "properties": {
+          "median": {
+            "minimum": 0,
+            "title": "Median",
+            "type": "number"
+          },
+          "max": {
+            "minimum": 0,
+            "title": "Max",
+            "type": "number"
+          },
+          "count": {
+            "minimum": 0,
+            "title": "Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "median",
+          "max",
+          "count"
+        ],
+        "title": "Deviation",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.FactSource": {
+        "description": "Where a fact comes from (bildkedjan, principle 4).",
+        "enum": [
+          "photo",
+          "owner",
+          "norm",
+          "ai",
+          "code"
+        ],
+        "title": "FactSource",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.GableEnd": {
+        "enum": [
+          "A",
+          "B"
+        ],
+        "title": "GableEnd",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.GaugeCheck": {
+        "additionalProperties": true,
+        "description": "The gauge averaged over the straight stretches, against the scale's (step 9).",
+        "properties": {
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          },
+          "nominal": {
+            "title": "Nominal",
+            "type": "number"
+          },
+          "places": {
+            "minimum": 0,
+            "title": "Places",
+            "type": "integer"
+          },
+          "agrees": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agrees"
+          }
+        },
+        "required": [
+          "nominal",
+          "places"
+        ],
+        "title": "GaugeCheck",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoChoice": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "What it means, under the choice.",
+            "title": "Hint"
+          },
+          "sketch": {
+            "anyOf": [
+              {
+                "enum": [
+                  "two_switches",
+                  "crossing",
+                  "single_slip",
+                  "double_slip",
+                  "joined",
+                  "apart"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Sketch"
+          }
+        },
+        "required": [
+          "id",
+          "text"
+        ],
+        "title": "PhotoChoice",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoCorners": {
+        "additionalProperties": true,
+        "description": "The module's corners in the preview's pixels (the photo, or the photos stitched, made\nsmaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to\ncorner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the\nmodule lies to the right.",
+        "properties": {
+          "corners": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Corners",
+            "type": "array"
+          },
+          "kant1": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Kant1",
+            "type": "integer"
+          },
+          "found": {
+            "description": "Code found them; false: a guess to drag into place.",
+            "title": "Found",
+            "type": "boolean"
+          },
+          "certain": {
+            "description": "Every side's edge fits its line within 2 px.",
+            "title": "Certain",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "corners",
+          "kant1",
+          "found",
+          "certain"
+        ],
+        "title": "PhotoCorners",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoFact": {
+        "additionalProperties": true,
+        "description": "A fact with its origin and certainty: säker, trolig, osäker or bekräftad, and its ±.",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_.:-]{0,59}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Value"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Text"
+          },
+          "plus_minus": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Plus Minus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.FactSource"
+          },
+          "certainty": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.Certainty"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "source",
+          "certainty"
+        ],
+        "title": "PhotoFact",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoGate": {
+        "additionalProperties": true,
+        "description": "One row of the quality gate (bildkedjan step 3).",
+        "properties": {
+          "key": {
+            "enum": [
+              "resolution",
+              "tilt",
+              "sharpness",
+              "clipped",
+              "corners",
+              "stitch"
+            ],
+            "title": "Key",
+            "type": "string"
+          },
+          "level": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoLevel"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "level",
+          "value",
+          "text"
+        ],
+        "title": "PhotoGate",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoGrid": {
+        "additionalProperties": true,
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "properties": {
+          "x0": {
+            "title": "X0",
+            "type": "number"
+          },
+          "y0": {
+            "title": "Y0",
+            "type": "number"
+          },
+          "ppm": {
+            "exclusiveMinimum": 0,
+            "title": "Ppm",
+            "type": "number"
+          },
+          "width": {
+            "minimum": 1,
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "minimum": 1,
+            "title": "Height",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x0",
+          "y0",
+          "ppm",
+          "width",
+          "height"
+        ],
+        "title": "PhotoGrid",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoImage": {
+        "additionalProperties": true,
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "url": {
+            "title": "Url",
+            "type": "string"
+          },
+          "width": {
+            "title": "Width",
+            "type": "integer"
+          },
+          "height": {
+            "title": "Height",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "width",
+          "height"
+        ],
+        "title": "PhotoImage",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoJobState": {
+        "enum": [
+          "corners",
+          "queued",
+          "running",
+          "done",
+          "failed"
+        ],
+        "title": "PhotoJobState",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.PhotoLayer": {
+        "additionalProperties": true,
+        "description": "Fotot under: the measuring image under the drawing, in the module's millimetres.",
+        "properties": {
+          "job": {
+            "format": "uuid",
+            "title": "Job",
+            "type": "string"
+          },
+          "url": {
+            "description": "The measuring image at 1 px per mm, a signed address.",
+            "title": "Url",
+            "type": "string"
+          },
+          "grid": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoGrid"
+          }
+        },
+        "required": [
+          "job",
+          "url",
+          "grid"
+        ],
+        "title": "PhotoLayer",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoLevel": {
+        "enum": [
+          "ok",
+          "low",
+          "warn",
+          "refuse"
+        ],
+        "title": "PhotoLevel",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.PhotoMeasure": {
+        "additionalProperties": true,
+        "description": "Dina mått mot fotot: the owner's measure, or the norm's, against the photo's.",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_.:-]{0,59}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Label",
+            "type": "string"
+          },
+          "owner": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The owner's or the norm's; null: none.",
+            "title": "Owner"
+          },
+          "owner_source": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.FactSource"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "photo": {
+            "title": "Photo",
+            "type": "number"
+          },
+          "plus_minus": {
+            "minimum": 0,
+            "title": "Plus Minus",
+            "type": "number"
+          },
+          "agrees": {
+            "title": "Agrees",
+            "type": "boolean"
+          },
+          "gable": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.GableEnd"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "track": {
+            "anyOf": [
+              {
+                "maximum": 12,
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Track"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "photo",
+          "plus_minus",
+          "agrees"
+        ],
+        "title": "PhotoMeasure",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoPrice": {
+        "additionalProperties": true,
+        "description": "The price before start (CAD-18, CAD-29): 12 tokens per measuring image read by AI.",
+        "properties": {
+          "tokens": {
+            "minimum": 0,
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "why": {
+            "enum": [
+              "first",
+              "included",
+              "same",
+              "own_ai",
+              "no_ai"
+            ],
+            "title": "Why",
+            "type": "string"
+          },
+          "text": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tokens",
+          "why",
+          "text"
+        ],
+        "title": "PhotoPrice",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoQuality": {
+        "additionalProperties": true,
+        "properties": {
+          "px_per_mm": {
+            "minimum": 0,
+            "title": "Px Per Mm",
+            "type": "number"
+          },
+          "tilt": {
+            "description": "Degrees from straight down.",
+            "minimum": 0,
+            "title": "Tilt",
+            "type": "number"
+          },
+          "gates": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoGate"
+            },
+            "title": "Gates",
+            "type": "array"
+          },
+          "length_from_photo": {
+            "description": "False under 1 px per mm: no length from it.",
+            "title": "Length From Photo",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "px_per_mm",
+          "tilt",
+          "gates",
+          "length_from_photo"
+        ],
+        "title": "PhotoQuality",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoQuestion": {
+        "additionalProperties": true,
+        "description": "A question from the chain (bildkedjan step 15, När AI ska fråga): a fixed set of answers,\nwhat code and AI each say, and the owner's answer. A topology question changes the track\nplan; it stops Godkänn spårplanen until it is answered.",
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_.:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoQuestionKind"
+          },
+          "source": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.CheckSource"
+          },
+          "title": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "text": {
+            "description": "What the AI or the code sees.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "choices": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoChoice"
+            },
+            "minItems": 1,
+            "title": "Choices",
+            "type": "array"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The choice the code makes.",
+            "title": "Code"
+          },
+          "ai": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The choice the AI makes.",
+            "title": "Ai"
+          },
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The owner's.",
+            "title": "Answer"
+          },
+          "at": {
+            "description": "The place in mm, in the module's coordinates.",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "At",
+            "type": "array"
+          },
+          "topology": {
+            "description": "The answer changes the track plan.",
+            "title": "Topology",
+            "type": "boolean"
+          },
+          "closeup": {
+            "default": false,
+            "description": "Ta en närbild helps here.",
+            "title": "Closeup",
+            "type": "boolean"
+          },
+          "closeup_ai": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "What the AI says from the close-up.",
+            "title": "Closeup Ai"
+          }
+        },
+        "required": [
+          "key",
+          "kind",
+          "source",
+          "title",
+          "text",
+          "choices",
+          "at",
+          "topology"
+        ],
+        "title": "PhotoQuestion",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.PhotoQuestionKind": {
+        "enum": [
+          "connection",
+          "node",
+          "hidden",
+          "scale",
+          "gauge",
+          "switch_fit",
+          "sleepers"
+        ],
+        "title": "PhotoQuestionKind",
+        "type": "string"
+      },
+      "trainmeet.cad-1.photo-job.PhotoSummary": {
+        "additionalProperties": true,
+        "description": "Spårplanen: what the chain read.",
+        "properties": {
+          "tracks_a": {
+            "minimum": 0,
+            "title": "Tracks A",
+            "type": "integer"
+          },
+          "tracks_b": {
+            "minimum": 0,
+            "title": "Tracks B",
+            "type": "integer"
+          },
+          "switches": {
+            "minimum": 0,
+            "title": "Switches",
+            "type": "integer"
+          },
+          "crossings": {
+            "minimum": 0,
+            "title": "Crossings",
+            "type": "integer"
+          },
+          "ends": {
+            "minimum": 0,
+            "title": "Ends",
+            "type": "integer"
+          },
+          "track_length": {
+            "minimum": 0,
+            "title": "Track Length",
+            "type": "number"
+          },
+          "deviation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.Deviation"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "tracks_a",
+          "tracks_b",
+          "switches",
+          "crossings",
+          "ends",
+          "track_length"
+        ],
+        "title": "PhotoSummary",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-job.SleeperCheck": {
+        "additionalProperties": true,
+        "description": "The sleepers' spacing on straight and slanting tracks: the same, or the straightening\nis wrong (bildkedjan step 9).",
+        "properties": {
+          "straight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Straight"
+          },
+          "slanting": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slanting"
+          },
+          "slanting_angle": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Slanting Angle"
+          },
+          "agree": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Agree"
+          }
+        },
+        "title": "SleeperCheck",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-read": {
+        "additionalProperties": true,
+        "description": "Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,\nwith or without AI.",
+        "properties": {
+          "corners": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Corners",
+            "type": "array"
+          },
+          "kant1": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Kant1",
+            "type": "integer"
+          },
+          "ai": {
+            "default": true,
+            "title": "Ai",
+            "type": "boolean"
+          },
+          "consent": {
+            "default": false,
+            "title": "Consent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "corners",
+          "kant1"
+        ],
+        "title": "PhotoRead",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-answers": {
+        "additionalProperties": true,
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-answers.PhotoAnswer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Answers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "answers"
+        ],
+        "title": "PhotoAnswers",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-answers.PhotoAnswer": {
+        "additionalProperties": true,
+        "properties": {
+          "key": {
+            "pattern": "^[a-z0-9][a-z0-9_.:-]{0,79}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "answer": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+            "title": "Answer",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "answer"
+        ],
+        "title": "PhotoAnswer",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-closeup": {
+        "additionalProperties": true,
+        "properties": {
+          "consent": {
+            "default": false,
+            "title": "Consent",
+            "type": "boolean"
+          }
+        },
+        "title": "PhotoCloseup",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-settings": {
+        "additionalProperties": true,
+        "description": "Spara original and the training opt-in (CAD4, CAD7).",
+        "properties": {
+          "keep_original": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Keep Original"
+          },
+          "training": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Training"
+          }
+        },
+        "title": "PhotoSettings",
+        "type": "object"
+      },
+      "trainmeet.cad-1.storage-use": {
+        "additionalProperties": true,
+        "description": "CAD's own storage for module photos, 100 MB per person (CAD-19); the originals waiting\nfor approval do not count (CAD4).",
+        "properties": {
+          "used": {
+            "minimum": 0,
+            "title": "Used",
+            "type": "integer"
+          },
+          "limit": {
+            "minimum": 0,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "waiting": {
+            "description": "Originals kept until approval, not counted.",
+            "minimum": 0,
+            "title": "Waiting",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "used",
+          "limit",
+          "waiting"
+        ],
+        "title": "StorageUse",
+        "type": "object"
       }
     },
     "securitySchemes": {

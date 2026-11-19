@@ -31,6 +31,9 @@ import statistics
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+import numpy as np
+from numpy.typing import NDArray
+
 from cad import curves
 from cad.curves import Arc, Line, Seg
 from cad.switches import GAUGE, H0_MIN_RADIUS, H0_SWITCH_MIN_RADIUS
@@ -156,12 +159,33 @@ def _off(p: Point, start: Point, head: float, k: float) -> float:
     return abs(math.dist(center, p) - radius)
 
 
-def _worst(samples: Sequence[Point], start: Point, head: float, k: float) -> float:
-    return max((_off(p, start, head, k) for p in samples), default=0.0)
+def _offs(samples: NDArray[np.float64], start: Point, head: float, k: float) -> NDArray[np.float64]:
+    """_off for many points at once."""
+    if not len(samples):
+        return np.zeros(0)
+    if abs(k) < 1e-12:
+        u = np.array(curves.unit(head))
+        d = samples - np.array(start)
+        run = d @ u
+        across = np.abs(u[0] * d[:, 1] - u[1] * d[:, 0])
+        found: NDArray[np.float64] = np.where(run < 0, np.hypot(d[:, 0], d[:, 1]), across)
+        return found
+    radius = 1 / abs(k)
+    center = np.array(
+        curves.add(start, curves.unit(head + (math.pi / 2 if k > 0 else -math.pi / 2)), radius)
+    )
+    d = samples - center
+    found = np.abs(np.hypot(d[:, 0], d[:, 1]) - radius)
+    return found
+
+
+def _worst(samples: NDArray[np.float64], start: Point, head: float, k: float) -> float:
+    found = _offs(samples, start, head, k)
+    return float(found.max()) if len(found) else 0.0
 
 
 def _best_k(
-    samples: Sequence[Point], start: Point, head: float, k_max: float
+    samples: NDArray[np.float64], start: Point, head: float, k_max: float
 ) -> tuple[float, float]:
     """The curvature in [-k_max, k_max] whose worst deviation is least (it is close to
     unimodal in k), and that deviation."""
@@ -177,15 +201,17 @@ def _best_k(
     return k, _worst(samples, start, head, k)
 
 
-def _least_squares_k(samples: Sequence[Point], start: Point, head: float, k_max: float) -> float:
+def _least_squares_k(
+    samples: NDArray[np.float64], start: Point, head: float, k_max: float
+) -> float:
     """The curvature whose sum of squared deviations is least: the line through the middle of
     the points rather than the one that only keeps the worst within bounds."""
     lo, hi = -k_max, k_max
     for _ in range(30):
         m1 = lo + (hi - lo) / 3
         m2 = hi - (hi - lo) / 3
-        e1 = sum(_off(p, start, head, m1) ** 2 for p in samples)
-        e2 = sum(_off(p, start, head, m2) ** 2 for p in samples)
+        e1 = float((_offs(samples, start, head, m1) ** 2).sum())
+        e2 = float((_offs(samples, start, head, m2) ** 2).sum())
         if e1 <= e2:
             hi = m2
         else:
@@ -194,7 +220,12 @@ def _least_squares_k(samples: Sequence[Point], start: Point, head: float, k_max:
 
 
 def _reach(
-    samples: Sequence[Point], first: int, start: Point, head: float, k_max: float, tol: float
+    samples: NDArray[np.float64],
+    first: int,
+    start: Point,
+    head: float,
+    k_max: float,
+    tol: float,
 ) -> tuple[int, float]:
     """The furthest sample the curve from start holds within tol, and its curvature."""
 
@@ -263,7 +294,7 @@ def _line_headings(samples: Sequence[Point], step: float) -> list[float]:
 
 
 def _close_end(
-    samples: Sequence[Point],
+    samples: Sequence[Point] | NDArray[np.float64],
     heads: Sequence[float],
     first: int,
     last: int,
@@ -286,7 +317,7 @@ def _close_end(
 
 
 def _fit(
-    samples: Sequence[Point], head: float, level: Level, heads: Sequence[float]
+    points: Sequence[Point], head: float, level: Level, heads: Sequence[float]
 ) -> tuple[list[Seg], float]:
     """The fit from samples[0] with the heading, and its mean squared deviation.
 
@@ -296,10 +327,11 @@ def _fit(
     again; only when that cannot help does the line get a corner, as drawn."""
     k_max = 1 / level.min_radius
     tol = level.max_deviation
+    samples = np.asarray(points, np.float64)
     count = len(samples)
     done: list[tuple[int, Point, float, Seg, int]] = []
     caps: dict[int, int] = {}
-    first, start = 0, samples[0]
+    first, start = 0, (float(samples[0][0]), float(samples[0][1]))
     for _ in range(20 * count):
         if first >= count - 1:
             break
@@ -329,7 +361,7 @@ def _fit(
                 k = middle
         if last < count - 1:
             last = _close_end(samples, heads, first, last, (start, head, k), tol / 4)
-        seg = _piece(start, head, k, samples[last])
+        seg = _piece(start, head, k, (float(samples[last][0]), float(samples[last][1])))
         if curves.length(seg) > 1e-6:
             done.append((first, start, head, seg, last))
             start = seg.end
@@ -338,7 +370,7 @@ def _fit(
     segs = [d[3] for d in done]
     if not segs:
         return segs, 0.0
-    return segs, sum(curves.distance(segs, p) ** 2 for p in samples) / len(samples)
+    return segs, sum(curves.distance(segs, p) ** 2 for p in points) / len(points)
 
 
 def _end_at(segs: list[Seg], end: Point) -> list[Seg]:
@@ -369,7 +401,29 @@ def smooth(
     numbers = level_of(level, scale)
     if numbers is None:
         return [Line(a, b) for a, b in itertools.pairwise(clean)]
-    step = max(1.0, min(5.0, numbers.max_deviation / 2))
+    return _smooth(clean, numbers, start_heading)
+
+
+def fit(
+    points: Sequence[Point],
+    min_radius: float,
+    max_deviation: float,
+    start_heading: float | None = None,
+    step: float | None = None,
+) -> list[Seg]:
+    """The line as LINE and ARC with the given smallest radius and largest deviation: the
+    photo chain's fit of a track it traced (bildkedjan step 12), tighter than any level. step
+    is how often the line is sampled, mm."""
+    clean = _clean(points)
+    if len(clean) < 2:
+        raise ValueError("Linjen har för få punkter.")
+    return _smooth(clean, Level(Smoothing.LIGHT, min_radius, max_deviation), start_heading, step)
+
+
+def _smooth(
+    clean: list[Point], numbers: Level, start_heading: float | None, step: float | None = None
+) -> list[Seg]:
+    step = step or max(1.0, min(5.0, numbers.max_deviation / 2))
     samples = _resample(clean, step)
     if start_heading is not None:
         segs, _ = _fit(samples, start_heading, numbers, _line_headings(samples, step))

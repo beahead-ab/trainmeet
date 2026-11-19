@@ -10,7 +10,7 @@ describe("Modulerna", () => {
     const html = renderToStaticMarkup(<LibraryPage list={LIST} now={NOW} />);
     expect(html).toContain("2 moduler · 2,1 m spår");
     for (const text of ["M-001", "Exempelstation", "Rak · 1500 × 700", "FREMO dubbelspår", "Egen gavel · 3 spår"]) expect(html).toContain(text);
-    expect(html).toContain("Kurva · R 2000 · 30° · bredd 500");
+    expect(html).toContain("Kurva · R 2003,2 · 29,94° · bredd 500");
     expect(html).toContain('<span class="cad-status utkast">Utkast</span>');
     expect(html).toContain('<span class="cad-status godkand">Godkänd</span>');
     expect(html).toContain('href="/moduler/0e6c2f0a-1b2c-4d3e-8f40-5a6b7c8d9e0f"');

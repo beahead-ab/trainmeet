@@ -42,7 +42,7 @@
     },
     "CheckChoice": {
       "additionalProperties": true,
-      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
       "properties": {
         "id": {
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -65,7 +65,8 @@
             {
               "enum": [
                 "design",
-                "lock"
+                "lock",
+                "photo"
               ],
               "type": "string"
             },

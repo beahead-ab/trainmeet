@@ -38,7 +38,7 @@ describe("Ritningen", () => {
   it("draws the canvas: the tabs, the cursor, the gables and their measures, switches and what to check", () => {
     const html = page({});
     expect(html).toContain("Ritning</button>");
-    expect(html).toContain('disabled="" title="Kommer med fotot (del c)">Fotot under <span class="cad-kommer-text">kommer</span>');
+    expect(html).toContain('disabled="" title="Fota modulen under Foto på modulens sida">Fotot under <span class="cad-kommer-text">inget foto</span>');
     expect(html).toContain("Landskap <span class=\"cad-kommer-text\">kommer</span>");
     expect(html).toContain("x – · y – mm");
     expect(html).toContain(">GAVEL A</text>");

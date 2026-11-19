@@ -50,6 +50,18 @@ export type LockMeasures = LockAsk["lock"];
 export type LockProposal = Schemas["trainmeet.cad-1.lock-proposal"];
 export type LockPart = NonNullable<LockProposal["parts"]>[number];
 export type LockRadii = LockProposal["radii"];
+export type PhotoJob = Schemas["trainmeet.cad-1.photo-job"];
+export type PhotoConsent = Schemas["trainmeet.cad-1.photo-consent"];
+export type PhotoStart = Schemas["trainmeet.cad-1.photo-start"];
+export type PhotoRead = Schemas["trainmeet.cad-1.photo-read"];
+export type PhotoSettings = Schemas["trainmeet.cad-1.photo-settings"];
+export type StorageUse = Schemas["trainmeet.cad-1.storage-use"];
+export type PhotoQuestion = NonNullable<PhotoJob["questions"]>[number];
+export type PhotoChoice = PhotoQuestion["choices"][number];
+export type PhotoMeasure = NonNullable<PhotoJob["measures"]>[number];
+export type PhotoFact = NonNullable<PhotoJob["facts"]>[number];
+export type PhotoLayer = NonNullable<DrawingView["photo"]>;
+export type ModulePhoto = NonNullable<Module["photo"]>;
 
 export const API = "/api/cad/1";
 export const SCALES: Scale[] = ["H0", "N", "0"];
@@ -66,7 +78,10 @@ export class ApiError extends Error {
 
 async function call<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = { method, credentials: "same-origin", headers: { Accept: "application/json" } };
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    // The browser writes the form's boundary itself.
+    init.body = body;
+  } else if (body !== undefined) {
     init.body = JSON.stringify(body);
     init.headers = { ...init.headers, "Content-Type": "application/json" };
   }
@@ -107,7 +122,26 @@ export const api = {
   saveDrawing: (id: string, body: DrawingEdit) => call<Module>("POST", `${API}/modules/${id}/drawing/save`, body),
   approvePlan: (id: string, body: DrawingEdit) => call<Module>("POST", `${API}/modules/${id}/drawing/approve`, body),
   lock: (id: string, body: LockAsk) => call<LockProposal>("POST", `${API}/modules/${id}/drawing/lock`, body),
+  photoConsent: (module?: string) => call<PhotoConsent>("GET", `${API}/photos/consent${module ? `?module=${encodeURIComponent(module)}` : ""}`),
+  uploadPhotos: (start: PhotoStart, files: File[]) => call<PhotoJob>("POST", `${API}/photos`, photoForm(start, files)),
+  photoJob: (job: string) => call<PhotoJob>("GET", `${API}/photos/${job}`),
+  readPhoto: (job: string, body: PhotoRead) => call<PhotoJob>("POST", `${API}/photos/${job}/read`, body),
+  answerPhoto: (job: string, key: string, answer: string) =>
+    call<PhotoJob>("POST", `${API}/photos/${job}/answers`, { answers: [{ key, answer }] }),
+  closeup: (job: string, key: string, file: File, consent: boolean) =>
+    call<PhotoJob>("POST", `${API}/photos/${job}/questions/${encodeURIComponent(key)}/closeup`, photoForm({ consent }, [file])),
+  recompute: (job: string) => call<PhotoJob>("POST", `${API}/photos/${job}/recompute`),
+  photoSettings: (id: string, body: PhotoSettings) => call<Module>("PUT", `${API}/modules/${id}/photo`, body),
+  storage: () => call<StorageUse>("GET", `${API}/storage`),
 };
+
+/** A photo form: the JSON in the part data and the photos in the parts images. */
+export function photoForm(data: unknown, files: File[]): FormData {
+  const form = new FormData();
+  form.append("data", new Blob([JSON.stringify(data)], { type: "application/json" }));
+  for (const file of files) form.append("images", file, file.name);
+  return form;
+}
 
 /** TrainMeet ID's login, back to the page one came from. */
 export function idLoginHref(next: string): string {

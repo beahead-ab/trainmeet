@@ -569,7 +569,7 @@ def test_the_deploy_gives_cads_client_secret_to_id_and_to_cad() -> None:
     main = source.split("def main(")[1]
     assert "id_cad_secrets = ensure_id_cad_secrets(secrets, project_id)" in main
     assert "+ id_cad_secrets.env_file()" in main.split('output("id_env"')[0]
-    assert 'output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets)))' in main
+    assert 'output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets, cad_photos)))' in main
 
 
 def test_every_check_stops_its_background_programs() -> None:
@@ -711,3 +711,62 @@ def test_catalog_reads_the_pictures_key_from_its_vault_and_keeps_disk_pictures()
     assert "mkdir -p catalog-pictures" in up
     workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
     assert 'catalog-vault/trainmeet_pictures-key\' < "$PICTURES_KEY"' in workflow
+
+
+# --- CAD:s modulfoton (#89 del c1, CAD-19) ---------------------------------------------------
+
+
+def test_cads_photos_get_their_own_bucket_and_key_never_catalogs() -> None:
+    iam = Mock()
+    iam.list_applications_all.return_value = []
+    iam.create_application.return_value = SimpleNamespace(id="app", name=testmiljo.CAD_PHOTOS_NAME)
+    iam.list_policies_all.return_value = []
+    iam.create_api_key.return_value = SimpleNamespace(access_key="SCWFOTO", secret_key="hemligt")
+    calls: list[tuple[str, str]] = []
+
+    def send(method: str, url: str, given: testmiljo.PictureKey) -> int:
+        calls.append((method, url))
+        return 404 if method == "HEAD" else 200
+
+    found = testmiljo.ensure_cad_photos(iam, _secrets(), "ABCD1234-ef56", "org-1", send)
+    assert found is not None
+    bucket, key = found
+    assert bucket == "trainmeet-test-cad-foton-abcd1234" != testmiljo.bucket_name("ABCD1234-ef56")
+    assert (key.access_key, key.secret_key) == ("SCWFOTO", "hemligt")
+    assert calls[-1] == ("PUT", f"https://s3.nl-ams.scw.cloud/{bucket}")
+    assert iam.create_application.call_args.kwargs["name"] == testmiljo.CAD_PHOTOS_NAME
+    assert testmiljo.CAD_PHOTOS_NAME != testmiljo.PICTURES_NAME
+    assert testmiljo.CAD_PHOTOS_SECRET_NAME != testmiljo.PICTURES_SECRET_NAME
+    rules = iam.create_policy.call_args.kwargs["rules"]
+    assert [(r.permission_set_names, r.project_ids) for r in rules] == [
+        (["ObjectStorageFullAccess"], ["ABCD1234-ef56"])
+    ]
+
+
+def test_cads_photos_key_goes_to_its_vault_never_to_env(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TESTMILJO_SSH_DIR", str(tmp_path))
+    made = testmiljo.generate_cad_secrets()
+    client = testmiljo.generate_id_cad_secrets()
+    key = testmiljo.PictureKey(access_key="SCWFOTO", secret_key="hemligt")
+    text = testmiljo.write_cad_env(made, client, ("cad-hink", key)).read_text()
+    assert text.endswith(
+        "CAD_PHOTOS_S3_BUCKET=cad-hink\n"
+        "CAD_PHOTOS_S3_ACCESS_KEY=SCWFOTO\nCAD_PHOTOS_S3_SECRET_KEY=hemligt\n"
+    )
+    folder = ROOT / "deploy" / "testmiljo"
+    up = (folder / "up.sh").read_text()
+    assert "mkdir -p cad-vault cad-photos" in up
+    assert "} > cad-vault/trainmeet_photos-key" in up
+    env = up.split("} > .env")[0].rsplit("\n{\n", 1)[1]
+    assert "cat catalog.env id.env\n" in env
+    assert "grep -v -e '^CAD_PHOTOS_S3_ACCESS_KEY=' -e '^CAD_PHOTOS_S3_SECRET_KEY=' cad.env" in env
+    compose = (folder / "compose.yaml").read_text()
+    cad = compose.split("\n  cad:\n", 1)[1].split("\n  # ", 1)[0]
+    assert 'user: "${HOST_UID:?HOST_UID saknas}:0"' in cad
+    assert "CAD_PHOTOS_S3_KEY_FILE: ${CAD_PHOTOS_S3_BUCKET:+/vault/trainmeet_photos-key}" in cad
+    assert "CAD_PHOTOS_DIR: /photos" in cad
+    assert "- ./cad-vault:/vault:ro" in cad
+    assert "- ./cad-photos:/photos" in cad
+    assert "catalog-vault" not in cad and "catalog-pictures" not in cad

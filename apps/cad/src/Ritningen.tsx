@@ -8,7 +8,7 @@ import type { CheckItem, DrawingView, EditOp, Module, Smoothing, SwitchInfo } fr
 import { Canvas, type Layers, type Selection } from "./Canvas";
 import { op, sourceBadge, TOOLS, type Tool } from "./editor";
 import { mmText, type Point } from "./geometry";
-import { lockPath, modulePath, PATHS } from "./routes";
+import { lockPath, modulePath, PATHS, photoPath } from "./routes";
 
 type Props = {
   module: Module;
@@ -185,8 +185,8 @@ function Utjamning({ view, onOps }: { view: DrawingView; onOps?: (ops: EditOp[])
   );
 }
 
-function Lager({ layers, onChange }: { layers: Layers; onChange: (layers: Layers) => void }) {
-  const rows: [keyof Layers | "photo" | "landscape", string][] = [
+function Lager({ layers, photo, onChange }: { layers: Layers; photo: boolean; onChange: (layers: Layers) => void }) {
+  const rows: [keyof Layers | "landscape", string][] = [
     ["tracks", "Spår och växlar"],
     ["numbers", "Växelnummer"],
     ["gables", "Gavelmått"],
@@ -199,13 +199,13 @@ function Lager({ layers, onChange }: { layers: Layers; onChange: (layers: Layers
         Lager
       </h2>
       {rows.map(([key, label]) => {
-        const later = key === "photo" || key === "landscape";
+        const later = key === "landscape" || (key === "photo" && !photo);
         const on = later ? false : layers[key as keyof Layers];
         return (
           <label key={key} className={`cad-lagerrad${later ? " kommer" : ""}`}>
             <span>
               {label}
-              {later ? <span className="cad-kommer-text"> kommer</span> : null}
+              {later ? <span className="cad-kommer-text"> {key === "photo" ? "inget foto" : "kommer"}</span> : null}
             </span>
             <input
               type="checkbox"
@@ -269,7 +269,7 @@ export function Ritningen({
 }: Props) {
   const [tool, setTool] = useState<Tool>(initialTool);
   const [selected, setSelected] = useState<Selection>(initialSelection);
-  const [layers, setLayers] = useState<Layers>({ tracks: true, numbers: true, gables: true });
+  const [layers, setLayers] = useState<Layers>({ tracks: true, numbers: true, gables: true, photo: true });
   const [zoom, setZoom] = useState(1);
   const [writing, setWriting] = useState<{ target: string | null; at: Point } | null>(null);
   const items = view?.checks ?? [];
@@ -308,6 +308,15 @@ export function Ritningen({
     }
     if (choice.action === "lock") {
       toLock(null);
+      return;
+    }
+    if (choice.action === "photo") {
+      // A question from the photo is answered on the photo: Osäkert parti, or Foto och kontroll.
+      const job = view?.drawing.photo;
+      if (job) {
+        const key = item.key.replace(/^foto:/, "");
+        navigate?.(choice.id === "svara" ? photoPath(module.id, job, "osakert", key) : photoPath(module.id, job));
+      }
       return;
     }
     onOps?.([op.answer(item.key, choice.id)]);
@@ -403,6 +412,7 @@ export function Ritningen({
               onSelect={setSelected}
               onText={(target, at) => setWriting({ target, at })}
               onLock={toLock}
+              onLayers={setLayers}
             />
           ) : (
             <p className="cad-dampad">Hämtar ritningen …</p>
@@ -433,7 +443,7 @@ export function Ritningen({
           )}
           <Checks items={items} onAnswer={answer} />
           {view ? <Utjamning view={view} onOps={onOps} /> : null}
-          <Lager layers={layers} onChange={setLayers} />
+          <Lager layers={layers} photo={Boolean(view?.photo)} onChange={setLayers} />
         </div>
       </div>
     </section>

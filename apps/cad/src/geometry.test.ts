@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { arcLength, fromChord, lineRadius, preview, rounded, toChord } from "./geometry";
+import { arcLength, fromChord, lineRadius, preview, toChord } from "./geometry";
 import { routeFor } from "./routes";
 
 describe("the curve, as cad/geometry.py", () => {
   it("gives radius and angle from the string and sagitta, and back", () => {
     const found = fromChord(1035, 68)!;
     expect(Math.round(found.radius)).toBe(2003);
-    expect(found.angle.toFixed(1)).toBe("29.9");
-    expect(rounded(found)).toEqual({ radius: 2000, angle: 30 });
+    expect(found.radius.toFixed(1)).toBe("2003.2");
+    expect(found.angle.toFixed(2)).toBe("29.94");
     const back = toChord(2000, 30);
     expect(Math.round(back.chord)).toBe(1035);
     expect(Math.round(back.sagitta)).toBe(68);

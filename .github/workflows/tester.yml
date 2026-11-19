@@ -813,6 +813,9 @@ jobs:
           mkdir -p "$PROV"
           cp deploy/testmiljo/compose.yaml deploy/testmiljo/cad-backup.sh "$PROV/"
           cd "$PROV"
+          # CAD:s modulfoton (#89 del c1): utan hink ligger de på disken, som i testmiljön, där
+          # up.sh gör mapparna som deploy-användaren som CAD körs som.
+          mkdir -p cad-vault cad-photos
           umask 077
           {
             # Compose-filen har de andra tjänsterna också; provet här startar bara CAD, men
@@ -888,6 +891,23 @@ jobs:
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac
 
+      - name: Bildkedjan i bilden (#89 del c1)
+        run: |
+          cd "$PROV"
+          # OpenCV och bildkedjan i bilden: ett syntetiskt foto görs och tas in där, och fotona
+          # hamnar på disken i cad-photos när det inte finns någon hink.
+          docker compose exec -T cad python -m cad.bildkedjan.syntetisk rak /tmp/rak.jpg
+          docker compose exec -T cad sh -c 'test -w /photos'
+          docker compose cp cad:/tmp/rak.jpg rak.jpg
+          JOBB=$(curl -fsS -b kakor -F 'data={"name":"Fotomodul","scale":"H0","kind":"straight","width":480};type=application/json' \
+            -F 'images=@rak.jpg;type=image/jpeg' http://localhost:8086/api/cad/1/photos)
+          echo "$JOBB" | jq -e '.state == "corners" and .corners.found and (.photos | length) == 1' >/dev/null
+          # Originalet sparas utan kamerans data och plats.
+          ORIGINAL=$(echo "$JOBB" | jq -r '.photos[0].url')
+          curl -fsS -b kakor -o original.jpg "http://localhost:8086$ORIGINAL"
+          if grep -q 'Exif' original.jpg; then echo "Originalet har kvar sin EXIF." >&2; exit 1; fi
+          ls cad-photos/*/ | grep -q '\.jpg$'
+
       - name: Nattens säkerhetskopia, med data i
         run: |
           cd "$PROV"
@@ -908,7 +928,7 @@ jobs:
           enable-cache: true
 
       - name: Webbläsarprovet, med låtsad ID (#89)
-        timeout-minutes: 5
+        timeout-minutes: 8
         env:
           CHROME_PATH: /usr/bin/google-chrome
           PROV_ADRESS: http://127.0.0.1:8095

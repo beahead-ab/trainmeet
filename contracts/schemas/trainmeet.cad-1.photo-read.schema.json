@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-read.schema.json",
+  "title": "trainmeet.cad-1.photo-read",
+  "additionalProperties": true,
+  "description": "Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,\nwith or without AI.",
+  "properties": {
+    "corners": {
+      "items": {
+        "maxItems": 2,
+        "minItems": 2,
+        "prefixItems": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "number"
+          }
+        ],
+        "type": "array"
+      },
+      "maxItems": 4,
+      "minItems": 4,
+      "title": "Corners",
+      "type": "array"
+    },
+    "kant1": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Kant1",
+      "type": "integer"
+    },
+    "ai": {
+      "default": true,
+      "title": "Ai",
+      "type": "boolean"
+    },
+    "consent": {
+      "default": false,
+      "title": "Consent",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "corners",
+    "kant1"
+  ],
+  "type": "object"
+}

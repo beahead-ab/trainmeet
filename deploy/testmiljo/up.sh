@@ -38,6 +38,16 @@ done
 # Also in .env below, for compose run by cron (cad-backup.sh reads .env).
 export COMPOSE_PROFILES=cad
 mkdir -p cad-backup && chmod 700 cad-backup
+# CAD:s modulfoton (#89 del c1), as Catalog's pictures (#51): CAD's own bucket, whose key
+# deploy/testmiljo.py sends in cad.env. It goes to cad-vault, which only the deploy user reads,
+# and never into .env. Without a bucket the photos lie on the server's disk, in cad-photos.
+mkdir -p cad-vault cad-photos
+if grep -q '^CAD_PHOTOS_S3_SECRET_KEY=.' cad.env; then
+  {
+    sed -n 's/^CAD_PHOTOS_S3_ACCESS_KEY=//p' cad.env
+    sed -n 's/^CAD_PHOTOS_S3_SECRET_KEY=//p' cad.env
+  } > cad-vault/trainmeet_photos-key
+fi
 # Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
 # then (CAT-214, #66).
 TRIAL=on
@@ -50,7 +60,8 @@ if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
   printf 'ID_TAG=%s\nID_DOMAIN=%s\nHOST_UID=%s\n' "$TAG" "$ID_DOMAIN" "$(id -u)"
   printf 'CAD_TAG=%s\nCAD_DOMAIN=%s\nCAD_TRIAL_LOGIN=%s\n' "$TAG" "$CAD_DOMAIN" "$TRIAL"
   printf 'COMPOSE_PROFILES=cad\n'
-  cat catalog.env id.env cad.env
+  cat catalog.env id.env
+  grep -v -e '^CAD_PHOTOS_S3_ACCESS_KEY=' -e '^CAD_PHOTOS_S3_SECRET_KEY=' cad.env
 } > .env
 umask 022
 

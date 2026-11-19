@@ -33,7 +33,14 @@ catalog = [
 # TrainMeet CAD (cad/, #89): PostgreSQL through psycopg, and TrainMeet ID's login and API, as
 # Catalog. Not in the hub's image.
 cad = [
+    # Signs the module photos' requests to CAD's own bucket in Object Storage (SigV4), as Catalog.
+    "botocore>=1.35",
     "httpx>=0.27",
+    # The photo chain (cad/bildkedjan, #89 del c1): code measures, with OpenCV and numpy.
+    "numpy>=1.26",
+    "opencv-python-headless>=4.10",
+    # Reads the uploaded photos, turns them upright, makes them sRGB and drops their metadata.
+    "pillow>=11",
     "psycopg[binary,pool]>=3.2",
     "pyjwt[crypto]>=2.10",
 ]

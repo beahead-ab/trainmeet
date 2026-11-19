@@ -11,14 +11,21 @@
         "forbidden",
         "changed",
         "invalid",
-        "unavailable"
+        "unavailable",
+        "no_tokens",
+        "too_many",
+        "reading_failed",
+        "bad_photo",
+        "storage_full",
+        "consent_required",
+        "busy"
       ],
       "title": "ProblemCode",
       "type": "string"
     }
   },
   "additionalProperties": true,
-  "description": "The answer when CAD says no: 401, 403, 404, 409, 422 or 503.",
+  "description": "The answer when CAD says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or 503.",
   "properties": {
     "code": {
       "$ref": "#/$defs/ProblemCode"

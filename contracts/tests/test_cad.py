@@ -10,6 +10,7 @@ from pydantic import ValidationError
 
 from contracts import cad
 from contracts.cad import (
+    NORM_NAMES,
     NORMS,
     ArcSegment,
     Gable,
@@ -29,11 +30,12 @@ from contracts.station_model import NodeType
 
 def test_the_scales_and_their_norms_from_the_start() -> None:
     """CAD9–CAD12, CAD-22: H0, N and 0; in H0 FREMO, MMM, USMS and the club's own, in 0 FREMO
-    Spur 0, and in N none named yet."""
+    Spur 0, and in N FREMO N from the start (CAD14, 19 November)."""
     assert [s.value for s in Scale] == ["H0", "N", "0"]
     assert NORMS[Scale.H0] == (Norm.FREMO, Norm.MMM, Norm.USMS, Norm.CLUB)
     assert NORMS[Scale.ZERO] == (Norm.FREMO_SPUR_0,)
-    assert NORMS[Scale.N] == ()
+    assert NORMS[Scale.N] == (Norm.FREMO_N,)
+    assert NORM_NAMES[Norm.FREMO_N] == "FREMO N"
 
 
 def module(**change: Any) -> dict[str, Any]:

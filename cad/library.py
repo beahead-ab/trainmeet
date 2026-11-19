@@ -30,7 +30,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any
+from typing import Any, Protocol
 from uuid import UUID
 
 from psycopg import Connection
@@ -67,6 +67,7 @@ from contracts.cad import (
     ModuleEvent,
     ModuleEventKind,
     ModuleList,
+    ModulePhoto,
     ModuleRemoved,
     ModuleStatus,
     NewModule,
@@ -74,6 +75,7 @@ from contracts.cad import (
     Norm,
     Owner,
     OwnerKind,
+    PhotoLayer,
     ProblemCode,
     ProfileKind,
     ProfileList,
@@ -135,7 +137,7 @@ def changed() -> Refused:
 
 MODULE_COLUMNS = (
     "m.id, m.owner_kind, m.owner_id, m.owner_name, m.number, m.visibility, m.club_id, "
-    "m.club_name, m.latest, m.approved_version, m.created_at, "
+    "m.club_name, m.latest, m.approved_version, m.created_at, m.keep_original, m.training_at, "
     "v.version, v.name, v.scale, v.shape, v.gables, v.graph, v.track_length, v.saved_at, "
     "v.approved_at, v.approved_by_name, v.drawing"
 )
@@ -189,10 +191,22 @@ def _what_was_drawn(operations: Sequence[EditOp]) -> str:
     return "ritningen sparad" + (f" ({', '.join(parts)})" if parts else "")
 
 
+class PhotoHooks(Protocol):
+    """What the photos (cad/photos.py) add to a module: the Foto tab, Fotot under, and the
+    originals going when the module is approved (part c1)."""
+
+    def module_photo(self, module: UUID, state: DrawingState) -> ModulePhoto | None: ...
+
+    def layer(self, module: UUID, state: DrawingState) -> PhotoLayer | None: ...
+
+    def approved(self, conn: Connection[DictRow], module: UUID) -> None: ...
+
+
 class Modules:
     def __init__(self, db: Database, access: Access) -> None:
         self.db = db
         self.access = access
+        self.photos: PhotoHooks | None = None
 
     # --- Rights -------------------------------------------------------------------------------
 
@@ -302,6 +316,7 @@ class Modules:
             graph=TrackGraph.model_validate(row["graph"]),
             status=ModuleStatus.APPROVED if approved else ModuleStatus.DRAFT,
             version=version,
+            photographed=bool((row.get("drawing") or {}).get("photo")),
             track_length=round(float(row["track_length"]), 1),
             changed_at=row["saved_at"],
         )
@@ -309,9 +324,14 @@ class Modules:
     def _module(self, row: dict[str, Any], right: Right, known: dict[str, GableProfile]) -> Module:
         brief = self._brief(row, known)
         drawn = drawing_of(row, known)
+        state = drawn.state()
+        photo = self.photos.module_photo(row["id"], state) if self.photos is not None else None
         return Module(
-            drawing=drawn.state(),
+            drawing=state,
             checks=checks.find(drawn),
+            photo=photo,
+            keep_original=bool(row.get("keep_original")),
+            training_at=row.get("training_at"),
             **brief.model_dump(),
             club=row["club_id"],
             club_name=row["club_name"],
@@ -492,7 +512,7 @@ class Modules:
 
     # --- One module ---------------------------------------------------------------------------
 
-    def create(self, who: Who, new: NewModule) -> Module:
+    def create(self, who: Who, new: NewModule, made_from: str = "Modulen skapad ur mått") -> Module:
         if new.owner is None or new.owner == who.person:
             owner = Owner(kind=OwnerKind.PERSON, id=who.person, name=who.name)
         else:
@@ -538,7 +558,7 @@ class Modules:
             self._insert_version(
                 conn, who, module, 1, new.name, new.scale, new.shape, gables, built
             )
-            self._event(conn, who, module, ModuleEventKind.CREATED, 1, "Modulen skapad ur mått")
+            self._event(conn, who, module, ModuleEventKind.CREATED, 1, made_from)
         return self._answer(who, module, Right.EDIT)
 
     def _insert_version(
@@ -719,6 +739,8 @@ class Modules:
                 approval.version,
                 f"Version {approval.version} godkänd",
             )
+            if self.photos is not None:
+                self.photos.approved(conn, module)
         return self._answer(who, module, Right.EDIT)
 
     def set_visibility(self, who: Who, module: UUID, change: VisibilityChange) -> Module:
@@ -776,7 +798,10 @@ class Modules:
     def drawing(self, who: Who, module: UUID, edit: DrawingEdit) -> DrawingView:
         """The working drawing: the change set on the newest version; nothing is saved."""
         drawn, latest = self._latest_drawing(who, module, edit)
-        return views.view(module, edit.base, latest, drawn)
+        found = views.view(module, edit.base, latest, drawn)
+        if self.photos is not None:
+            found = found.model_copy(update={"photo": self.photos.layer(module, drawn.state())})
+        return found
 
     def lock_preview(self, who: Who, module: UUID, ask: LockAsk) -> LockProposal:
         """Lås mått: what locking the measures would make of the curve, or why it cannot."""
@@ -869,6 +894,8 @@ class Modules:
                     version,
                     f"Version {version}: spårplanen godkänd",
                 )
+                if self.photos is not None:
+                    self.photos.approved(conn, module)
         return self._answer(who, module, Right.EDIT)
 
     # --- Gable profiles -----------------------------------------------------------------------

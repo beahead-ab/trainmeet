@@ -2,7 +2,8 @@
 // låtsad TrainMeet ID (cad/prov_webblasare.py). Provkonto A loggar in med provinloggningen, ser det
 // tomma biblioteket, gör en rak modul och en kurvmodul ur bara mått, godkänner kurvan, och ser
 // biblioteket med gavlarna och statusen, modulens sida och gavelprofilerna. Sedan Ritningen och Lås
-// mått (#89 del b, ritningen.mjs, som körs härifrån så att CI-steget är detsamma).
+// mått (#89 del b, ritningen.mjs) och Foto och kontroll (#89 del c1, foto.mjs), som körs härifrån så
+// att CI-steget är detsamma.
 //
 //   CHROME_PATH=/usr/bin/google-chrome node apps/cad/e2e/bibliotek.mjs
 //
@@ -11,6 +12,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { foto } from "./foto.mjs";
 import { ritningen } from "./ritningen.mjs";
 
 const BASE = (process.env.PROV_ADRESS ?? "http://127.0.0.1:8095").replace(/\/+$/, "");
@@ -77,18 +79,18 @@ try {
   check(await page.getByText("M-001").first().isVisible(), "Modulen fick inget nummer.");
   check(await page.getByText("Utkast").first().isVisible(), "Den raka modulen med olika gavlar ska vara ett utkast.");
 
-  // Kurvmodul: snöret 1035 och pilhöjden 68 ger R 2 003 mm · 29,9°, avrundat R 2000 · 30°.
+  // Kurvmodul: snöret 1035 och pilhöjden 68 ger R 2 003,2 mm · 29,94°, som det räknas fram (CAD16).
   await page.goto(`${BASE}/moduler/ny/kurva`);
   await page.getByRole("heading", { name: "Ny kurvmodul" }).waitFor();
   await page.locator('input[name="namn"]').fill("Kurva 30° · K2");
   await page.locator('input[name="snore"]').fill("1035");
   await page.locator('input[name="pilhojd"]').fill("68");
-  await page.getByText("Uträknat: R 2 003 mm · 29,9°").waitFor();
-  await page.getByText("✓ R 2000 · 30°").waitFor();
+  await page.getByText("Uträknat: R 2 003,2 mm · 29,94°").waitFor();
+  check(!(await page.getByText("Ångra avrundning").count()), "Kurvan ska inte avrundas (CAD16).");
   await page.locator('select[name="profil-A"]').selectOption("h0-dubbelspar");
   await page.locator('input[name="gavel-A-0"]').fill("200");
   await page.locator('input[name="gavel-A-1"]').fill("50");
-  await page.getByText("12 sådana moduler blir en hel cirkel").waitFor();
+  await page.getByText("utan avrundning").waitFor();
   await shot(page, "05-kurvmodul");
   await page.getByRole("button", { name: "Spara" }).click();
   await page.getByRole("heading", { name: "Kurva 30° · K2" }).waitFor();
@@ -136,9 +138,10 @@ try {
   await shot(page, "09-anlaggningar");
 
   await ritningen(page, { base: BASE, shot, check });
+  await foto(page, { base: BASE, shot, check });
 
   check(problems.length === 0, `Fel i webbläsaren: ${problems.join(" | ")}`);
-  console.log("Webbläsarprovet för modulbiblioteket och Ritningen gick igenom.");
+  console.log("Webbläsarprovet för modulbiblioteket, Ritningen och Foto och kontroll gick igenom.");
 } catch (error) {
   await shot(page, "fel");
   throw error;

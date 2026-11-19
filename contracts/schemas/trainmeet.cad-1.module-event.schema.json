@@ -9,7 +9,8 @@
         "saved",
         "approved",
         "visibility",
-        "removed"
+        "removed",
+        "photo"
       ],
       "title": "ModuleEventKind",
       "type": "string"

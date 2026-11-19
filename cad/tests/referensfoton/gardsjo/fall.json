@@ -1,0 +1,53 @@
+{
+  "kalla": "Gårdsjö station (beslut CAD17, krav CAD-36): fotona ur ref/gardsjo/foto i trainmeet-spec, utan kamerans data (filerna har bara JFIF-huvudet), i originalets upplösning. Måtten ur ref/gardsjo/station.json (modules[].size och gavlar), läst 19 november 2026. Hörnen är satta för hand i fotot, i fotots pixlar, så som ägaren bekräftar dem i Foto och kontroll; kant1 är den sida ägaren väljer (sida i går från hörn i till hörn i + 1, medurs från hörnet uppe till vänster). Stationens egna mått har modulen på andra sidan om Kant 1 än CAD:s ritning sedd ovanifrån, så stationens gavel A är bildkedjans gavel B: gavel_a och gavel_b nedan är bildkedjans.",
+  "fall": [
+    {
+      "foto": "infart-1.jpg",
+      "kalla": "Infart 1: 900 × 337 mm, spåren 140 och 197 mm från Kant 1 vid båda gavlarna, status 'Mått bekräftade av ägaren'. Hörnen är de koden hittar.",
+      "bredd": 337,
+      "langd": 900,
+      "horn": [[184, 47], [739, 51], [737, 1538], [177, 1529]],
+      "kant1": 1,
+      "gavel_a": [140, 197],
+      "gavel_b": [140, 197],
+      "minst_hittade": 4,
+      "tolerans_mm": 4.0
+    },
+    {
+      "foto": "sektion-2.jpg",
+      "kalla": "Sektion 2: 1220 × 480 mm; stationens gavel B 140/196/285/343 och gavel A 140/196/270, status 'Uppmätt ur foto' (ägaren har sett stationssidan, men gavelmåtten är inte uppmätta av ägaren).",
+      "bredd": 480,
+      "langd": 1220,
+      "horn": [[156, 30], [725, 18], [734, 1474], [167, 1466]],
+      "kant1": 1,
+      "gavel_a": [140, 196, 285, 343],
+      "gavel_b": [140, 196, 270],
+      "minst_hittade": 7,
+      "tolerans_mm": 4.0
+    },
+    {
+      "foto": "sektion-6.jpg",
+      "kalla": "Sektion 6: 900 × 480 mm; stationens gavel A 140/196/282/340 och gavel B 140/196/282, status 'Uppmätt ur foto'. Bildkedjan hittar inte spåret 282 vid stationens gavel B: växel 136 och plattformen ligger nära gaveln.",
+      "bredd": 480,
+      "langd": 900,
+      "horn": [[98, 52], [810, 42], [819, 1388], [103, 1389]],
+      "kant1": 3,
+      "gavel_a": [140, 196, 282],
+      "gavel_b": [140, 196, 282, 340],
+      "minst_hittade": 6,
+      "tolerans_mm": 4.0
+    },
+    {
+      "foto": "sektion-8.jpg",
+      "kalla": "Sektion 8: 900 × 337 mm, bredden bekräftad av ägaren; stationens gavel A 140/194 och gavel B 140/197, status 'Uppmätt ur foto'. Stationssidan säger att spår 2 avviker 3 mm från parallellt; fotot ger ungefär 197 vid båda gavlarna.",
+      "bredd": 337,
+      "langd": 900,
+      "horn": [[135, 49], [674, 41], [695, 1501], [141, 1507]],
+      "kant1": 3,
+      "gavel_a": [140, 197],
+      "gavel_b": [140, 194],
+      "minst_hittade": 4,
+      "tolerans_mm": 4.0
+    }
+  ]
+}

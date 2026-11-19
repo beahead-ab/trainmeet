@@ -5,9 +5,8 @@ the sagitta from its middle (CADMOB-03, the view Kurvmodul):
 
     R = (c² + 4s²) / 8s        θ = 2·asin(c / 2R)
 
-and back, from the radius and the angle, c = 2R·sin(θ/2) and s = R·(1 - cos(θ/2)). The rounded
-values the view offers are R to 10 mm and θ to half a degree; "Ångra avrundning" keeps the
-measured ones.
+and back, from the radius and the angle, c = 2R·sin(θ/2) and s = R·(1 - cos(θ/2)). The radius
+and the angle are kept exactly as computed, without rounding (CAD16, CAD-35).
 
 The module's own coordinates are the station model's: x from gable A along Kant 1, y away from
 Kant 1, in mm, y down the drawing. A straight module's track at d mm from Kant 1 runs from
@@ -31,15 +30,11 @@ from dataclasses import dataclass
 from contracts.cad import Curve, CurveSides, EdgeSide, GableEnd, Shape, Straight, Trapezoid
 from contracts.station_model import Point
 
-RADIUS_STEP = 10.0
-"""The rounded radius, in mm."""
-ANGLE_STEP = 0.5
-"""The rounded angle, in degrees."""
-RADIUS_TOLERANCE = 0.01
-"""A curve's radius may differ by 1 % from the one its measurement gives, so that it can be
-rounded."""
-ANGLE_TOLERANCE = 0.5
-"""And its angle by half a degree."""
+RADIUS_TOLERANCE = 0.0005
+"""A curve's radius may differ by 0,05 % from the one its measurement gives: what the numbers
+lose on their way, never a rounding (CAD16)."""
+ANGLE_TOLERANCE = 0.01
+"""And its angle by a hundredth of a degree."""
 
 
 @dataclass(frozen=True)
@@ -65,16 +60,8 @@ def to_chord(radius: float, angle: float) -> tuple[float, float]:
     return 2 * radius * math.sin(half), radius * (1 - math.cos(half))
 
 
-def rounded(bend: Bend) -> Bend:
-    """The nearest round values: R to 10 mm and the angle to half a degree."""
-    return Bend(
-        radius=round(bend.radius / RADIUS_STEP) * RADIUS_STEP,
-        angle=round(bend.angle / ANGLE_STEP) * ANGLE_STEP,
-    )
-
-
 def agrees(curve: Curve) -> bool:
-    """Do the curve's radius and angle agree with its measurement, rounded or not?"""
+    """Do the curve's radius and angle agree with its measurement, as computed (CAD16)?"""
     if curve.measured is None:
         return True
     found = from_chord(curve.measured.chord, curve.measured.sagitta)

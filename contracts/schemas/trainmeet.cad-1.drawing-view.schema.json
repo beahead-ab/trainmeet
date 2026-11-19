@@ -126,7 +126,7 @@
     },
     "CheckChoice": {
       "additionalProperties": true,
-      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
       "properties": {
         "id": {
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -149,7 +149,8 @@
             {
               "enum": [
                 "design",
-                "lock"
+                "lock",
+                "photo"
               ],
               "type": "string"
             },
@@ -458,6 +459,28 @@
           "description": "Godkänn spårplanen gave this one.",
           "title": "Plan Approved",
           "type": "boolean"
+        },
+        "questions": {
+          "description": "The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.",
+          "items": {
+            "$ref": "#/$defs/CheckItem"
+          },
+          "title": "Questions",
+          "type": "array"
+        },
+        "photo": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The photo job the drawing came from (part c1).",
+          "title": "Photo"
         }
       },
       "title": "DrawingState",
@@ -1139,10 +1162,75 @@
         "mmm",
         "usms",
         "club",
-        "fremo_spur_0"
+        "fremo_spur_0",
+        "fremo_n"
       ],
       "title": "Norm",
       "type": "string"
+    },
+    "PhotoGrid": {
+      "additionalProperties": true,
+      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "type": "number"
+        },
+        "y0": {
+          "title": "Y0",
+          "type": "number"
+        },
+        "ppm": {
+          "exclusiveMinimum": 0,
+          "title": "Ppm",
+          "type": "number"
+        },
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "ppm",
+        "width",
+        "height"
+      ],
+      "title": "PhotoGrid",
+      "type": "object"
+    },
+    "PhotoLayer": {
+      "additionalProperties": true,
+      "description": "Fotot under: the measuring image under the drawing, in the module's millimetres.",
+      "properties": {
+        "job": {
+          "format": "uuid",
+          "title": "Job",
+          "type": "string"
+        },
+        "url": {
+          "description": "The measuring image at 1 px per mm, a signed address.",
+          "title": "Url",
+          "type": "string"
+        },
+        "grid": {
+          "$ref": "#/$defs/PhotoGrid"
+        }
+      },
+      "required": [
+        "job",
+        "url",
+        "grid"
+      ],
+      "title": "PhotoLayer",
+      "type": "object"
     },
     "Scale": {
       "description": "The module's scale (CAD10, CAD12).",
@@ -1741,6 +1829,18 @@
       "description": "The operations changed something.",
       "title": "Changed",
       "type": "boolean"
+    },
+    "photo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PhotoLayer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Fotot under (part c1)."
     }
   },
   "required": [

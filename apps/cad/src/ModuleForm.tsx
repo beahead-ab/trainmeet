@@ -5,8 +5,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import type { GableProfile, Module, ModuleChange, NewModule, ProfileList, Scale, Shape } from "./api";
 import { SCALES } from "./api";
 import { GableView, ModuleDrawing } from "./Drawing";
-import { arcLength, fromChord, lineRadius, mm, rounded, toChord, type Bend } from "./geometry";
-import { PATHS, type FormKind } from "./routes";
+import { arcLength, fromChord, lineRadius, mm, toChord, type Bend } from "./geometry";
+import { modulePath, PATHS, UPLOAD_PATH, type FormKind } from "./routes";
 
 type GableState = { profile: string; norm: string; steps: string[] };
 type FormState = {
@@ -24,7 +24,6 @@ type FormState = {
   sagitta: string;
   radius: string;
   angle: string;
-  exact: boolean;
   edge: "outer" | "inner";
   sides: "bent" | "straight";
   a: GableState;
@@ -89,7 +88,6 @@ function initial(kind: FormKind, scale: Scale, profiles: ProfileList | null, mod
       sagitta: shape.kind === "curve" && shape.measured ? show(shape.measured.sagitta) : "",
       radius: shape.kind === "curve" ? show(shape.radius) : "",
       angle: shape.kind === "curve" ? show(shape.angle) : "",
-      exact: false,
       edge: shape.kind === "curve" ? shape.edge ?? "outer" : "outer",
       sides: shape.kind === "curve" ? shape.sides ?? "bent" : "bent",
       a: g(a),
@@ -114,7 +112,6 @@ function initial(kind: FormKind, scale: Scale, profiles: ProfileList | null, mod
     sagitta: "",
     radius: "",
     angle: "",
-    exact: false,
     edge: "outer",
     sides: "bent",
     a: kind === "trapezoid" ? { ...gable, steps: ["140"] } : gable,
@@ -130,7 +127,8 @@ function tracksOf(g: GableState): number[] | null {
   return values.map((v) => (sum += v));
 }
 
-/** The bend the form gives, and the one measured before rounding. */
+/** The bend the form gives, and the one computed from the string and sagitta: the same, never
+ * rounded (CAD16, CAD-35). */
 function bendOf(state: FormState): { bend: Bend | null; found: Bend | null } {
   if (state.mode === "radius") {
     const radius = n(state.radius);
@@ -139,7 +137,7 @@ function bendOf(state: FormState): { bend: Bend | null; found: Bend | null } {
   }
   const found = fromChord(n(state.chord), n(state.sagitta));
   if (!found) return { bend: null, found: null };
-  return { bend: state.exact ? found : rounded(found), found };
+  return { bend: found, found };
 }
 
 function shapeOf(state: FormState): Shape | null {
@@ -150,8 +148,8 @@ function shapeOf(state: FormState): Shape | null {
     if (!bend) return null;
     return {
       kind: "curve",
-      radius: Math.round(bend.radius * 10) / 10,
-      angle: Math.round(bend.angle * 100) / 100,
+      radius: bend.radius,
+      angle: bend.angle,
       width,
       edge: state.edge,
       sides: state.sides,
@@ -380,11 +378,21 @@ export function ModuleForm({ kind, scale, profiles, module, owners = [], owner =
       <div className="cad-rubrikrad">
         <h1 id="rubrik">{title}</h1>
         {module ? <span className="cad-pill tm-mono">{module.number}</span> : null}
-        <span className="cad-pill">Mått · inget foto</span>
+        <span className="cad-pill">{module?.photo ? "Mått · fotad" : "Mått · inget foto"}</span>
         <span className="cad-fyll" />
-        <button type="button" className="tm-knapp" disabled title="Kommer med foto och kontroll">
-          Fota och kontrollera
-        </button>
+        {module && state.kind !== "curve" ? (
+          <a className="tm-knapp" href={modulePath(module.id, "foto")} onClick={linkClick(navigate, modulePath(module.id, "foto"))}>
+            Fota och kontrollera
+          </a>
+        ) : !module && state.kind !== "curve" ? (
+          <a className="tm-knapp" href={UPLOAD_PATH} onClick={linkClick(navigate, UPLOAD_PATH)}>
+            Ladda upp ett foto i stället
+          </a>
+        ) : (
+          <button type="button" className="tm-knapp" disabled title="Foto och kontroll tar raka moduler och trapetser än">
+            Fota och kontrollera
+          </button>
+        )}
       </div>
       <div className="cad-tvadelad">
         <form
@@ -484,22 +492,10 @@ export function ModuleForm({ kind, scale, profiles, module, owners = [], owner =
                     {found ? (
                       <div className="cad-utraknat" role="status">
                         <p>
-                          Uträknat: R {Math.round(found.radius).toLocaleString("sv-SE")} mm · {found.angle.toLocaleString("sv-SE", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}°
+                          Uträknat: R {found.radius.toLocaleString("sv-SE", { maximumFractionDigits: 1, minimumFractionDigits: 1 })} mm ·{" "}
+                          {found.angle.toLocaleString("sv-SE", { maximumFractionDigits: 2, minimumFractionDigits: 2 })}°
                         </p>
-                        {state.exact ? (
-                          <button type="button" className="cad-lank" onClick={() => set({ exact: false })}>
-                            Avrunda till R {rounded(found).radius} · {rounded(found).angle.toLocaleString("sv-SE")}°
-                          </button>
-                        ) : (
-                          <p className="cad-avrundat">
-                            <b>
-                              ✓ R {rounded(found).radius} · {rounded(found).angle.toLocaleString("sv-SE")}°
-                            </b>{" "}
-                            <button type="button" className="cad-lank" onClick={() => set({ exact: true })}>
-                              Ångra avrundning
-                            </button>
-                          </p>
-                        )}
+                        <p className="cad-dampad">Radien och vinkeln används som de räknas fram ur snöret och pilhöjden, utan avrundning.</p>
                       </div>
                     ) : (
                       <p className="cad-dampad">Spänn ett snöre mellan spår 1:s mitt vid A och B och mät snöret och pilhöjden.</p>

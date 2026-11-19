@@ -1,8 +1,7 @@
-// Ny modul: four ways in, of which Bara mått works now; the others say when they come (CAD-01).
+// Ny modul: four ways in, of which Bara mått and Ladda upp ett foto work now; the phone and the
+// sketch say when they come (CAD-01).
 import { linkClick, type Navigate } from "@trainmeet/design";
-import { formPath, PATHS } from "./routes";
-
-const PHOTO_LATER = "Kommer med foto och kontroll, nästa steg av CAD.";
+import { formPath, PATHS, UPLOAD_PATH } from "./routes";
 
 export function NewModulePage({ tokens, navigate }: { tokens?: number | null; navigate?: Navigate }) {
   return (
@@ -31,15 +30,19 @@ export function NewModulePage({ tokens, navigate }: { tokens?: number | null; na
           <p className="cad-taggar">
             <span className="cad-tagg">12 tokens</span> <span className="cad-tagg">ca 10 min vid modulen</span>
           </p>
-          <p className="cad-snart">{PHOTO_LATER}</p>
+          <p className="cad-snart">Kommer med CAD i mobilen (ärende 90): du skannar en QR-kod och fotar med telefonen.</p>
         </article>
-        <article className="cad-kort cad-kommer">
+        <article className="cad-kort cad-vag-aktiv" id="ladda-upp-foto">
           <h2>Ladda upp ett foto</h2>
-          <p>Har du redan en bild rakt ovanifrån? Dra in den och fyll i bredden. Längden kan räknas fram ur fotot.</p>
+          <p>Har du redan en bild rakt ovanifrån? Ladda upp den, eller 2–4 bilder av en lång modul, och fyll i bredden. Längden kan räknas fram ur fotot.</p>
           <p className="cad-taggar">
-            <span className="cad-tagg">12 tokens</span> <span className="cad-tagg">JPG, HEIC, PNG</span>
+            <span className="cad-tagg">12 tokens per mätbild</span> <span className="cad-tagg gron">Utan AI gratis</span> <span className="cad-tagg">JPG, PNG</span>
           </p>
-          <p className="cad-snart">{PHOTO_LATER}</p>
+          <div className="cad-knapprad">
+            <a className="tm-knapp primar" href={UPLOAD_PATH} onClick={linkClick(navigate, UPLOAD_PATH)}>
+              Ladda upp foto
+            </a>
+          </div>
         </article>
         <article className="cad-kort cad-kommer">
           <h2>Från en skiss</h2>
@@ -47,7 +50,7 @@ export function NewModulePage({ tokens, navigate }: { tokens?: number | null; na
           <p className="cad-taggar">
             <span className="cad-tagg">12 tokens per bild</span> <span className="cad-tagg gul">± 20 mm</span>
           </p>
-          <p className="cad-snart">{PHOTO_LATER}</p>
+          <p className="cad-snart">Kommer i nästa steg av bildkedjan, med Ladda upp ritning i Studio.</p>
         </article>
         <article className="cad-kort cad-vag-aktiv" id="bara-matt">
           <h2>Bara mått</h2>

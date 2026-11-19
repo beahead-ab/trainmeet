@@ -126,7 +126,7 @@
     },
     "CheckChoice": {
       "additionalProperties": true,
-      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått).",
+      "description": "An answer button. closes: the answer settles the item; action: what the view does\ninstead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's\nquestion in Osäkert parti).",
       "properties": {
         "id": {
           "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
@@ -149,7 +149,8 @@
             {
               "enum": [
                 "design",
-                "lock"
+                "lock",
+                "photo"
               ],
               "type": "string"
             },
@@ -430,6 +431,28 @@
           "description": "Godkänn spårplanen gave this one.",
           "title": "Plan Approved",
           "type": "boolean"
+        },
+        "questions": {
+          "description": "The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.",
+          "items": {
+            "$ref": "#/$defs/CheckItem"
+          },
+          "title": "Questions",
+          "type": "array"
+        },
+        "photo": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The photo job the drawing came from (part c1).",
+          "title": "Photo"
         }
       },
       "title": "DrawingState",
@@ -1058,6 +1081,78 @@
       "title": "LockedMeasure",
       "type": "object"
     },
+    "ModulePhoto": {
+      "additionalProperties": true,
+      "description": "The Foto tab (part c1): the measuring image the version came from, and what is kept.",
+      "properties": {
+        "job": {
+          "format": "uuid",
+          "title": "Job",
+          "type": "string"
+        },
+        "measure_url": {
+          "description": "The measuring image, 2 px per mm, a signed address.",
+          "title": "Measure Url",
+          "type": "string"
+        },
+        "display_url": {
+          "description": "The measuring image, 1 px per mm.",
+          "title": "Display Url",
+          "type": "string"
+        },
+        "grid": {
+          "$ref": "#/$defs/PhotoGrid"
+        },
+        "chain": {
+          "description": "The chain's version that read it.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Chain",
+          "type": "string"
+        },
+        "newer_chain": {
+          "description": "A newer version of the chain can read it again.",
+          "title": "Newer Chain",
+          "type": "boolean"
+        },
+        "original_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "When the original goes, unless it is kept (CAD4).",
+          "title": "Original Until"
+        },
+        "original_kept": {
+          "description": "The original is kept: Spara original.",
+          "title": "Original Kept",
+          "type": "boolean"
+        },
+        "taken_at": {
+          "format": "date-time",
+          "title": "Taken At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job",
+        "measure_url",
+        "display_url",
+        "grid",
+        "chain",
+        "newer_chain",
+        "original_kept",
+        "taken_at"
+      ],
+      "title": "ModulePhoto",
+      "type": "object"
+    },
     "ModuleStatus": {
       "enum": [
         "draft",
@@ -1090,7 +1185,8 @@
         "mmm",
         "usms",
         "club",
-        "fremo_spur_0"
+        "fremo_spur_0",
+        "fremo_n"
       ],
       "title": "Norm",
       "type": "string"
@@ -1129,6 +1225,44 @@
       ],
       "title": "OwnerKind",
       "type": "string"
+    },
+    "PhotoGrid": {
+      "additionalProperties": true,
+      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "type": "number"
+        },
+        "y0": {
+          "title": "Y0",
+          "type": "number"
+        },
+        "ppm": {
+          "exclusiveMinimum": 0,
+          "title": "Ppm",
+          "type": "number"
+        },
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "ppm",
+        "width",
+        "height"
+      ],
+      "title": "PhotoGrid",
+      "type": "object"
     },
     "Scale": {
       "description": "The module's scale (CAD10, CAD12).",
@@ -1535,6 +1669,38 @@
       },
       "title": "Checks",
       "type": "array"
+    },
+    "photo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ModulePhoto"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The Foto tab (part c1)."
+    },
+    "keep_original": {
+      "default": false,
+      "description": "Spara original: the photo's original is kept (CAD4).",
+      "title": "Keep Original",
+      "type": "boolean"
+    },
+    "training_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "When the owner said yes to training TrainMeet's track model on it (CAD7, CAD-32); null: no.",
+      "title": "Training At"
     }
   },
   "required": [

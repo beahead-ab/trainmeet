@@ -158,6 +158,9 @@ services:
     image: trainmeet-cad:${CAD_TAG:-latest}
     restart: unless-stopped
     profiles: ["cad"]
+    # Runs as the deploy user, so it can read the photos' key in cad-vault, which only it may
+    # read, and write the photos on disk when there is no bucket (#89 del c1), as Catalog.
+    user: "${HOST_UID:?HOST_UID saknas}:0"
     depends_on:
       cad-db:
         condition: service_healthy
@@ -175,7 +178,18 @@ services:
       CAD_PUBLIC_URL: https://${CAD_DOMAIN:-test.cad.trainmeet.app}
       # ID's API, which CAD asks about the clubs and the roles at every call (#67, KONTO-34).
       CAD_ID_API: http://id-api:8080
+      # The module photos (#89 del c1, CAD-19): CAD's own bucket in Object Storage, never
+      # Catalog's, with a key that only reaches Object Storage, in cad-vault. Without the bucket
+      # the photos lie on the server's disk, with links CAD signs itself.
+      CAD_PHOTOS_S3_ENDPOINT: ${CAD_PHOTOS_S3_BUCKET:+https://s3.nl-ams.scw.cloud}
+      CAD_PHOTOS_S3_BUCKET: ${CAD_PHOTOS_S3_BUCKET:-}
+      CAD_PHOTOS_S3_REGION: nl-ams
+      CAD_PHOTOS_S3_KEY_FILE: ${CAD_PHOTOS_S3_BUCKET:+/vault/trainmeet_photos-key}
+      CAD_PHOTOS_DIR: /photos
       FORWARDED_ALLOW_IPS: "*"
+    volumes:
+      - ./cad-vault:/vault:ro
+      - ./cad-photos:/photos
     ports:
       - "127.0.0.1:8086:8080"
 
