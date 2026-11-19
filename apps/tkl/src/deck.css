@@ -1,0 +1,282 @@
+/* Stream Deck on the screen (#86 del a): the prototype's look (src/streamdeck.js), a key of
+   64 px with rounded corners on the deck's dark plate, and the text as its canvas draws it. */
+.sd-panel {
+  background: #0b0d0f;
+  color: #e5e7eb;
+  border: 1px solid #2d3238;
+  border-radius: 14px;
+  padding: 12px;
+  font: 13px system-ui, sans-serif;
+  display: inline-block;
+  max-width: calc(100vw - 36px);
+  margin: 10px 0;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.sd-rad {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.sd-rad b {
+  font-size: 14px;
+}
+.sd-rad .liten {
+  color: #9ca3af;
+}
+.sd-panel select {
+  font: inherit;
+  background: #1f2937;
+  color: #f3f4f6;
+  border: 1px solid #374151;
+  border-radius: 7px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.sd-deck {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #1a1d20;
+  border-radius: 12px;
+}
+.sd-grid {
+  display: grid;
+  gap: 7px;
+  touch-action: manipulation;
+}
+.sd-key {
+  all: unset;
+  display: block;
+  cursor: pointer;
+  border-radius: 9px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.sd-key:active .sd-face {
+  transform: scale(0.95);
+}
+.sd-key:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+.sd-face {
+  position: relative;
+  display: block;
+  border-radius: 9px;
+  overflow: hidden;
+  font-family: ui-monospace, Menlo, monospace;
+}
+.sd-text {
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 50%;
+  transform: translateY(-50%);
+  text-align: center;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 1.25;
+}
+.sd-text.med-under {
+  top: 42%;
+}
+.sd-top {
+  position: absolute;
+  top: 13%;
+  left: 4%;
+  right: 4%;
+  text-align: center;
+  font: 600 9px system-ui, sans-serif;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sd-under {
+  position: absolute;
+  bottom: 13%;
+  left: 4%;
+  right: 4%;
+  text-align: center;
+  font: 600 9.5px system-ui, sans-serif;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sd-under.med-top {
+  bottom: 9%;
+}
+.sd-small {
+  position: absolute;
+  top: 4%;
+  right: 6%;
+  font: 600 7px system-ui, sans-serif;
+  opacity: 0.8;
+}
+.sd-band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: max(4px, 7%);
+}
+.sd-line {
+  position: absolute;
+  left: 20%;
+  width: 60%;
+  top: 90%;
+  height: 3px;
+}
+.sd-dot {
+  position: absolute;
+  left: 86%;
+  top: 17%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+}
+.sd-star {
+  position: absolute;
+  right: 6%;
+  top: 3%;
+  color: #facc15;
+  font-size: 12px;
+  line-height: 1;
+}
+.sd-bar {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 7%;
+  height: 4px;
+  border-radius: 2px;
+}
+.sd-bar.streckad {
+  background: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 9px);
+}
+.sd-chip {
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  transform: translate(-50%, -50%);
+  background: #f3f4f6;
+  color: #111827;
+  font: 700 9px ui-monospace, Menlo, monospace;
+  padding: 1px 4px;
+  border-radius: 6px;
+}
+.sd-chip.rod {
+  color: #b91c1c;
+}
+.sd-chip.gron {
+  color: #15803d;
+}
+.sd-plan {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.sd-plan-names {
+  position: absolute;
+  left: 6%;
+  bottom: 5%;
+  font: 600 8px ui-monospace, Menlo, monospace;
+  color: #f3f4f6;
+  white-space: nowrap;
+}
+.sd-plan-chip {
+  top: 50%;
+}
+.sd-info-rad {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.sd-info {
+  flex: 1;
+  background: #000;
+  color: #93c5fd;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: 600 12px system-ui, sans-serif;
+  min-height: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sd-punkt {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #2b2f33;
+  color: #cbd5e1;
+  border: 0;
+  cursor: pointer;
+}
+.sd-remsa {
+  display: grid;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #2d3238;
+}
+.sd-del {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+  border-left: 1px solid #2d3238;
+  color: #f3f4f6;
+  font: 12px system-ui, sans-serif;
+  min-width: 0;
+}
+.sd-del b {
+  white-space: nowrap;
+  overflow: hidden;
+}
+.sd-del:first-child {
+  border-left: 0;
+}
+.sd-etikett {
+  color: #9ca3af;
+  font-size: 10px;
+}
+.sd-rattar {
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+.sd-ratt-plats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sd-ratt {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, #3a3f45, #1f2328);
+  border: 2px solid #3a3f45;
+  cursor: pointer;
+}
+.sd-ratt:focus-visible {
+  outline: 2px solid #60a5fa;
+}
+.sd-status {
+  margin: 8px 0 0;
+  color: #9ca3af;
+  font-size: 12px;
+  max-width: 560px;
+  min-height: 1em;
+}
+.sd-status.nej {
+  color: #fca5a5;
+}
+.sd-tom {
+  color: #9ca3af;
+}

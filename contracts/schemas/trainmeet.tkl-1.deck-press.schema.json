@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-press.schema.json",
+  "title": "trainmeet.tkl-1.deck-press",
+  "additionalProperties": true,
+  "description": "A press, or a hold of the deck's hold time (SD29).",
+  "properties": {
+    "key": {
+      "maximum": 255,
+      "minimum": 0,
+      "title": "Key",
+      "type": "integer"
+    },
+    "hold": {
+      "default": false,
+      "title": "Hold",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "type": "object"
+}

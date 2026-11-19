@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-favourites.schema.json",
+  "title": "trainmeet.tkl-1.deck-favourites",
+  "$defs": {
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    },
+    "TklDeckCount": {
+      "additionalProperties": true,
+      "properties": {
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        },
+        "count": {
+          "minimum": 0,
+          "title": "Count",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "kind",
+        "count"
+      ],
+      "title": "TklDeckCount",
+      "type": "object"
+    },
+    "TklDeckRoute": {
+      "additionalProperties": true,
+      "properties": {
+        "start": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "End",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/RouteKind"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "kind"
+      ],
+      "title": "TklDeckRoute",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Favoriter (SD24, SD48): the pinned routes first, then the most used. Only routes are\ncounted, never people.",
+  "properties": {
+    "pinned": {
+      "items": {
+        "$ref": "#/$defs/TklDeckRoute"
+      },
+      "title": "Pinned",
+      "type": "array"
+    },
+    "counted": {
+      "items": {
+        "$ref": "#/$defs/TklDeckCount"
+      },
+      "title": "Counted",
+      "type": "array"
+    },
+    "shown": {
+      "description": "Sidan Favoriter.",
+      "items": {
+        "$ref": "#/$defs/TklDeckRoute"
+      },
+      "title": "Shown",
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

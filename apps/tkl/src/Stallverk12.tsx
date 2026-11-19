@@ -22,6 +22,8 @@ import { trains as trainsOf } from "./niva0";
 import { Panelen } from "./Panelen";
 import { changeScreen, codeIn, ownerChoices, PROPORTION, readScreen, screenNumber, SKIN_NAMES, SKIN_ORDER, skinOf, type Screen, type ScreenView, type Skin, type SkinId, type StandardId } from "./skal";
 import { Klarering, Questions, Stallverket, type Send } from "./Stallverket";
+import { DeckPanel } from "./Deck";
+import { readDeck, saveDeck } from "./deck";
 import {
   act,
   busyLines,
@@ -139,6 +141,8 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
   const [valet, setValet] = useState<Valet>(initial?.valet ?? NOTHING);
   const [refusals, setRefusals] = useState<Said[]>(initial?.refusals ?? []);
   const [working, setWorking] = useState(false);
+  const [deckOpen, setDeckOpen] = useState(() => readDeck(screen, storage()).open);
+  const [pinned, setPinned] = useState<string | null>(null);
   const say: Say = (key, vars) => text(language, key, vars);
   const state: Filled = filled(raw);
   const snapshot = view?.snapshot ?? null;
@@ -198,7 +202,21 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
           setLanguage(next);
           saveLanguage(next, storage());
         }} />
+        <button
+          type="button"
+          className="sd-oppna"
+          aria-pressed={deckOpen}
+          title={say("deckTitle")}
+          onClick={() => {
+            const open = !deckOpen;
+            setDeckOpen(open);
+            saveDeck(screen, { ...readDeck(screen, storage()), open }, storage());
+          }}
+        >
+          {say("deck")}
+        </button>
       </div>
+      {deckOpen ? <DeckPanel screen={screen} plan={{ panel, drawn }} /> : null}
       {state.problem ? (
         <p className="notis" role="alert">
           {state.problem} <ResetButton say={say} onReset={() => void run(() => trainCall(valet, () => api.resetInterlocking(true, false)))} />
@@ -268,7 +286,19 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, onState, 
             onAct={(what: Act) => void run(() => act(valet, what, state.routes, api))}
             onEmergency={(confirmed) => void run(() => emergency(valet, confirmed, api))}
             onCancel={() => setValet({ ...valet, confirm: null })}
+            onPin={(route) => {
+              // Fäst på Stream Deck (SD48): the route on the page Favoriter; nothing else changes.
+              void api
+                .deckPin(route.start, route.end, route.kind, true)
+                .then(() => setPinned(say("deckPinned", { route: routeName(route) })))
+                .catch((error: unknown) => setPinned(error instanceof Error ? error.message : null));
+            }}
           />
+          {pinned ? (
+            <p className="liten" role="status">
+              {pinned}
+            </p>
+          ) : null}
           {owner && !owner.shown.functions ? null : <FunctionRow functions={state.functions} skin={skin} working={working} say={say} onOperate={operate} />}
         </section>
       ) : null}
@@ -514,9 +544,10 @@ type RouteBarProps = {
   onAct: (what: Act) => void;
   onEmergency: (confirmed: boolean) => void;
   onCancel: () => void;
+  onPin?: (route: Filled["routes"][number]) => void;
 };
 
-function RouteBar({ routes, trains, chosen, confirm, working, say, onChoose, onAct, onEmergency, onCancel }: RouteBarProps) {
+function RouteBar({ routes, trains, chosen, confirm, working, say, onChoose, onAct, onEmergency, onCancel, onPin }: RouteBarProps) {
   const numberOf = (train: number | null | undefined) => trains.find((t) => t.id === train)?.number ?? null;
   return (
     <div className="stv-vagar">
@@ -547,6 +578,11 @@ function RouteBar({ routes, trains, chosen, confirm, working, say, onChoose, onA
           <button type="button" disabled={working} onClick={() => onAct("release")}>
             {say("release")}
           </button>
+          {onPin ? (
+            <button type="button" disabled={working} onClick={() => onPin(chosen)}>
+              {say("deckPin")}
+            </button>
+          ) : null}
           {confirm === chosen.id ? (
             <>
               <button type="button" className="fara" disabled={working} onClick={() => onEmergency(true)}>

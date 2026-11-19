@@ -68,6 +68,15 @@ export type Manover = Schemas["trainmeet.tkl-1.manover"];
 export type ManoverSymbols = Schemas["trainmeet.tkl-1.manover.ManoverSymbols"];
 export type ManoverShown = Schemas["trainmeet.tkl-1.manover.TklManoverShown"];
 export type ManoverLabels = Schemas["trainmeet.tkl-1.manover.TklManoverLabels"];
+// Stream Deck (#86 del a): the models, a deck's profile, and every key's face for the deck now.
+export type DeckModel = Schemas["trainmeet.tkl-1.deck-model"];
+export type DeckModelId = DeckModel["id"];
+export type DeckProfile = Schemas["trainmeet.tkl-1.deck-profile"];
+export type DeckView = Schemas["trainmeet.tkl-1.deck-view"];
+export type DeckFace = Schemas["trainmeet.tkl-1.deck-view.TklDeckFace"];
+export type DeckTile = Schemas["trainmeet.tkl-1.deck-view.TklDeckTile"];
+export type DeckStrip = Schemas["trainmeet.tkl-1.deck-view.TklDeckStrip"];
+export type DeckFavourites = Schemas["trainmeet.tkl-1.deck-favourites"];
 type RawView = Schemas["trainmeet.tkl-1.view"];
 type RawSnapshot = Schemas["trainmeet.tkl-1.view.Snapshot"];
 type RawCall = Schemas["trainmeet.tkl-1.view.CallHere"];
@@ -202,4 +211,17 @@ export const api = {
   resetInterlocking: (confirm: boolean, trains = false) =>
     call<InterlockingAnswer>(`${TKL}/stallverk/reset`, "POST", { confirm, trains }),
   panelFunction: (ask: FunctionAsk) => call<InterlockingAnswer>(`${TKL}/stallverk/function`, "POST", ask),
+  // Stream Deck (#86 del a): the same API for the deck on the screen and, later, a real deck.
+  deckModels: () => call<DeckModel[]>(`${TKL}/deck/models`),
+  deckOpen: (serial: string, model: DeckModelId) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`, "POST", { model }),
+  deck: (serial: string) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}`),
+  deckPress: (serial: string, key: number, hold: boolean) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}/press`, "POST", { key, hold }),
+  deckDial: (serial: string, dial: number, turn: number, press: boolean) =>
+    call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}/dial`, "POST", { dial, turn, press }),
+  deckTouch: (serial: string, point: -1 | 1) => call<DeckView>(`${TKL}/deck/${encodeURIComponent(serial)}/touch`, "POST", { point }),
+  deckWait: (serial: string, after: number, seconds = 25) =>
+    call<InterlockingWait>(`${TKL}/deck/${encodeURIComponent(serial)}/wait?after=${after}&seconds=${seconds}`),
+  deckFavourites: () => call<DeckFavourites>(`${TKL}/deck-favoriter`),
+  deckPin: (start: string, end: string, kind: RouteKind, pinned: boolean) =>
+    call<DeckFavourites>(`${TKL}/deck-favoriter`, "POST", { start, end, kind, pinned }),
 };

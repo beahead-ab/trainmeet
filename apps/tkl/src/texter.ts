@@ -62,6 +62,11 @@ const T = {
   arrive: { sv: "Ankommit", en: "Arrived" },
   depart: { sv: "Avgått", en: "Departed" },
   release: { sv: "Lös ut", en: "Release" },
+  // Stream Deck (#86 del a): the deck on the screen, and Fäst på Stream Deck (SD48, SD59)
+  deck: { sv: "Stream Deck", en: "Stream Deck" },
+  deckTitle: { sv: "Decket på skärmen: prova utan något deck alls", en: "The deck on the screen: try it without a deck" },
+  deckPin: { sv: "Fäst på Stream Deck", en: "Pin on Stream Deck" },
+  deckPinned: { sv: "{route} ligger på sidan Favoriter på Stream Deck.", en: "{route} is on the page Favoriter on Stream Deck." },
   emergency: { sv: "Nödutlös", en: "Emergency release" },
   confirmEmergency: { sv: "Bekräfta nödutlösningen av {route}", en: "Confirm the emergency release of {route}" },
   cancel: { sv: "Avbryt", en: "Cancel" },

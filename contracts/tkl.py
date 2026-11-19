@@ -42,6 +42,14 @@ LocoNet, at level 1–2 with Kör. When every route has passed the station is Kl
 changes. With LocoNet connected to the layout, Provkör sets each route on the real layout and
 asks the owner. Prova connects only to a preview run in the hub, never to a real meet
 (STUDIO-12).
+
+Stream Deck (#86 del a), under /api/tkl/1/deck: the interlocking in the hand. Every Elgato model
+is a grid of keys, with dials, a touch strip, an info line or pedals where it has them (SD52,
+SD53). A profile is data, never code (SD5): the modes Tågen, Platser and Spårplan, each with its
+pages of keys from a fixed catalogue (SD4, SD63), computed from the station model for the grid
+(SD32, SD39). The deck's logic presses, holds, turns and touches; it calls the interlocking's
+functions and shows its yes or no (SD1). What every key shows is a face with the locked colours
+(SD3), the same for the deck on the screen and, in del b, for a real deck over USB.
 """
 
 from __future__ import annotations
@@ -1357,3 +1365,421 @@ class TklProvkorAnswer(Contract):
     skipped."""
 
     answer: Literal["right", "wrong", "skip"]
+
+
+# --- Stream Deck (#86 del a): the deck's model, its logic and the deck on the screen --------
+
+Colour = Annotated[str, StringConstraints(pattern=r"^#[0-9a-f]{6}$")]
+"""A colour on a key, from the locked palette (SD3)."""
+KeyText = Annotated[str, StringConstraints(max_length=60)]
+"""Text on a key: empty when the key has none."""
+
+
+class DeckModelId(StrEnum):
+    """Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+    profile of the size they have (SD54)."""
+
+    MINI = "mini"
+    NEO = "neo"
+    FIFTEEN = "15"  # Stream Deck 15: classic keys, Scissor Keys, MK.2 and the first one
+    XL = "xl"
+    PLUS = "plus"
+    PLUS_XL = "plus-xl"
+    PEDAL = "pedal"
+    MODULE_6 = "module-6"
+    MODULE_15 = "module-15"
+    MODULE_32 = "module-32"
+    STUDIO = "studio"
+
+
+class TklDeckGrid(Contract):
+    """What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+    the info line, the touch points and the pedals. A model TKL does not know is read this
+    way too, and gets the default for its grid."""
+
+    columns: int = Field(ge=0, le=32)
+    rows: int = Field(ge=0, le=8)
+    dials: int = Field(default=0, ge=0, le=8)
+    strip: bool = Field(default=False, description="Pekremsan, på + och + XL.")
+    info: bool = Field(default=False, description="Inforaden, på Neo.")
+    touch: int = Field(default=0, ge=0, le=4, description="Pekpunkterna, på Neo.")
+    pedals: int = Field(default=0, ge=0, le=8)
+
+
+class TklDeckModel(Contract):
+    id: DeckModelId
+    name: Text
+    grid: TklDeckGrid
+    size: DeckModelId = Field(description="Storleken vars profil modellen får (SD54).")
+
+
+class DeckStyle(StrEnum):
+    """Where Läge and the fixed keys sit (SD27, SD75, SD77, SD78)."""
+
+    NONE = "none"  # Pedal: nothing until the owner chooses (SD55)
+    NEXT = "next"  # Mini, Module 6: ▶ last, and holding it opens Läge
+    LAST = "last"  # Neo, +: Läge as the last key
+    ROW = "row"  # 15, Studio: the fixed row at the bottom, Läge far right
+    COLUMN = "column"  # XL, + XL: the fixed keys in the right column, Läge at the bottom
+
+
+class DeckMode(StrEnum):
+    """Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
+    shunter's deck (#87)."""
+
+    TRAINS = "tagen"
+    PLACES = "platser"
+    TRACK_PLAN = "sparplan"
+
+
+class DeckPageKind(StrEnum):
+    NOW = "nu"  # tågknappar, linjeknappar och larm (SD22)
+    DAILY = "dagens"  # Dagens vägar (SD23)
+    FAVOURITES = "favoriter"  # SD24, SD48
+    PLACES = "platser"  # SD66, SD80, SD84, SD85
+    PARTS = "delar"  # the first step on a small deck (SD79)
+    PART = "del"  # the places of one part
+    SIGNALS = "signaler"  # the geographic pages (SD25)
+    ALL = "alla"  # every start (SD25)
+    WHOLE = "hela"  # Spårplan, Hela stationen (SD70)
+    CUTOUT = "utsnitt"  # Spårplan, the cut-out (SD71)
+
+
+class DeckKeyType(StrEnum):
+    """The fixed catalogue of keys (SD4): a new type is added for all, never for a station."""
+
+    TRAIN = "train"  # Tågknapp: the slot-th train on turn
+    LINE = "line"  # Linjeknapp: the slot-th line
+    ALARM = "alarm"  # Larmknapp
+    TRACK = "track"  # Spårknapp: a station track, at a station with one line
+    PLACE = "place"  # Platser: an exit or a track part
+    PART = "part"  # a part of the station, opening its page
+    SIGNAL = "signal"  # a start, then a goal
+    DAILY = "daily"  # the slot-th of Dagens vägar
+    FAVOURITE = "favourite"  # the slot-th of Favoriter
+    TILE = "tile"  # Spårplan, a piece of the whole station
+    CELL = "cell"  # Spårplan, a square of the cut-out
+    PAN = "pan"  # Spårplan: Hela, väster, öster, upp, ner
+    MODE = "mode"  # Läge
+    NEXT = "next"  # ▶ on Mini
+    PAGE = "page"  # ▶ in the fixed row: the next page of the mode
+    ACTION = "action"  # Lös ut, Ankommit, Kör, Avbryt, Tillbaka
+    PANEL = "panel"  # a panel function of the station, by its name
+
+
+class DeckAction(StrEnum):
+    RELEASE = "los"  # Lös ut; hold: all (SD29)
+    ARRIVED = "ankommit"  # Ankommit, in drift (SD10, SD27)
+    RUN = "kor"  # Kör, only in Prova and the reference stations (SD28)
+    CANCEL = "avbryt"
+    BACK = "tillbaka"
+
+
+class DeckPan(StrEnum):
+    WHOLE = "hela"
+    WEST = "vaster"
+    EAST = "oster"
+    UP = "upp"
+    DOWN = "ner"
+
+
+class DeckDial(StrEnum):
+    """What a dial does in a mode (SD83): turn chooses, press does it."""
+
+    TRAIN = "tag"
+    TRACK = "spar"
+    PAGE = "sida"
+    ROUTE = "lagd-vag"
+    START = "start"
+    GOAL = "mal"
+    PART = "del"
+    SIDEWAYS = "sidled"
+    UPDOWN = "hojdled"
+    SIGNAL = "signal"
+
+
+class DeckHold(StrEnum):
+    """How long a hold is, per deck (SD29): Kort, Normal (0.6 s) or Lång."""
+
+    SHORT = "kort"
+    NORMAL = "normal"
+    LONG = "lang"
+
+
+class DeckPlacesShown(StrEnum):
+    """Platser's variants (SD68)."""
+
+    ALL = "alla"
+    CHOOSABLE = "valbara"
+
+
+class DeckPlanDrawn(StrEnum):
+    """How Spårplan is drawn (SD72)."""
+
+    STANDARD_85 = "85"
+    RELAY = "rela"
+
+
+class TklDeckKey(Contract):
+    """A key in a profile: its type from the catalogue and what it points at, as data (SD5)."""
+
+    type: DeckKeyType
+    slot: int | None = Field(default=None, ge=1, description="Tåget, linjen eller vägen i tur.")
+    point: Name | None = Field(default=None, description="Signalen eller punkten (SIGNAL).")
+    place: Name | None = Field(default=None, description="Platsen (PLACE, TRACK).")
+    part: int | None = Field(default=None, ge=0, description="Delen (PART).")
+    page: int | None = Field(default=None, ge=0, description="Sidan knappen öppnar.")
+    dx: int | None = Field(default=None, ge=0, description="Utsnittets kolumn (CELL).")
+    dy: int | None = Field(default=None, ge=0, description="Utsnittets rad (CELL).")
+    rect: tuple[float, float, float, float] | None = Field(
+        default=None, description="Biten av spårplanen i rutor: x, y, bredd, höjd (TILE)."
+    )
+    pan: DeckPan | None = None
+    action: DeckAction | None = None
+    function: Text | None = Field(default=None, description="Panelfunktionens namn (PANEL).")
+    text: KeyText = Field(default="", description="Knappens text, när den är given.")
+
+
+class TklDeckPage(Contract):
+    """A page: every key of the grid, row by row, the fixed ones included."""
+
+    name: Text
+    mode: DeckMode
+    kind: DeckPageKind
+    keys: list[TklDeckKey | None]
+    listed: bool = Field(
+        default=True, description="Står bland Sidor (SD26). En dels sida gör inte det."
+    )
+    cancel: int | None = Field(
+        default=None, ge=0, description="Där Avbryt står medan en start är vald."
+    )
+    part: int | None = Field(default=None, ge=0, description="Delen sidan visar (SD79).")
+
+
+class TklDeckPlace(Contract):
+    """A place where a train route starts or ends (SD66): an exit or a station track."""
+
+    id: Name
+    kind: Literal["exit", "track"]
+    name: Name = Field(description="Exit's or track's own name (SD73).")
+    part: int = Field(ge=0)
+    starts: list[Name] = Field(default_factory=list, description="Tågvägarnas starter här.")
+    ends: list[Name] = Field(default_factory=list, description="Tågvägarnas mål här.")
+    signals: list[Name] = Field(default_factory=list, description="Signalen i var ände (SD69).")
+    x: float
+    y: float
+
+
+class TklDeckPart(Contract):
+    """A part of the station, west to east (SD79): the west exits, a group of track parts, or
+    the east exits."""
+
+    name: Text
+    places: list[Name]
+    said: KeyText = Field(default="", description="Platserna i korthet, till exempel A1–A4.")
+
+
+class TklDeckPoint(Contract):
+    """A route's start or goal where the panel has it, for the geographic pages and Spårplan."""
+
+    name: Name
+    x: float
+    y: float
+    start: bool
+
+
+class TklDeckProfile(Contract):
+    """The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and
+    never stored as code. The owner's changes in Studio come in del c."""
+
+    model: DeckModelId | None = None
+    grid: TklDeckGrid
+    style: DeckStyle
+    fixed: list[int] = Field(default_factory=list, description="Den fasta radens knappar (SD27).")
+    modes: list[DeckMode] = Field(default_factory=list, description="Lägena decket har (SD76).")
+    pages: list[TklDeckPage] = Field(default_factory=list)
+    dials: dict[DeckMode, list[DeckDial]] = Field(default_factory=dict)
+    places: list[TklDeckPlace] = Field(default_factory=list)
+    parts: list[TklDeckPart] = Field(default_factory=list)
+    points: list[TklDeckPoint] = Field(default_factory=list)
+    one_line: bool = Field(default=False, description="Stationen har en linje: spårknappar (SD12).")
+    tile: float = Field(default=1, gt=0, description="En ruta i utsnittet, i spårplanens rutor.")
+    tile_origin: tuple[float, float] = Field(
+        default=(0, 0), description="Där utsnittets rutor börjar, i spårplanens rutor."
+    )
+    plan: tuple[float, float] = Field(default=(0, 0), description="Spårplanens storlek i rutor.")
+
+
+class TklDeckSettings(Contract):
+    """One deck, known by its serial number (SD35), as this computer keeps it (SD49)."""
+
+    serial: Name
+    model: DeckModelId | None = None
+    grid: TklDeckGrid
+    workplace: Name = Field(
+        default="1", description="Deck på samma arbetsplats delar vald start (SD36)."
+    )
+    opens_in: DeckMode | None = Field(default=None, description="Läget decket öppnar i (SD65).")
+    may_change_mode: bool = True
+    hold: DeckHold = DeckHold.NORMAL
+    places_shown: DeckPlacesShown = DeckPlacesShown.ALL
+    plan_drawn: DeckPlanDrawn = DeckPlanDrawn.STANDARD_85
+    signal_numbers: bool = Field(default=False, description="Signalnumren i Platser (SD69).")
+
+
+class TklDeckTile(Contract):
+    """A key that draws a piece of the track plan (SD70, SD71): the rectangle in the panel's
+    cells, how it is drawn, and what is lit in it."""
+
+    x: float
+    y: float
+    w: float
+    h: float
+    drawn: DeckPlanDrawn = DeckPlanDrawn.STANDARD_85
+    start: Name | None = None
+    goals: list[Name] = Field(default_factory=list)
+    names: list[Text] = Field(default_factory=list, description="Spåren i biten (SD70).")
+    chosen: bool = False
+
+
+class TklDeckFace(Contract):
+    """What a key shows: the prototype's look, with the locked colours (SD3, SD6)."""
+
+    type: Literal[
+        "train",
+        "line",
+        "alarm",
+        "track",
+        "place",
+        "part",
+        "signal",
+        "daily",
+        "favourite",
+        "tile",
+        "cell",
+        "pan",
+        "mode",
+        "next",
+        "page",
+        "action",
+        "panel",
+        "case",
+        "answer",
+        "variant",
+        "goal",
+        "contact",
+        "clock",
+        "empty",
+    ] = "empty"
+    text: KeyText = ""
+    top: KeyText = ""
+    under: KeyText = ""
+    small: KeyText = Field(default="", description="Liten text, som signalnumren (SD69).")
+    bg: Colour = "#0d0f11"
+    fg: Colour = "#0d0f11"
+    frame: Colour | None = None
+    dashed: bool = False
+    band: Colour | None = Field(default=None, description="Bandet överst: vägens färg.")
+    line: Colour | None = Field(default=None, description="Strecket nederst: vald sida.")
+    bar: Colour | None = Field(default=None, description="Platsens stapel: fri, belagd, lagd.")
+    bar_dashed: bool = False
+    dot: Colour | None = Field(default=None, description="Märket för en hindrad väg (SD17).")
+    star: bool = Field(default=False, description="Planerat spår bland målen (SD20).")
+    chip: KeyText = Field(default="", description="Tågnumret på platsen (SD19).")
+    chip_colour: Literal["green", "red", ""] = ""
+    blink: Colour | None = Field(default=None, description="Blinkar mellan bg och den här.")
+    dim: bool = False
+    tile: TklDeckTile | None = None
+    label: KeyText = Field(default="", description="För skärmläsare: vad knappen är.")
+
+
+class TklDeckStrip(Contract):
+    """What a dial stands on, in the touch strip (SD83)."""
+
+    label: KeyText
+    value: KeyText = ""
+    under: KeyText = ""
+
+
+class TklDeckView(Contract):
+    """The deck as it is now: every key's face, and the info line and the strip."""
+
+    settings: TklDeckSettings
+    revision: int = Field(ge=0, description="Räknar upp när något på decket ändras.")
+    style: DeckStyle
+    modes: list[DeckMode] = Field(default_factory=list)
+    mode: DeckMode | None = None
+    page: KeyText = ""
+    keys: list[TklDeckFace] = Field(default_factory=list)
+    fixed: list[int] = Field(default_factory=list)
+    info: KeyText = Field(
+        default="", description="Inforaden (SD82): klockan och sidan, eller valet."
+    )
+    strip: list[TklDeckStrip] = Field(default_factory=list)
+    hold_ms: int = Field(default=600, ge=100, le=3000, description="Ett håll (SD29).")
+    refresh_ms: int = Field(default=15000, ge=200, description="Läs om senast efter så här länge.")
+    locked: bool = Field(default=False, description="TKL är låst: bara klockan (SD30).")
+    contact: bool = Field(default=True, description="Ställverket svarar; annars Ingen kontakt.")
+    message: Text | None = Field(default=None, description="Ställverkets senaste svar.")
+    accepted: bool | None = None
+
+
+class TklDeckPress(Contract):
+    """A press, or a hold of the deck's hold time (SD29)."""
+
+    key: int = Field(ge=0, le=255)
+    hold: bool = False
+
+
+class TklDeckDialAsk(Contract):
+    """A dial turned some steps, or pressed (SD83)."""
+
+    dial: int = Field(ge=0, le=7)
+    turn: int = Field(default=0, ge=-20, le=20)
+    press: bool = False
+
+
+class TklDeckTouch(Contract):
+    """Neo's touch points (SD82): -1 the left one, 1 the right one."""
+
+    point: Literal[-1, 1]
+
+
+class TklDeckOpen(Contract):
+    """A deck on this computer, by its serial number: its model, or its grid for a model TKL
+    does not know (SD53)."""
+
+    model: DeckModelId | None = None
+    grid: TklDeckGrid | None = None
+    workplace: Name | None = None
+
+    @model_validator(mode="after")
+    def _one(self) -> TklDeckOpen:
+        if self.model is None and self.grid is None:
+            raise ValueError("Ange modellen eller rutnätet.")
+        return self
+
+
+class TklDeckRoute(Contract):
+    start: Name
+    end: Name
+    kind: RouteKind
+
+
+class TklDeckCount(TklDeckRoute):
+    count: int = Field(ge=0)
+
+
+class TklDeckPin(TklDeckRoute):
+    """Fäst på Stream Deck (SD48): a set route onto the page Favoriter, or off it."""
+
+    pinned: bool = True
+
+
+class TklDeckFavourites(Contract):
+    """Favoriter (SD24, SD48): the pinned routes first, then the most used. Only routes are
+    counted, never people."""
+
+    pinned: list[TklDeckRoute] = Field(default_factory=list)
+    counted: list[TklDeckCount] = Field(default_factory=list)
+    shown: list[TklDeckRoute] = Field(default_factory=list, description="Sidan Favoriter.")
