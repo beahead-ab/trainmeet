@@ -28,6 +28,11 @@ the locks, the switch positions and the train numbers, so that a restart keeps t
 to one model: while routes are set or train numbers stand on the panel, the model cannot be
 replaced or taken away, and a state that does not belong to the model fails closed.
 
+Stream Deck (#86, SD49): which deck shows what is kept on this computer, one row per deck by its
+serial number (SD35); how often each route is set, the routes pinned on Favoriter and Dagens
+vägar are TKL's runtime data, kept here too and never in the station package. Only routes are
+counted, never people (SD24).
+
 The PIN is never stored, only an scrypt hash with its own salt, and wrong attempts are counted
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
 or a log (H31).
@@ -59,6 +64,7 @@ from contracts.station_model import StationModel, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.tkl import (
     OutsideVersion,
+    TklDeckSettings,
     TklDrawing,
     TklInterlocking,
     TklManover,
@@ -75,6 +81,8 @@ FAILURE_WINDOW: Final = timedelta(minutes=10)
 MAX_FAILURES: Final = 10
 MAX_SLOTS: Final = 500
 MAX_VERSIONS: Final = 200
+MAX_DECKS: Final = 16
+"""The decks a station keeps (cda-tkl's MAX_DECKS): the one seen longest ago goes first."""
 PIN_PATTERN: Final = re.compile(r"[0-9]{4,12}")
 T = TypeVar("T")
 
@@ -140,6 +148,14 @@ CREATE TABLE IF NOT EXISTS loconet (
 CREATE TABLE IF NOT EXISTS prova (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
     model TEXT NOT NULL, tried INTEGER NOT NULL, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS deck (
+    slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
+    serial TEXT NOT NULL, body TEXT NOT NULL, seen REAL NOT NULL,
+    PRIMARY KEY (slot, serial)
+);
+CREATE TABLE IF NOT EXISTS deck_drift (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS seen (
     slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
@@ -871,3 +887,61 @@ class TklStore:
         if row is None:
             return None
         return station.Snapshot.model_validate_json(row[0]), datetime.fromtimestamp(row[1], UTC)
+
+    # --- Stream Deck (#86): the decks on this computer and TKL's runtime data (SD49) -------
+
+    def decks(self, slot: str) -> list[TklDeckSettings]:
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT body FROM deck WHERE slot=? ORDER BY serial", (slot,)
+            ).fetchall()
+        return [TklDeckSettings.model_validate_json(r[0]) for r in rows]
+
+    def deck(self, slot: str, serial: str) -> TklDeckSettings | None:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT body FROM deck WHERE slot=? AND serial=?", (slot, serial)
+            ).fetchone()
+        return None if row is None else TklDeckSettings.model_validate_json(row[0])
+
+    def save_deck(self, slot: str, settings: TklDeckSettings) -> None:
+        """A deck, known by its serial number (SD35). A new one beyond MAX_DECKS takes the
+        place of the one seen longest ago."""
+        with self._transaction() as db:
+            known = db.execute(
+                "SELECT 1 FROM deck WHERE slot=? AND serial=?", (slot, settings.serial)
+            ).fetchone()
+            if known is None:
+                count = db.execute("SELECT COUNT(*) FROM deck WHERE slot=?", (slot,)).fetchone()
+                if int(count[0]) >= MAX_DECKS:
+                    db.execute(
+                        "DELETE FROM deck WHERE slot=? AND serial=(SELECT serial FROM deck "
+                        "WHERE slot=? ORDER BY seen LIMIT 1)",
+                        (slot, slot),
+                    )
+            db.execute(
+                "INSERT OR REPLACE INTO deck VALUES (?, ?, ?, ?)",
+                (slot, settings.serial, settings.model_dump_json(), now_utc().timestamp()),
+            )
+
+    def deck_drift(self, slot: str) -> dict[str, object]:
+        """TKL's runtime data for the decks: counted routes, pinned ones and Dagens vägar."""
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM deck_drift WHERE slot=?", (slot,)).fetchone()
+        if row is None:
+            return {}
+        found = json.loads(row[0])
+        return found if isinstance(found, dict) else {}
+
+    def change_deck_drift(
+        self, slot: str, change: Callable[[dict[str, object]], dict[str, object]]
+    ) -> dict[str, object]:
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM deck_drift WHERE slot=?", (slot,)).fetchone()
+            found = json.loads(row[0]) if row is not None else {}
+            made = change(found if isinstance(found, dict) else {})
+            db.execute(
+                "INSERT OR REPLACE INTO deck_drift VALUES (?, ?)",
+                (slot, json.dumps(made, ensure_ascii=False, sort_keys=True)),
+            )
+        return made

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-model.schema.json",
+  "title": "trainmeet.tkl-1.deck-model",
+  "$defs": {
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    },
+    "TklDeckGrid": {
+      "additionalProperties": true,
+      "description": "What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,\nthe info line, the touch points and the pedals. A model TKL does not know is read this\nway too, and gets the default for its grid.",
+      "properties": {
+        "columns": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "dials": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Dials",
+          "type": "integer"
+        },
+        "strip": {
+          "default": false,
+          "description": "Pekremsan, på + och + XL.",
+          "title": "Strip",
+          "type": "boolean"
+        },
+        "info": {
+          "default": false,
+          "description": "Inforaden, på Neo.",
+          "title": "Info",
+          "type": "boolean"
+        },
+        "touch": {
+          "default": 0,
+          "description": "Pekpunkterna, på Neo.",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Touch",
+          "type": "integer"
+        },
+        "pedals": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Pedals",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TklDeckGrid",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "$ref": "#/$defs/DeckModelId"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "grid": {
+      "$ref": "#/$defs/TklDeckGrid"
+    },
+    "size": {
+      "$ref": "#/$defs/DeckModelId",
+      "description": "Storleken vars profil modellen får (SD54)."
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "grid",
+    "size"
+  ],
+  "type": "object"
+}

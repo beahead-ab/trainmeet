@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-touch.schema.json",
+  "title": "trainmeet.tkl-1.deck-touch",
+  "additionalProperties": true,
+  "description": "Neo's touch points (SD82): -1 the left one, 1 the right one.",
+  "properties": {
+    "point": {
+      "enum": [
+        -1,
+        1
+      ],
+      "title": "Point",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "point"
+  ],
+  "type": "object"
+}

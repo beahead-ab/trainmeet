@@ -17,6 +17,9 @@
 // tåg 102 framme på Åsen. En andra skärm visar bara Tåg · Klarering · Händelser och följer med
 // (STV-05). Före anslutningen provas Gårdsjö i Studio › Prova (#85 del c): ett simulerat tåg
 // genom varje väg med Kör, Klart, och Ställverket utan noten om att stationen inte är provad.
+// Stream Deck på skärmen (#86 del a) som 15, med 102 på linjen vid Öst 2: tågknappen på sidan Nu
+// lägger infarten 52 → 62, Läge byter till Platser, och samma väg läggs där med Öst 2 och sedan
+// 2 på den andra sidan. Det är ärendets prov, utan ett riktigt deck.
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -152,6 +155,50 @@ async function numberAt(page, number, colour) {
   return found.first().evaluate((g) => g.style.transform);
 }
 
+/** Stream Deck på skärmen som 15 (#86 del a): tågknappen, Läge och Platser lägger samma väg. */
+async function streamDeck(page) {
+  const routes = async () => (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).routes;
+  const until = async (test, what) => {
+    for (let i = 0; i < 50; i++) {
+      if (test(await routes())) return;
+      await page.waitForTimeout(100);
+    }
+    throw new ProvFel(what);
+  };
+  await page.getByRole("button", { name: "Stream Deck", exact: true }).click();
+  const deck = page.locator(".sd-panel");
+  await deck.getByLabel("Modell").selectOption("15");
+  await deck.locator('.sd-deck[data-model="15"]').waitFor();
+  const key = (name) => deck.getByRole("button", { name, exact: true });
+  // Nu: tåg 102 står vid infartssignalen, och ett tryck lägger infarten till det planerade spåret.
+  const train = key("Tåg 102, lägg infart");
+  await train.waitFor({ timeout: 20_000 });
+  await screenshot(page, "deck-nu");
+  await train.click();
+  await until((r) => r.length === 1 && r[0].start === "52" && r[0].end === "62", "Tågknappen lade inte 52 → 62.");
+  await key("Tåg 102, infart lagd").waitFor();
+  await screenshot(page, "deck-infart-lagd");
+  await key("Lös ut").click();
+  await until((r) => r.length === 0, "Lös ut på decket löste inte ut vägen.");
+  // Läge: ett tryck visar lägena, och Platser väljs.
+  await key("Läge Tågen").click();
+  await key("Byt läge till Platser").click();
+  await key("Läge Platser").waitFor();
+  // Platser: Öst 2 på sidan Öster, sedan 2 på sidan Väster; ▶ byter sida också med starten vald (SD80).
+  await key("Nästa sida Öster").click();
+  await key("Plats Öst 2").click();
+  await key("Start Öst 2").waitFor();
+  await key("Nästa sida Väster").click();
+  await key("Mål 2").waitFor();
+  await screenshot(page, "deck-platser-malen");
+  await key("Mål 2").click();
+  await until((r) => r.length === 1 && r[0].start === "52" && r[0].end === "62", "Platser lade inte samma väg 52 → 62.");
+  await key("Lös ut").click();
+  await until((r) => r.length === 0, "Lös ut på decket löste inte ut vägen från Platser.");
+  await page.getByRole("button", { name: "Stream Deck", exact: true }).click();
+  await deck.waitFor({ state: "detached" });
+}
+
 const errors = [];
 const browser = await chromium.launch(CHROME ? { executablePath: CHROME } : {});
 try {
@@ -208,7 +255,11 @@ try {
   check(await panel(page).locator('g[data-number="102"] text', { hasText: "00102" }).count(), "85 visar inte tågnumret med fem siffror.");
   await screenshot(page, "102-pa-linjen");
 
+  // Stream Deck på skärmen (#86 del a): tågknappen, Läge och Platser lägger samma väg.
+  await streamDeck(page);
+
   // Tågvägen 52 → 62: startsignalen, målen lyser, målet (STV-01).
+  const laidBefore = await second.locator(".stv-handelser li", { hasText: "Tågväg 52 → 62 lagd" }).count();
   await signal(page, "52").click();
   await panel(page).locator('circle[data-start="52"][data-kind="train"]').waitFor();
   check(await panel(page).locator('circle[data-goal="62"]').count(), "Målet 62 lyser inte.");
@@ -216,8 +267,13 @@ try {
   await signal(page, "62").click();
   await page.getByRole("button", { name: /^Tågväg 52 → 62/ }).waitFor();
   check((await panel(page).locator('g[data-signal="52"]').getAttribute("data-aspect")) === "proceed", "52 visar inte kör.");
-  // Skärm 2 följer med genom väntan, utan att någon laddar om den.
-  await second.locator(".stv-handelser li", { hasText: "Tågväg 52 → 62 lagd" }).waitFor({ timeout: 30_000 });
+  // Skärm 2 följer med genom väntan, utan att någon laddar om den. Decket har redan lagt samma
+  // väg två gånger, så det är en rad till som ska komma.
+  await second.waitForFunction(
+    (before) => [...document.querySelectorAll(".stv-handelser li")].filter((li) => (li.textContent ?? "").includes("Tågväg 52 → 62 lagd")).length > before,
+    laidBefore,
+    { timeout: 30_000 },
+  );
   await screenshot(second, "skarm-2");
   check(await panel(page).locator('g[data-number="102"][data-colour="green"]').count(), "Inget grönt tågnummer i vägens sista sektion.");
 
@@ -313,6 +369,7 @@ try {
   await panel(page).waitFor();
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Prova i TKL: ${tried} vägar gick igenom, Klart.`);
+  console.log("Stream Deck på skärmen: tågknappen lade 52 → 62, Läge bytte till Platser, och Öst 2 → 2 lade samma väg.");
   console.log(`Ställverket i TKL: 102 rullade i Foto från ${onTheLineInFoto} till ${rolledTo} mm, stegade ${seen.length - 1} gånger och kom fram till spår ${call.track ?? "?"} på Åsen.`);
 } catch (error) {
   if (error instanceof ProvFel) {

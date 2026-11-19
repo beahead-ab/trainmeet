@@ -217,6 +217,25 @@ Studio › Koppla in och ställverket på nivå 3 (#85), i `tkl/loconet/`, och S
 | Provkör | `TklProvkor`, `TklProvkorAnswer`, `/api/tkl/1/studio/prova/provkor` | Prova på den riktiga banan med LocoNet anslutet (STUDIO-05, STUDIO-27): TKL lägger vägarna en i taget, beordrar växlarna och kontrollerar återrapporten, och ägaren svarar om signalen och vägen stämmer, att den inte stämmer, eller hoppar över vägen. |
 | Lyssna | `TklListen`, `TklHeard`, `/api/tkl/1/studio/koppla-in/lyssna` | Bakom Felsök: de senaste LocoNet-meddelandena åt båda hållen, med byten som JMRI skriver dem, vad de säger på svenska och vad de betyder för stationens objekt. |
 
+## TKL: Stream Deck
+
+Ställverket i handen (#86), i `tkl/deck/`: profilen räknas fram ur stationsmodellen för varje decks rutnät, och logiken anropar ställverkets egna funktioner. Samma API för decket på skärmen och ett riktigt deck över USB (#86 del b).
+
+| Svenska | I kontrakten | Betyder |
+| --- | --- | --- |
+| Stream Deck | `TklDeckModel`, `DeckModelId`, `TklDeckGrid`, `TklDeckSettings`, `/api/tkl/1/deck/{serienummer}` | Elgatos knappsatser, där varje knapp är en egen skärm: alla elva modeller (SD52). Ett deck känns igen på serienumret (SD35), och TKL läser rutnätet, rattarna, remsan, inforaden, pekpunkterna och pedalerna, så att också en modell TKL inte känner till får ett förval (SD53). Decket på skärmen är samma deck utan hårdvara (SD59). Vilket deck som visar vad sparas på datorn (SD49). |
+| Profil | `TklDeckProfile`, `TklDeckPage`, `TklDeckKey`, `GET /api/tkl/1/deck/profile` | Lägena, sidorna och knapparna för ett rutnät, som data och aldrig kod (SD5), med knapparna ur en fast katalog (SD4). Förvalet räknas fram ur stationsmodellen (SD32, SD39); ägarens ändringar görs i Studio › Stream Deck (#86 del c). |
+| Läge | `DeckMode`, `TklDeckView.mode`, `DeckKeyType.mode` | En grupp sidor med samma sätt att arbeta: Tågen, Platser och Spårplan (SD63); Bangård kommer med rangerarens deck (#87). Knappen Läge visar lägena med varianten under, och håll in visar alla sidor (SD26, SD64). Tågen kräver Hubben (SD11). Inte samma sak som ett fordons läge i Catalog. |
+| Fast rad | `TklDeckProfile.fixed`, `DeckStyle` | Knapparna som står kvar på varje sida: Läge, Larm och klocka, Lös ut och Ankommit (SD27); i nedre raden på 15 och Studio, i högra kolumnen på XL och + XL, Läge sist på Neo och + (SD75, SD77). På Mini är ▶ sista knappen, och håll in öppnar sidan Läge (SD78). Kör står där Ankommit står bara utanför en riktig träff (SD28). |
+| Tågknapp | `DeckKeyType.train`, `tkl.deck.trains.Turn` | Ett tåg ur Drift och tidtabellen med sitt nästa steg: lägg infart, Kör, Ankommit på nivå 1–2, begär klart, lägg utfart (SD7–SD10). Håll in väljer ett annat spår, med en stjärna på det planerade (SD20). Lägger aldrig något utan tryck (SD9). |
+| Spårknapp | `DeckKeyType.track` | Ett stationsspår på en station med en linje: ett fritt spår tar emot ett tåg, ett belagt släpper ut det (SD12). |
+| Linjeknapp | `DeckKeyType.line` | En sträcka till grannen med läget från Drift. Ett tryck begär klart för nästa tåg ut med TKL:s klarering som den är; grannens fråga öppnas med Klart och Nej som egna knappar, så att klart aldrig ges med ett enda tryck (SD13, SD14). |
+| Larmknapp | `DeckKeyType.alarm` | Klockan i vila, annars det som väntar, det äldsta först: grannens klareringsfråga och fel (SD15). Gör aldrig något själv. |
+| Platser | `TklDeckPlace`, `TklDeckPart`, `DeckKeyType.place`, `DeckKeyType.part` | En knapp per infart, utfart och spårdel där en tågväg börjar eller slutar, räknad ur stationsmodellen, i delar från väster till öster (SD66, SD79). Start och sedan mål; vägen läggs genom signalerna emellan (SD67). |
+| Dagens vägar | `DeckPageKind.daily`, `DeckKeyType.daily` | Infarten och utfarten för varje tåg på sitt planerade spår, ur träffens tidtabell i ögonblicksbilden (SD23). Ligger i TKL:s driftdata och görs om när träffpaketet byter version. |
+| Favoriter | `TklDeckFavourites`, `TklDeckPin`, `/api/tkl/1/deck-favoriter` | De fästa vägarna först, sedan de som lagts minst två gånger (SD24, SD48). Ställverket räknar varje lagd väg, del för del, bara vägar och inga personer. |
+| Knappens utseende | `TklDeckFace`, `TklDeckView`, `TklDeckTile` | Vad varje knapp visar, med prototypens låsta färger (SD3, SD6): hindrad väg nedtonad med märke och skäl (SD17), nej med skälet i tre sekunder (SD18), Ingen kontakt när ställverket inte svarar (SD21) och bara klockan när TKL är låst (SD30). |
+
 ## TrainMeet Catalog
 
 | Svenska | I kontrakten | Betyder |

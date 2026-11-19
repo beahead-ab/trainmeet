@@ -70,6 +70,24 @@ the cloud shows the objects and their addresses but never opens a port (TKLMOLN-
 
 At level 3 with LocoNet the interlocking's orders go out on the bus after every operation.
 
+Stream Deck (#86 del a), the same for the deck on the screen and, in del b, a real deck over USB.
+A deck is known by its serial number (SD35); its faces come from the interlocking and the hub,
+and what it does goes through the interlocking's operations above (SD1):
+
+    GET  /api/tkl/1/deck/models                   [TklDeckModel]: Elgato's models (SD52)
+    GET  /api/tkl/1/deck/profile?model=           TklDeckProfile: the default for a model (SD39)
+    POST /api/tkl/1/deck/{serial}                 TklDeckOpen -> TklDeckView: the deck, opened
+    GET  /api/tkl/1/deck/{serial}                 TklDeckView: every key's face (only the clock
+                                                  while TKL is locked, SD30)
+    POST /api/tkl/1/deck/{serial}/press           TklDeckPress: a press or a hold (SD29)
+    POST /api/tkl/1/deck/{serial}/dial            TklDeckDialAsk: a dial (SD83)
+    POST /api/tkl/1/deck/{serial}/touch           TklDeckTouch: Neo's touch points (SD82)
+    GET  /api/tkl/1/deck/{serial}/wait?after=     TklWait: a long poll for the deck's next change
+    GET  /api/tkl/1/deck-favoriter                TklDeckFavourites (SD24)
+    POST /api/tkl/1/deck-favoriter                TklDeckPin: Fäst på Stream Deck (SD48)
+
+Every route set, from the panel or a deck, is counted in TKL's runtime data (SD24, SD49).
+
 Studio's Prova (#85 del c, STUDIO-05, STUDIO-12, STUDIO-21, STUDIO-27): the simulated test, a
 train through every route, in the background (tkl/prova.py), and Provkör on the real layout with
 LocoNet connected (tkl/provkor.py):
@@ -119,6 +137,7 @@ from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Query, Request, Response
+from fastapi import Path as PathPart
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import ValidationError
@@ -129,14 +148,22 @@ from contracts.station_model import StationModel, dump
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage
 from contracts.tkl import (
+    DeckModelId,
     TklAnswer,
     TklCardModule,
     TklCommand,
     TklConnect,
     TklConnection,
+    TklDeckDialAsk,
+    TklDeckOpen,
+    TklDeckPin,
+    TklDeckPress,
+    TklDeckRoute,
+    TklDeckTouch,
     TklDrawing,
     TklDrawingState,
     TklEmergencyRelease,
+    TklFunctionAction,
     TklFunctionAsk,
     TklIdState,
     TklInterlocking,
@@ -169,6 +196,11 @@ from contracts.tkl import (
     TklWait,
 )
 from tkl import VERSION, hub_reports, id_login, manover, prova, track_plan
+from tkl.deck import logic as deck_logic
+from tkl.deck import service as deck_service
+from tkl.deck.models import MODELS as DECK_MODELS
+from tkl.deck.profile import build as deck_profile
+from tkl.deck.profile import geography_of
 from tkl.hub_client import TIMEOUT, HubClient, HubError, Unreachable, browse, find_hubs
 from tkl.id_login import TklIdLogin, TklIdSettings
 from tkl.loconet import service as loconet
@@ -215,6 +247,8 @@ BUSY = (
     "Ställverket, eller nollställ det med tågnumren, innan stationsmodellen byts."
 )
 WAIT_SECONDS = 25.0
+DECK_FRESH = 5.0
+"""The deck reads the place's snapshot from Hubben when the last one is older than this."""
 WAIT_STEP = 0.2
 PROVA_CODE = (
     "Prova ansluts bara till en provkörning i Provbanan, aldrig till en riktig träff "
@@ -1149,18 +1183,26 @@ def create_app(
 
         def change(
             model: StationModel | None, revision: int, body: str | None
-        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking, list[Order]]]:
+        ) -> tuple[TklInterlocking | None, tuple[Outcome, TklInterlocking, list[Order], int]]:
             if model is None:
                 raise HTTPException(404, NO_MODEL)
             made = load(plant_of(model), revision, body)
+            first_new = made.last_id + 1
             outcome = act(made)
             orders = made.take_orders()
             state = made.view()
-            return (state if made.revision != revision else None), (outcome, state, orders)
+            kept = state if made.revision != revision else None
+            return kept, (outcome, state, orders, first_new)
 
-        outcome, state, orders = store.change_interlocking(found, change)
+        outcome, state, orders, first_new = store.change_interlocking(found, change)
         if orders and services:
             services[0].send(orders)
+        if outcome.accepted:
+            # Stream Deck: every route set is counted, part by part (TKL70, SD24).
+            laid = [r for r in state.routes if r.id >= first_new]
+            deck_service.count(
+                store, found, [TklDeckRoute(start=r.start, end=r.end, kind=r.kind) for r in laid]
+            )
         if outcome.accepted and outcome.reports:
             reports = up(found, list(outcome.reports))
             state = interlocking_of(found).view() if reports else state
@@ -1460,6 +1502,339 @@ def create_app(
             found,
             lambda made: made.function(ask.function, ask.action, ask.value, confirm=ask.confirm),
         )
+
+    # --- Stream Deck (#86 del a): the deck's profile, its logic and the deck on the screen -----
+
+    room = deck_service.Room()
+
+    class DeckHands:
+        """What a deck does goes through the interlocking's operations, as the panel's, and
+        TKL's clearance as it is (SD1, SD14)."""
+
+        def __init__(self, found: str) -> None:
+            self.found = found
+
+        def answer(self, act: Callable[[Interlocking], Outcome]) -> deck_logic.Said:
+            told = operate(self.found, act)
+            return deck_logic.Said(bool(told["accepted"]), str(told["message"]))
+
+        def set_route(self, start: str, end: str, kind: object | None) -> deck_logic.Said:
+            wanted = RouteKind(str(getattr(kind, "value", kind))) if kind is not None else None
+            return self.answer(lambda made: made.set_route(start, end, wanted))
+
+        def release(self, route: int) -> deck_logic.Said:
+            return self.answer(lambda made: made.release(route))
+
+        def step(self, route: int) -> deck_logic.Said:
+            return self.answer(lambda made: made.step(route))
+
+        def arrive(self, route: int) -> deck_logic.Said:
+            return self.answer(lambda made: made.arrive(route))
+
+        def function(self, name: str, on: bool) -> deck_logic.Said:
+            action = TklFunctionAction.ON if on else TklFunctionAction.OFF
+            return self.answer(lambda made: made.function(name, action, None, confirm=False))
+
+        def command(
+            self,
+            action: station.Action,
+            payload: dict[str, object],
+            revision: station.Revision | None,
+        ) -> deck_logic.Said:
+            reached = one_place(self.found)
+            if isinstance(reached, str):
+                return deck_logic.Said(False, reached)
+            made, place = reached
+            try:
+                snapshot = hub(made).snapshot(place)
+                sent = station.Command(
+                    client_id=made.client_id,
+                    message_id=f"tkl-deck-{secrets.token_hex(8)}",
+                    place=place,
+                    context=snapshot.context,
+                    action=action,
+                    expected_revision=revision,
+                    payload=payload,
+                )
+                reply = hub(made).command(sent)
+            except Unreachable:
+                return deck_logic.Said(False, NO_CONTACT)
+            except HubError as error:
+                return deck_logic.Said(False, error.detail)
+            store.remember(self.found, reply.snapshot)
+            accepted = reply.status != station.ReplyStatus.REJECTED
+            return deck_logic.Said(accepted, reply.message or ("Ja." if accepted else "Nej."))
+
+    def deck_snapshot(found: str) -> tuple[station.Snapshot | None, datetime | None, bool]:
+        """The place's snapshot for the deck, at most DECK_FRESH seconds old, when it was
+        heard, and whether TKL is in drift: connected to a real meet (SD28)."""
+        reached = one_place(found)
+        if isinstance(reached, str):
+            return None, None, False
+        made, place = reached
+        drift = not made.preview
+        last = store.last_seen(found, place)
+        if last is not None and (datetime.now(UTC) - last[1]).total_seconds() < DECK_FRESH:
+            return last[0], last[1], drift
+        try:
+            snapshot = hub(made).snapshot(place)
+        except (Unreachable, HubError):
+            return (last[0], last[1], drift) if last else (None, None, drift)
+        return snapshot, store.remember(found, snapshot), drift
+
+    def deck_clock(snapshot: station.Snapshot | None, heard: datetime | None) -> str:
+        """The game clock from Hubben, run on since it was heard; else the computer's (SD15)."""
+        if snapshot is None or heard is None:
+            return datetime.now().astimezone().strftime("%H:%M")
+        c = snapshot.clock
+        passed = (datetime.now(UTC) - heard).total_seconds() if c.running else 0.0
+        minutes = int((c.seconds + passed * c.speed) // 60)
+        return f"{(minutes // 60) % 24:02d}:{minutes % 60:02d}"
+
+    def deck_world(found: str, locked: bool) -> tuple[deck_logic.World, Any]:
+        model, revision, body = store.interlocking(found)
+        if model is None:
+            raise HTTPException(404, NO_MODEL)
+        plant = plant_of(model)
+        panel = room.panel(plant, lambda: track_plan.panel_of(model))
+        geo = geography_of(plant, panel)
+        try:
+            made: Interlocking | None = load(plant, revision, body)
+        except (ValueError, KeyError):
+            made = None
+        snapshot, heard, drift = deck_snapshot(found) if not locked else (None, None, False)
+        here = store.station_of(found)
+        world = deck_logic.World(
+            plant=plant,
+            geo=geo,
+            interlocking=made,
+            snapshot=snapshot,
+            drift=drift,
+            locked=locked,
+            time=deck_clock(snapshot, heard),
+            station=here.name if here is not None else "",
+            favourites=deck_service.favourites(store, found, plant).shown,
+            daily_kept=deck_service.todays(store, found, snapshot, plant, geo),
+        )
+        return world, panel
+
+    def deck_found(slot: str | None, session: str | None) -> tuple[str, bool]:
+        """The station, and whether TKL is locked: then the deck shows only the clock (SD30)."""
+        found = slot_of(slot)
+        if found is None or store.station_of(found) is None:
+            raise HTTPException(401, "Lås upp TKL med PIN-koden.")
+        return found, not store.unlocked(found, session)
+
+    def deck_signature(found: str, workplace: str) -> tuple[object, ...]:
+        selection = room.selection(found, workplace)
+        heard = None
+        reached = store.connection(found)
+        if reached is not None and len(reached.places) == 1:
+            last = store.last_seen(found, reached.places[0])
+            heard = last[1] if last else None
+        drift = store.deck_drift(found)
+        return (
+            store.interlocking_revision(found),
+            heard,
+            selection.revision,
+            id(selection),
+            str(drift.get(deck_service.PINNED)),
+        )
+
+    def deck_view(
+        found: str,
+        serial: str,
+        locked: bool,
+        act: Callable[[deck_logic.Deck, deck_logic.Selection, deck_logic.World], None]
+        | None = None,
+    ) -> Any:
+        settings = store.deck(found, serial)
+        if settings is None:
+            raise HTTPException(
+                404, "Decket finns inte här. Öppna det på skärmen eller koppla in det."
+            )
+        world, panel = deck_world(found, locked)
+        profile = deck_profile(world.plant, panel, settings.grid, settings.model)
+        with room.lock:
+            deck = room.deck(found, settings, profile, world)
+            selection = room.selection(found, deck.settings.workplace)
+            if act is not None and not locked:
+                act(deck, selection, world)
+                if deck.settings != settings:
+                    store.save_deck(found, deck.settings)
+                world, _ = deck_world(found, locked)
+            room.revision(found, serial, deck_signature(found, deck.settings.workplace))
+            return deck_logic.view(deck, selection, world).model_dump(mode="json")
+
+    @routes.get("/deck/models")
+    def deck_models(response: Response) -> Any:
+        """Elgato's models and their grids (SD52)."""
+        no_store(response)
+        return [m.model_dump(mode="json") for m in DECK_MODELS]
+
+    @routes.get("/deck/profile")
+    def deck_profile_of(
+        response: Response,
+        model: DeckModelId,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """The default profile for a model, computed from the station model (SD39, SD53)."""
+        no_store(response)
+        found = unlocked(slot, session)
+        world, panel = deck_world(found, False)
+        known = next(m for m in DECK_MODELS if m.id == model)
+        return deck_profile(world.plant, panel, known.grid, model).model_dump(mode="json")
+
+    @routes.post("/deck/{serial}")
+    def deck_open(
+        serial: Annotated[str, PathPart(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")],
+        given: TklDeckOpen,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """A deck on this computer, by its serial number (SD35): the deck on the screen, or
+        in del b one over USB. Its settings are kept here (SD49)."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        known = store.deck(found, serial)
+        settings = deck_service.settings_for(known, serial, given)
+        if known is None or known.grid != settings.grid:
+            room.forget(found, serial)
+        store.save_deck(found, settings)
+        return deck_view(found, serial, False)
+
+    @routes.get("/deck/{serial}")
+    def deck_state(
+        serial: str, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Every key's face for the deck now: the locked TKL shows only the clock (SD30)."""
+        no_store(response)
+        found, locked = deck_found(slot, session)
+        return deck_view(found, serial, locked)
+
+    @routes.post("/deck/{serial}/press")
+    def deck_press(
+        serial: str,
+        ask: TklDeckPress,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """A press or a hold (SD29)."""
+        same_site(request)
+        no_store(response)
+        found, locked = deck_found(slot, session)
+        hands = DeckHands(found)
+
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.press(deck, chosen, world, hands, ask.key, ask.hold)
+
+        return deck_view(found, serial, locked, act)
+
+    @routes.post("/deck/{serial}/dial")
+    def deck_dial(
+        serial: str,
+        ask: TklDeckDialAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """A dial turned or pressed (SD83)."""
+        same_site(request)
+        no_store(response)
+        found, locked = deck_found(slot, session)
+        hands = DeckHands(found)
+
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.dial(deck, chosen, world, hands, ask.dial, ask.turn, ask.press)
+
+        return deck_view(found, serial, locked, act)
+
+    @routes.post("/deck/{serial}/touch")
+    def deck_touch(
+        serial: str,
+        ask: TklDeckTouch,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Neo's touch points (SD82)."""
+        same_site(request)
+        no_store(response)
+        found, locked = deck_found(slot, session)
+
+        def act(
+            deck: deck_logic.Deck, chosen: deck_logic.Selection, world: deck_logic.World
+        ) -> None:
+            deck_logic.touch(deck, world, ask.point)
+
+        return deck_view(found, serial, locked, act)
+
+    @routes.get("/deck/{serial}/wait")
+    async def deck_wait(
+        serial: str,
+        response: Response,
+        after: int = Query(ge=0),
+        seconds: float = Query(default=WAIT_SECONDS, ge=0, le=30),
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Wait for the deck's next change after `after`, as the interlocking's wait."""
+        no_store(response)
+        found, _ = await run_in_threadpool(deck_found, slot, session)
+        settings = await run_in_threadpool(store.deck, found, serial)
+        if settings is None:
+            raise HTTPException(404, "Decket finns inte här.")
+        waited = 0.0
+        while True:
+            signature = await run_in_threadpool(deck_signature, found, settings.workplace)
+            revision = room.revision(found, serial, signature)
+            if revision != after or waited >= seconds:
+                return TklWait(revision=revision, changed=revision != after).model_dump(mode="json")
+            await asyncio.sleep(WAIT_STEP)
+            waited += WAIT_STEP
+
+    @routes.get("/deck-favoriter")
+    def deck_favourites(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Any:
+        """Favoriter: the pinned routes and how often each route is set (SD24)."""
+        no_store(response)
+        found = unlocked(slot, session)
+        world, _ = deck_world(found, False)
+        return deck_service.favourites(store, found, world.plant).model_dump(mode="json")
+
+    @routes.post("/deck-favoriter")
+    def deck_pin(
+        ask: TklDeckPin,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> Any:
+        """Fäst på Stream Deck (SD48): a route onto Favoriter, or off it."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        world, _ = deck_world(found, False)
+        route = TklDeckRoute(start=ask.start, end=ask.end, kind=ask.kind)
+        if not deck_service.exists(world.plant)(route):
+            raise HTTPException(
+                404, f"Vägen {ask.start} → {ask.end} finns inte i stationsmodellen."
+            )
+        deck_service.pin(store, found, route, ask.pinned)
+        return deck_service.favourites(store, found, world.plant).model_dump(mode="json")
 
     # --- Studio's Koppla in at level 3 (#85): LocoNet, only in a local TKL -----------------
 

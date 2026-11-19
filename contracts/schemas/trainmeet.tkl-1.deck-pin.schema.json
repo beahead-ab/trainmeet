@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-pin.schema.json",
+  "title": "trainmeet.tkl-1.deck-pin",
+  "$defs": {
+    "RouteKind": {
+      "enum": [
+        "train",
+        "shunting"
+      ],
+      "title": "RouteKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Fäst på Stream Deck (SD48): a set route onto the page Favoriter, or off it.",
+  "properties": {
+    "start": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Start",
+      "type": "string"
+    },
+    "end": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "End",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/RouteKind"
+    },
+    "pinned": {
+      "default": true,
+      "title": "Pinned",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "start",
+    "end",
+    "kind"
+  ],
+  "type": "object"
+}

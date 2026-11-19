@@ -884,6 +884,134 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/deck/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckModels"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeck"];
+        put?: never;
+        post: operations["tklDeckOpen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/press": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDeckPress"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/dial": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDeckDial"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/touch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklDeckTouch"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck/{serial}/wait": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckWait"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/deck-favoriter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklDeckFavourites"];
+        put?: never;
+        post: operations["tklDeckPin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8111,6 +8239,964 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /** TklDeckModel */
+        "trainmeet.tkl-1.deck-model": {
+            id: components["schemas"]["trainmeet.tkl-1.deck-model.DeckModelId"];
+            /** Name */
+            name: string;
+            grid: components["schemas"]["trainmeet.tkl-1.deck-model.TklDeckGrid"];
+            /** @description Storleken vars profil modellen får (SD54). */
+            size: components["schemas"]["trainmeet.tkl-1.deck-model.DeckModelId"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DeckModelId
+         * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+         *     profile of the size they have (SD54).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-model.DeckModelId": "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+        /**
+         * TklDeckGrid
+         * @description What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+         *     the info line, the touch points and the pedals. A model TKL does not know is read this
+         *     way too, and gets the default for its grid.
+         */
+        "trainmeet.tkl-1.deck-model.TklDeckGrid": {
+            /** Columns */
+            columns: number;
+            /** Rows */
+            rows: number;
+            /**
+             * Dials
+             * @default 0
+             */
+            dials: number;
+            /**
+             * Strip
+             * @description Pekremsan, på + och + XL.
+             * @default false
+             */
+            strip: boolean;
+            /**
+             * Info
+             * @description Inforaden, på Neo.
+             * @default false
+             */
+            info: boolean;
+            /**
+             * Touch
+             * @description Pekpunkterna, på Neo.
+             * @default 0
+             */
+            touch: number;
+            /**
+             * Pedals
+             * @default 0
+             */
+            pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckProfile
+         * @description The deck's profile for one grid (SD5, SD32, SD53): computed from the station model and
+         *     never stored as code. The owner's changes in Studio come in del c.
+         */
+        "trainmeet.tkl-1.deck-profile": {
+            /** @default null */
+            model: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckModelId"] | null;
+            grid: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckGrid"];
+            style: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckStyle"];
+            /**
+             * Fixed
+             * @description Den fasta radens knappar (SD27).
+             */
+            fixed?: number[];
+            /**
+             * Modes
+             * @description Lägena decket har (SD76).
+             */
+            modes?: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckMode"][];
+            /** Pages */
+            pages?: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckPage"][];
+            /** Dials */
+            dials?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckDial"][];
+            };
+            /** Places */
+            places?: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckPlace"][];
+            /** Parts */
+            parts?: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckPart"][];
+            /** Points */
+            points?: components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckPoint"][];
+            /**
+             * One Line
+             * @description Stationen har en linje: spårknappar (SD12).
+             * @default false
+             */
+            one_line: boolean;
+            /**
+             * Tile
+             * @description En ruta i utsnittet, i spårplanens rutor.
+             * @default 1
+             */
+            tile: number;
+            /**
+             * Tile Origin
+             * @description Där utsnittets rutor börjar, i spårplanens rutor.
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            tile_origin: [
+                number,
+                number
+            ];
+            /**
+             * Plan
+             * @description Spårplanens storlek i rutor.
+             * @default [
+             *       0,
+             *       0
+             *     ]
+             */
+            plan: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DeckAction
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckAction": "los" | "ankommit" | "kor" | "avbryt" | "tillbaka";
+        /**
+         * DeckDial
+         * @description What a dial does in a mode (SD83): turn chooses, press does it.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckDial": "tag" | "spar" | "sida" | "lagd-vag" | "start" | "mal" | "del" | "sidled" | "hojdled" | "signal";
+        /**
+         * DeckKeyType
+         * @description The fixed catalogue of keys (SD4): a new type is added for all, never for a station.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckKeyType": "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel";
+        /**
+         * DeckMode
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
+         *     shunter's deck (#87).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckMode": "tagen" | "platser" | "sparplan";
+        /**
+         * DeckModelId
+         * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+         *     profile of the size they have (SD54).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckModelId": "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+        /**
+         * DeckPageKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckPageKind": "nu" | "dagens" | "favoriter" | "platser" | "delar" | "del" | "signaler" | "alla" | "hela" | "utsnitt";
+        /**
+         * DeckPan
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckPan": "hela" | "vaster" | "oster" | "upp" | "ner";
+        /**
+         * DeckStyle
+         * @description Where Läge and the fixed keys sit (SD27, SD75, SD77, SD78).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-profile.DeckStyle": "none" | "next" | "last" | "row" | "column";
+        /**
+         * TklDeckGrid
+         * @description What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+         *     the info line, the touch points and the pedals. A model TKL does not know is read this
+         *     way too, and gets the default for its grid.
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckGrid": {
+            /** Columns */
+            columns: number;
+            /** Rows */
+            rows: number;
+            /**
+             * Dials
+             * @default 0
+             */
+            dials: number;
+            /**
+             * Strip
+             * @description Pekremsan, på + och + XL.
+             * @default false
+             */
+            strip: boolean;
+            /**
+             * Info
+             * @description Inforaden, på Neo.
+             * @default false
+             */
+            info: boolean;
+            /**
+             * Touch
+             * @description Pekpunkterna, på Neo.
+             * @default 0
+             */
+            touch: number;
+            /**
+             * Pedals
+             * @default 0
+             */
+            pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckKey
+         * @description A key in a profile: its type from the catalogue and what it points at, as data (SD5).
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckKey": {
+            type: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckKeyType"];
+            /**
+             * Slot
+             * @description Tåget, linjen eller vägen i tur.
+             * @default null
+             */
+            slot: number | null;
+            /**
+             * Point
+             * @description Signalen eller punkten (SIGNAL).
+             * @default null
+             */
+            point: string | null;
+            /**
+             * Place
+             * @description Platsen (PLACE, TRACK).
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Part
+             * @description Delen (PART).
+             * @default null
+             */
+            part: number | null;
+            /**
+             * Page
+             * @description Sidan knappen öppnar.
+             * @default null
+             */
+            page: number | null;
+            /**
+             * Dx
+             * @description Utsnittets kolumn (CELL).
+             * @default null
+             */
+            dx: number | null;
+            /**
+             * Dy
+             * @description Utsnittets rad (CELL).
+             * @default null
+             */
+            dy: number | null;
+            /**
+             * Rect
+             * @description Biten av spårplanen i rutor: x, y, bredd, höjd (TILE).
+             * @default null
+             */
+            rect: [
+                number,
+                number,
+                number,
+                number
+            ] | null;
+            /** @default null */
+            pan: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckPan"] | null;
+            /** @default null */
+            action: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckAction"] | null;
+            /**
+             * Function
+             * @description Panelfunktionens namn (PANEL).
+             * @default null
+             */
+            function: string | null;
+            /**
+             * Text
+             * @description Knappens text, när den är given.
+             * @default
+             */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPage
+         * @description A page: every key of the grid, row by row, the fixed ones included.
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckPage": {
+            /** Name */
+            name: string;
+            mode: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckMode"];
+            kind: components["schemas"]["trainmeet.tkl-1.deck-profile.DeckPageKind"];
+            /** Keys */
+            keys: (components["schemas"]["trainmeet.tkl-1.deck-profile.TklDeckKey"] | null)[];
+            /**
+             * Listed
+             * @description Står bland Sidor (SD26). En dels sida gör inte det.
+             * @default true
+             */
+            listed: boolean;
+            /**
+             * Cancel
+             * @description Där Avbryt står medan en start är vald.
+             * @default null
+             */
+            cancel: number | null;
+            /**
+             * Part
+             * @description Delen sidan visar (SD79).
+             * @default null
+             */
+            part: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPart
+         * @description A part of the station, west to east (SD79): the west exits, a group of track parts, or
+         *     the east exits.
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckPart": {
+            /** Name */
+            name: string;
+            /** Places */
+            places: string[];
+            /**
+             * Said
+             * @description Platserna i korthet, till exempel A1–A4.
+             * @default
+             */
+            said: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPlace
+         * @description A place where a train route starts or ends (SD66): an exit or a station track.
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckPlace": {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "exit" | "track";
+            /**
+             * Name
+             * @description Exit's or track's own name (SD73).
+             */
+            name: string;
+            /** Part */
+            part: number;
+            /**
+             * Starts
+             * @description Tågvägarnas starter här.
+             */
+            starts?: string[];
+            /**
+             * Ends
+             * @description Tågvägarnas mål här.
+             */
+            ends?: string[];
+            /**
+             * Signals
+             * @description Signalen i var ände (SD69).
+             */
+            signals?: string[];
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPoint
+         * @description A route's start or goal where the panel has it, for the geographic pages and Spårplan.
+         */
+        "trainmeet.tkl-1.deck-profile.TklDeckPoint": {
+            /** Name */
+            name: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Start */
+            start: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckOpen
+         * @description A deck on this computer, by its serial number: its model, or its grid for a model TKL
+         *     does not know (SD53).
+         */
+        "trainmeet.tkl-1.deck-open": {
+            /** @default null */
+            model: components["schemas"]["trainmeet.tkl-1.deck-open.DeckModelId"] | null;
+            /** @default null */
+            grid: components["schemas"]["trainmeet.tkl-1.deck-open.TklDeckGrid"] | null;
+            /**
+             * Workplace
+             * @default null
+             */
+            workplace: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DeckModelId
+         * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+         *     profile of the size they have (SD54).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-open.DeckModelId": "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+        /**
+         * TklDeckGrid
+         * @description What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+         *     the info line, the touch points and the pedals. A model TKL does not know is read this
+         *     way too, and gets the default for its grid.
+         */
+        "trainmeet.tkl-1.deck-open.TklDeckGrid": {
+            /** Columns */
+            columns: number;
+            /** Rows */
+            rows: number;
+            /**
+             * Dials
+             * @default 0
+             */
+            dials: number;
+            /**
+             * Strip
+             * @description Pekremsan, på + och + XL.
+             * @default false
+             */
+            strip: boolean;
+            /**
+             * Info
+             * @description Inforaden, på Neo.
+             * @default false
+             */
+            info: boolean;
+            /**
+             * Touch
+             * @description Pekpunkterna, på Neo.
+             * @default 0
+             */
+            touch: number;
+            /**
+             * Pedals
+             * @default 0
+             */
+            pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckView
+         * @description The deck as it is now: every key's face, and the info line and the strip.
+         */
+        "trainmeet.tkl-1.deck-view": {
+            settings: components["schemas"]["trainmeet.tkl-1.deck-view.TklDeckSettings"];
+            /**
+             * Revision
+             * @description Räknar upp när något på decket ändras.
+             */
+            revision: number;
+            style: components["schemas"]["trainmeet.tkl-1.deck-view.DeckStyle"];
+            /** Modes */
+            modes?: components["schemas"]["trainmeet.tkl-1.deck-view.DeckMode"][];
+            /** @default null */
+            mode: components["schemas"]["trainmeet.tkl-1.deck-view.DeckMode"] | null;
+            /**
+             * Page
+             * @default
+             */
+            page: string;
+            /** Keys */
+            keys?: components["schemas"]["trainmeet.tkl-1.deck-view.TklDeckFace"][];
+            /** Fixed */
+            fixed?: number[];
+            /**
+             * Info
+             * @description Inforaden (SD82): klockan och sidan, eller valet.
+             * @default
+             */
+            info: string;
+            /** Strip */
+            strip?: components["schemas"]["trainmeet.tkl-1.deck-view.TklDeckStrip"][];
+            /**
+             * Hold Ms
+             * @description Ett håll (SD29).
+             * @default 600
+             */
+            hold_ms: number;
+            /**
+             * Refresh Ms
+             * @description Läs om senast efter så här länge.
+             * @default 15000
+             */
+            refresh_ms: number;
+            /**
+             * Locked
+             * @description TKL är låst: bara klockan (SD30).
+             * @default false
+             */
+            locked: boolean;
+            /**
+             * Contact
+             * @description Ställverket svarar; annars Ingen kontakt.
+             * @default true
+             */
+            contact: boolean;
+            /**
+             * Message
+             * @description Ställverkets senaste svar.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * Accepted
+             * @default null
+             */
+            accepted: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DeckHold
+         * @description How long a hold is, per deck (SD29): Kort, Normal (0.6 s) or Lång.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckHold": "kort" | "normal" | "lang";
+        /**
+         * DeckMode
+         * @description Lägena (SD63): a group of pages with the same way of working. Bangård comes with the
+         *     shunter's deck (#87).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckMode": "tagen" | "platser" | "sparplan";
+        /**
+         * DeckModelId
+         * @description Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the
+         *     profile of the size they have (SD54).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckModelId": "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+        /**
+         * DeckPlacesShown
+         * @description Platser's variants (SD68).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckPlacesShown": "alla" | "valbara";
+        /**
+         * DeckPlanDrawn
+         * @description How Spårplan is drawn (SD72).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckPlanDrawn": "85" | "rela";
+        /**
+         * DeckStyle
+         * @description Where Läge and the fixed keys sit (SD27, SD75, SD77, SD78).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-view.DeckStyle": "none" | "next" | "last" | "row" | "column";
+        /**
+         * TklDeckFace
+         * @description What a key shows: the prototype's look, with the locked colours (SD3, SD6).
+         */
+        "trainmeet.tkl-1.deck-view.TklDeckFace": {
+            /**
+             * Type
+             * @default empty
+             * @enum {string}
+             */
+            type: "train" | "line" | "alarm" | "track" | "place" | "part" | "signal" | "daily" | "favourite" | "tile" | "cell" | "pan" | "mode" | "next" | "page" | "action" | "panel" | "case" | "answer" | "variant" | "goal" | "contact" | "clock" | "empty";
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+            /**
+             * Top
+             * @default
+             */
+            top: string;
+            /**
+             * Under
+             * @default
+             */
+            under: string;
+            /**
+             * Small
+             * @description Liten text, som signalnumren (SD69).
+             * @default
+             */
+            small: string;
+            /**
+             * Bg
+             * @default #0d0f11
+             */
+            bg: string;
+            /**
+             * Fg
+             * @default #0d0f11
+             */
+            fg: string;
+            /**
+             * Frame
+             * @default null
+             */
+            frame: string | null;
+            /**
+             * Dashed
+             * @default false
+             */
+            dashed: boolean;
+            /**
+             * Band
+             * @description Bandet överst: vägens färg.
+             * @default null
+             */
+            band: string | null;
+            /**
+             * Line
+             * @description Strecket nederst: vald sida.
+             * @default null
+             */
+            line: string | null;
+            /**
+             * Bar
+             * @description Platsens stapel: fri, belagd, lagd.
+             * @default null
+             */
+            bar: string | null;
+            /**
+             * Bar Dashed
+             * @default false
+             */
+            bar_dashed: boolean;
+            /**
+             * Dot
+             * @description Märket för en hindrad väg (SD17).
+             * @default null
+             */
+            dot: string | null;
+            /**
+             * Star
+             * @description Planerat spår bland målen (SD20).
+             * @default false
+             */
+            star: boolean;
+            /**
+             * Chip
+             * @description Tågnumret på platsen (SD19).
+             * @default
+             */
+            chip: string;
+            /**
+             * Chip Colour
+             * @default
+             * @enum {string}
+             */
+            chip_colour: "green" | "red" | "";
+            /**
+             * Blink
+             * @description Blinkar mellan bg och den här.
+             * @default null
+             */
+            blink: string | null;
+            /**
+             * Dim
+             * @default false
+             */
+            dim: boolean;
+            /** @default null */
+            tile: components["schemas"]["trainmeet.tkl-1.deck-view.TklDeckTile"] | null;
+            /**
+             * Label
+             * @description För skärmläsare: vad knappen är.
+             * @default
+             */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckGrid
+         * @description What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,
+         *     the info line, the touch points and the pedals. A model TKL does not know is read this
+         *     way too, and gets the default for its grid.
+         */
+        "trainmeet.tkl-1.deck-view.TklDeckGrid": {
+            /** Columns */
+            columns: number;
+            /** Rows */
+            rows: number;
+            /**
+             * Dials
+             * @default 0
+             */
+            dials: number;
+            /**
+             * Strip
+             * @description Pekremsan, på + och + XL.
+             * @default false
+             */
+            strip: boolean;
+            /**
+             * Info
+             * @description Inforaden, på Neo.
+             * @default false
+             */
+            info: boolean;
+            /**
+             * Touch
+             * @description Pekpunkterna, på Neo.
+             * @default 0
+             */
+            touch: number;
+            /**
+             * Pedals
+             * @default 0
+             */
+            pedals: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckSettings
+         * @description One deck, known by its serial number (SD35), as this computer keeps it (SD49).
+         */
+        "trainmeet.tkl-1.deck-view.TklDeckSettings": {
+            /** Serial */
+            serial: string;
+            /** @default null */
+            model: components["schemas"]["trainmeet.tkl-1.deck-view.DeckModelId"] | null;
+            grid: components["schemas"]["trainmeet.tkl-1.deck-view.TklDeckGrid"];
+            /**
+             * Workplace
+             * @description Deck på samma arbetsplats delar vald start (SD36).
+             * @default 1
+             */
+            workplace: string;
+            /**
+             * @description Läget decket öppnar i (SD65).
+             * @default null
+             */
+            opens_in: components["schemas"]["trainmeet.tkl-1.deck-view.DeckMode"] | null;
+            /**
+             * May Change Mode
+             * @default true
+             */
+            may_change_mode: boolean;
+            /** @default normal */
+            hold: components["schemas"]["trainmeet.tkl-1.deck-view.DeckHold"];
+            /** @default alla */
+            places_shown: components["schemas"]["trainmeet.tkl-1.deck-view.DeckPlacesShown"];
+            /** @default 85 */
+            plan_drawn: components["schemas"]["trainmeet.tkl-1.deck-view.DeckPlanDrawn"];
+            /**
+             * Signal Numbers
+             * @description Signalnumren i Platser (SD69).
+             * @default false
+             */
+            signal_numbers: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckStrip
+         * @description What a dial stands on, in the touch strip (SD83).
+         */
+        "trainmeet.tkl-1.deck-view.TklDeckStrip": {
+            /** Label */
+            label: string;
+            /**
+             * Value
+             * @default
+             */
+            value: string;
+            /**
+             * Under
+             * @default
+             */
+            under: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckTile
+         * @description A key that draws a piece of the track plan (SD70, SD71): the rectangle in the panel's
+         *     cells, how it is drawn, and what is lit in it.
+         */
+        "trainmeet.tkl-1.deck-view.TklDeckTile": {
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** W */
+            w: number;
+            /** H */
+            h: number;
+            /** @default 85 */
+            drawn: components["schemas"]["trainmeet.tkl-1.deck-view.DeckPlanDrawn"];
+            /**
+             * Start
+             * @default null
+             */
+            start: string | null;
+            /** Goals */
+            goals?: string[];
+            /**
+             * Names
+             * @description Spåren i biten (SD70).
+             */
+            names?: string[];
+            /**
+             * Chosen
+             * @default false
+             */
+            chosen: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPress
+         * @description A press, or a hold of the deck's hold time (SD29).
+         */
+        "trainmeet.tkl-1.deck-press": {
+            /** Key */
+            key: number;
+            /**
+             * Hold
+             * @default false
+             */
+            hold: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckDialAsk
+         * @description A dial turned some steps, or pressed (SD83).
+         */
+        "trainmeet.tkl-1.deck-dial": {
+            /** Dial */
+            dial: number;
+            /**
+             * Turn
+             * @default 0
+             */
+            turn: number;
+            /**
+             * Press
+             * @default false
+             */
+            press: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckTouch
+         * @description Neo's touch points (SD82): -1 the left one, 1 the right one.
+         */
+        "trainmeet.tkl-1.deck-touch": {
+            /**
+             * Point
+             * @enum {integer}
+             */
+            point: -1 | 1;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDeckPin
+         * @description Fäst på Stream Deck (SD48): a set route onto the page Favoriter, or off it.
+         */
+        "trainmeet.tkl-1.deck-pin": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            kind: components["schemas"]["trainmeet.tkl-1.deck-pin.RouteKind"];
+            /**
+             * Pinned
+             * @default true
+             */
+            pinned: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-pin.RouteKind": "train" | "shunting";
+        /**
+         * TklDeckFavourites
+         * @description Favoriter (SD24, SD48): the pinned routes first, then the most used. Only routes are
+         *     counted, never people.
+         */
+        "trainmeet.tkl-1.deck-favourites": {
+            /** Pinned */
+            pinned?: components["schemas"]["trainmeet.tkl-1.deck-favourites.TklDeckRoute"][];
+            /** Counted */
+            counted?: components["schemas"]["trainmeet.tkl-1.deck-favourites.TklDeckCount"][];
+            /**
+             * Shown
+             * @description Sidan Favoriter.
+             */
+            shown?: components["schemas"]["trainmeet.tkl-1.deck-favourites.TklDeckRoute"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.deck-favourites.RouteKind": "train" | "shunting";
+        /** TklDeckCount */
+        "trainmeet.tkl-1.deck-favourites.TklDeckCount": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            kind: components["schemas"]["trainmeet.tkl-1.deck-favourites.RouteKind"];
+            /** Count */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklDeckRoute */
+        "trainmeet.tkl-1.deck-favourites.TklDeckRoute": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            kind: components["schemas"]["trainmeet.tkl-1.deck-favourites.RouteKind"];
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -9509,6 +10595,243 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.prova"];
+                };
+            };
+        };
+    };
+    tklDeckModels: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-model"][];
+                };
+            };
+        };
+    };
+    tklDeckProfile: {
+        parameters: {
+            query: {
+                model: "mini" | "neo" | "15" | "xl" | "plus" | "plus-xl" | "pedal" | "module-6" | "module-15" | "module-32" | "studio";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-profile"];
+                };
+            };
+        };
+    };
+    tklDeck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-view"];
+                };
+            };
+        };
+    };
+    tklDeckOpen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.deck-open"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-view"];
+                };
+            };
+        };
+    };
+    tklDeckPress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.deck-press"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-view"];
+                };
+            };
+        };
+    };
+    tklDeckDial: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.deck-dial"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-view"];
+                };
+            };
+        };
+    };
+    tklDeckTouch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.deck-touch"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-view"];
+                };
+            };
+        };
+    };
+    tklDeckWait: {
+        parameters: {
+            query: {
+                after: number;
+                seconds?: number;
+            };
+            header?: never;
+            path: {
+                serial: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.interlocking-wait"];
+                };
+            };
+        };
+    };
+    tklDeckFavourites: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-favourites"];
+                };
+            };
+        };
+    };
+    tklDeckPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.deck-pin"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.deck-favourites"];
                 };
             };
         };

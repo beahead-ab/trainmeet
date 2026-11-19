@@ -107,6 +107,16 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     # Studio's Prova (#85 del c): the simulated test, Klart and Provkör.
     "trainmeet.tkl-1.prova": tkl.TklProva,
     "trainmeet.tkl-1.provkor-answer": tkl.TklProvkorAnswer,
+    # Stream Deck (#86 del a)
+    "trainmeet.tkl-1.deck-model": tkl.TklDeckModel,
+    "trainmeet.tkl-1.deck-profile": tkl.TklDeckProfile,
+    "trainmeet.tkl-1.deck-open": tkl.TklDeckOpen,
+    "trainmeet.tkl-1.deck-view": tkl.TklDeckView,
+    "trainmeet.tkl-1.deck-press": tkl.TklDeckPress,
+    "trainmeet.tkl-1.deck-dial": tkl.TklDeckDialAsk,
+    "trainmeet.tkl-1.deck-touch": tkl.TklDeckTouch,
+    "trainmeet.tkl-1.deck-pin": tkl.TklDeckPin,
+    "trainmeet.tkl-1.deck-favourites": tkl.TklDeckFavourites,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1974,6 +1984,22 @@ def tkl_openapi() -> str:
     route("post", pr + "/provkor/start", "tklProvkorStart", shown_prova)
     route("post", pr + "/provkor/answer", "tklProvkorAnswer", shown_prova, t + "provkor-answer")
     route("post", pr + "/provkor/stop", "tklProvkorStop", shown_prova)
+    # Stream Deck (#86 del a): the profile, every key's face, press, hold, dial and touch.
+    d = a + "/deck"
+    deck = t + "deck-view"
+    route("get", d + "/models", "tklDeckModels", t + "deck-model", many=True)
+    model_query: dict[str, JsonSchemaValue] = {
+        "model": {"type": "string", "enum": [m.value for m in tkl.DeckModelId]}
+    }
+    route("get", d + "/profile", "tklDeckProfile", t + "deck-profile", query=model_query)
+    route("post", d + "/{serial}", "tklDeckOpen", deck, t + "deck-open")
+    route("get", d + "/{serial}", "tklDeck", deck)
+    route("post", d + "/{serial}/press", "tklDeckPress", deck, t + "deck-press")
+    route("post", d + "/{serial}/dial", "tklDeckDial", deck, t + "deck-dial")
+    route("post", d + "/{serial}/touch", "tklDeckTouch", deck, t + "deck-touch")
+    route("get", d + "/{serial}/wait", "tklDeckWait", t + "interlocking-wait", query=wait_query)
+    route("get", a + "/deck-favoriter", "tklDeckFavourites", t + "deck-favourites")
+    route("post", a + "/deck-favoriter", "tklDeckPin", t + "deck-favourites", t + "deck-pin")
     stems = [
         s
         for s in CONTRACTS
