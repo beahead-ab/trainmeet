@@ -9,7 +9,8 @@
         "ankommit",
         "kor",
         "avbryt",
-        "tillbaka"
+        "tillbaka",
+        "las"
       ],
       "title": "DeckAction",
       "type": "string"

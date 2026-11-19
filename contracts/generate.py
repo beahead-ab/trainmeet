@@ -117,6 +117,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.deck-touch": tkl.TklDeckTouch,
     "trainmeet.tkl-1.deck-pin": tkl.TklDeckPin,
     "trainmeet.tkl-1.deck-favourites": tkl.TklDeckFavourites,
+    # Stream Deck (#86 del b): real decks over USB and WebHID
+    "trainmeet.tkl-1.decks": tkl.TklDecks,
     "trainmeet.terminal16.hello": terminal.Hello,
     "trainmeet.terminal16.presence": terminal.Presence,
     "trainmeet.terminal16.alive": terminal.Alive,
@@ -1891,9 +1893,10 @@ def tkl_openapi() -> str:
                 "content": {"application/json": {"schema": openapi_ref(request)}},
             }
         params = [
-            {"name": part[1:-1], "in": "path", "required": True, "schema": {"type": "string"}}
+            {"name": name, "in": "path", "required": True, "schema": {"type": "string"}}
             for part in path.split("/")
             if part.startswith("{")
+            for name in [part[1 : part.index("}")]]
         ]
         for name, schema in (query or {}).items():
             required = "default" not in schema
@@ -1998,6 +2001,57 @@ def tkl_openapi() -> str:
     route("post", d + "/{serial}/dial", "tklDeckDial", deck, t + "deck-dial")
     route("post", d + "/{serial}/touch", "tklDeckTouch", deck, t + "deck-touch")
     route("get", d + "/{serial}/wait", "tklDeckWait", t + "interlocking-wait", query=wait_query)
+    # Stream Deck (#86 del b): real decks, their status, and every key as a picture.
+    route("get", a + "/decks", "tklDecks", t + "decks")
+    route("post", d + "/{serial}/close", "tklDeckClose", None)
+    png: JsonSchemaValue = {
+        "200": {
+            "description": "PNG, med ETag; samma bild igen är 304.",
+            "content": {"image/png": {"schema": {"type": "string", "format": "binary"}}},
+        },
+        "304": {"description": "Not Modified"},
+    }
+    pictures: list[tuple[str, str, dict[str, JsonSchemaValue]]] = [
+        (
+            "/ingen-kontakt.png",
+            "tklDeckNoContactPicture",
+            {
+                "size": {"type": "integer", "minimum": 32, "maximum": 256, "default": 72},
+                "height": {"type": "integer", "minimum": 32, "maximum": 256},
+            },
+        ),
+        (
+            "/{serial}/key/{index}.png",
+            "tklDeckKeyPicture",
+            {
+                "size": {"type": "integer", "minimum": 32, "maximum": 256, "default": 72},
+                "height": {"type": "integer", "minimum": 32, "maximum": 256},
+                "phase": {"type": "integer", "minimum": 0, "maximum": 1, "default": 0},
+            },
+        ),
+        (
+            "/{serial}/strip.png",
+            "tklDeckStripPicture",
+            {
+                "width": {"type": "integer", "minimum": 100, "maximum": 2000, "default": 800},
+                "height": {"type": "integer", "minimum": 20, "maximum": 400, "default": 100},
+            },
+        ),
+        (
+            "/{serial}/info.png",
+            "tklDeckInfoPicture",
+            {
+                "width": {"type": "integer", "minimum": 100, "maximum": 2000, "default": 248},
+                "height": {"type": "integer", "minimum": 20, "maximum": 400, "default": 58},
+            },
+        ),
+    ]
+    for tail, operation, picture_query in pictures:
+        route("get", d + tail, operation, None, query=picture_query)
+        paths[d + tail]["get"]["responses"] = png
+        for param in paths[d + tail]["get"]["parameters"]:
+            if param["name"] == "height" and "default" not in param["schema"]:
+                param["required"] = False  # a tall key, as Studio's; else as wide as `size`
     route("get", a + "/deck-favoriter", "tklDeckFavourites", t + "deck-favourites")
     route("post", a + "/deck-favoriter", "tklDeckPin", t + "deck-favourites", t + "deck-pin")
     stems = [

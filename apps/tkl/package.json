@@ -2,7 +2,7 @@
   "name": "@trainmeet/tkl",
   "private": true,
   "version": "0.1.0",
-  "description": "TrainMeet TKL's web app (KLAR-22): first start and the PIN, Ställverket at level 0 with Tåg · Klarering · Händelser and at level 1–2 as a panel in the five skins 85, 95, 59, Manöver and Foto with the panel functions and the turntable, Stream Deck on the screen with every Elgato model, Studio's list, Spårplan and Rita, where the station is drawn on the grid, and the connection to the meet. Served by tkl/.",
+  "description": "TrainMeet TKL's web app (KLAR-22): first start and the PIN, Ställverket at level 0 with Tåg · Klarering · Händelser and at level 1–2 as a panel in the five skins 85, 95, 59, Manöver and Foto with the panel functions and the turntable, Stream Deck on the screen with every Elgato model and a real deck with WebHID in Chrome and Edge, Studio's list, Spårplan and Rita, where the station is drawn on the grid, and the connection to the meet. Served by tkl/.",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
@@ -12,6 +12,7 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@elgato-stream-deck/webhid": "7.8.0",
     "@trainmeet/design": "0.1.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

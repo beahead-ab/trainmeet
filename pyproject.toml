@@ -46,8 +46,12 @@ push = [
 # meet's network with DNS-SD (KLAR-13). Not in the hub's image.
 tkl = [
     "httpx>=0.27",
+    # Draws the keys of a real Stream Deck, the same for USB and WebHID (#86, SD3).
+    "pillow>=11",
     # Checks the ID token when TKL logs in with TrainMeet ID (TKL18, #78).
     "pyjwt[crypto]>=2.10",
+    # A local TKL owns its Stream Decks over USB (SD50), through the system's libhidapi.
+    "streamdeck>=0.10",
     "zeroconf>=0.136",
 ]
 dev = [
@@ -126,6 +130,12 @@ ignore_missing_imports = true
 # onnxruntime, which runs the background removal's model (catalog/backgrounds.py), has no type
 # hints.
 module = ["onnxruntime", "onnxruntime.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# python-elgato-streamdeck, through which a local TKL owns its Stream Decks over USB
+# (tkl/deck/usb.py), has no py.typed marker; the driver uses it through its own Protocol.
+module = ["StreamDeck", "StreamDeck.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

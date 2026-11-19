@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.decks.schema.json",
+  "title": "trainmeet.tkl-1.decks",
+  "$defs": {
+    "DeckConnection": {
+      "description": "How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser\ndrives it with WebHID; or it is the deck on the screen (SD59).",
+      "enum": [
+        "usb",
+        "webhid",
+        "skarm"
+      ],
+      "title": "DeckConnection",
+      "type": "string"
+    },
+    "DeckModelId": {
+      "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
+      "enum": [
+        "mini",
+        "neo",
+        "15",
+        "xl",
+        "plus",
+        "plus-xl",
+        "pedal",
+        "module-6",
+        "module-15",
+        "module-32",
+        "studio"
+      ],
+      "title": "DeckModelId",
+      "type": "string"
+    },
+    "TklDeckGrid": {
+      "additionalProperties": true,
+      "description": "What a deck has (SD53): the keys in columns and rows, and the dials, the touch strip,\nthe info line, the touch points and the pedals. A model TKL does not know is read this\nway too, and gets the default for its grid.",
+      "properties": {
+        "columns": {
+          "maximum": 32,
+          "minimum": 0,
+          "title": "Columns",
+          "type": "integer"
+        },
+        "rows": {
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "dials": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Dials",
+          "type": "integer"
+        },
+        "strip": {
+          "default": false,
+          "description": "Pekremsan, på + och + XL.",
+          "title": "Strip",
+          "type": "boolean"
+        },
+        "info": {
+          "default": false,
+          "description": "Inforaden, på Neo.",
+          "title": "Info",
+          "type": "boolean"
+        },
+        "touch": {
+          "default": 0,
+          "description": "Pekpunkterna, på Neo.",
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Touch",
+          "type": "integer"
+        },
+        "pedals": {
+          "default": 0,
+          "maximum": 8,
+          "minimum": 0,
+          "title": "Pedals",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "columns",
+        "rows"
+      ],
+      "title": "TklDeckGrid",
+      "type": "object"
+    },
+    "TklDeckStatus": {
+      "additionalProperties": true,
+      "description": "One deck as Studio, Deck shows it (#86 del c): its serial number, its model, how it is\nconnected now, and whether its model is tried with a real deck (SD35, SD50, SD58).",
+      "properties": {
+        "serial": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Serial",
+          "type": "string"
+        },
+        "model": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckModelId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "description": "Modellens namn, eller rutnätet för en okänd modell.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "grid": {
+          "$ref": "#/$defs/TklDeckGrid"
+        },
+        "workplace": {
+          "default": "1",
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Workplace",
+          "type": "string"
+        },
+        "connection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeckConnection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Ansluten nu: över USB, med WebHID eller på skärmen."
+        },
+        "tried": {
+          "default": false,
+          "description": "Modellen är provad med ett riktigt deck.",
+          "title": "Tried",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "serial",
+        "name",
+        "grid"
+      ],
+      "title": "TklDeckStatus",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The decks this TKL knows (SD35), and whether it owns decks over USB itself: a local TKL\ndoes, so that a deck works without an open tab (SD50); TKL in the cloud never opens USB.",
+  "properties": {
+    "usb": {
+      "description": "TKL sköter deck över USB på den här datorn.",
+      "title": "Usb",
+      "type": "boolean"
+    },
+    "usb_problem": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför TKL inte når USB just nu, till exempel utan libhidapi.",
+      "title": "Usb Problem"
+    },
+    "decks": {
+      "items": {
+        "$ref": "#/$defs/TklDeckStatus"
+      },
+      "title": "Decks",
+      "type": "array"
+    }
+  },
+  "required": [
+    "usb"
+  ],
+  "type": "object"
+}

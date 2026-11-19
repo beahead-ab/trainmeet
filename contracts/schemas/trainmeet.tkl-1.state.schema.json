@@ -78,6 +78,12 @@
         }
       ],
       "default": null
+    },
+    "locked": {
+      "default": false,
+      "description": "Hela stationen är låst (SD30): med Lås i TKL eller på ett deck. Varje deck visar bara klockan, och PIN-koden låser upp.",
+      "title": "Locked",
+      "type": "boolean"
     }
   },
   "required": [

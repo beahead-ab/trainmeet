@@ -112,6 +112,7 @@ export function Locked({ state, onUnlock }: { state: State; onUnlock: (pin: stri
     <form className="last" onSubmit={submit}>
       <h1>{state.station?.name ?? "TKL"}</h1>
       <p>TKL är låst. Skriv PIN-koden.</p>
+      {state.locked ? <p className="liten">Låst för hela stationen: också Stream Deck visar bara klockan (SD30).</p> : null}
       <label>
         PIN
         <input value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} inputMode="numeric" type="password" autoComplete="current-password" maxLength={12} autoFocus />

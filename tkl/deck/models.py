@@ -4,6 +4,9 @@ The grids are read from the library TKL will use for real decks (del b): keys in
 rows, the dials, the touch strip, the info line, the touch points and the pedals. A model TKL
 does not know is described by its grid alone and gets the default for that grid (SD53).
 Module 6, 15 and 32 and the older editions of the 15 get the profile of their size (SD54).
+
+A model counts as done only when a real deck of it has been tried (SD58): TRIED lists those, and
+every other model is Inte provad in the API and in the model chooser.
 """
 
 from __future__ import annotations
@@ -14,7 +17,11 @@ from contracts.tkl import DeckModelId, TklDeckGrid, TklDeckModel
 
 M = DeckModelId
 
-MODELS: Final[tuple[TklDeckModel, ...]] = (
+TRIED: Final[frozenset[DeckModelId]] = frozenset()
+"""The models tried with a real deck (SD58). Nothing is tried yet: a model is added here when
+Casper or one of the friends has tried it in the test environment."""
+
+_MODELS: Final[tuple[TklDeckModel, ...]] = (
     TklDeckModel(id=M.MINI, name="Mini", grid=TklDeckGrid(columns=3, rows=2), size=M.MINI),
     TklDeckModel(
         id=M.FIFTEEN, name="Stream Deck 15", grid=TklDeckGrid(columns=5, rows=3), size=M.FIFTEEN
@@ -53,11 +60,21 @@ MODELS: Final[tuple[TklDeckModel, ...]] = (
         id=M.PEDAL, name="Pedal", grid=TklDeckGrid(columns=0, rows=0, pedals=3), size=M.PEDAL
     ),
 )
+MODELS: Final[tuple[TklDeckModel, ...]] = tuple(
+    m.model_copy(update={"tried": m.id in TRIED}) for m in _MODELS
+)
 BY_ID: Final = {m.id: m for m in MODELS}
 
 
 def model_of(model: DeckModelId) -> TklDeckModel:
     return BY_ID[model]
+
+
+def name_of(model: DeckModelId | None, grid: TklDeckGrid) -> str:
+    """The model's name, or the grid for a model TKL does not know (SD53)."""
+    if model is not None:
+        return BY_ID[model].name
+    return f"{grid.columns} × {grid.rows}"
 
 
 def size_of(grid: TklDeckGrid) -> DeckModelId | None:

@@ -431,20 +431,31 @@ def test_the_hub_has_a_secret_of_its_own_in_id() -> None:
     assert "ID_HUB_SECRET: ${ID_HUB_SECRET:?ID_HUB_SECRET saknas}" in compose
 
 
-def test_the_id_check_stops_its_background_programs() -> None:
+def test_every_check_stops_its_background_programs() -> None:
     """Programs started through uv hold uv's cache locked; setup-uv's own cleanup after the
-    job then waits for the lock and fails the check (it happened on main, 15 November)."""
+    job then waits for the lock and fails the check. It happened on main 15 November (ID),
+    and again 19 November in TKL and Catalog when uv.lock changed (#86)."""
     workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
-    job = workflow.split("\n  id:\n")[1].split("\n  testmiljon:\n")[0]
-    started = re.findall(
-        r"nohup uvx? (?:--from \S+ )?(?:run )?python (\S+)|nohup uv run (uvicorn \S+)", job
-    )
-    assert started, "the check starts nothing in the background?"
-    stop = job.split("- name: Stäng av provets program")[1]
-    assert "if: always()" in stop
-    stopped = re.findall(r'pkill -f "([^"]+)"', stop)
-    for script, server in started:
-        assert any(pattern in (script or server) for pattern in stopped), script or server
+    jobs = re.split(r"\n  ([a-z]+):\n", workflow.split("\njobs:\n", 1)[1])
+    checked = []
+    for name, job in zip(jobs[1::2], jobs[2::2], strict=True):
+        started = re.findall(
+            r"nohup uvx? (?:--from \S+ )?(?:run )?python (\S+)|nohup uv run (uvicorn \S+)"
+            r"|uv run python -m (\S+)(?:[^\n]*\\\n)*[^\n]*&[ \t]*$",
+            job,
+            flags=re.MULTILINE,
+        )
+        if not started:
+            continue
+        checked.append(name)
+        assert "- name: Stäng av provets program" in job, name
+        stop = job.split("- name: Stäng av provets program")[1]
+        assert "if: always()" in stop, name
+        stopped = re.findall(r'pkill -f "([^"]+)"', stop)
+        for found in started:
+            program = next(part for part in found if part)
+            assert any(pattern in program for pattern in stopped), (name, program)
+    assert {"tkl", "catalog", "id"} <= set(checked), checked
 
 
 def test_ids_api_runs_beside_keycloak_at_the_same_address() -> None:

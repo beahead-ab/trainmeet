@@ -11,7 +11,14 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from contracts.tkl import TklDeckFavourites, TklDeckProfile, TklDeckView, TklWait
+from contracts.tkl import (
+    DeckConnection,
+    TklDeckFavourites,
+    TklDeckProfile,
+    TklDecks,
+    TklDeckView,
+    TklWait,
+)
 from tkl.tests.test_app import API, PIN, set_up, tkl
 from tkl.tests.test_app_stallverk import with_model
 
@@ -172,3 +179,51 @@ def test_level_0_has_no_deck(tmp_path: Path) -> None:
     client = tkl(tmp_path)
     assert set_up(client).status_code == 201
     assert client.post(D + "/skarm-1", json={"model": "15"}).status_code == 404
+
+
+def test_every_model_is_inte_provad_until_a_real_deck_has_been_tried(client: TestClient) -> None:
+    """SD58: no model is tried with a real deck yet."""
+    models = client.get(D + "/models").json()
+    assert models and all(m["tried"] is False for m in models)
+
+
+def test_a_deck_in_the_browser_with_webhid_and_its_status(client: TestClient) -> None:
+    """SD35, SD50: a deck opened with WebHID is connected until the browser lets it go; the
+    deck on the screen says so too. TKL here is local and owns decks over USB."""
+    view(client.post(D + "/A1B2C3", json={"model": "mini", "connection": "webhid"}))
+    view(client.post(D + "/skarm-1", json={"model": "15"}))
+    found = TklDecks.model_validate(client.get(API + "/decks").json())
+    assert found.usb is True
+    shown = {d.serial: (d.connection, d.name, d.tried) for d in found.decks}
+    assert shown == {
+        "A1B2C3": (DeckConnection.WEBHID, "Mini", False),
+        "skarm-1": (DeckConnection.SCREEN, "Stream Deck 15", False),
+    }
+    assert client.post(D + "/A1B2C3/close").status_code == 204
+    found = TklDecks.model_validate(client.get(API + "/decks").json())
+    assert {d.serial: d.connection for d in found.decks}["A1B2C3"] is None
+
+
+def test_las_locks_tkl_for_the_whole_station(client: TestClient) -> None:
+    """SD30: Lås on the deck's page Läge, or in TKL, locks TKL for every browser and every
+    deck: only the clock, and only the PIN opens it. The PIN rules are as before (TKL18)."""
+    other = TestClient(client.app)
+    assert other.post(API + "/unlock", json={"pin": PIN}).status_code == 200
+    opened = view(client.post(D + "/skarm-1", json={"model": "15"}))
+    lage = key(opened, "Läge " + opened.keys[14].text)
+    menu = view(client.post(D + "/skarm-1/press", json={"key": lage}))
+    locked = view(client.post(D + "/skarm-1/press", json={"key": key(menu, "Lås TKL")}))
+    assert locked.locked and locked.message == "TKL är låst. PIN-koden låser upp."
+    assert [f.type for f in locked.keys if f.type != "empty"] == ["clock"]
+    for browser in (client, other):
+        state = browser.get(API + "/state").json()
+        assert (state["unlocked"], state["locked"]) == (False, True)
+        assert browser.get(API + "/stallverk").status_code == 401, "every session ended"
+    assert view(other.get(D + "/skarm-1")).locked, "the deck reads the clock without a PIN"
+    assert other.post(API + "/unlock", json={"pin": "0000"}).status_code == 401
+    assert other.post(API + "/unlock", json={"pin": PIN}).status_code == 200
+    assert not view(other.get(D + "/skarm-1")).locked
+    assert client.get(API + "/state").json()["locked"] is False
+    assert client.get(API + "/state").json()["unlocked"] is False, "this browser gives its PIN"
+    assert other.post(API + "/lock").status_code == 200
+    assert view(client.get(D + "/skarm-1")).locked, "Lås in TKL locks the decks too"

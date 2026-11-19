@@ -3,6 +3,16 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.deck-open.schema.json",
   "title": "trainmeet.tkl-1.deck-open",
   "$defs": {
+    "DeckConnection": {
+      "description": "How a deck is connected (SD50): a local TKL owns it over USB; in the cloud the browser\ndrives it with WebHID; or it is the deck on the screen (SD59).",
+      "enum": [
+        "usb",
+        "webhid",
+        "skarm"
+      ],
+      "title": "DeckConnection",
+      "type": "string"
+    },
     "DeckModelId": {
       "description": "Elgato's models (SD52). Module 6, 15 and 32 and the older editions of the 15 get the\nprofile of the size they have (SD54).",
       "enum": [
@@ -81,7 +91,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "A deck on this computer, by its serial number: its model, or its grid for a model TKL\ndoes not know (SD53).",
+  "description": "A deck on this computer, by its serial number: its model, or its grid for a model TKL\ndoes not know (SD53), and how it is connected.",
   "properties": {
     "model": {
       "anyOf": [
@@ -118,6 +128,10 @@
       ],
       "default": null,
       "title": "Workplace"
+    },
+    "connection": {
+      "$ref": "#/$defs/DeckConnection",
+      "default": "skarm"
     }
   },
   "type": "object"

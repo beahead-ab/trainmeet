@@ -337,6 +337,14 @@ jobs:
           docker logs tkl-rita || true
           cat "$RUNNER_TEMP/hubb.log" || true
 
+      # Hubben körs genom uv och håller uv:s cache låst. Den stängs av före jobbets egen städning,
+      # som annars väntar på låset tills den ger upp när uv.lock har ändrats (som i ID-jobbet).
+      - name: Stäng av provets program
+        if: always()
+        run: |
+          pkill -f "uvicorn hub.app" || true
+          for i in $(seq 1 10); do pgrep -f "uvicorn hub.app" >/dev/null || break; sleep 1; done
+
   # Catalog i läget check, provinloggningen och en säkerhetskopia med data i (CAT-39).
   catalog:
     name: Catalogs bild
@@ -492,6 +500,14 @@ jobs:
       - name: Visa loggen om något gick fel
         if: failure()
         run: cd "$PROV" && docker compose logs || true
+
+      # Webbläsarprovets Catalog körs genom uv och håller uv:s cache låst. Den stängs av före
+      # jobbets egen städning, som annars väntar på låset tills den ger upp (som i ID-jobbet).
+      - name: Stäng av provets program
+        if: always()
+        run: |
+          pkill -f "catalog.prov_webblasare" || true
+          for i in $(seq 1 10); do pgrep -f "catalog.prov_webblasare" >/dev/null || break; sleep 1; done
 
   # Lägger ut hubben på test.hub.trainmeet.app när en ändring har slagits ihop med main
   # och båda kontrollerna är gröna. Servern skapas första gången (deploy/testmiljo.py).

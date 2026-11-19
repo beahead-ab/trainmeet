@@ -63,6 +63,18 @@ def no_contact() -> TklDeckFace:
     )
 
 
+LOCK: Final = TklDeckFace(
+    type="action",
+    text="Lås",
+    under="fika",
+    bg="#1c1917",
+    fg="#fef3c7",
+    label="Lås TKL",
+)
+"""Lås on the page Läge (SD30): Fika is the same lock. It locks TKL for the whole station, and
+every deck shows only the clock until the PIN opens it again."""
+
+
 def refused(text: str, reason: str) -> TklDeckFace:
     """The interlocking's no, on the key for three seconds (SD18)."""
     return TklDeckFace(
