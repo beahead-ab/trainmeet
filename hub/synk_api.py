@@ -23,6 +23,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import ValidationError
 
 from contracts import drift
+from contracts import id as id_contract
 from contracts.reasons import Reason
 from contracts.sync import (
     HEADER,
@@ -36,11 +37,15 @@ from contracts.sync import (
     PushBatch,
     RelayAnswer,
     RelayCalls,
+    RelayMeet,
+    RelayMeets,
+    RelayWay,
     RunAck,
     RunEvents,
     RunFeed,
     SentVersion,
     SourceFile,
+    StationList,
     StationPackage,
     StationVersions,
     VersionList,
@@ -100,7 +105,10 @@ def router(
     pushes: Senders | None = None,
     stations: Stations | None = None,
     owners: Owners | None = None,
+    meets_of: Callable[[str], list[id_contract.Meet]] | None = None,
 ) -> APIRouter:
+    """meets_of: the meets of a person's clubs in TrainMeet ID, with the person's roles (ID10),
+    where the hub has ID's API; the meets molnets TKL may join (TKLMOLN-03)."""
     routes = APIRouter()
     relay = relay if relay is not None else Relay()
 
@@ -330,6 +338,56 @@ def router(
             raise HTTPException(410, "Ingen väntar på svaret längre.")
         return Response(status_code=204)
 
+    # --- The meets molnets TKL may join, and how (TKLMOLN-03, TKLMOLN-06) --------------------
+
+    def way_to(meet: str) -> tuple[RelayWay, str | None, str | None]:
+        """Directly when this hub leads the meet; through the relay to the Pi that leads it,
+        on the connection the Pi already has open; otherwise not now."""
+        if running.meet == meet and running.leading() is not None:
+            return RelayWay.HERE, hello().hub_name, None
+        led: str | None = None
+        followed = running.following()
+        if followed is not None and followed.meet == meet:
+            leader = running.mirror(followed.meet, followed.version).leader(followed.run)
+            led = leader[0] if leader is not None else None
+        live = [f for f in links.followers(meet) if relay.connected(f.hub_id)]
+        live.sort(key=lambda f: f.heard or f.linked, reverse=True)
+        pick = next((f for f in live if f.hub_name == led), live[0] if live else None)
+        if pick is None:
+            return RelayWay.NONE, None, None
+        return RelayWay.RELAY, pick.hub_name, f"/relay/{pick.hub_id}"
+
+    @routes.get("/api/sync/1/relay/meets")
+    def relay_meets(response: Response, authorization: Authorization = None) -> dict[str, Any]:
+        """The meets the one TKL's token from ID names may join (#78 del b): the meets of the
+        person's clubs in ID that this hub has, each with the way there. Asked of ID at every
+        call; nothing is kept."""
+        response.headers["Cache-Control"] = "no-store"
+        who = owner_of(authorization)
+        if meets_of is None:
+            return RelayMeets().model_dump(mode="json")
+        in_id = {str(m.id): m for m in meets_of(who)}
+        found = []
+        for summary in plans.meets():
+            meet = summary.meet
+            joined = in_id.get(str(meet.id_meet)) if meet.id_meet else None
+            if joined is None:
+                continue
+            way, hub_name, path = way_to(meet.id)
+            found.append(
+                RelayMeet(
+                    meet=meet.id,
+                    meet_name=meet.name,
+                    club_name=joined.club_name,
+                    starts_on=joined.starts_on,
+                    ends_on=joined.ends_on,
+                    way=way,
+                    hub_name=hub_name,
+                    relay=path,
+                )
+            )
+        return RelayMeets(meets=found[:200]).model_dump(mode="json")
+
     # --- Push (F20): the Pi's notices go out from here ---------------------------------------
 
     @routes.post("/api/sync/1/meets/{meet}/push", status_code=204)
@@ -406,6 +464,14 @@ def router(
         except StationError as error:
             raise HTTPException(error.status, str(error)) from error
         return saved.model_dump(mode="json")
+
+    @routes.get("/api/sync/1/stations")
+    def owned_stations(response: Response, authorization: Authorization = None) -> dict[str, Any]:
+        """Dina stationer (TKL5, TKLMOLN-02): the latest version of each of the owner's
+        stations, for TKL in the cloud. Only the owner's own."""
+        response.headers["Cache-Control"] = "no-store"
+        who = owner_of(authorization)
+        return StationList(stations=kept().owned(who)).model_dump(mode="json")
 
     @routes.get("/api/sync/1/stations/{station}/versions")
     def station_versions(

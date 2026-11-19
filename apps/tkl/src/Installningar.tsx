@@ -1,10 +1,13 @@
 // Inställningar (TKLAPP): Anslutning to the meet (KLAR-02, KLAR-13), Skärmar och ljud on this
 // screen (TKL33), and the PIN. The hub is found on the meet's network; over the internet the
-// dispatcher gives a code. The key from the approval stays in TKL's server.
+// dispatcher gives a code. The key from the approval stays in TKL's server. TKL in the cloud
+// with TrainMeet ID (#88) lists the meets the account may join instead, each directly or
+// through the cloud hub's relay, and Provbanan with its code; it has no PIN.
 import { useEffect, useState, type FormEvent } from "react";
-import { api, type Connection, type FoundHub, type IdState, type Question, type Saved, type State } from "./api";
+import { api, type Connection, type FoundHub, type IdState, type Meet, type Meets, type Question, type Saved, type State } from "./api";
 import { SOUND_NAMES, type Sounds } from "./ljud";
 import { SIDE } from "./niva0";
+import { ProvChip } from "./Provmarkering";
 
 export type Part = "anslutning" | "molnet" | "ljud" | "pin";
 const PARTS: [Part, string][] = [
@@ -38,7 +41,7 @@ export function Installningar(props: Props) {
   return (
     <div className="installningar">
       <nav className="sidomeny" aria-label="Inställningar">
-        {PARTS.map(([key, label]) => (
+        {PARTS.filter(([key]) => !(state.login && key === "pin")).map(([key, label]) => (
           <button key={key} type="button" aria-current={part === key ? "page" : undefined} onClick={() => onPart(key)}>
             {label}
             {key === "anslutning" && waiting ? <span className="liten"> (väntar)</span> : null}
@@ -85,10 +88,13 @@ export function Anslutning({ state, connection, hubs, questions, version, onFind
     return (
       <>
         <section className="ruta">
-          <h2>{approved ? "Ansluten" : connection.status === "waiting" ? "Väntar på godkännande" : STATUS[connection.status ?? ""] ?? "Ansluten"}</h2>
+          <h2>
+            {approved ? "Ansluten" : connection.status === "waiting" ? "Väntar på godkännande" : STATUS[connection.status ?? ""] ?? "Ansluten"} {connection.preview ? <ProvChip /> : null}
+          </h2>
           <ol className="steg">
             <li className="klart">Hittade Hubben · {connection.hub_name ?? connection.address}</li>
-            <li className="klart">Bad om att få köra {name}, med utsidan version {connection.outside_version}</li>
+            {connection.relayed ? <li className="klart">Genom molnhubbens relä, till Pi:n som leder träffen</li> : null}
+            <li className="klart">{state.login ? `Bad om att få köra ${name}, med utsidan som den är i arbetskopian` : `Bad om att få köra ${name}, med utsidan version ${connection.outside_version}`}</li>
             <li className={approved ? "klart" : ""}>{approved ? "Godkänd av trafikledningen" : "Godkännande av trafikledningen i Klienter"}</li>
             <li className={approved ? "klart" : ""}>Nyckel för träffen och platsen</li>
           </ol>
@@ -116,6 +122,20 @@ export function Anslutning({ state, connection, hubs, questions, version, onFind
             <p className="liten">Trafikledningen kan också svara i Klienter. Det första svaret gäller hela träffen.</p>
           </section>
         ) : null}
+      </>
+    );
+  }
+  if (state.login) {
+    return (
+      <>
+        <Traffar onConnect={onConnect} />
+        <section className="ruta">
+          <h2>Det här säger TKL</h2>
+          <p>
+            Stationen <b>{name}</b> <span className="tm-mono liten">{state.station?.station_id}</span>, med utsidan som den är i arbetskopian.
+          </p>
+          <p className="liten">Trafikledningen ger koden och väljer driftplatsen när TKL godkänns. Leder en Pi träffen går anslutningen genom molnhubbens relä, på den förbindelse Pi:n redan har öppen.</p>
+        </section>
       </>
     );
   }
@@ -192,6 +212,105 @@ export function Anslutning({ state, connection, hubs, questions, version, onFind
   );
 }
 
+const WAY: Record<Meet["way"], string> = {
+  here: "Molnhubben kör träffen",
+  relay: "Genom molnhubbens relä",
+  none: "Körs inte just nu",
+  preview: "Provkörning",
+};
+
+/** How the meet is reached, in words. */
+export function wayOf(meet: Meet): string {
+  if (meet.way === "relay") return `${meet.hub_name ?? "Pi:n"} leder träffen · ${WAY.relay.toLowerCase()}`;
+  if (meet.way === "preview") return `${WAY.preview} på ${meet.hub_name ?? "molnhubben"}, skild från de riktiga träffarna`;
+  return WAY[meet.way];
+}
+
+/** The meets the account may join from ID's roles, and Provbanan (TKLMOLN-03, TKLMOLN-11).
+ * Pure, for the tests. */
+export function TraffarVy({ meets, chosen, code, sending, onChoose, onCode, onConnect }: { meets: Meets | null; chosen: number | null; code: string; sending: boolean; onChoose: (index: number) => void; onCode: (code: string) => void; onConnect: (meet: Meet) => void }) {
+  return (
+    <section className="ruta">
+      <h2>Träffar</h2>
+      <p className="liten">Träffarna i dina klubbar enligt TrainMeet ID, och Provbanan. Koden kommer från trafikledningen, eller från din provkörning i Provbanan.</p>
+      {meets?.message ? <p className="fel">{meets.message}</p> : null}
+      {meets === null ? (
+        <p className="tom">Hämtar träffarna …</p>
+      ) : (
+        <ul className="traffar">
+          {(meets.meets ?? []).map((meet, index) => (
+            <li key={`${meet.meet ?? "provbanan"}-${index}`}>
+              <div>
+                <b>{meet.name}</b> {meet.way === "preview" ? <ProvChip /> : null}
+                <span className="liten">
+                  {meet.club_name ? ` · ${meet.club_name}` : ""}
+                  {meet.starts_on ? ` · ${meet.starts_on}${meet.ends_on && meet.ends_on !== meet.starts_on ? `–${meet.ends_on}` : ""}` : ""}
+                </span>
+              </div>
+              <span className="liten">{wayOf(meet)}</span>
+              {meet.address ? (
+                chosen === index ? (
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      onConnect(meet);
+                    }}
+                  >
+                    <label>
+                      Kod
+                      <input value={code} onChange={(e) => onCode(e.target.value)} inputMode="numeric" autoComplete="off" maxLength={20} className="tm-mono" autoFocus />
+                    </label>
+                    <button type="submit" className="primar" disabled={sending || !code.trim()}>
+                      Anslut
+                    </button>
+                  </form>
+                ) : (
+                  <button type="button" onClick={() => onChoose(index)}>
+                    Välj
+                  </button>
+                )
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Traffar({ onConnect }: { onConnect: (address: string, code: string | null) => Promise<void> }) {
+  const [meets, setMeets] = useState<Meets | null>(null);
+  const [chosen, setChosen] = useState<number | null>(null);
+  const [code, setCode] = useState("");
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState("");
+  useEffect(() => {
+    api.meets().then(setMeets, (error: unknown) => setMeets({ meets: [], message: error instanceof Error ? error.message : "Träffarna gick inte att hämta." }));
+  }, []);
+  const connect = async (meet: Meet) => {
+    if (!meet.address) return;
+    setSending(true);
+    setMessage("");
+    try {
+      await onConnect(meet.address, code.trim() || null);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Det gick inte att ansluta.");
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <>
+      <TraffarVy meets={meets} chosen={chosen} code={code} sending={sending} onChoose={(index) => { setChosen(index); setCode(""); }} onCode={setCode} onConnect={(meet) => void connect(meet)} />
+      {message ? (
+        <p className="fel" role="alert">
+          {message}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 /** TrainMeet ID och molnet (TKL18, SYNK-06, SYNK-30, #78): log in with ID, and Spara i molnet
  * saves the latest version of the outside as the station package in the cloud hub. A save on
  * top of an older version is refused, and the owner chooses (H71). */
@@ -217,6 +336,30 @@ export function Molnet({ initial }: { initial?: IdState }) {
     }
   };
   if (!state) return <p className="liten">Hämtar …</p>;
+  if (state.bound) {
+    return (
+      <section className="ruta" id="molnet">
+        <h2>TrainMeet ID och molnet</h2>
+        <p>
+          Inloggad som <b>{state.person ?? "–"}</b>.
+        </p>
+        <p className="liten">
+          {`Stationen hör till ditt konto och ligger i molnet${state.saved ? `, version ${state.saved}` : ""}. Den här webbläsaren har en arbetskopia${state.changed ? " med ändringar som inte är sparade" : ""}. Spara i molnet står överst på sidan.`}
+        </p>
+        {state.changed ? <p className="varning">Logga ut tar bort arbetskopian här, med ändringarna som inte är sparade.</p> : null}
+        <button
+          type="button"
+          onClick={() =>
+            void api.idLogOut().then(() => {
+              location.assign("/");
+            })
+          }
+        >
+          Logga ut från TKL i molnet
+        </button>
+      </section>
+    );
+  }
   if (!state.available) {
     return (
       <section className="ruta">

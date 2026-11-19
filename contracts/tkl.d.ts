@@ -260,6 +260,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/konto/stationer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklCloudStations"];
+        put?: never;
+        post: operations["tklNewStation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/konto/stationer/{station_id}/oppna": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklOpenStation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/konto/traffar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklMeets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/studio/model": {
         parameters: {
             query?: never;
@@ -4047,6 +4095,44 @@ export interface components {
              * @default null
              */
             remote: components["schemas"]["trainmeet.tkl-1.state.TklRemote"] | null;
+            /**
+             * Login
+             * @description TKL i molnet loggar in med TrainMeet ID i stället för första start och PIN: stationen hör till kontot och öppnas ur Hubbens Synk (TKL5, TKLMOLN-01, TKLMOLN-10).
+             * @default false
+             */
+            login: boolean;
+            /**
+             * @description Kontot som är inloggat i den här webbläsaren, i TKL i molnet.
+             * @default null
+             */
+            account: components["schemas"]["trainmeet.tkl-1.state.TklAccount"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklAccount
+         * @description TKL i molnet (TKL5, TKLMOLN-07): kontot i TrainMeet ID som är inloggat, och versionen i
+         *     Synk som den öppna stationen bygger på. TKL håller bara en arbetskopia; stationspaketet ägs
+         *     av stationsägaren och ligger i Synk (TKLMOLN-05).
+         */
+        "trainmeet.tkl-1.state.TklAccount": {
+            /**
+             * Person
+             * @description Namnet i ID. Aldrig adressen.
+             */
+            person: string;
+            /**
+             * Base
+             * @description Versionen i Synk som arbetskopian bygger på.
+             * @default null
+             */
+            base: number | null;
+            /**
+             * Changed
+             * @description Arbetskopian har ändringar som inte är sparade i molnet.
+             * @default false
+             */
+            changed: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -4619,6 +4705,12 @@ export interface components {
              * @default false
              */
             preview: boolean;
+            /**
+             * Relayed
+             * @description Genom molnhubbens relä till Pi:n som leder träffen (TKLMOLN-03, SYNK-11).
+             * @default false
+             */
+            relayed: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5698,6 +5790,18 @@ export interface components {
              * @default null
              */
             local: number | null;
+            /**
+             * Bound
+             * @description TKL i molnet: stationen hör till kontot, och Spara i molnet är hur den sparas (TKL5). Arbetskopian i TKL är bara en kopia.
+             * @default false
+             */
+            bound: boolean;
+            /**
+             * Changed
+             * @description Ändringar som inte är sparade i molnet än.
+             * @default false
+             */
+            changed: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -5738,6 +5842,117 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklCloudStations
+         * @description Dina stationer (TKLMOLN-02): stationspaketen som kontot äger i Hubbens Synk.
+         */
+        "trainmeet.tkl-1.cloud-stations": {
+            /** Stations */
+            stations?: components["schemas"]["trainmeet.tkl-1.cloud-stations.TklCloudStation"][];
+            /**
+             * Open
+             * @description Stationen som är öppen i den här webbläsaren.
+             * @default null
+             */
+            open: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklCloudStation
+         * @description En station i Dina stationer: den senaste versionen i Synk.
+         */
+        "trainmeet.tkl-1.cloud-stations.TklCloudStation": {
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            /**
+             * Saved
+             * Format: date-time
+             */
+            saved: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklNewStation
+         * @description Ny station i TKL i molnet: namnet och det korta namnet. Version 1 sparas i Synk direkt.
+         */
+        "trainmeet.tkl-1.new-station": {
+            /** Name */
+            name: string;
+            /** Station Id */
+            station_id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TklMeets */
+        "trainmeet.tkl-1.meets": {
+            /** Meets */
+            meets?: components["schemas"]["trainmeet.tkl-1.meets.TklMeet"][];
+            /**
+             * Message
+             * @description Varför kontots träffar inte går att läsa just nu.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklMeet
+         * @description En träff att ansluta till i TKL i molnet: kontots träffar enligt rollerna i ID, och
+         *     Provbanan. Adressen är molnhubbens, eller dess relä till Pi:n; aldrig Pi:ns egen.
+         */
+        "trainmeet.tkl-1.meets.TklMeet": {
+            /**
+             * Meet
+             * @description Hubbens träff; tomt för Provbanan.
+             * @default null
+             */
+            meet: string | null;
+            /** Name */
+            name: string;
+            /**
+             * Club Name
+             * @default null
+             */
+            club_name: string | null;
+            /**
+             * Starts On
+             * @default null
+             */
+            starts_on: string | null;
+            /**
+             * Ends On
+             * @default null
+             */
+            ends_on: string | null;
+            way: components["schemas"]["trainmeet.tkl-1.meets.TklMeetWay"];
+            /**
+             * Hub Name
+             * @description Hubben som leder träffen.
+             * @default null
+             */
+            hub_name: string | null;
+            /**
+             * Address
+             * @description Där TKL ansluter, med koden.
+             * @default null
+             */
+            address: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklMeetWay
+         * @description Hur TKL i molnet når en träff (TKLMOLN-03, TKLMOLN-06).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.meets.TklMeetWay": "here" | "relay" | "none" | "preview";
         /**
          * TklTrackPlan
          * @description Spårplan i Studio: the model's summary, the checks, the routes and the panel.
@@ -16860,6 +17075,7 @@ export interface components {
         /**
          * TklRemoteSetUp
          * @description Första start som Fjärrställverk (ingen egen station): namnet, fjärrområdet och PIN:en.
+         *     I TKL i molnet med TrainMeet ID låser inloggningen i stället, och PIN:en utelämnas.
          */
         "trainmeet.tkl-1.remote-setup": {
             /** Name */
@@ -16874,8 +17090,9 @@ export interface components {
             /**
              * Pin
              * @description 4–12 siffror. Skrivs aldrig ut.
+             * @default null
              */
-            pin: string;
+            pin: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -18234,6 +18451,92 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.saved"];
+                };
+            };
+        };
+    };
+    tklCloudStations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.cloud-stations"];
+                };
+            };
+        };
+    };
+    tklNewStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.new-station"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.state"];
+                };
+            };
+        };
+    };
+    tklOpenStation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                station_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.state"];
+                };
+            };
+        };
+    };
+    tklMeets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.meets"];
                 };
             };
         };

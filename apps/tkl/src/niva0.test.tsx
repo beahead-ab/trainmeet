@@ -274,16 +274,16 @@ describe("Studio with a station model (STD-08, TKL92)", () => {
 
 describe("TrainMeet ID och molnet (TKL18, SYNK-30, H71)", () => {
   it("offers the login with ID, and then Spara i molnet with what is where", () => {
-    const out = renderToStaticMarkup(<Molnet initial={{ available: true, person: null, cloud: "https://moln.example.test", saved: null, local: 2 }} />);
+    const out = renderToStaticMarkup(<Molnet initial={{ available: true, person: null, cloud: "https://moln.example.test", saved: null, local: 2, bound: false, changed: false }} />);
     expect(out).toContain('id="id-login" class="knapp primar" href="/api/tkl/1/id/login">Logga in med TrainMeet ID<');
-    const inside = renderToStaticMarkup(<Molnet initial={{ available: true, person: "Tomas Ek", cloud: "https://moln.example.test", saved: 1, local: 2 }} />);
+    const inside = renderToStaticMarkup(<Molnet initial={{ available: true, person: "Tomas Ek", cloud: "https://moln.example.test", saved: 1, local: 2, bound: false, changed: false }} />);
     expect(inside).toContain("Inloggad som <b>Tomas Ek</b>.");
     expect(inside).toContain("Utsidan på datorn: version 2. I molnet: version 1.");
     expect(inside).toContain('id="spara-i-molnet"');
   });
 
   it("says when this TKL has no login with ID", () => {
-    const html = renderToStaticMarkup(<Molnet initial={{ available: false, person: null, cloud: null, saved: null, local: null }} />);
+    const html = renderToStaticMarkup(<Molnet initial={{ available: false, person: null, cloud: null, saved: null, local: null, bound: false, changed: false }} />);
     expect(html).toContain("Den här TKL har ingen inloggning med TrainMeet ID.");
   });
 });

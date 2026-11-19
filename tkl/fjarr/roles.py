@@ -55,3 +55,9 @@ class Roles:
             db.execute(
                 "INSERT OR REPLACE INTO remote_role VALUES (?, ?)", (slot, remote.model_dump_json())
             )
+
+    def forget(self, slot: str) -> None:
+        """The slot is a station's TKL again, or nothing: in the cloud a working copy may take
+        the place of a remote interlocking in the same browser (#88)."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM remote_role WHERE slot=?", (slot,))

@@ -53,9 +53,27 @@ The PIN is never stored, only an scrypt hash with its own salt, and wrong attemp
 so that guessing stays slow. The key is kept here and nowhere else: it never reaches the browser
 or a log (H31).
 
-Locally TKL has one station. TKL in the cloud keeps one station per browser, behind a cookie of
-its own, until TrainMeet ID gives each owner their stations (TKL5); those stations go away after
-a month without use.
+Locally TKL has one station. TKL in the cloud with TrainMeet ID (TKL5, TKLMOLN-05, TKLMOLN-07,
+#88) has no store of its own: the station belongs to the account and lives in Hubbens Synk. Each
+browser has a slot, behind a cookie of its own, and what is kept for it here is:
+
+- the login: the person's id and name from ID, and ID's tokens, so that TKL can read and write
+  the person's station packages in Synk; never the address (cloud_account);
+- the sessions, as hashes of the cookie that opens TKL (session);
+- the working copy of the station the browser opened, a cache of a version in Synk with the
+  changes not saved yet: the outside, the model, Manöver's, Stream Deck's and Fjärrstyrning's
+  settings, and the drafts of Rita and Dela (station and the tables that follow it), with the
+  version in Synk it builds on (cloud_account.base), so that a save on top of a newer one is
+  refused (H71);
+- TKL's runtime data for the working copy: the interlocking's state of the moment, the
+  connection to a meet with its key, the last snapshots, the decks and their counts, and Prova's
+  results. None of it is in the station package.
+
+The working copy goes when the person logs out, when another person logs in in the same browser,
+when another station is opened, and after a month without use. Nothing the owner needs to keep
+lives only here: a station is saved to Synk at once when it is made, and every save writes a new
+version there. Without TrainMeet ID (TKL_ID_ISSUER unset), TKL in the cloud keeps one station
+per browser as before #88, which the image's own check uses.
 """
 
 from __future__ import annotations
@@ -78,6 +96,7 @@ from contracts import station
 from contracts.common import Side
 from contracts.station_model import StationModel, StationPart, to_json
 from contracts.station_outside import Exit, StationOutside, StationTrack
+from contracts.sync import StationPackage
 from contracts.tkl import (
     OutsideVersion,
     TklDeckDeviations,
@@ -135,6 +154,10 @@ CREATE TABLE IF NOT EXISTS id_account (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
     person TEXT NOT NULL, name TEXT NOT NULL, access TEXT NOT NULL, refresh TEXT,
     access_until REAL NOT NULL, saved INTEGER
+);
+CREATE TABLE IF NOT EXISTS cloud_account (
+    slot TEXT PRIMARY KEY, person TEXT NOT NULL, name TEXT NOT NULL, access TEXT NOT NULL,
+    refresh TEXT, access_until REAL NOT NULL, base INTEGER, synced INTEGER, used REAL NOT NULL
 );
 CREATE TABLE IF NOT EXISTS connection (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
@@ -964,35 +987,34 @@ class TklStore:
         """Ny version av utsidan: the list as it is becomes the next version. The same list
         again makes no new one."""
         with self._transaction() as db:
-            studio = self._studio(db, slot)
-            if studio.changed:
-                number = (studio.versions[0].number if studio.versions else 0) + 1
-                if number > MAX_VERSIONS:
-                    db.execute(
-                        "DELETE FROM outside_version WHERE slot=? AND number<=?",
-                        (slot, number - MAX_VERSIONS),
-                    )
+            return self._new_version(db, slot)
+
+    def _new_version(self, db: sqlite3.Connection, slot: str) -> TklStudio:
+        studio = self._studio(db, slot)
+        if studio.changed:
+            number = (studio.versions[0].number if studio.versions else 0) + 1
+            if number > MAX_VERSIONS:
                 db.execute(
-                    "INSERT INTO outside_version VALUES (?, ?, ?, ?)",
-                    (slot, number, now_utc().timestamp(), studio.draft.model_dump_json()),
+                    "DELETE FROM outside_version WHERE slot=? AND number<=?",
+                    (slot, number - MAX_VERSIONS),
                 )
-                model = self._model(db, slot)
-                if model is not None:
-                    db.execute("INSERT INTO model_version VALUES (?, ?, ?)", (slot, number, model))
-                manover = self._manover(db, slot)
-                if model is not None and manover is not None:
-                    db.execute(
-                        "INSERT INTO manover_version VALUES (?, ?, ?)", (slot, number, manover)
-                    )
-                deck = self._streamdeck(db, slot)
-                if model is not None and deck is not None:
-                    db.execute(
-                        "INSERT INTO streamdeck_version VALUES (?, ?, ?)", (slot, number, deck)
-                    )
-                fjarr = self._fjarr(db, slot)
-                if model is not None and fjarr is not None:
-                    db.execute("INSERT INTO fjarr_version VALUES (?, ?, ?)", (slot, number, fjarr))
-            return self._studio(db, slot)
+            db.execute(
+                "INSERT INTO outside_version VALUES (?, ?, ?, ?)",
+                (slot, number, now_utc().timestamp(), studio.draft.model_dump_json()),
+            )
+            model = self._model(db, slot)
+            if model is not None:
+                db.execute("INSERT INTO model_version VALUES (?, ?, ?)", (slot, number, model))
+            manover = self._manover(db, slot)
+            if model is not None and manover is not None:
+                db.execute("INSERT INTO manover_version VALUES (?, ?, ?)", (slot, number, manover))
+            deck = self._streamdeck(db, slot)
+            if model is not None and deck is not None:
+                db.execute("INSERT INTO streamdeck_version VALUES (?, ?, ?)", (slot, number, deck))
+            fjarr = self._fjarr(db, slot)
+            if model is not None and fjarr is not None:
+                db.execute("INSERT INTO fjarr_version VALUES (?, ?, ?)", (slot, number, fjarr))
+        return self._studio(db, slot)
 
     def latest_outside(self, slot: str) -> tuple[int, StationOutside]:
         """The latest version, made from the list if there is none yet."""
@@ -1089,6 +1111,198 @@ class TklStore:
     def forget_account(self, slot: str) -> None:
         with self._transaction() as db:
             db.execute("DELETE FROM id_account WHERE slot=?", (slot,))
+
+    # --- TKL i molnet with TrainMeet ID (TKL5, TKLMOLN-07, #88): the account and the copy ------
+
+    def keep_cloud_account(
+        self,
+        slot: str,
+        person: str,
+        name: str,
+        access: str,
+        refresh: str | None,
+        access_until: float,
+    ) -> str | None:
+        """Logged in with ID in this browser: one login for everything (TKLMOLN-10). Another
+        person's working copy goes first. The same person's is opened again, also after Lås
+        (SD30), and a station this browser had before #88 is kept as the working copy. Returns
+        a session when the browser has a working copy."""
+        now = now_utc()
+        stale = (now - SLOT_LIFETIME).timestamp()
+        with self._transaction() as db:
+            db.execute(
+                "DELETE FROM station WHERE slot IN (SELECT slot FROM cloud_account WHERE used<?)",
+                (stale,),
+            )
+            db.execute("DELETE FROM cloud_account WHERE used<?", (stale,))
+            before = db.execute(
+                "SELECT person, base, synced FROM cloud_account WHERE slot=?", (slot,)
+            ).fetchone()
+            synced = None
+            if before is None:
+                count = db.execute("SELECT count(*) FROM cloud_account").fetchone()[0]
+                if count >= MAX_SLOTS:
+                    raise Full()
+                # A station from before #88: the person's own, saved or not.
+                had = db.execute(
+                    "SELECT saved FROM id_account WHERE slot=? AND person=?", (slot, person)
+                ).fetchone()
+                base = had[0] if had is not None else None
+            elif str(before[0]) != person:
+                db.execute("DELETE FROM station WHERE slot=?", (slot,))
+                base = None
+            else:
+                base, synced = before[1], before[2]
+            db.execute(
+                "INSERT OR REPLACE INTO cloud_account VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (slot, person, name, access, refresh, access_until, base, synced, now.timestamp()),
+            )
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                return None
+            db.execute("DELETE FROM station_lock WHERE slot=?", (slot,))
+            return self._new_session(db, slot)
+
+    def cloud_account(self, slot: str | None) -> IdAccount | None:
+        """Who is logged in with ID in this browser, and the version in Synk the working copy
+        builds on (as saved)."""
+        if not slot:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT person, name, access, refresh, access_until, base FROM cloud_account "
+                "WHERE slot=?",
+                (slot,),
+            ).fetchone()
+        if row is None:
+            return None
+        return IdAccount(str(row[0]), str(row[1]), str(row[2]), row[3], float(row[4]), row[5])
+
+    def cloud_tokens(self, slot: str, access: str, refresh: str | None, until: float) -> None:
+        with self._transaction() as db:
+            db.execute(
+                "UPDATE cloud_account SET access=?, refresh=?, access_until=?, used=? WHERE slot=?",
+                (access, refresh, until, now_utc().timestamp(), slot),
+            )
+
+    def cloud_base(self, slot: str, version: int, local: int) -> None:
+        """The working copy's local version `local` is now this version in Synk: saved."""
+        with self._transaction() as db:
+            db.execute(
+                "UPDATE cloud_account SET base=?, synced=?, used=? WHERE slot=?",
+                (version, local, now_utc().timestamp(), slot),
+            )
+
+    def cloud_changed(self, slot: str) -> bool:
+        """Has the working copy changes that are not in Synk? Its list or model as it is, or a
+        version made here that was never saved there (a save refused on top of a newer one)."""
+        with self._transaction() as db:
+            row = db.execute("SELECT synced FROM cloud_account WHERE slot=?", (slot,)).fetchone()
+            studio = self._studio(db, slot)
+        synced = row[0] if row is not None else None
+        latest = studio.versions[0].number if studio.versions else None
+        return studio.changed or synced is None or latest != synced
+
+    def forget_cloud(self, slot: str) -> None:
+        """Logga ut: the login and the working copy go, with everything kept for it here."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM station WHERE slot=?", (slot,))
+            db.execute("DELETE FROM cloud_account WHERE slot=?", (slot,))
+            db.execute("DELETE FROM id_login WHERE slot=?", (slot,))
+
+    def open_copy(self, slot: str, package: StationPackage, base: int) -> str:
+        """Öppna (TKLMOLN-02): a version from Synk becomes this browser's working copy, the
+        outside and the inside, in place of the one it had. Never while the interlocking has
+        set routes or train numbers (InterlockingBusy). Returns a session. The inside is read
+        as TKL wrote it; a part TKL cannot read raises ValueError."""
+        outside = package.outside
+        inside = package.inside
+        model = (
+            StationModel.model_validate(inside["station_model"])
+            if "station_model" in inside
+            else None
+        )
+        manover = TklManover.model_validate(inside["manover"]) if "manover" in inside else None
+        deck = (
+            TklDeckDeviations.model_validate(inside["streamdeck"])
+            if "streamdeck" in inside
+            else None
+        )
+        fjarr = (
+            TklFjarrChoice.model_validate(inside["fjarrstyrning"])
+            if "fjarrstyrning" in inside
+            else None
+        )
+        name = " ".join(outside.name.split())
+        now = now_utc().timestamp()
+        with self._transaction() as db:
+            self._replace_station(db, slot, package.station_id, name, outside)
+            if model is not None:
+                kept = model.model_copy(update={"station_id": package.station_id, "name": name})
+                settings = (("manover", manover), ("streamdeck", deck), ("fjarr", fjarr))
+                for table, setting in settings:  # the table names are TKL's own, never given
+                    settled = (
+                        setting.model_dump(mode="json", exclude_defaults=True) if setting else {}
+                    )
+                    if settled:  # the defaults are not stored
+                        db.execute(
+                            f"INSERT INTO {table} VALUES (?, ?)",
+                            (slot, json.dumps(settled, ensure_ascii=False, sort_keys=True)),
+                        )
+                draft = self._outside(db, slot, kept, package.station_id, name)
+                db.execute("INSERT INTO station_model VALUES (?, ?)", (slot, to_json(kept)))
+                db.execute(
+                    "UPDATE station SET level=?, draft=? WHERE slot=?",
+                    (kept.level, draft.model_dump_json(), slot),
+                )
+            made = self._new_version(db, slot)
+            local = made.versions[0].number if made.versions else None
+            db.execute(
+                "UPDATE cloud_account SET base=?, synced=?, used=? WHERE slot=?",
+                (base, local, now, slot),
+            )
+            return self._new_session(db, slot)
+
+    def open_remote(self, slot: str, station_id: str, name: str) -> str:
+        """Fjärrställverk in TKL in the cloud (#36 del c, #88): a remote interlocking in place
+        of the browser's working copy, opened by the login. Returns a session."""
+        with self._transaction() as db:
+            self._replace_station(db, slot, station_id, name, first_outside(station_id, name))
+            db.execute(
+                "UPDATE cloud_account SET base=NULL, synced=NULL, used=? WHERE slot=?",
+                (now_utc().timestamp(), slot),
+            )
+            return self._new_session(db, slot)
+
+    def _replace_station(
+        self, db: sqlite3.Connection, slot: str, station_id: str, name: str, draft: StationOutside
+    ) -> None:
+        """The browser's station anew, and everything kept for the one before gone. Never
+        while its interlocking has set routes or train numbers. The cloud has no PIN: the login
+        with ID opens TKL (TKLMOLN-10), so the hash is of a PIN nobody knows."""
+        _, body = self._interlocking(db, slot)
+        if body is not None:
+            try:
+                running = TklInterlocking.model_validate_json(body)
+            except ValueError:
+                running = None
+            if running is not None and (running.routes or running.trains):
+                raise InterlockingBusy()
+        db.execute("DELETE FROM station WHERE slot=?", (slot,))
+        now = now_utc().timestamp()
+        salt = token_bytes(16)
+        db.execute(
+            "INSERT INTO station VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)",
+            (
+                slot,
+                station_id,
+                name,
+                salt,
+                _hash_pin(token_urlsafe(16), salt),
+                draft.model_dump_json(),
+                now,
+                now,
+            ),
+        )
 
     # --- The connection to a meet ------------------------------------------------------------
 

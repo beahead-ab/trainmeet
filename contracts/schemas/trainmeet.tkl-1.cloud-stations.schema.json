@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.cloud-stations.schema.json",
+  "title": "trainmeet.tkl-1.cloud-stations",
+  "$defs": {
+    "TklCloudStation": {
+      "additionalProperties": true,
+      "description": "En station i Dina stationer: den senaste versionen i Synk.",
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "saved": {
+          "format": "date-time",
+          "title": "Saved",
+          "type": "string"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "version",
+        "saved"
+      ],
+      "title": "TklCloudStation",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Dina stationer (TKLMOLN-02): stationspaketen som kontot äger i Hubbens Synk.",
+  "properties": {
+    "stations": {
+      "items": {
+        "$ref": "#/$defs/TklCloudStation"
+      },
+      "title": "Stations",
+      "type": "array"
+    },
+    "open": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Stationen som är öppen i den här webbläsaren.",
+      "title": "Open"
+    }
+  },
+  "type": "object"
+}

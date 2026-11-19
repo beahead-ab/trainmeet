@@ -65,6 +65,18 @@
       "default": null,
       "description": "Utsidans senaste version på datorn.",
       "title": "Local"
+    },
+    "bound": {
+      "default": false,
+      "description": "TKL i molnet: stationen hör till kontot, och Spara i molnet är hur den sparas (TKL5). Arbetskopian i TKL är bara en kopia.",
+      "title": "Bound",
+      "type": "boolean"
+    },
+    "changed": {
+      "default": false,
+      "description": "Ändringar som inte är sparade i molnet än.",
+      "title": "Changed",
+      "type": "boolean"
     }
   },
   "required": [

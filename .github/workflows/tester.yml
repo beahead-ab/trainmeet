@@ -662,6 +662,21 @@ jobs:
           prov-hemlighet http://localhost:8001 --catalog --id-app=http://localhost:8002
           --hub=http://localhost:8003 --tkl=http://localhost:8090
 
+      # TKL i molnet (#88, TKL5): stationen hör till kontot. Den lokala TKL ger plats; TKL i molnet
+      # tar port 8090 på http://127.0.0.1:8090, som realmen tillåter för klienten tkl. Provet loggar
+      # in med en kod, gör en station, sparar version 2 i Synk och öppnar den i en ny webbläsare.
+      - name: TKL i molnet med ID och Synk
+        run: |
+          pkill -f "uvicorn tkl.app" || true
+          for i in $(seq 1 10); do pgrep -f "uvicorn tkl.app" >/dev/null || break; sleep 1; done
+          mkdir -p "$RUNNER_TEMP/tkl-moln"
+          TKL_DATA_DIR="$RUNNER_TEMP/tkl-moln" TKL_MODE=cloud TKL_KONTO=on TKL_HUBBAR=http://127.0.0.1:8003 \
+          TKL_ID_ISSUER=http://127.0.0.1:8080/realms/trainmeet TKL_PUBLIC_URL=http://127.0.0.1:8090 \
+            nohup uv run uvicorn tkl.app:from_environment --factory --port 8090 --no-access-log > "$RUNNER_TEMP/tkl-moln.log" 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/healthz >/dev/null 2>&1 && break; sleep 1; done
+          uv run python -m id.prov_inloggning http://127.0.0.1:8080 "$RUNNER_TEMP/mejl.txt" \
+            prov-hemlighet http://localhost:8001 --tkl-moln=http://127.0.0.1:8090
+
       - name: Visa loggen om något gick fel
         if: failure()
         run: |
@@ -671,6 +686,7 @@ jobs:
           cat "$RUNNER_TEMP/catalog.log" || true
           cat "$RUNNER_TEMP/hubb.log" || true
           cat "$RUNNER_TEMP/tkl.log" || true
+          cat "$RUNNER_TEMP/tkl-moln.log" || true
 
       # Mejlservern och Catalog körs genom uv och håller uv:s cache låst. De stängs av före
       # jobbets egen städning, som annars väntar på låset tills den ger upp.

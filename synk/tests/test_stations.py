@@ -77,3 +77,24 @@ def test_a_package_that_is_too_big_or_broken_is_not_kept(stations: Stations) -> 
         stations.save("ägare-1", 0, b"x" * (MAX_BYTES + 1))
     with pytest.raises(ValueError):
         stations.save("ägare-1", 0, b'{"station_id": "asen"}')
+
+
+def test_the_owner_s_stations_are_listed_with_their_latest_version(stations: Stations) -> None:
+    """Dina stationer (TKL5, TKLMOLN-02): each of the owner's stations once, its latest version;
+    never another owner's."""
+
+    def other(station_id: str, name: str) -> bytes:
+        side = {**outside(), "station_id": station_id, "name": name}
+        return json.dumps({"station_id": station_id, "outside": side}).encode()
+
+    stations.save("ägare-1", 0, package())
+    stations.save("ägare-1", 1, package("Åsen ny"))
+    stations.save("ägare-1", 0, other("exb", "Exempelby"))
+    stations.save("någon-annan", 0, other("ovr", "Övrigby"))
+    mine = stations.owned("ägare-1")
+    assert sorted((s.station_id, s.version, s.name) for s in mine) == [
+        (outside()["station_id"], 2, "Åsen ny"),
+        ("exb", 1, "Exempelby"),
+    ]
+    assert [s.station_id for s in stations.owned("någon-annan")] == ["ovr"]
+    assert stations.owned("ingen") == []

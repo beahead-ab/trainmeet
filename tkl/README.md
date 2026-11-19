@@ -2,6 +2,20 @@
 
 TKL är stationens eget ställverk: en liten server i `tkl/` och webbappen i `apps/tkl`. Hur TKL startas och provas står i repots README under *TKL på egen dator*. Här står det som gäller TKL särskilt.
 
+## TKL i molnet
+
+TKL i molnet (`TKL_MODE=cloud` med `TKL_ID_ISSUER` och `TKL_KONTO=on`) har inget eget lager (TKL5, TKLMOLN-05, TKLMOLN-07). Stationen hör till kontot i TrainMeet ID och ligger som stationspaket i Hubbens Synk, i molnhubben (`TKL_MOLNHUBB`, annars den första i `TKL_HUBBAR`).
+
+- **Inloggningen** kommer i stället för första start och PIN: en inloggning för allt (TKLMOLN-10). *Lås* låser som förut, och man låser upp genom att logga in igen.
+- **Dina stationer** visar kontots stationspaket i Synk, med version och när det sparades. *Öppna* läser in den senaste versionen, utsidan och insidan, som webbläsarens arbetskopia. *Ny station* sparar version 1 i Synk direkt.
+- **Spara i molnet**, i raden överst, sparar arbetskopian som nästa version. Har någon sparat en nyare version sedan, på en annan dator eller i en annan flik, nekas sparningen, och man väljer *Läs in den nya* eller *Spara ändå ovanpå* (H71, TKLMOLN-09). Samma station kan alltså vara öppen på två ställen.
+- **Anslutning** visar träffarna i kontots klubbar enligt rollerna i ID (#78 del b) och Provbanan. En träff som molnhubben kör ansluts direkt; en träff som en Pi leder ansluts genom molnhubbens relä, `/relay/{hubb}/api/station/1`, som Pi:n svarar på genom den förbindelse den redan har öppen (TKLMOLN-03, TKLMOLN-06). TKL i molnet når bara sina egna hubbar och deras reläer.
+- **PROV**: en provkörning i Provbanan är skild från den riktiga träffen i hubben, och TKL märker den PROV i sidhuvudet och i Ställverket (TKLMOLN-11).
+
+TKL:s egen fil (`tkl.sqlite3`) håller i molnet bara det som behövs medan någon arbetar: inloggningen per webbläsare (personens id och namn och ID:s token, aldrig adressen), sessionerna, arbetskopian som en cache av en version i Synk med de ändringar som inte är sparade än och versionen den bygger på, och TKL:s driftdata för arbetskopian (ställverkets läge, anslutningen till träffen med nyckeln, de senaste ögonblicksbilderna, decken och Provas resultat). Arbetskopian försvinner vid utloggning, när en annan person loggar in i samma webbläsare, när en annan station öppnas och efter en månad utan användning. Inget som ägaren behöver finns bara där.
+
+LocoNet, nivå 3, finns bara i en lokal TKL (TKLMOLN-08). En lokal TKL har kvar sin egen station, PIN och *Spara i molnet* under Inställningar, och kan köra samtidigt (TKLMOLN-04). Utan `TKL_ID_ISSUER`, eller utan `TKL_KONTO=on`, har TKL i molnet en station per webbläsare, som före #88. Testmiljön slår på `TKL_KONTO` när TrainMeet ID går att nå där, så att ingen blir utelåst medan ID:s adress och mejlnyckel saknas.
+
 ## Stream Deck över USB
 
 En lokal TKL sköter sina Stream Deck själv över USB (SD50). Decket fungerar då utan att någon flik är öppen, och i alla webbläsare. TKL letar efter deck var tredje sekund, så ett deck kan kopplas in och ur när som helst. Varje deck känns igen på sitt serienummer och får förvalet för sin modell. I Ställverket står det *Decket sköts av TKL över USB* i rutan Stream Deck.

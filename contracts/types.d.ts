@@ -1700,6 +1700,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sync/1/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ownedStations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sync/1/relay/meets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["relayMeets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets": {
         parameters: {
             query?: never;
@@ -27905,6 +27937,93 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * StationList
+         * @description Ägarens stationer i Synk (TKL5, TKLMOLN-02): den senaste versionen av var och en, för
+         *     Dina stationer i TKL i molnet. Bara den som ID:s token säger, aldrig någon annans.
+         */
+        "trainmeet.sync-1.station-list": {
+            /** Stations */
+            stations?: components["schemas"]["trainmeet.sync-1.station-list.StationVersionInfo"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** StationVersionInfo */
+        "trainmeet.sync-1.station-list.StationVersionInfo": {
+            /** Station Id */
+            station_id: string;
+            /** Version */
+            version: number;
+            /**
+             * Saved
+             * Format: date-time
+             */
+            saved: string;
+            /** Checksum */
+            checksum: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** RelayMeets */
+        "trainmeet.sync-1.relay-meets": {
+            /** Meets */
+            meets?: components["schemas"]["trainmeet.sync-1.relay-meets.RelayMeet"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayMeet
+         * @description En träff som kontot kan ansluta en station till, enligt rollerna i TrainMeet ID (#78 del
+         *     b): träffarna i personens klubbar som molnhubben har. Nyckeln och adressen till Pi:n följer
+         *     aldrig med; reläet nås under molnhubbens egen adress.
+         */
+        "trainmeet.sync-1.relay-meets.RelayMeet": {
+            /**
+             * Meet
+             * @description Hubbens träff.
+             */
+            meet: string;
+            /** Meet Name */
+            meet_name: string;
+            /**
+             * Club Name
+             * @default null
+             */
+            club_name: string | null;
+            /**
+             * Starts On
+             * @default null
+             */
+            starts_on: string | null;
+            /**
+             * Ends On
+             * @default null
+             */
+            ends_on: string | null;
+            way: components["schemas"]["trainmeet.sync-1.relay-meets.RelayWay"];
+            /**
+             * Hub Name
+             * @description Hubben som leder träffen.
+             * @default null
+             */
+            hub_name: string | null;
+            /**
+             * Relay
+             * @description Sökvägen till reläet under molnhubbens adress, när en Pi leder träffen.
+             * @default null
+             */
+            relay: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * RelayWay
+         * @description Hur molnets TKL når träffen.
+         * @enum {string}
+         */
+        "trainmeet.sync-1.relay-meets.RelayWay": "here" | "relay" | "none";
+        /**
          * PiLoginStart
          * @description Logga in med TrainMeet ID på träffens Pi (KONTO-11, #78): the Pi asks its cloud hub,
          *     with its key, to log someone in, and says where the browser comes back.
@@ -30556,6 +30675,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.sync-1.station-package"];
+                };
+            };
+        };
+    };
+    ownedStations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.station-list"];
+                };
+            };
+        };
+    };
+    relayMeets: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.sync-1.relay-meets"];
                 };
             };
         };

@@ -3305,6 +3305,50 @@
         ]
       }
     },
+    "/api/sync/1/stations": {
+      "get": {
+        "operationId": "ownedStations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.station-list"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
+    "/api/sync/1/relay/meets": {
+      "get": {
+        "operationId": "relayMeets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.sync-1.relay-meets"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "clientKey": []
+          }
+        ]
+      }
+    },
     "/api/planering/1/meets": {
       "get": {
         "operationId": "planningMeets",
@@ -55138,6 +55182,184 @@
         ],
         "title": "StationVersionInfo",
         "type": "object"
+      },
+      "trainmeet.sync-1.station-list": {
+        "additionalProperties": true,
+        "description": "Ägarens stationer i Synk (TKL5, TKLMOLN-02): den senaste versionen av var och en, för\nDina stationer i TKL i molnet. Bara den som ID:s token säger, aldrig någon annans.",
+        "properties": {
+          "stations": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.station-list.StationVersionInfo"
+            },
+            "maxItems": 500,
+            "title": "Stations",
+            "type": "array"
+          }
+        },
+        "title": "StationList",
+        "type": "object"
+      },
+      "trainmeet.sync-1.station-list.StationVersionInfo": {
+        "additionalProperties": true,
+        "properties": {
+          "station_id": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Station Id",
+            "type": "string"
+          },
+          "version": {
+            "minimum": 1,
+            "title": "Version",
+            "type": "integer"
+          },
+          "saved": {
+            "format": "date-time",
+            "title": "Saved",
+            "type": "string"
+          },
+          "checksum": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Checksum",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "station_id",
+          "version",
+          "saved",
+          "checksum",
+          "name"
+        ],
+        "title": "StationVersionInfo",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-meets": {
+        "additionalProperties": true,
+        "properties": {
+          "meets": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.relay-meets.RelayMeet"
+            },
+            "maxItems": 200,
+            "title": "Meets",
+            "type": "array"
+          }
+        },
+        "title": "RelayMeets",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-meets.RelayMeet": {
+        "additionalProperties": true,
+        "description": "En träff som kontot kan ansluta en station till, enligt rollerna i TrainMeet ID (#78 del\nb): träffarna i personens klubbar som molnhubben har. Nyckeln och adressen till Pi:n följer\naldrig med; reläet nås under molnhubbens egen adress.",
+        "properties": {
+          "meet": {
+            "description": "Hubbens träff.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "meet_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Meet Name",
+            "type": "string"
+          },
+          "club_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Club Name"
+          },
+          "starts_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Starts On"
+          },
+          "ends_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Ends On"
+          },
+          "way": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.relay-meets.RelayWay"
+          },
+          "hub_name": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Hubben som leder träffen.",
+            "title": "Hub Name"
+          },
+          "relay": {
+            "anyOf": [
+              {
+                "pattern": "^/relay/[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Sökvägen till reläet under molnhubbens adress, när en Pi leder träffen.",
+            "title": "Relay"
+          }
+        },
+        "required": [
+          "meet",
+          "meet_name",
+          "way"
+        ],
+        "title": "RelayMeet",
+        "type": "object"
+      },
+      "trainmeet.sync-1.relay-meets.RelayWay": {
+        "description": "Hur molnets TKL når träffen.",
+        "enum": [
+          "here",
+          "relay",
+          "none"
+        ],
+        "title": "RelayWay",
+        "type": "string"
       },
       "trainmeet.sync-1.pi-login-start": {
         "additionalProperties": true,

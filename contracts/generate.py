@@ -77,6 +77,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.id-state": tkl.TklIdState,
     "trainmeet.tkl-1.save": tkl.TklSave,
     "trainmeet.tkl-1.saved": tkl.TklSaved,
+    # TKL i molnet (#88, TKL5): the account, Dina stationer and the meets through the relay.
+    "trainmeet.tkl-1.cloud-stations": tkl.TklCloudStations,
+    "trainmeet.tkl-1.new-station": tkl.TklNewStation,
+    "trainmeet.tkl-1.meets": tkl.TklMeets,
     "trainmeet.tkl-1.track-plan": tkl.TklTrackPlan,
     "trainmeet.tkl-1.reference": tkl.TklReference,
     "trainmeet.tkl-1.drawing": tkl.TklDrawing,
@@ -281,6 +285,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.sync-1.station-package": sync.StationPackage,
     "trainmeet.sync-1.station-version-info": sync.StationVersionInfo,
     "trainmeet.sync-1.station-versions": sync.StationVersions,
+    "trainmeet.sync-1.station-list": sync.StationList,
+    "trainmeet.sync-1.relay-meets": sync.RelayMeets,
     "trainmeet.sync-1.pi-login-start": sync.PiLoginStart,
     "trainmeet.sync-1.pi-login-started": sync.PiLoginStarted,
     "trainmeet.sync-1.pi-ticket": sync.PiTicket,
@@ -903,6 +909,10 @@ def openapi() -> str:
     route("post", st, "saveStation", y + "station-version-info", y + "station-package", bearer=True)
     route("get", st, "stationVersions", y + "station-versions", bearer=True)
     route("get", st + "/{number}", "stationPackage", y + "station-package", bearer=True)
+    # TKL i molnet (#88, TKL5): Dina stationer, and the meets the account may join, each with
+    # the way there, directly or through the relay (TKLMOLN-03).
+    route("get", "/api/sync/1/stations", "ownedStations", y + "station-list", bearer=True)
+    route("get", "/api/sync/1/relay/meets", "relayMeets", y + "relay-meets", bearer=True)
     p = "trainmeet.planning-1."
     m = "/api/planering/1/meets"
     route("get", m, "planningMeets", p + "meet-summary", many=True)
@@ -1960,6 +1970,13 @@ def tkl_openapi() -> str:
     route("get", a + "/id", "tklId", t + "id-state")
     route("post", a + "/id/logout", "tklIdLogOut", t + "id-state")
     route("post", a + "/id/save", "tklSaveInCloud", t + "saved", t + "save")
+    # TKL i molnet (#88, TKL5): the station belongs to the account; Dina stationer from Synk, a
+    # working copy opened from it, and the meets the account may join (TKLMOLN-02, TKLMOLN-03).
+    k = a + "/konto"
+    route("get", k + "/stationer", "tklCloudStations", t + "cloud-stations")
+    route("post", k + "/stationer", "tklNewStation", t + "state", t + "new-station")
+    route("post", k + "/stationer/{station_id}/oppna", "tklOpenStation", t + "state")
+    route("get", k + "/traffar", "tklMeets", t + "meets")
     route("get", a + "/studio/model", "tklStationModel", t + "track-plan")
     route("put", a + "/studio/model", "tklImportModel", t + "track-plan", STATION_MODEL)
     route("delete", a + "/studio/model", "tklForgetModel", t + "studio")
