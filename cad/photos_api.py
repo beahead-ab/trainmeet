@@ -127,6 +127,10 @@ def router(photos: Photos, who: Callable[..., Who], disk: DiskStore | None) -> A
         start, images = _form(
             parts(request.headers.get("content-type", ""), body), PhotoStart, MAX_PHOTOS
         )
+        # CAD i mobilen (#90): a phone's own session reaches only its module, or new ones.
+        reach = getattr(request.state, "mobile_reach", None)
+        if reach is not None and not await run_in_threadpool(reach, start.module):
+            raise Refused(403, ProblemCode.FORBIDDEN, "Mobilen når bara modulen den öppnades för.")
         return await run_in_threadpool(photos.start, asker, start, images)
 
     @routes.get("/photos/{job}")

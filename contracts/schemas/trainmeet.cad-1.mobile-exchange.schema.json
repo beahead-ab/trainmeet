@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.mobile-exchange.schema.json",
+  "title": "trainmeet.cad-1.mobile-exchange",
+  "additionalProperties": true,
+  "description": "The phone gives the code from the address's fragment.",
+  "properties": {
+    "code": {
+      "pattern": "^[A-Za-z0-9_-]{16,128}$",
+      "title": "Code",
+      "type": "string"
+    }
+  },
+  "required": [
+    "code"
+  ],
+  "type": "object"
+}

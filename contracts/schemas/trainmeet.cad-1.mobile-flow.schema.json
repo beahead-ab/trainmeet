@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.mobile-flow.schema.json",
+  "title": "trainmeet.cad-1.mobile-flow",
+  "$defs": {
+    "MobileStep": {
+      "description": "The phone's steps (CADMOB-01).",
+      "enum": [
+        "start",
+        "matt",
+        "gavlar",
+        "fota",
+        "kontroll",
+        "fraga",
+        "klar"
+      ],
+      "title": "MobileStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The phone's own session: what it may reach, until when, and where it was.",
+  "properties": {
+    "handoff": {
+      "format": "uuid",
+      "title": "Handoff",
+      "type": "string"
+    },
+    "bound": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only this module; null: new ones.",
+      "title": "Bound"
+    },
+    "module": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Module"
+    },
+    "job": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Job"
+    },
+    "step": {
+      "$ref": "#/$defs/MobileStep"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "ended": {
+      "default": false,
+      "title": "Ended",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "handoff",
+    "step",
+    "expires_at"
+  ],
+  "type": "object"
+}

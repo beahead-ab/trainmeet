@@ -8,7 +8,9 @@ import { GableView, ModuleDrawing } from "./Drawing";
 import { arcLength, fromChord, lineRadius, mm, toChord, type Bend } from "./geometry";
 import { modulePath, PATHS, UPLOAD_PATH, type FormKind } from "./routes";
 
-type GableState = { profile: string; norm: string; steps: string[] };
+/** A gable as the form holds it: the profile, the norm, and the steps from Kant 1 as typed. Also
+ * the phone's 2 Gavlar (#90). */
+export type GableState = { profile: string; norm: string; steps: string[] };
 type FormState = {
   name: string;
   scale: Scale;
@@ -57,11 +59,11 @@ function stepsOf(tracks: number[]): string[] {
   return tracks.map((t, i) => show(i === 0 ? t : t - (tracks[i - 1] ?? 0)));
 }
 
-function fixedSteps(profile: GableProfile): (number | null)[] {
+export function fixedSteps(profile: GableProfile): (number | null)[] {
   return [profile.first ?? null, ...(profile.spacings ?? [])];
 }
 
-function gableFor(profile: GableProfile | undefined, before: string[], width: number): GableState {
+export function gableFor(profile: GableProfile | undefined, before: string[], width: number): GableState {
   if (!profile) return { profile: "", norm: "", steps: before.length ? before : [show(width / 2)] };
   const fixed = fixedSteps(profile);
   const steps = fixed.map((value, i) => (value != null ? show(value) : before[i] ?? (i === 0 ? show(width / 2 - 25 * (fixed.length - 1)) : "50")));
@@ -120,7 +122,7 @@ function initial(kind: FormKind, scale: Scale, profiles: ProfileList | null, mod
   };
 }
 
-function tracksOf(g: GableState): number[] | null {
+export function tracksOf(g: GableState): number[] | null {
   const values = g.steps.map(n);
   if (values.some((v) => !(v > 0))) return null;
   let sum = 0;

@@ -138,3 +138,61 @@ export function tabOf(route: Route): "library" | "assemblies" | "profiles" | nul
   if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo", "export"].includes(route.page)) return "library";
   return null;
 }
+
+// --- CAD i mobilen (#90): the phone's own pages under /m, opened from the QR code ----------------
+
+/** The phone's pages: 0 Välj väg, 1 Mått (1b Kurva), 2 Gavlar, 3 Fota and its corners, 4 Kontroll,
+ * 4b AI:n frågar and 5 Klart (CADMOB-01); entry reads the one-time code from the fragment. */
+export type MobilePage = "entry" | "start" | "matt" | "gavlar" | "skiss" | "fota" | "horn" | "kontroll" | "fraga" | "klar";
+
+export type MobileRoute = { page: MobilePage; id?: string; job?: string; question?: string } | { page: "missing" };
+
+export const MOBILE_ROOT = "/m";
+const MOBILE_NEW = `${MOBILE_ROOT}/ny`;
+
+/** Is the address one of the phone's? Those pages are an app of their own (Mobil.tsx). */
+export function isMobilePath(pathname: string): boolean {
+  return pathname === MOBILE_ROOT || pathname.startsWith(`${MOBILE_ROOT}/`);
+}
+
+/** A phone page's address: a new module's steps under /m/ny, a module's under /m/<id>. */
+export function mobilePath(page: MobilePage, id?: string, job?: string, question?: string): string {
+  if (page === "entry") return MOBILE_ROOT;
+  if (page === "start") return MOBILE_NEW;
+  if (page === "matt" || page === "gavlar" || page === "skiss") return `${MOBILE_NEW}/${page}`;
+  const base = id ? `${MOBILE_ROOT}/${id}` : MOBILE_NEW;
+  if (page === "fota") return `${base}/foto`;
+  if (page === "horn") return `${base}/foto/${job ?? ""}`;
+  if (page === "klar") return `${base}/klar${job ? `?jobb=${job}` : ""}`;
+  if (page === "kontroll") return `${base}/kontroll/${job ?? ""}`;
+  return `${base}/fraga/${job ?? ""}${question ? `?fraga=${encodeURIComponent(question)}` : ""}`;
+}
+
+export function mobileRouteFor(pathname: string, search = ""): MobileRoute {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  const query = new URLSearchParams(search);
+  if (path === MOBILE_ROOT) return { page: "entry" };
+  if (path === MOBILE_NEW) return { page: "start" };
+  const parts = path.split("/").slice(2);
+  if (parts[0] === "ny") {
+    if (parts.length === 2 && (parts[1] === "matt" || parts[1] === "gavlar" || parts[1] === "skiss")) return { page: parts[1] };
+    if (parts.length === 2 && parts[1] === "foto") return { page: "fota" };
+    return { page: "missing" };
+  }
+  const id = parts[0];
+  if (!id || !UUID.test(id)) return { page: "missing" };
+  if (parts.length === 2 && parts[1] === "foto") return { page: "fota", id };
+  if (parts.length === 2 && parts[1] === "klar") {
+    const job = query.get("jobb");
+    return job && UUID.test(job) ? { page: "klar", id, job } : { page: "klar", id };
+  }
+  const job = parts[2];
+  if (parts.length !== 3 || !job || !UUID.test(job)) return { page: "missing" };
+  if (parts[1] === "foto") return { page: "horn", id, job };
+  if (parts[1] === "kontroll") return { page: "kontroll", id, job };
+  if (parts[1] === "fraga") {
+    const question = query.get("fraga");
+    return question ? { page: "fraga", id, job, question } : { page: "fraga", id, job };
+  }
+  return { page: "missing" };
+}

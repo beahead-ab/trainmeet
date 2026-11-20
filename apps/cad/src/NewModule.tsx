@@ -1,6 +1,7 @@
-// Ny modul: four ways in, of which Bara mått, Ladda upp ett foto and Från en skiss work now; the
-// phone says when it comes (CAD-01).
+// Ny modul: four ways in (CAD-01): Fota med mobilen with a QR code (#90), Ladda upp ett foto, Från
+// en skiss and Bara mått.
 import { linkClick, type Navigate } from "@trainmeet/design";
+import { MobileHandoffPanel } from "./Mobilkod";
 import { formPath, PATHS, SKETCH_PATH, UPLOAD_PATH } from "./routes";
 
 export function NewModulePage({ tokens, navigate }: { tokens?: number | null; navigate?: Navigate }) {
@@ -24,13 +25,14 @@ export function NewModulePage({ tokens, navigate }: { tokens?: number | null; na
         {tokens != null ? <span className="cad-pill">◎ {tokens} tokens kvar</span> : null}
       </div>
       <div className="cad-vagar">
-        <article className="cad-kort cad-kommer">
+        <article className="cad-kort cad-vag-aktiv" id="fota-med-mobilen">
           <h2>Fota med mobilen</h2>
           <p>Mät längd, bredd och gavlar vid modulen och ta en bild rakt ovanifrån. AI:n ritar spåren och jämför med dina mått.</p>
           <p className="cad-taggar">
             <span className="cad-tagg">12 tokens</span> <span className="cad-tagg">ca 10 min vid modulen</span>
           </p>
-          <p className="cad-snart">Kommer med CAD i mobilen (ärende 90): du skannar en QR-kod och fotar med telefonen.</p>
+          <p className="cad-dampad">Skanna QR-koden med mobilen. Mobilen hjälper dig att fota rakt, skarpt och i jämnt ljus, och tar bilden själv.</p>
+          <MobileHandoffPanel navigate={navigate} />
         </article>
         <article className="cad-kort cad-vag-aktiv" id="ladda-upp-foto">
           <h2>Ladda upp ett foto</h2>

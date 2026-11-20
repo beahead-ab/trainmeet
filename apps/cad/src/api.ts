@@ -65,6 +65,11 @@ export type PhotoMeasure = NonNullable<PhotoJob["measures"]>[number];
 export type PhotoFact = NonNullable<PhotoJob["facts"]>[number];
 export type PhotoLayer = NonNullable<DrawingView["photo"]>;
 export type ModulePhoto = NonNullable<Module["photo"]>;
+/** CAD i mobilen (#90): the QR code, the phone's own session and its steps. */
+export type MobileHandoff = Schemas["trainmeet.cad-1.mobile-handoff"];
+export type MobileFlow = Schemas["trainmeet.cad-1.mobile-flow"];
+export type MobileProgress = Schemas["trainmeet.cad-1.mobile-progress"];
+export type MobileStep = MobileFlow["step"];
 
 export const API = "/api/cad/1";
 export const SCALES: Scale[] = ["H0", "N", "0"];
@@ -137,6 +142,14 @@ export const api = {
   recompute: (job: string) => call<PhotoJob>("POST", `${API}/photos/${job}/recompute`),
   photoSettings: (id: string, body: PhotoSettings) => call<Module>("PUT", `${API}/modules/${id}/photo`, body),
   storage: () => call<StorageUse>("GET", `${API}/storage`),
+  // CAD i mobilen (#90): the computer's QR code, and the phone's own session from it.
+  mobileHandoff: (module?: string | null) => call<MobileHandoff>("POST", `${API}/mobile/handoffs`, { module: module ?? null }),
+  mobileStatus: (id: string) => call<MobileHandoff>("GET", `${API}/mobile/handoffs/${id}`),
+  mobileCancel: (id: string) => call<MobileHandoff>("DELETE", `${API}/mobile/handoffs/${id}`),
+  mobileExchange: (code: string) => call<MobileFlow>("POST", `${API}/mobile/exchange`, { code }),
+  mobileFlow: () => call<MobileFlow>("GET", `${API}/mobile/flow`),
+  mobileProgress: (body: MobileProgress) => call<MobileFlow>("PUT", `${API}/mobile/flow`, body),
+  mobileEnd: () => call<MobileFlow>("DELETE", `${API}/mobile/flow`),
 };
 
 /** A photo form: the JSON in the part data and the photos in the parts images. */

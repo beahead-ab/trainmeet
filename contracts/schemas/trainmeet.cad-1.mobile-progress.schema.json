@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.mobile-progress.schema.json",
+  "title": "trainmeet.cad-1.mobile-progress",
+  "$defs": {
+    "MobileStep": {
+      "description": "The phone's steps (CADMOB-01).",
+      "enum": [
+        "start",
+        "matt",
+        "gavlar",
+        "fota",
+        "kontroll",
+        "fraga",
+        "klar"
+      ],
+      "title": "MobileStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Where the phone is, so that the computer can follow it. The module and the job must be\nwithin the phone's reach.",
+  "properties": {
+    "step": {
+      "$ref": "#/$defs/MobileStep"
+    },
+    "module": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Module"
+    },
+    "job": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Job"
+    }
+  },
+  "required": [
+    "step"
+  ],
+  "type": "object"
+}
