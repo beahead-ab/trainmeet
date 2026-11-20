@@ -1212,17 +1212,19 @@ export function confirm(d: FullDrawing, ref: Ref): FullDrawing {
 
 /** The note on everything Studio proposed from an uploaded drawing (tkl/studio/rita.py, READ). */
 export const READ = "Förslag ur en uppladdad ritning";
+/** And from an assembly or a module in TrainMeet CAD (tkl/studio/rita.py, FROM_CAD). */
+export const FROM_CAD = "Förslag ur TrainMeet CAD";
 
-const fromRead = (o: Origin | null | undefined): boolean => !!o && o.note === READ && !o.confirmed;
+const fromRead = (o: Origin | null | undefined): boolean => !!o && (o.note === READ || o.note === FROM_CAD) && !o.confirmed;
 
-/** How many things proposed from an uploaded drawing the owner has not confirmed: Använd
- * ritningen waits for them (TKL27). */
+/** How many things proposed from an uploaded drawing or from TrainMeet CAD the owner has not
+ * confirmed: Använd ritningen waits for them (TKL27, CAD-15). */
 export function proposed(model: FullModel): number {
   return [...model.pieces, ...model.switches, ...model.signals, ...model.line_exits].filter((item) => fromRead(item.origin)).length;
 }
 
-/** Bekräfta förslaget: everything proposed from the drawing is the owner's, and no longer
- * yellow. */
+/** Bekräfta förslaget: everything proposed from the drawing or from CAD is the owner's, and no
+ * longer yellow. */
 export function confirmAll(d: FullDrawing): FullDrawing {
   const ok = <T extends { origin?: Origin | null }>(item: T): T => (fromRead(item.origin) ? { ...item, origin: { ...item.origin!, confirmed: true } } : item);
   const model = d.model;

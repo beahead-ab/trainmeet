@@ -28,7 +28,18 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from cad import curves, drawings_api, id_login, login, migrate, photos_api, smoothing, store
+from cad import (
+    assemblies_api,
+    curves,
+    drawings_api,
+    id_login,
+    login,
+    migrate,
+    photos_api,
+    smoothing,
+    store,
+)
+from cad.assemblies import Assemblies
 from cad.db import Database
 from cad.drawings import Drawings
 from cad.errors import Refused
@@ -75,8 +86,8 @@ from contracts.common import AppKey
 LOGGER = logging.getLogger("cad")
 API = "/api/cad/1"
 DRAWING_APPS: Final = frozenset({"tkl"})
-"""The apps whose access tokens from ID may read drawings for a person: Studio in TKL (part
-c4)."""
+"""The apps whose access tokens from ID may call CAD for a person: Studio in TKL, for Ladda upp
+ritning (part c4) and Från CAD (part d2)."""
 
 
 def content_security_policy(photos_origin: str | None = None) -> str:
@@ -172,6 +183,9 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     # Landskapet and Exportera (part d1): the measuring images from the same store.
     landscapes = Landscapes(db, photo_store, modules)
     exports = Exports(modules, landscapes)
+    # Anläggningar and Till TKL Studio (part d2), with the library's rights.
+    assemblies = Assemblies(db, modules)
+    modules.uses = assemblies
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -477,6 +491,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.include_router(photos_api.router(photos, who, disk))
     app.include_router(drawings_api.router(drawings, drawing_asker))
     app.include_router(landscapes_router(landscapes, exports, who))
+    app.include_router(assemblies_api.router(assemblies, who, drawing_asker))
 
     @app.api_route(
         "/api/{rest:path}",

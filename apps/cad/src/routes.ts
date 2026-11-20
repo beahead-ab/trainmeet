@@ -17,6 +17,8 @@ export type Route =
   | { page: "photo"; id: string; job: string; view: PhotoView; question?: string }
   | { page: "export"; id: string; version?: number }
   | { page: "assemblies" }
+  | { page: "assembly"; id: string }
+  | { page: "studio"; id: string }
   | { page: "profiles" }
   | { page: "login" }
   | { page: "missing" };
@@ -69,6 +71,16 @@ export function exportPath(id: string, version?: number): string {
   return `${PATHS.library}/${id}/exportera${version ? `?version=${version}` : ""}`;
 }
 
+/** An assembly's page (part d2). */
+export function assemblyPath(id: string): string {
+  return `${PATHS.assemblies}/${id}`;
+}
+
+/** Till TKL Studio, for an assembly. */
+export function studioPath(id: string): string {
+  return `${assemblyPath(id)}/studio`;
+}
+
 export function editPath(id: string): string {
   return `${PATHS.library}/${id}/andra`;
 }
@@ -86,6 +98,10 @@ export function routeFor(pathname: string, search = ""): Route {
   if (parts[0] === "moduler" && parts[1] === "ny" && parts.length === 3) {
     const kind = (Object.keys(FORM_PATHS) as FormKind[]).find((k) => FORM_PATHS[k] === parts[2]);
     if (kind) return { page: "form", kind };
+  }
+  if (parts[0] === "anlaggningar" && parts[1] && UUID.test(parts[1])) {
+    if (parts.length === 2) return { page: "assembly", id: parts[1] };
+    if (parts.length === 3 && parts[2] === "studio") return { page: "studio", id: parts[1] };
   }
   if (parts[0] === "moduler" && parts[1] && UUID.test(parts[1])) {
     const id = parts[1];
@@ -117,7 +133,7 @@ function withVersion(route: Extract<Route, { page: "module" }>, search: string):
 
 /** The header's tab a page belongs to. */
 export function tabOf(route: Route): "library" | "assemblies" | "profiles" | null {
-  if (route.page === "assemblies") return "assemblies";
+  if (route.page === "assemblies" || route.page === "assembly" || route.page === "studio") return "assemblies";
   if (route.page === "profiles") return "profiles";
   if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo", "export"].includes(route.page)) return "library";
   return null;

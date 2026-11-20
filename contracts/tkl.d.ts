@@ -500,6 +500,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/fran-cad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklFromCad"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/fran-cad/{kind}/{source}/forslag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklFromCadProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/studio/dela": {
         parameters: {
             query?: never;
@@ -9575,6 +9607,1441 @@ export interface components {
              * @default 0
              */
             issued: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklFromCad
+         * @description Från CAD i Studio: whether the way in is open here and why not, the person's assemblies and
+         *     approved modules in TrainMeet CAD, and the one the station is linked to. TKL asks CAD for the
+         *     person with the person's access token from ID, as Ladda upp ritning; CAD never makes a
+         *     station (TKL8, CAD-15).
+         */
+        "trainmeet.tkl-1.from-cad": {
+            /** Available */
+            available: boolean;
+            /**
+             * Reason
+             * @description Varför vägen in är grå.
+             * @default null
+             */
+            reason: string | null;
+            /** Sources */
+            sources?: components["schemas"]["trainmeet.tkl-1.from-cad.StudioSource"][];
+            /**
+             * @description The station's, in use.
+             * @default null
+             */
+            link: components["schemas"]["trainmeet.tkl-1.from-cad.TklCadLink"] | null;
+            /**
+             * @description The draft's, until Använd ritningen.
+             * @default null
+             */
+            pending: components["schemas"]["trainmeet.tkl-1.from-cad.TklCadLink"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.from-cad.Scale": "H0" | "N" | "0";
+        /**
+         * StationUse
+         * @description Används i: a station in TKL that took an assembly or a module into use, as Studio told CAD
+         *     when the owner confirmed it (CAD-15). The station's id is TKL's, the station's own.
+         */
+        "trainmeet.tkl-1.from-cad.StationUse": {
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Revision
+             * @description The assembly's revision, or the module's version.
+             */
+            revision: number;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioModule
+         * @description A module in what Studio gets: its id is the prefix of its ids in the graph.
+         */
+        "trainmeet.tkl-1.from-cad.StudioModule": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioSource
+         * @description Från CAD: an assembly or a single module the person may connect to a station.
+         */
+        "trainmeet.tkl-1.from-cad.StudioSource": {
+            kind: components["schemas"]["trainmeet.tkl-1.from-cad.StudioSourceKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            scale: components["schemas"]["trainmeet.tkl-1.from-cad.Scale"];
+            /** Owner */
+            owner: string;
+            /**
+             * Revision
+             * @description The assembly's revision, or the module's version.
+             */
+            revision: number;
+            /** Modules */
+            modules?: components["schemas"]["trainmeet.tkl-1.from-cad.StudioModule"][];
+            /**
+             * Ready
+             * @description It may go to Studio: no problems.
+             */
+            ready: boolean;
+            /** Problems */
+            problems?: string[];
+            /**
+             * Stations
+             * @description Används i.
+             */
+            stations?: components["schemas"]["trainmeet.tkl-1.from-cad.StationUse"][];
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioSourceKind
+         * @description What Studio's Från CAD connects to a station: a group of modules (STUDIO-03).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.from-cad.StudioSourceKind": "assembly" | "module";
+        /**
+         * TklCadLink
+         * @description The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
+         *     single module, at a revision. registered: CAD knows the station uses it (Används i).
+         */
+        "trainmeet.tkl-1.from-cad.TklCadLink": {
+            kind: components["schemas"]["trainmeet.tkl-1.from-cad.StudioSourceKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Registered
+             * @default false
+             */
+            registered: boolean;
+            /**
+             * Modules
+             * @description Its modules by id, as the owner sees them: "M-002 Linje". A re-import says which module a piece that is gone was on.
+             */
+            modules?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklCadImport
+         * @description Gör förslaget: Rita's draft from the source's track graph, everything new or moved yellow
+         *     until the owner confirms it, and the difference against what the station had.
+         */
+        "trainmeet.tkl-1.cad-import": {
+            rita: components["schemas"]["trainmeet.tkl-1.cad-import.TklRita"];
+            diff: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadDiff"];
+            link: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadLink"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Address
+         * @description A decoder or detector address on a bus (level 3).
+         *
+         *     Its own origin says where the address comes from and whether it is confirmed on the layout:
+         *     in Koppla in a confirmed address is green, an address that is only given is yellow
+         *     (STUDIO-17). The object's origin is about the object itself, as drawn or imported.
+         */
+        "trainmeet.tkl-1.cad-import.Address": {
+            /**
+             * Bus
+             * @description Bussen adressen gäller på.
+             * @default LocoNet
+             */
+            bus: string;
+            /** Number */
+            number: number;
+            /**
+             * Reversed
+             * @description Omvänd polaritet (STUDIO-24): växelns rakt är kortets thrown, signalens kör är kortets thrown, och givaren är belagd när den släpper.
+             * @default false
+             */
+            reversed: boolean;
+            /**
+             * @description Var adressen kommer ifrån. Bekräftad på banan: grönt i Koppla in.
+             * @default null
+             */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * BorderSwitch
+         * @description Gränsväxel (grindväxel): a switch at the border between a part's area and the station's.
+         *
+         *     Its owner lays it both ways. The other side may always lay it towards the part's area, where
+         *     it keeps the two apart, and never out (TKL99, RANG-12); Klart and Grindar lay it back there.
+         *     A route out over it is a request that the station's interlocking sets.
+         */
+        "trainmeet.tkl-1.cad-import.BorderSwitch": {
+            /**
+             * Switch
+             * @description Växelns nummer, eller en korsningsväxels del.
+             */
+            switch: string;
+            /** @default station */
+            owner: components["schemas"]["trainmeet.tkl-1.cad-import.PartOwner"];
+            /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
+            towards_part: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FeedbackType
+         * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.FeedbackType": "card" | "sensors" | "none" | "manual";
+        /**
+         * Lever
+         * @description Spak: for + and -, the position each switch gets.
+         *
+         *     The lever's own switches are in both positions. A switch that only one position names is
+         *     dragged along by the lever in that position (drar med, TKL104) and has a lever of its own.
+         *     An own switch that gets - in the lever's + lies reversed (omvänd).
+         */
+        "trainmeet.tkl-1.cad-import.Lever": {
+            /**
+             * Id
+             * @description Till exempel "101/102" eller "22".
+             */
+            id: string;
+            /** Plus */
+            plus: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+            /** Minus */
+            minus: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineExit
+         * @description Linjeutfart: where a track leaves the station for the line.
+         *
+         *     Its id is the owner's free text, such as "Väst 1"; the outside's exit gets an id derived
+         *     from it, or `outside_id` when the model gives one (tkl/standard/outside.py).
+         */
+        "trainmeet.tkl-1.cad-import.LineExit": {
+            /**
+             * Id
+             * @description Bokstav eller id, till exempel A1.
+             */
+            id: string;
+            /** Node */
+            node: string;
+            /**
+             * Neighbour
+             * @description Grannstationen.
+             * @default null
+             */
+            neighbour: string | null;
+            /**
+             * Tracks
+             * @description Stationsspåren som når hit.
+             */
+            tracks?: string[];
+            /**
+             * Signals
+             * @description Signalerna vid gränsen.
+             */
+            signals?: string[];
+            /**
+             * Outside Id
+             * @description Utfartens fasta id i utsidan. Saknas det räknas det fram ur id: Väst 1 blir Vast-1. Behåller id:t när utfarten byter namn.
+             * @default null
+             */
+            outside_id: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Node */
+        "trainmeet.tkl-1.cad-import.Node": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.tkl-1.cad-import.NodeType"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * Origin
+         * @description The source of one item, and whether the owner has confirmed it (RS5, RS7).
+         */
+        "trainmeet.tkl-1.cad-import.Origin": {
+            source: components["schemas"]["trainmeet.tkl-1.cad-import.Source"];
+            /**
+             * Confirmed
+             * @description Ägaren har bekräftat uppgiften. Antaget syns gult i Studio.
+             * @default false
+             */
+            confirmed: boolean;
+            /**
+             * Ref
+             * @description Uppgiftens namn i källan, till exempel AnyRail-id 1680 eller Vx162.
+             * @default null
+             */
+            ref: string | null;
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelBuilding */
+        "trainmeet.tkl-1.cad-import.PanelBuilding": {
+            /** Cells */
+            cells: [
+                number,
+                number,
+                number,
+                number
+            ];
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelDeviation
+         * @description Where the plan departs from the drawing, said out loud (TKL82, STD-28).
+         *
+         *     The names here are the drawing's, so a piece that is not shown need not be in the model.
+         */
+        "trainmeet.tkl-1.cad-import.PanelDeviation": {
+            /** Reason */
+            reason: string;
+            not_shown?: components["schemas"]["trainmeet.tkl-1.cad-import.PanelHidden"];
+            /**
+             * Rewired
+             * @description Omkopplade spårbitar.
+             */
+            rewired?: string[];
+            /** New Pieces */
+            new_pieces?: string[];
+            /**
+             * Switches
+             * @description Nya växlar och växlar med ett annat nummer.
+             */
+            switches?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.PanelDeviationSwitch"];
+            };
+            /**
+             * Knots
+             * @description Noder mitt på ett annat spår.
+             */
+            knots?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelDeviationSwitch */
+        "trainmeet.tkl-1.cad-import.PanelDeviationSwitch": {
+            /**
+             * Drawing Number
+             * @description Växelns nummer i ritningen. Saknas: växeln är ny.
+             * @default null
+             */
+            drawing_number: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelFunction
+         * @description A button on the panel, from the catalogue, with its parameters.
+         */
+        "trainmeet.tkl-1.cad-import.PanelFunction": {
+            type: components["schemas"]["trainmeet.tkl-1.cad-import.PanelFunctionType"];
+            /** Name */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Switches
+             * @description Lokala växlar, som läggs med knappar på modulerna.
+             */
+            switches?: string[];
+            /**
+             * Locked
+             * @description Skyddsväxlarnas spakar och läget de låses i.
+             */
+            locked?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+            /**
+             * Signals
+             * @description Signaler som visar växling.
+             */
+            signals?: string[];
+            /**
+             * Pieces
+             * @description Spåret funktionen gäller.
+             */
+            pieces?: string[];
+            /**
+             * At
+             * @description Platsen för knappen, till exempel en nod.
+             * @default null
+             */
+            at: string | null;
+            /**
+             * Modes
+             * @description Körströmmens lägen, 2R och 3R.
+             */
+            modes?: string[];
+            /**
+             * Codes
+             * @description Knappens kod per skal, till exempel L01 i 95.
+             */
+            codes?: {
+                [key: string]: string;
+            };
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelFunctionType
+         * @description The panel functions' catalogue. New functions are added here for all (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.PanelFunctionType": "signal_stop" | "local_release" | "traction_current" | "out_of_service" | "emergency_release" | "turntable" | "programming_track";
+        /** PanelGrid */
+        "trainmeet.tkl-1.cad-import.PanelGrid": {
+            /**
+             * Dx
+             * @description Rutans bredd.
+             */
+            dx: number;
+            /**
+             * Dy
+             * @description Rutans höjd.
+             */
+            dy: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelHidden */
+        "trainmeet.tkl-1.cad-import.PanelHidden": {
+            /** Pieces */
+            pieces?: string[];
+            /** Switches */
+            switches?: string[];
+            /** Crossings */
+            crossings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelPiece */
+        "trainmeet.tkl-1.cad-import.PanelPiece": {
+            /** Id */
+            id: string;
+            /**
+             * Reversed
+             * @description Spårbiten går åt andra hållet längs vägen.
+             * @default false
+             */
+            reversed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelPlacement */
+        "trainmeet.tkl-1.cad-import.PanelPlacement": {
+            /** Piece */
+            piece: string;
+            /**
+             * At
+             * @description Läget längs spårbiten, 0 i början och 1 i slutet.
+             */
+            at: number;
+            /**
+             * Reversed
+             * @description Mot spårbitens riktning.
+             * @default false
+             */
+            reversed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelPlan
+         * @description Spårplan: the schematic panel, as the owner has redrawn it on the grid.
+         *
+         *     Del b builds and checks the panel from it; the model only holds it.
+         */
+        "trainmeet.tkl-1.cad-import.PanelPlan": {
+            /**
+             * Basis
+             * @description Vad planen är ritad efter.
+             * @default null
+             */
+            basis: string | null;
+            grid: components["schemas"]["trainmeet.tkl-1.cad-import.PanelGrid"];
+            /** @default null */
+            turntable: components["schemas"]["trainmeet.tkl-1.cad-import.PanelTurntable"] | null;
+            /** Nodes */
+            nodes: {
+                [key: string]: [
+                    number,
+                    number
+                ];
+            };
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.tkl-1.cad-import.PanelTrack"][];
+            /**
+             * Signals
+             * @description Var signalerna och de andra namngivna punkterna står: stoppunkter, utfarter och stoppbockar.
+             */
+            signals?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.PanelPlacement"];
+            };
+            /** Track Names */
+            track_names?: components["schemas"]["trainmeet.tkl-1.cad-import.PanelTrackName"][];
+            /**
+             * Name Offset
+             * @description Spårnamnet över spåret.
+             * @default null
+             */
+            name_offset: number | null;
+            /** Platforms */
+            platforms?: [
+                number,
+                number,
+                number,
+                number
+            ][];
+            /** @default null */
+            building: components["schemas"]["trainmeet.tkl-1.cad-import.PanelBuilding"] | null;
+            /**
+             * Function Sides
+             * @description Panelfunktionens knapp över eller under spåret.
+             */
+            function_sides?: {
+                [key: string]: "over" | "under";
+            };
+            /** @default null */
+            deviation: components["schemas"]["trainmeet.tkl-1.cad-import.PanelDeviation"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelTrack
+         * @description A track on the grid: from a node to another, over the cells where it turns.
+         */
+        "trainmeet.tkl-1.cad-import.PanelTrack": {
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Pieces */
+            pieces: components["schemas"]["trainmeet.tkl-1.cad-import.PanelPiece"][];
+            /** Via */
+            via?: [
+                number,
+                number
+            ][];
+            /**
+             * Joints
+             * @description Skarvarna mellan spårbitarna, i rutor längs vägen.
+             */
+            joints?: number[];
+            /**
+             * Link
+             * @description Länken mellan två växlar i en korsväxel.
+             * @default false
+             */
+            link: boolean;
+            /**
+             * Free
+             * @description Får gå i vilken vinkel som helst.
+             * @default false
+             */
+            free: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelTrackName */
+        "trainmeet.tkl-1.cad-import.PanelTrackName": {
+            /** Name */
+            name: string;
+            /** Piece */
+            piece: string;
+            /** At */
+            at: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PanelTurntable */
+        "trainmeet.tkl-1.cad-import.PanelTurntable": {
+            /** Node */
+            node: string;
+            /** Radius */
+            radius: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartOwner
+         * @description Who steers a border switch (TKL99).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.PartOwner": "station" | "part";
+        /**
+         * PartRules
+         * @description The rules at the border, set per station in Studio (TKL99). The defaults are those of
+         *     the first station divided into parts (TKL99): the station steers the border switches, the
+         *     part may lay them towards its area and never out, and an approved request can only be
+         *     returned.
+         */
+        "trainmeet.tkl-1.cad-import.PartRules": {
+            /**
+             * Lays Towards Part
+             * @description Delen får lägga stationens gränsväxlar mot sitt område, aldrig ut (RANG-12). Annars lägger bara stationen dem.
+             * @default true
+             */
+            lays_towards_part: boolean;
+            /**
+             * One Way
+             * @description Envägsregeln (RANG-09): en godkänd begäran kan delen bara lämna tillbaka, aldrig lägga själv, och stationen tar inte tillbaka den medan den är delens.
+             * @default true
+             */
+            one_way: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PartSide
+         * @description Ände: the end of the part a switch street or a route out belongs to (TKL109, TKL122).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.PartSide": "left" | "right";
+        /**
+         * Position
+         * @description A switch's two positions. + is straight (rakt), - is diverging (avvikande).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.Position": "+" | "-";
+        /**
+         * RouteKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.RouteKind": "train" | "shunting";
+        /**
+         * RouteOut
+         * @description Begärd väg (RANG-03): a station route out over the border that the part may request.
+         *     The station's interlocking sets it when the request is approved; until the part returns it
+         *     the route is the part's (envägsregeln).
+         */
+        "trainmeet.tkl-1.cad-import.RouteOut": {
+            /**
+             * Id
+             * @description Till exempel H3.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel H 3.
+             */
+            name: string;
+            /**
+             * @description Änden vägen går ut från.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.cad-import.PartSide"] | null;
+            /**
+             * Track
+             * @description Stationens spår vägen leder till, till exempel 3.
+             */
+            track: string;
+            /**
+             * Start
+             * @description Vägens start, en signal i delens område.
+             */
+            start: string;
+            /**
+             * End
+             * @description Vägens mål på stationen.
+             */
+            end: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** Signal */
+        "trainmeet.tkl-1.cad-import.Signal": {
+            /** Name */
+            name: string;
+            type: components["schemas"]["trainmeet.tkl-1.cad-import.SignalType"];
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 3 …
+             * @default null
+             */
+            lamps: number | null;
+            /** Node */
+            node: string;
+            /**
+             * Approach
+             * @description Spårbiten tåget kommer på mot signalen. Signalen gäller i den riktningen.
+             */
+            approach: string;
+            /**
+             * Planned
+             * @description Planerad, finns inte än.
+             * @default false
+             */
+            planned: boolean;
+            /**
+             * Address
+             * @description Nivå 3. Utan: en virtuell signal, som bara visas i panelen (TKL26).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | "without" | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SlipPart
+         * @description One switch number in a slip, with its own position and lever, such as 22a in 22a/23.
+         */
+        "trainmeet.tkl-1.cad-import.SlipPart": {
+            /** Number */
+            number: string;
+            /** @default null */
+            address: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | null;
+            /** @default null */
+            feedback: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchFeedback"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Source
+         * @description Where an item in the model comes from (§2 "source", TKL41).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.Source": "drawn" | "photo" | "signal_plan" | "anyrail" | "jmri" | "assumed" | "layout";
+        /**
+         * StationModel
+         * @description Stationsmodellen: one station, level 1 or 2; level 3 adds the addresses, learnt and
+         *     confirmed in Studio's Koppla in.
+         */
+        "trainmeet.tkl-1.cad-import.StationModel": {
+            /**
+             * Format
+             * @default trainmeet.station-model/1
+             * @constant
+             */
+            format: "trainmeet.station-model/1";
+            /** Station Id */
+            station_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Level
+             * @enum {integer}
+             */
+            level: 1 | 2 | 3;
+            /**
+             * @description Källan för allt utan egen.
+             * @default null
+             */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+            /**
+             * Basis
+             * @description Underlaget modellen bygger på.
+             */
+            basis?: string[];
+            /** Nodes */
+            nodes: components["schemas"]["trainmeet.tkl-1.cad-import.Node"][];
+            /** Pieces */
+            pieces: components["schemas"]["trainmeet.tkl-1.cad-import.TrackPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.tkl-1.cad-import.Switch"][];
+            /** Levers */
+            levers?: components["schemas"]["trainmeet.tkl-1.cad-import.Lever"][];
+            /** Signals */
+            signals?: components["schemas"]["trainmeet.tkl-1.cad-import.Signal"][];
+            /** Track Circuits */
+            track_circuits?: components["schemas"]["trainmeet.tkl-1.cad-import.TrackCircuit"][];
+            /** Station Tracks */
+            station_tracks?: components["schemas"]["trainmeet.tkl-1.cad-import.StationTrack"][];
+            /** Line Exits */
+            line_exits?: components["schemas"]["trainmeet.tkl-1.cad-import.LineExit"][];
+            /** Turntables */
+            turntables?: components["schemas"]["trainmeet.tkl-1.cad-import.Turntable"][];
+            /** Functions */
+            functions?: components["schemas"]["trainmeet.tkl-1.cad-import.PanelFunction"][];
+            /**
+             * Parts
+             * @description Delställverken (TKL97): fasta områden med en egen operatör, mot stationens enda ställverk.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.cad-import.StationPart"][];
+            /** @default null */
+            panel: components["schemas"]["trainmeet.tkl-1.cad-import.PanelPlan"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationPart
+         * @description Delställverk (TKL97–TKL103): a fixed area of the station with its own operator, against
+         *     the station's one interlocking, which locks every route.
+         *
+         *     Its area is the same kind of area as local release's (TKL103): track circuits or pieces,
+         *     the switches the part lays freely and the signals in it. Its border is the border switches,
+         *     with their owner, and the signals at the border. The part may be its own driftplats in
+         *     Hubben (TKL101). Its switch streets and the routes out it may request belong to it.
+         */
+        "trainmeet.tkl-1.cad-import.StationPart": {
+            /**
+             * Id
+             * @description Delens id, till exempel rangerbangarden. Skärmen nås på /del/<id>.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Till exempel Rangerbangården.
+             */
+            name: string;
+            /**
+             * Track Circuits
+             * @description Området.
+             */
+            track_circuits?: string[];
+            /**
+             * Pieces
+             * @description Området, utan spårledningar.
+             */
+            pieces?: string[];
+            /**
+             * Switches
+             * @description Delens egna växlar, som den lägger fritt.
+             */
+            switches?: string[];
+            /**
+             * Signals
+             * @description Signalerna i området.
+             */
+            signals?: string[];
+            /**
+             * Border
+             * @description Gränsväxlarna.
+             */
+            border?: components["schemas"]["trainmeet.tkl-1.cad-import.BorderSwitch"][];
+            /**
+             * Border Signals
+             * @description Signalerna vid gränsen, där vägarna ut går över.
+             */
+            border_signals?: string[];
+            /**
+             * Own Place
+             * @description En egen driftplats i Hubben, som bemannas för sig (TKL101). Annars syns delen inte i Hubben.
+             * @default false
+             */
+            own_place: boolean;
+            /**
+             * Place
+             * @description Driftplatsens id i Hubben, när delen är en egen driftplats.
+             * @default null
+             */
+            place: string | null;
+            /**
+             * Code
+             * @description Driftplatsens signatur i Hubben, när delen är en egen driftplats (TKL101). Tomt: namnet används.
+             * @default null
+             */
+            code: string | null;
+            rules?: components["schemas"]["trainmeet.tkl-1.cad-import.PartRules"];
+            /**
+             * Streets
+             * @description Växelgatorna.
+             */
+            streets?: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchStreet"][];
+            /**
+             * Routes Out
+             * @description Vägarna ut över gränsen som delen får begära.
+             */
+            routes_out?: components["schemas"]["trainmeet.tkl-1.cad-import.RouteOut"][];
+            /**
+             * Note
+             * @default null
+             */
+            note: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StationTrack
+         * @description Stationsspår: what the station's outside is made of (TKL92).
+         *
+         *     Its id in the outside is its short name, or `outside_id` when the model gives one, so that
+         *     the owner can rename the track and keep the id the meets know (tkl/standard/outside.py).
+         */
+        "trainmeet.tkl-1.cad-import.StationTrack": {
+            /**
+             * Id
+             * @description Det korta namnet, till exempel 1a.
+             */
+            id: string;
+            /**
+             * Label
+             * @description Till exempel Spår 1a.
+             */
+            label: string;
+            /** Pieces */
+            pieces?: string[];
+            /**
+             * Outside Id
+             * @description Spårets fasta id i utsidan, när det ska vara ett annat än det korta namnet. Behåller id:t när spåret byter namn.
+             * @default null
+             */
+            outside_id: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioSourceKind
+         * @description What Studio's Från CAD connects to a station: a group of modules (STUDIO-03).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.StudioSourceKind": "assembly" | "module";
+        /**
+         * Switch
+         * @description Växel, korsningsväxel eller korsning: the node where pieces divide or cross.
+         *
+         *     An ordinary switch or a Y-switch has a trunk, a straight leg (+) and a diverging leg (-); its
+         *     number is the part that a lever lays. A slip has four pieces, its parts and the paths through
+         *     it; a crossing without a switch has only the paths.
+         */
+        "trainmeet.tkl-1.cad-import.Switch": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            type: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchType"];
+            /** Node */
+            node: string;
+            /**
+             * Trunk
+             * @description Stam.
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @description Rakt ben, läget +.
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @description Avvikande ben, läget -.
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Parts
+             * @description Korsningsväxelns delar.
+             */
+            parts?: components["schemas"]["trainmeet.tkl-1.cad-import.SlipPart"][];
+            /** Paths */
+            paths?: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchPath"][];
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * Design
+             * @description Hand och radie som källan säger.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description Nivå 3. Saknas den är växelns nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | null;
+            /**
+             * @description Återrapport (nivå 3).
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchFeedback"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchControl
+         * @description Who lays the switch. Only TKL's switches have a lever, and no route crosses another.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.SwitchControl": "tkl" | "manual" | "planned" | "not_laid";
+        /**
+         * SwitchFeedback
+         * @description How a switch tells where it lies, at level 3. With two sensors, each sensor is active
+         *     when the switch lies in its position, and both passive while it moves.
+         */
+        "trainmeet.tkl-1.cad-import.SwitchFeedback": {
+            type: components["schemas"]["trainmeet.tkl-1.cad-import.FeedbackType"];
+            /**
+             * @description Givaren för rakt (+).
+             * @default null
+             */
+            straight: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | null;
+            /**
+             * @description Givaren för avvikande (-).
+             * @default null
+             */
+            diverging: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchPath
+         * @description A way through a slip or a crossing: two of its pieces, and the positions it needs.
+         */
+        "trainmeet.tkl-1.cad-import.SwitchPath": {
+            /** Between */
+            between: [
+                string,
+                string
+            ];
+            /**
+             * Positions
+             * @description Delarnas lägen. Tomt för en korsning utan växel.
+             */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchStreet
+         * @description Växelgata (RANG-02): the part's switches laid straight out to a track with one press,
+         *     without a route, a lock or a signal, as in old TKL. A switch in it that lies in a locked
+         *     route refuses the whole street.
+         */
+        "trainmeet.tkl-1.cad-import.SwitchStreet": {
+            /**
+             * Id
+             * @description Till exempel V51.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Som knappen säger det, till exempel V 51.
+             */
+            name: string;
+            /**
+             * @description Änden gatan hör till.
+             * @default null
+             */
+            side: components["schemas"]["trainmeet.tkl-1.cad-import.PartSide"] | null;
+            /**
+             * Track
+             * @description Spåret gatan leder till, till exempel 51 eller Lastspår 1.
+             */
+            track: string;
+            /**
+             * Positions
+             * @description Växlarna i gatan, med sina lägen.
+             */
+            positions: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * TklCadDiff
+         * @description Skillnaden (STUDIO-03): what an import from CAD changes in the station's track plan, by
+         *     CAD's ids, which never change (CAD-20). The owner's additions on pieces whose ids are kept
+         *     stay; what hung on a piece that is gone does not follow, and is listed in lost.
+         */
+        "trainmeet.tkl-1.cad-import.TklCadDiff": {
+            /**
+             * First
+             * @description The first import from this source: everything is new.
+             */
+            first: boolean;
+            /** Added */
+            added?: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadPiece"][];
+            /** Removed */
+            removed?: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadPiece"][];
+            /**
+             * Moved
+             * @description Same id, another shape or place: yellow again.
+             */
+            moved?: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadPiece"][];
+            /**
+             * Kept
+             * @description The owner's additions kept.
+             */
+            kept?: string[];
+            /**
+             * Lost
+             * @description The owner's additions on pieces that are gone.
+             */
+            lost?: string[];
+            /**
+             * Replaced
+             * @description The station's own drawing, not from this source, is replaced.
+             * @default false
+             */
+            replaced: boolean;
+            /**
+             * Panel
+             * @description The owner's panel plan is kept; false: the engine lays it out.
+             * @default false
+             */
+            panel: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklCadLink
+         * @description The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
+         *     single module, at a revision. registered: CAD knows the station uses it (Används i).
+         */
+        "trainmeet.tkl-1.cad-import.TklCadLink": {
+            kind: components["schemas"]["trainmeet.tkl-1.cad-import.StudioSourceKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Registered
+             * @default false
+             */
+            registered: boolean;
+            /**
+             * Modules
+             * @description Its modules by id, as the owner sees them: "M-002 Linje". A re-import says which module a piece that is gone was on.
+             */
+            modules?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklCadPiece
+         * @description A track piece in a re-import's difference, by CAD's id, and what the owner sees of it.
+         */
+        "trainmeet.tkl-1.cad-import.TklCadPiece": {
+            /** Id */
+            id: string;
+            /**
+             * Text
+             * @description "Linje 1500 (M-002), spår 1".
+             */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDrawing
+         * @description Rita: the station as the owner draws it, the station model with its panel plan.
+         *
+         *     The panel plan is the drawing (STD-25, TKL81): every switch, crossing and track end in a
+         *     cell, every track a way over the grid from node to node, horizontally, vertically or at
+         *     45°, with the joints between its pieces. The six objects stand on it: the tracks' pieces,
+         *     the switches, the signals, the track-circuit boundaries, the buffer stops and the line exits
+         *     (STUDIO-02). What is not drawn is computed when the drawing becomes the model: the nodes'
+         *     types, the track circuits between the boundaries, the signals that lead out at each exit,
+         *     and where the panel shows the signals, the exits and the track names (tkl/studio/rita.py).
+         *     The routes are never drawn (STD-07).
+         *
+         *     A station without a plan of its own opens on the engine's layout, the first proposal
+         *     (STD-09). While the owner has only named things on it, the proposal is not kept as a plan,
+         *     and the engine lays the panel out again.
+         */
+        "trainmeet.tkl-1.cad-import.TklDrawing": {
+            model: components["schemas"]["trainmeet.tkl-1.cad-import.StationModel"];
+            /**
+             * Proposal
+             * @description Rutnätet är motorns förslag och sparas inte som spårplan förrän ägaren ritar om det.
+             * @default false
+             */
+            proposal: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklDrawingState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.TklDrawingState": "new" | "draft" | "in_use";
+        /**
+         * TklFinding
+         * @description A problem, which stops the drawing from being used, or a note, which does not, with the
+         *     object it is about when it names one (RS7).
+         */
+        "trainmeet.tkl-1.cad-import.TklFinding": {
+            /** Text */
+            text: string;
+            /** Problem */
+            problem: boolean;
+            /** @default null */
+            target: components["schemas"]["trainmeet.tkl-1.cad-import.TklObjectRef"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklObjectKind
+         * @description What a finding is about, to select it in the drawing (RS7).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.cad-import.TklObjectKind": "node" | "piece" | "switch" | "signal" | "circuit" | "lever" | "exit";
+        /** TklObjectRef */
+        "trainmeet.tkl-1.cad-import.TklObjectRef": {
+            kind: components["schemas"]["trainmeet.tkl-1.cad-import.TklObjectKind"];
+            /**
+             * Id
+             * @description Nodens eller spårbitens id, växelns nummer eller namnet.
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklRita
+         * @description Rita i Studio: the drawing, the model it becomes, the checks and the routes.
+         *
+         *     Saving keeps a draft, problems and all. Använd ritningen makes it the station's model only
+         *     without problems, as an import (STD-04); the outside is then derived from it (TKL92) and
+         *     the interlocking gets it, never under set routes or train numbers.
+         */
+        "trainmeet.tkl-1.cad-import.TklRita": {
+            drawing: components["schemas"]["trainmeet.tkl-1.cad-import.TklDrawing"];
+            state: components["schemas"]["trainmeet.tkl-1.cad-import.TklDrawingState"];
+            /** @description Stationsmodellen som ritningen blir. */
+            model: components["schemas"]["trainmeet.tkl-1.cad-import.StationModel"];
+            /**
+             * Loose
+             * @description Noderna där ett spår slutar utan att nå något: röda punkter (RS7).
+             */
+            loose?: string[];
+            /**
+             * Findings
+             * @description Kontrollernas problem först, sedan det att veta.
+             */
+            findings?: components["schemas"]["trainmeet.tkl-1.cad-import.TklFinding"][];
+            /**
+             * Routes
+             * @description Vägarna per slag.
+             */
+            routes: {
+                [key: string]: number;
+            };
+            /** Route List */
+            route_list?: components["schemas"]["trainmeet.tkl-1.cad-import.TklRoute"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklRoute
+         * @description A route the engine derived: read-only, for showing on the panel (STD-07).
+         */
+        "trainmeet.tkl-1.cad-import.TklRoute": {
+            kind: components["schemas"]["trainmeet.tkl-1.cad-import.RouteKind"];
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Pieces */
+            pieces: string[];
+            /** Positions */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.cad-import.Position"];
+            };
+            /**
+             * Turntable
+             * @default null
+             */
+            turntable: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackCircuit
+         * @description Spårledning.
+         */
+        "trainmeet.tkl-1.cad-import.TrackCircuit": {
+            /** Name */
+            name: string;
+            /** Pieces */
+            pieces: string[];
+            /**
+             * Detection
+             * @description Givare, eller utan.
+             * @default null
+             */
+            detection: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | "without" | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TrackPiece
+         * @description Spårbit: a piece of track from one node to another.
+         */
+        "trainmeet.tkl-1.cad-import.TrackPiece": {
+            /** Id */
+            id: string;
+            /**
+             * Start
+             * @description Från-nod.
+             */
+            start: string;
+            /**
+             * End
+             * @description Till-nod.
+             */
+            end: string;
+            /**
+             * Track
+             * @description Spårnummer, till exempel 1, 31 eller 1a.
+             * @default null
+             */
+            track: string | null;
+            /**
+             * Geometry
+             * @description Verklig form ur ritningen, från start till slut, för den mjuka vyn (TKL42).
+             */
+            geometry?: [
+                number,
+                number
+            ][];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Turntable
+         * @description Vändskivan (RS4): its node and its tracks, with their angles.
+         */
+        "trainmeet.tkl-1.cad-import.Turntable": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            /**
+             * Diameter
+             * @description I millimeter.
+             * @default null
+             */
+            diameter: number | null;
+            /** Tracks */
+            tracks: components["schemas"]["trainmeet.tkl-1.cad-import.TurntableTrack"][];
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TurntableTrack */
+        "trainmeet.tkl-1.cad-import.TurntableTrack": {
+            /** Piece */
+            piece: string;
+            /**
+             * Angle
+             * @description Strålens vinkel i grader, moturs från öster.
+             */
+            angle: number;
         } & {
             [key: string]: unknown;
         };
@@ -19761,6 +21228,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.rita"];
+                };
+            };
+        };
+    };
+    tklFromCad: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.from-cad"];
+                };
+            };
+        };
+    };
+    tklFromCadProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.cad-import"];
                 };
             };
         };

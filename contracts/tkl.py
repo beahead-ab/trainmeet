@@ -92,10 +92,11 @@ from __future__ import annotations
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Final, Literal
+from uuid import UUID
 
 from pydantic import Field, StringConstraints, model_validator
 
-from contracts.cad import DrawingJob
+from contracts.cad import DrawingJob, StudioSource, StudioSourceKind
 from contracts.common import Contract, Id, Text, TimeOfDay
 from contracts.station import (
     Action,
@@ -698,6 +699,79 @@ class TklUpload(Contract):
     underlay: str | None = Field(
         default=None, description="TKL:s egen adress till den uträtade ritningen."
     )
+
+
+# --- Från CAD in Studio (#89 del d2, STUDIO-01, STUDIO-03, CAD-15, CAD-20) ------------------
+
+
+class TklCadLink(Contract):
+    """The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
+    single module, at a revision. registered: CAD knows the station uses it (Används i)."""
+
+    kind: StudioSourceKind
+    id: UUID
+    name: Text = Field(max_length=80)
+    revision: int = Field(ge=1)
+    registered: bool = False
+    modules: dict[str, Text] = Field(
+        default_factory=dict,
+        description='Its modules by id, as the owner sees them: "M-002 Linje". A re-import says '
+        "which module a piece that is gone was on.",
+    )
+
+
+class TklCadPiece(Contract):
+    """A track piece in a re-import's difference, by CAD's id, and what the owner sees of it."""
+
+    id: Name
+    text: Text = Field(description='"Linje 1500 (M-002), spår 1".')
+
+
+class TklCadDiff(Contract):
+    """Skillnaden (STUDIO-03): what an import from CAD changes in the station's track plan, by
+    CAD's ids, which never change (CAD-20). The owner's additions on pieces whose ids are kept
+    stay; what hung on a piece that is gone does not follow, and is listed in lost."""
+
+    first: bool = Field(description="The first import from this source: everything is new.")
+    added: list[TklCadPiece] = Field(default_factory=list)
+    removed: list[TklCadPiece] = Field(default_factory=list)
+    moved: list[TklCadPiece] = Field(
+        default_factory=list, description="Same id, another shape or place: yellow again."
+    )
+    kept: list[Text] = Field(default_factory=list, description="The owner's additions kept.")
+    lost: list[Text] = Field(
+        default_factory=list, description="The owner's additions on pieces that are gone."
+    )
+    replaced: bool = Field(
+        default=False, description="The station's own drawing, not from this source, is replaced."
+    )
+    panel: bool = Field(
+        default=False, description="The owner's panel plan is kept; false: the engine lays it out."
+    )
+
+
+class TklFromCad(Contract):
+    """Från CAD i Studio: whether the way in is open here and why not, the person's assemblies and
+    approved modules in TrainMeet CAD, and the one the station is linked to. TKL asks CAD for the
+    person with the person's access token from ID, as Ladda upp ritning; CAD never makes a
+    station (TKL8, CAD-15)."""
+
+    available: bool
+    reason: Text | None = Field(default=None, description="Varför vägen in är grå.")
+    sources: list[StudioSource] = Field(default_factory=list)
+    link: TklCadLink | None = Field(default=None, description="The station's, in use.")
+    pending: TklCadLink | None = Field(
+        default=None, description="The draft's, until Använd ritningen."
+    )
+
+
+class TklCadImport(Contract):
+    """Gör förslaget: Rita's draft from the source's track graph, everything new or moved yellow
+    until the owner confirms it, and the difference against what the station had."""
+
+    rita: TklRita
+    diff: TklCadDiff
+    link: TklCadLink
 
 
 # --- Manöver: the owner's free panel (STV-46, TKL86) ---------------------------------------

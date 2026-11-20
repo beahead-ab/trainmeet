@@ -2,9 +2,10 @@
 // låtsad TrainMeet ID (cad/prov_webblasare.py). Provkonto A loggar in med provinloggningen, ser det
 // tomma biblioteket, gör en rak modul och en kurvmodul ur bara mått, godkänner kurvan, och ser
 // biblioteket med gavlarna och statusen, modulens sida och gavelprofilerna. Sedan Ritningen och Lås
-// mått (#89 del b, ritningen.mjs), Foto och kontroll (#89 del c1, foto.mjs) och en kurvmodul ur ett foto
-// och en modul ur en skiss (#89 del c2, kurvaskiss.mjs), och Landskapet och Exportera (#89 del d1,
-// landskap.mjs), som körs härifrån så att CI-steget är detsamma.
+// mått (#89 del b, ritningen.mjs), Foto och kontroll (#89 del c1, foto.mjs), en kurvmodul ur ett foto
+// och en modul ur en skiss (#89 del c2, kurvaskiss.mjs), Landskapet och Exportera (#89 del d1,
+// landskap.mjs), och en anläggning av två moduler med Till TKL Studio (#89 del d2, anlaggning.mjs),
+// som körs härifrån så att CI-steget är detsamma.
 //
 //   CHROME_PATH=/usr/bin/google-chrome node apps/cad/e2e/bibliotek.mjs
 //
@@ -13,6 +14,7 @@
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { anlaggning } from "./anlaggning.mjs";
 import { foto } from "./foto.mjs";
 import { kurvaOchSkiss } from "./kurvaskiss.mjs";
 import { landskap } from "./landskap.mjs";
@@ -144,9 +146,10 @@ try {
   await foto(page, { base: BASE, shot, check });
   await kurvaOchSkiss(page, { base: BASE, shot, check });
   await landskap(page, { base: BASE, shot, check });
+  await anlaggning(page, { base: BASE, shot, check });
 
   check(problems.length === 0, `Fel i webbläsaren: ${problems.join(" | ")}`);
-  console.log("Webbläsarprovet för modulbiblioteket, Ritningen, Foto och kontroll, kurvmodulen ur foto, skissen, Landskapet och Exportera gick igenom.");
+  console.log("Webbläsarprovet för modulbiblioteket, Ritningen, Foto och kontroll, kurvmodulen ur foto, skissen, Landskapet och Exportera, och anläggningen gick igenom.");
 } catch (error) {
   await shot(page, "fel");
   throw error;

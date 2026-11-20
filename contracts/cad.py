@@ -66,7 +66,8 @@ station model's geometry by sampling the arcs (a line is its two ends). A switch
 model's Switch with the same trunk, straight and diverging pieces. Coordinates are the module's
 own, as the station model's: x from gable A along Kant 1, y away from Kant 1, in mm, so y runs
 down the drawing as in the station model. In an assembly each module is placed with a shift and
-a turn, and its ids are prefixed with the module's id.
+a turn, and its ids are prefixed with the module's id ("<module>:<id>"); where two gables meet,
+a track is one node, the smaller of the two ids (part d).
 """
 
 from __future__ import annotations
@@ -1316,12 +1317,14 @@ class ModuleStatus(StrEnum):
 
 
 class UsedIn(Contract):
-    """Används i: an assembly or a meet that uses the module, at the version it pinned (part d)."""
+    """Används i: an assembly or a meet that uses the module, at the version it pinned (part d);
+    or a station in TKL that took the module into use, alone or in an assembly (CAD-15)."""
 
-    kind: Literal["assembly", "meet"]
-    id: UUID
+    kind: Literal["assembly", "meet", "station"]
+    id: UUID = Field(description="The assembly or meet; for a station, what it took.")
     name: Text
     version: int = Field(ge=1)
+    station: Id | None = Field(default=None, description="The station's id in TKL.")
 
 
 class ModuleBrief(Contract):
@@ -2400,7 +2403,72 @@ class ModuleExport(Contract):
     landscape: bool
 
 
-# --- The assembly (part d) ----------------------------------------------------------------
+# --- The assembly (part d): Anläggningar and Till TKL Studio (CAD-06, CAD-10, CAD-15, CAD-21) --
+#
+#     GET    /api/cad/1/assemblies                     [AssemblyBrief]: mine and my clubs'
+#     POST   /api/cad/1/assemblies                     NewAssembly -> Assembly, 201
+#     GET    /api/cad/1/assemblies/{assembly}          Assembly, placed and checked
+#     PUT    /api/cad/1/assemblies/{assembly}          AssemblyChange -> Assembly, the next
+#                                                      revision; 409 when base is not the newest
+#     DELETE /api/cad/1/assemblies/{assembly}          AssemblyRemoved; soft, as a module
+#     GET    /api/cad/1/studio                         StudioSources: what Studio's Från CAD lists
+#     GET    /api/cad/1/studio/{kind}/{id}             StudioGraph: the track graph Studio gets
+#     PUT    /api/cad/1/studio/{kind}/{id}/station     StationUseAsk -> StudioSource: Används i
+#
+# An assembly puts modules together gable to gable (CAD-06). It has one scale, and its gables must
+# fit (CAD9): the same number of tracks, the same norm where both gables have one, and each track
+# where the other's is, measured from Kant 1, within JOINT_TOLERANCE. Facing gables meet Kant 1
+# to Kant 1 when one is A and the other B; A to A or B to B turns the second module round, and its
+# tracks are then measured from its far edge. A curve gives the angle; a joint may add one. The
+# first module of each group lies where the owner put it, and every other one where its joints
+# put it. A joint between two modules already placed closes a loop and is checked as it lies.
+#
+# The assembly pins each module's version (CAD-21): a module is added at its newest approved
+# version, and a newer approved one is offered, never taken silently. Only those who see a module
+# may use it; only the owner changes the assembly: a person's own, or for a club's its
+# administrators. Who sees an assembly: its owner, and a club's members.
+#
+# Till TKL Studio sends the track graph only (CAD-10): the modules' graphs joined at the joints,
+# placed in the assembly's mm, each id prefixed with its module's id ("<module>:s3"), and a track
+# where two gables meet one node, the smaller of the two ids, so that the ids never change while
+# the modules keep theirs (CAD-20). Signals, buffer stops and routes are worked out in Studio
+# (CAD-09). CAD never makes a station (TKL8, CAD-15): Studio's Från CAD lists the person's
+# assemblies and approved modules with the person's access token from ID, as Ladda upp ritning
+# does, the owner confirms the proposal in Studio, and Studio then tells CAD which station uses
+# it, for Används i.
+
+JOINT_TOLERANCE: Final = 2 * POSITION_TOLERANCE
+"""How far apart in mm two tracks that meet in a joint may lie: each gable may be 0,5 mm from the
+norm's position (POSITION_TOLERANCE), so two of them up to 1 mm from each other."""
+
+CLOSING_TURN: Final = 0.5
+"""How many degrees a joint that closes a loop may turn more or less than its angle says."""
+
+MAX_JOINT_ANGLE: Final = 15.0
+"""The largest angle in degrees a joint adds, either way: the range the page takes."""
+
+MAX_ASSEMBLY_MODULES: Final = 200
+
+
+class JointEnd(Contract):
+    """One side of a joint: a module in the assembly, and its gable."""
+
+    module: UUID
+    gable: GableEnd
+
+
+class Joint(Contract):
+    """Skarv: two modules' gables together, at an angle (CAD-06). The angle turns b's module
+    counterclockwise about the middle of the tracks in the joint; 0 is flush."""
+
+    a: JointEnd
+    b: JointEnd
+    angle: float = Field(
+        default=0,
+        ge=-MAX_JOINT_ANGLE,
+        le=MAX_JOINT_ANGLE,
+        description="What the joint adds, in degrees counterclockwise.",
+    )
 
 
 class PlacedModule(Contract):
@@ -2412,17 +2480,68 @@ class PlacedModule(Contract):
     angle: float = Field(description="The module's turn, in degrees, counterclockwise.")
 
 
-class Joint(Contract):
-    """Skarv: two modules' gables together, at an angle (CAD-06)."""
+class StationUse(Contract):
+    """Används i: a station in TKL that took an assembly or a module into use, as Studio told CAD
+    when the owner confirmed it (CAD-15). The station's id is TKL's, the station's own."""
 
-    a: tuple[int, GableEnd] = Field(description="The placed module's index, and its gable.")
-    b: tuple[int, GableEnd]
-    angle: float = Field(default=0, description="The angle between them, in degrees.")
+    station_id: Id
+    name: Text = Field(max_length=80)
+    revision: int = Field(ge=1, description="The assembly's revision, or the module's version.")
+    at: datetime
+
+
+class GableAt(Contract):
+    """A placed module's gable in the assembly, in the assembly's mm: its corners and where its
+    tracks meet the next module, to draw it and to join it."""
+
+    end: GableEnd
+    corner: Point = Field(description="The corner at Kant 1.")
+    far: Point = Field(description="The other corner.")
+    tracks: list[Point] = Field(default_factory=list, description="Spår 1 first.")
+    label: Text = Field(description='"MMM enkelspår", "Egen gavel · 2 spår".')
+    norm: Norm | None = None
+    joined: bool = Field(description="A joint uses it.")
+
+
+class AssemblyModule(Contract):
+    """A module in the assembly as the page shows it, at its pinned version."""
+
+    module: UUID
+    version: int = Field(ge=1)
+    seen: bool = Field(
+        description="The person sees the module now. Unseen it is only an outline: it cannot "
+        "be used, and the assembly cannot go to Studio."
+    )
+    number: str | None = Field(default=None, pattern=r"^M-\d{3,}$")
+    name: Text | None = Field(default=None, max_length=80)
+    owner: Text | None = Field(default=None, max_length=80, description="The module's owner.")
+    placed: Literal["first", "joint", "free"] = Field(
+        description="The first module, placed by a joint, or lying free where the owner put it."
+    )
+    outline: list[Point] = Field(default_factory=list, description="The board, Kant 1 first.")
+    gables: list[GableAt] = Field(default_factory=list)
+    newer: int | None = Field(
+        default=None, ge=1, description="A newer approved version, offered; never taken silently."
+    )
+
+
+class JointCheck(Contract):
+    """Skarven kontrollerad (CAD9): whether the gables fit, and why not."""
+
+    joint: int = Field(ge=0, description="The joint's place in the list.")
+    fits: bool
+    problems: list[Text] = Field(default_factory=list)
+    gap: float = Field(ge=0, description="The farthest two tracks that meet lie apart, in mm.")
+    turn: float = Field(
+        default=0, ge=0, description="A closing joint's turn beyond its angle, in degrees."
+    )
+    closing: bool = Field(default=False, description="It joins two modules already placed.")
 
 
 class Assembly(Contract):
     """Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that
-    fit together (CAD9). Only the shell in part a; part d builds it."""
+    fit together (CAD9). The modules' placement is worked out from the joints; graph is the track
+    graph Till TKL Studio sends (CAD-10)."""
 
     id: UUID
     name: Name
@@ -2430,3 +2549,134 @@ class Assembly(Contract):
     scale: Scale
     modules: list[PlacedModule] = Field(default_factory=list)
     joints: list[Joint] = Field(default_factory=list)
+    revision: int = Field(default=1, ge=1, description="Every change is the next revision.")
+    changed_at: datetime | None = None
+    may_edit: bool = Field(default=False, description="The person may change it (CAD-21).")
+    parts: list[AssemblyModule] = Field(default_factory=list, description="As the page shows.")
+    checks: list[JointCheck] = Field(default_factory=list, description="One per joint.")
+    problems: list[Text] = Field(
+        default_factory=list, description="What keeps it from Studio; empty: it may go."
+    )
+    graph: TrackGraph = Field(default_factory=TrackGraph)
+    stations: list[StationUse] = Field(default_factory=list, description="Används i.")
+
+
+class AssemblyBrief(Contract):
+    """An assembly as the list on Anläggningar shows it."""
+
+    id: UUID
+    name: Name
+    owner: Owner
+    scale: Scale
+    modules: int = Field(ge=0)
+    problems: int = Field(ge=0, description="How many things keep it from Studio.")
+    revision: int = Field(ge=1)
+    changed_at: datetime
+    may_edit: bool
+    stations: list[StationUse] = Field(default_factory=list)
+
+
+class NewAssembly(Contract):
+    """Ny anläggning. owner a club's id makes it the club's: the club's administrator may."""
+
+    name: Name
+    scale: Scale
+    owner: UUID | None = None
+
+
+class AssemblyPart(Contract):
+    """A module in a change: the version it pins, null for its newest approved one (adding it,
+    or taking the newer one offered); and where it lies when no joint places it."""
+
+    module: UUID
+    version: int | None = Field(default=None, ge=1)
+    at: Point = (0.0, 0.0)
+    angle: float = Field(default=0, ge=-360, le=360)
+
+
+class AssemblyChange(Contract):
+    """Spara: the whole assembly as the page has it, on top of base, the newest revision the
+    person read. Refused with 409 when a newer revision exists."""
+
+    base: int = Field(ge=1)
+    name: Name
+    modules: list[AssemblyPart] = Field(default_factory=list, max_length=MAX_ASSEMBLY_MODULES)
+    joints: list[Joint] = Field(default_factory=list, max_length=2 * MAX_ASSEMBLY_MODULES)
+
+    @model_validator(mode="after")
+    def _joints(self) -> Self:
+        ids = [m.module for m in self.modules]
+        if len(ids) != len(set(ids)):
+            raise ValueError("En modul finns bara en gång i anläggningen.")
+        used: set[tuple[UUID, GableEnd]] = set()
+        for joint in self.joints:
+            for side in (joint.a, joint.b):
+                if side.module not in ids:
+                    raise ValueError("En skarv går till en modul som inte finns i anläggningen.")
+                if (side.module, side.gable) in used:
+                    raise ValueError(
+                        f"Gavel {side.gable} på samma modul finns redan i en annan skarv."
+                    )
+                used.add((side.module, side.gable))
+            if joint.a.module == joint.b.module:
+                raise ValueError("En modul skarvas inte mot sig själv.")
+        return self
+
+
+class AssemblyRemoved(Contract):
+    id: UUID
+
+
+class StudioSourceKind(StrEnum):
+    """What Studio's Från CAD connects to a station: a group of modules (STUDIO-03)."""
+
+    ASSEMBLY = "assembly"
+    MODULE = "module"
+    """A single approved module, the person's own."""
+
+
+class StudioModule(Contract):
+    """A module in what Studio gets: its id is the prefix of its ids in the graph."""
+
+    id: UUID
+    number: str = Field(pattern=r"^M-\d{3,}$")
+    name: Text = Field(max_length=80)
+    version: int = Field(ge=1)
+
+
+class StudioSource(Contract):
+    """Från CAD: an assembly or a single module the person may connect to a station."""
+
+    kind: StudioSourceKind
+    id: UUID
+    name: Text = Field(max_length=80)
+    scale: Scale
+    owner: Text = Field(max_length=80)
+    revision: int = Field(ge=1, description="The assembly's revision, or the module's version.")
+    modules: list[StudioModule] = Field(default_factory=list)
+    ready: bool = Field(description="It may go to Studio: no problems.")
+    problems: list[Text] = Field(default_factory=list)
+    stations: list[StationUse] = Field(default_factory=list, description="Används i.")
+    changed_at: datetime
+
+
+class StudioSources(Contract):
+    """Från CAD's list: the person's assemblies and approved modules, newest first."""
+
+    sources: list[StudioSource] = Field(default_factory=list)
+
+
+class StudioGraph(Contract):
+    """Till TKL Studio (CAD-10): the source and its track graph, in mm, with ids CAD never
+    changes. Only the graph follows; Studio works out the signals, buffer stops and routes."""
+
+    source: StudioSource
+    graph: TrackGraph
+
+
+class StationUseAsk(Contract):
+    """Studio tells CAD that a station took the source into use, at a revision (CAD-15)."""
+
+    station_id: Id
+    name: Text = Field(max_length=80)
+    revision: int = Field(ge=1)

@@ -91,6 +91,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.rita": tkl.TklRita,
     # Ladda upp ritning (#89 del c4): the drawing read by TrainMeet CAD, through TKL.
     "trainmeet.tkl-1.upload": tkl.TklUpload,
+    # Från CAD (#89 del d2): an assembly or a module from TrainMeet CAD, through TKL.
+    "trainmeet.tkl-1.from-cad": tkl.TklFromCad,
+    "trainmeet.tkl-1.cad-import": tkl.TklCadImport,
     # Studio, Dela stationen (#87 del b).
     "trainmeet.tkl-1.dela": tkl.TklDela,
     "trainmeet.tkl-1.dela-edit": tkl.TklDelaEdit,
@@ -433,6 +436,15 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.new-profile": cad.NewProfile,
     "trainmeet.cad-1.track-graph": cad.TrackGraph,
     "trainmeet.cad-1.assembly": cad.Assembly,
+    # Anläggningar and Till TKL Studio (#89 del d2).
+    "trainmeet.cad-1.assembly-brief": cad.AssemblyBrief,
+    "trainmeet.cad-1.new-assembly": cad.NewAssembly,
+    "trainmeet.cad-1.assembly-change": cad.AssemblyChange,
+    "trainmeet.cad-1.assembly-removed": cad.AssemblyRemoved,
+    "trainmeet.cad-1.studio-sources": cad.StudioSources,
+    "trainmeet.cad-1.studio-source": cad.StudioSource,
+    "trainmeet.cad-1.studio-graph": cad.StudioGraph,
+    "trainmeet.cad-1.station-use-ask": cad.StationUseAsk,
     # Ritningen and Lås mått (#89 del b).
     "trainmeet.cad-1.drawing-edit": cad.DrawingEdit,
     "trainmeet.cad-1.drawing-view": cad.DrawingView,
@@ -2079,6 +2091,11 @@ def tkl_openapi() -> str:
         }
     }
     route("post", rd + "/{job}/forslag", "tklUploadProposal", t + "rita")
+    # Från CAD (#89 del d2): the person's assemblies and modules in CAD; Gör förslaget is Rita's
+    # draft, with the difference against what the station had.
+    fc = a + "/studio/fran-cad"
+    route("get", fc, "tklFromCad", t + "from-cad")
+    route("post", fc + "/{kind}/{source}/forslag", "tklFromCadProposal", t + "cad-import")
     # Studio, Dela stationen (#87 del b): the parts, kept as a draft until they are used.
     route("get", a + "/studio/dela", "tklParts", t + "dela")
     route("put", a + "/studio/dela", "tklSaveParts", t + "dela", t + "dela-edit")
@@ -2633,9 +2650,59 @@ def cad_openapi() -> str:
             for _, media in cad.EXPORT_FILES.values()
         },
     }
+    # Anläggningar and Till TKL Studio (#89 del d2).
+    route("get", a + "/assemblies", "cadAssemblies", "assembly-brief", many=True, problems=read)
+    route(
+        "post",
+        a + "/assemblies",
+        "cadNewAssembly",
+        "assembly",
+        "new-assembly",
+        created=True,
+        problems=write,
+    )
+    route("get", a + "/assemblies/{assembly}", "cadAssembly", "assembly", problems=read)
+    route(
+        "put",
+        a + "/assemblies/{assembly}",
+        "cadSaveAssembly",
+        "assembly",
+        "assembly-change",
+        problems=write,
+    )
+    route(
+        "delete",
+        a + "/assemblies/{assembly}",
+        "cadRemoveAssembly",
+        "assembly-removed",
+        problems=write,
+    )
+    route(
+        "get",
+        a + "/assemblies/{assembly}/dxf",
+        "cadAssemblyDxf",
+        "assembly",
+        query=(("rails", {"type": "boolean"}),),
+        problems=read,
+    )
+    paths[a + "/assemblies/{assembly}/dxf"]["get"]["responses"]["200"] = {
+        "description": "The assembly as DXF: each module from its pinned version where the "
+        "joints put it (CAD-06).",
+        "content": {cad.EXPORT_FILES["modul.dxf"][1]: {"schema": {"type": "string"}}},
+    }
+    route("get", a + "/studio", "cadStudioSources", "studio-sources", problems=(401, 503))
+    route("get", a + "/studio/{kind}/{source}", "cadStudioGraph", "studio-graph", problems=read)
+    route(
+        "put",
+        a + "/studio/{kind}/{source}/station",
+        "cadStationUse",
+        "studio-source",
+        "station-use-ask",
+        problems=(401, 404, 422, 503),
+    )
     # Studio's server calls these with the person's access token for TKL from ID (TKL18).
     for path, methods in paths.items():
-        if path.startswith(a + "/drawings"):
+        if path.startswith((a + "/drawings", a + "/studio")):
             for entry in methods.values():
                 entry["security"] = [{"id": []}, {"session": []}]
     return (

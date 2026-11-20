@@ -23,6 +23,7 @@ import io
 import json
 import re
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from urllib.parse import quote
 from uuid import UUID
@@ -34,6 +35,7 @@ from cad.library import Modules, Who
 from contracts.cad import (
     EXPORT_FILES,
     RECORD_COLUMNS,
+    Assembly,
     Curve,
     ExportFile,
     ExportKind,
@@ -263,6 +265,37 @@ def module_dxf(module: Module, shown: Shown | None, *, rails: bool = False) -> b
             track_bed=shown.track_bed if shown else (),
         ),
     )
+    return doc.write()
+
+
+def assembly_dxf(
+    assembly: Assembly, modules: Mapping[UUID, Module], *, rails: bool = False
+) -> bytes:
+    """An assembly in one drawing (CAD-06: "vidare till ... DXF"): each module from its pinned
+    version, where the joints put it, with the same layers as a module on its own. A module the
+    person no longer sees is only its board outline."""
+    doc = dxf.Dxf()
+    outlines = {part.module: part.outline for part in assembly.parts}
+    for placed in assembly.modules:
+        module = modules.get(placed.module)
+        if module is None:
+            outline = outlines.get(placed.module) or []
+            if len(outline) >= 3:
+                doc.polyline(dxf.OUTLINE, outline, closed=True)
+            continue
+        dxf.draw_module(
+            doc,
+            module.shape,
+            _gables(module),
+            module.graph,
+            module.scale,
+            place=dxf.Placement(at=placed.at, angle=placed.angle),
+            sheet=dxf.ModuleSheet(
+                title=f"{module.number} {module.name} · version {module.version}",
+                draft=module.status != ModuleStatus.APPROVED,
+                rails=rails,
+            ),
+        )
     return doc.write()
 
 

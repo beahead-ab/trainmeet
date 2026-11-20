@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.station-use-ask.schema.json",
+  "title": "trainmeet.cad-1.station-use-ask",
+  "additionalProperties": true,
+  "description": "Studio tells CAD that a station took the source into use, at a revision (CAD-15).",
+  "properties": {
+    "station_id": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Station Id",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "revision": {
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "station_id",
+    "name",
+    "revision"
+  ],
+  "type": "object"
+}

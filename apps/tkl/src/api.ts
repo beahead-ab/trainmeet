@@ -80,6 +80,12 @@ export type DrawingJob = Schemas["trainmeet.tkl-1.upload.DrawingJob"];
 export type DrawingRead = Schemas["trainmeet.tkl-1.upload.DrawingRead"];
 export type DrawingPage = Schemas["trainmeet.tkl-1.upload.DrawingPage"];
 export type DrawingQuestion = Schemas["trainmeet.tkl-1.upload.DrawingQuestion"];
+// Från CAD (#89 del d2): the person's assemblies and modules in TrainMeet CAD through TKL, and
+// Gör förslaget: Rita's draft and the difference against what the station had.
+export type FromCad = Schemas["trainmeet.tkl-1.from-cad"];
+export type CadImport = Schemas["trainmeet.tkl-1.cad-import"];
+export type CadDiff = CadImport["diff"];
+export type CadSource = NonNullable<FromCad["sources"]>[number];
 export type ModelNode = Schemas["trainmeet.tkl-1.drawing.Node"];
 export type NodeType = Schemas["trainmeet.tkl-1.drawing.NodeType"];
 export type Piece = Schemas["trainmeet.tkl-1.drawing.TrackPiece"];
@@ -277,6 +283,9 @@ export const api = {
   readDrawing: (job: string, page: number, ai: boolean, consent: boolean) => call<Upload>(`${TKL}/studio/ritning/${job}/read`, "POST", { page, ai, consent }),
   answerDrawing: (job: string, key: string, answer: string) => call<Upload>(`${TKL}/studio/ritning/${job}/answers`, "POST", { answers: [{ key, answer }] }),
   proposal: (job: string) => call<Rita>(`${TKL}/studio/ritning/${job}/forslag`, "POST"),
+  // Från CAD (#89 del d2): with the person's login with ID, as Ladda upp ritning.
+  fromCad: () => call<FromCad>(`${TKL}/studio/fran-cad`),
+  fromCadProposal: (kind: string, source: string) => call<CadImport>(`${TKL}/studio/fran-cad/${kind}/${source}/forslag`, "POST"),
   // Dela stationen (#87 del b): the parts are saved as a draft, checks and all, until Använd.
   dela: () => call<Dela>(`${TKL}/studio/dela`),
   saveParts: (parts: StationPart[]) => call<Dela>(`${TKL}/studio/dela`, "PUT", { parts }),

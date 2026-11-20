@@ -3,6 +3,299 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.assembly.schema.json",
   "title": "trainmeet.cad-1.assembly",
   "$defs": {
+    "ArcSegment": {
+      "additionalProperties": true,
+      "description": "ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing\nshows it, with y down.",
+      "properties": {
+        "kind": {
+          "const": "arc",
+          "default": "arc",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        },
+        "center": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Center",
+          "type": "array"
+        },
+        "radius": {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "title": "Radius",
+          "type": "number"
+        },
+        "clockwise": {
+          "title": "Clockwise",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "start",
+        "end",
+        "center",
+        "radius",
+        "clockwise"
+      ],
+      "title": "ArcSegment",
+      "type": "object"
+    },
+    "AssemblyModule": {
+      "additionalProperties": true,
+      "description": "A module in the assembly as the page shows it, at its pinned version.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "seen": {
+          "description": "The person sees the module now. Unseen it is only an outline: it cannot be used, and the assembly cannot go to Studio.",
+          "title": "Seen",
+          "type": "boolean"
+        },
+        "number": {
+          "anyOf": [
+            {
+              "pattern": "^M-\\d{3,}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The module's owner.",
+          "title": "Owner"
+        },
+        "placed": {
+          "description": "The first module, placed by a joint, or lying free where the owner put it.",
+          "enum": [
+            "first",
+            "joint",
+            "free"
+          ],
+          "title": "Placed",
+          "type": "string"
+        },
+        "outline": {
+          "description": "The board, Kant 1 first.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Outline",
+          "type": "array"
+        },
+        "gables": {
+          "items": {
+            "$ref": "#/$defs/GableAt"
+          },
+          "title": "Gables",
+          "type": "array"
+        },
+        "newer": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A newer approved version, offered; never taken silently.",
+          "title": "Newer"
+        }
+      },
+      "required": [
+        "module",
+        "version",
+        "seen",
+        "placed"
+      ],
+      "title": "AssemblyModule",
+      "type": "object"
+    },
+    "Certainty": {
+      "description": "How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).",
+      "enum": [
+        "certain",
+        "probable",
+        "uncertain",
+        "confirmed"
+      ],
+      "title": "Certainty",
+      "type": "string"
+    },
+    "GableAt": {
+      "additionalProperties": true,
+      "description": "A placed module's gable in the assembly, in the assembly's mm: its corners and where its\ntracks meet the next module, to draw it and to join it.",
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "corner": {
+          "description": "The corner at Kant 1.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Corner",
+          "type": "array"
+        },
+        "far": {
+          "description": "The other corner.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Far",
+          "type": "array"
+        },
+        "tracks": {
+          "description": "Spår 1 first.",
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "title": "Tracks",
+          "type": "array"
+        },
+        "label": {
+          "description": "\"MMM enkelspår\", \"Egen gavel · 2 spår\".",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "joined": {
+          "description": "A joint uses it.",
+          "title": "Joined",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "end",
+        "corner",
+        "far",
+        "label",
+        "joined"
+      ],
+      "title": "GableAt",
+      "type": "object"
+    },
     "GableEnd": {
       "enum": [
         "A",
@@ -11,42 +304,576 @@
       "title": "GableEnd",
       "type": "string"
     },
-    "Joint": {
+    "GraphLabel": {
       "additionalProperties": true,
-      "description": "Skarv: two modules' gables together, at an angle (CAD-06).",
+      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the\npoint is in the drawing's own coordinates, ref is the object code tied it to (the nearest\none), and read_by says how the text was read.",
       "properties": {
-        "a": {
-          "description": "The placed module's index, and its gable.",
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "at": {
           "maxItems": 2,
           "minItems": 2,
           "prefixItems": [
             {
-              "type": "integer"
+              "type": "number"
             },
             {
-              "$ref": "#/$defs/GableEnd"
+              "type": "number"
             }
           ],
-          "title": "A",
+          "title": "At",
           "type": "array"
         },
-        "b": {
+        "ref": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The piece, switch, node or symbol it names.",
+          "title": "Ref"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "read_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReadBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Textlager, OCR eller AI; null: written in CAD."
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "at"
+      ],
+      "title": "GraphLabel",
+      "type": "object"
+    },
+    "GraphNode": {
+      "additionalProperties": true,
+      "description": "Nod: where pieces meet or end. A track at a gable is a module joint with its gable and\nits track number there.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/NodeType"
+        },
+        "at": {
           "maxItems": 2,
           "minItems": 2,
           "prefixItems": [
             {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "gable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maximum": 12,
+              "minimum": 1,
               "type": "integer"
             },
             {
-              "$ref": "#/$defs/GableEnd"
+              "type": "null"
             }
           ],
-          "title": "B",
+          "default": null,
+          "description": "Spår n i gaveln.",
+          "title": "Track"
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "at"
+      ],
+      "title": "GraphNode",
+      "type": "object"
+    },
+    "GraphOrigin": {
+      "additionalProperties": true,
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/GraphSource"
+        },
+        "certainty": {
+          "$ref": "#/$defs/Certainty"
+        }
+      },
+      "required": [
+        "source",
+        "certainty"
+      ],
+      "title": "GraphOrigin",
+      "type": "object"
+    },
+    "GraphPiece": {
+      "additionalProperties": true,
+      "description": "Spårbit: track centre from one node to another, as LINE and ARC segments in order.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "start": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Start",
+          "type": "string"
+        },
+        "end": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "End",
+          "type": "string"
+        },
+        "segments": {
+          "items": {
+            "discriminator": {
+              "mapping": {
+                "arc": "#/$defs/ArcSegment",
+                "line": "#/$defs/LineSegment"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/$defs/LineSegment"
+              },
+              {
+                "$ref": "#/$defs/ArcSegment"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Segments",
           "type": "array"
+        },
+        "track": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spårnummer, när ägaren har gett det.",
+          "title": "Track"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "start",
+        "end",
+        "segments"
+      ],
+      "title": "GraphPiece",
+      "type": "object"
+    },
+    "GraphSource": {
+      "description": "Where a piece of the graph comes from.",
+      "enum": [
+        "measures",
+        "photo",
+        "sketch",
+        "anyrail",
+        "drawn",
+        "drawing"
+      ],
+      "title": "GraphSource",
+      "type": "string"
+    },
+    "GraphSwitch": {
+      "additionalProperties": true,
+      "description": "Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's\nids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);\nthe diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,\nVäxlar). design is the switch type from the switch library (Växeltyp), null while Okänd.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "node": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Node",
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/$defs/SwitchType"
+        },
+        "trunk": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trunk"
+        },
+        "straight": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Straight"
+        },
+        "diverging": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Diverging"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 90,
+              "exclusiveMinimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Angle"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "number": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växelnummer.",
+          "title": "Number"
+        },
+        "design": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Växeltyp; null: Okänd.",
+          "title": "Design"
+        },
+        "toward": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GableEnd"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The gable the diverging leg heads for."
+        },
+        "locked": {
+          "default": false,
+          "description": "Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.",
+          "title": "Locked",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "node",
+        "type"
+      ],
+      "title": "GraphSwitch",
+      "type": "object"
+    },
+    "GraphSymbol": {
+      "additionalProperties": true,
+      "description": "Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from\nthe catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).\nA signal's name and address are those read from its label, when there is one.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SymbolKind"
+        },
+        "signal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The catalogue's class."
+        },
+        "lamps": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hsi 2, Hsi 4 …",
+          "title": "Lamps"
+        },
+        "facing": {
+          "anyOf": [
+            {
+              "enum": [
+                "east",
+                "west"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The way it applies: trains going east or west.",
+          "title": "Facing"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "piece": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The track it stands by.",
+          "title": "Piece"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The label it was named by.",
+          "title": "Label"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it looks like: signalfigur, ▲, ● …",
+          "title": "Shape"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "at"
+      ],
+      "title": "GraphSymbol",
+      "type": "object"
+    },
+    "Joint": {
+      "additionalProperties": true,
+      "description": "Skarv: two modules' gables together, at an angle (CAD-06). The angle turns b's module\ncounterclockwise about the middle of the tracks in the joint; 0 is flush.",
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/JointEnd"
+        },
+        "b": {
+          "$ref": "#/$defs/JointEnd"
         },
         "angle": {
           "default": 0,
-          "description": "The angle between them, in degrees.",
+          "description": "What the joint adds, in degrees counterclockwise.",
+          "maximum": 15.0,
+          "minimum": -15.0,
           "title": "Angle",
           "type": "number"
         }
@@ -57,6 +884,153 @@
       ],
       "title": "Joint",
       "type": "object"
+    },
+    "JointCheck": {
+      "additionalProperties": true,
+      "description": "Skarven kontrollerad (CAD9): whether the gables fit, and why not.",
+      "properties": {
+        "joint": {
+          "description": "The joint's place in the list.",
+          "minimum": 0,
+          "title": "Joint",
+          "type": "integer"
+        },
+        "fits": {
+          "title": "Fits",
+          "type": "boolean"
+        },
+        "problems": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        },
+        "gap": {
+          "description": "The farthest two tracks that meet lie apart, in mm.",
+          "minimum": 0,
+          "title": "Gap",
+          "type": "number"
+        },
+        "turn": {
+          "default": 0,
+          "description": "A closing joint's turn beyond its angle, in degrees.",
+          "minimum": 0,
+          "title": "Turn",
+          "type": "number"
+        },
+        "closing": {
+          "default": false,
+          "description": "It joins two modules already placed.",
+          "title": "Closing",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "joint",
+        "fits",
+        "gap"
+      ],
+      "title": "JointCheck",
+      "type": "object"
+    },
+    "JointEnd": {
+      "additionalProperties": true,
+      "description": "One side of a joint: a module in the assembly, and its gable.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "gable": {
+          "$ref": "#/$defs/GableEnd"
+        }
+      },
+      "required": [
+        "module",
+        "gable"
+      ],
+      "title": "JointEnd",
+      "type": "object"
+    },
+    "LineSegment": {
+      "additionalProperties": true,
+      "description": "LINE: a straight piece of track centre, in mm.",
+      "properties": {
+        "kind": {
+          "const": "line",
+          "default": "line",
+          "title": "Kind",
+          "type": "string"
+        },
+        "start": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Start",
+          "type": "array"
+        },
+        "end": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "End",
+          "type": "array"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ],
+      "title": "LineSegment",
+      "type": "object"
+    },
+    "NodeType": {
+      "description": "What is at a node. A node joins track pieces; how many depends on the type.",
+      "enum": [
+        "switch",
+        "crossing",
+        "signal_point",
+        "block_boundary",
+        "module_joint",
+        "joint",
+        "stop_point",
+        "buffer_stop",
+        "line_exit",
+        "turntable"
+      ],
+      "title": "NodeType",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0",
+        "fremo_n"
+      ],
+      "title": "Norm",
+      "type": "string"
     },
     "Owner": {
       "additionalProperties": true,
@@ -137,6 +1111,16 @@
       "title": "PlacedModule",
       "type": "object"
     },
+    "ReadBy": {
+      "description": "How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text\nlayer, read by code; OCR; or transcribed by AI from a raster page.",
+      "enum": [
+        "text_layer",
+        "ocr",
+        "ai"
+      ],
+      "title": "ReadBy",
+      "type": "string"
+    },
     "Scale": {
       "description": "The module's scale (CAD10, CAD12).",
       "enum": [
@@ -146,10 +1130,145 @@
       ],
       "title": "Scale",
       "type": "string"
+    },
+    "SignalType": {
+      "description": "The signal catalogue (§2). New types are added here for all stations (STD-19).",
+      "enum": [
+        "hsi",
+        "hdvsi",
+        "dvsi",
+        "fsi",
+        "stop_lamp"
+      ],
+      "title": "SignalType",
+      "type": "string"
+    },
+    "StationUse": {
+      "additionalProperties": true,
+      "description": "Används i: a station in TKL that took an assembly or a module into use, as Studio told CAD\nwhen the owner confirmed it (CAD-15). The station's id is TKL's, the station's own.",
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The assembly's revision, or the module's version.",
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "revision",
+        "at"
+      ],
+      "title": "StationUse",
+      "type": "object"
+    },
+    "SwitchType": {
+      "description": "Växeltyp (RS1).",
+      "enum": [
+        "ordinary",
+        "y",
+        "single_slip",
+        "double_slip",
+        "crossing"
+      ],
+      "title": "SwitchType",
+      "type": "string"
+    },
+    "SymbolKind": {
+      "description": "What a symbol in a drawing is, classed against the standard interlocking's catalogue\n(bildkedjan R3, contracts/station_model.py).",
+      "enum": [
+        "signal",
+        "buffer_stop",
+        "unknown"
+      ],
+      "title": "SymbolKind",
+      "type": "string"
+    },
+    "TrackGraph": {
+      "additionalProperties": true,
+      "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21),\nin the drawing's own coordinates with y down, with its labels and its symbols, and line exits\nand buffer stops at the tracks' ends. The same format goes both ways to Studio.\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+      "properties": {
+        "geometry": {
+          "default": "mm",
+          "enum": [
+            "mm",
+            "schema"
+          ],
+          "title": "Geometry",
+          "type": "string"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/GraphNode"
+          },
+          "title": "Nodes",
+          "type": "array"
+        },
+        "pieces": {
+          "items": {
+            "$ref": "#/$defs/GraphPiece"
+          },
+          "title": "Pieces",
+          "type": "array"
+        },
+        "switches": {
+          "items": {
+            "$ref": "#/$defs/GraphSwitch"
+          },
+          "title": "Switches",
+          "type": "array"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/GraphLabel"
+          },
+          "title": "Labels",
+          "type": "array"
+        },
+        "symbols": {
+          "description": "Symbols read from a drawing (bildkedjan R3, 21).",
+          "items": {
+            "$ref": "#/$defs/GraphSymbol"
+          },
+          "title": "Symbols",
+          "type": "array"
+        },
+        "complete": {
+          "default": true,
+          "title": "Complete",
+          "type": "boolean"
+        },
+        "issued": {
+          "default": 0,
+          "description": "Ids issued so far; the next is one more.",
+          "minimum": 0,
+          "title": "Issued",
+          "type": "integer"
+        }
+      },
+      "title": "TrackGraph",
+      "type": "object"
     }
   },
   "additionalProperties": true,
-  "description": "Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that\nfit together (CAD9). Only the shell in part a; part d builds it.",
+  "description": "Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that\nfit together (CAD9). The modules' placement is worked out from the joints; graph is the track\ngraph Till TKL Studio sends (CAD-10).",
   "properties": {
     "id": {
       "format": "uuid",
@@ -180,6 +1299,69 @@
         "$ref": "#/$defs/Joint"
       },
       "title": "Joints",
+      "type": "array"
+    },
+    "revision": {
+      "default": 1,
+      "description": "Every change is the next revision.",
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "changed_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Changed At"
+    },
+    "may_edit": {
+      "default": false,
+      "description": "The person may change it (CAD-21).",
+      "title": "May Edit",
+      "type": "boolean"
+    },
+    "parts": {
+      "description": "As the page shows.",
+      "items": {
+        "$ref": "#/$defs/AssemblyModule"
+      },
+      "title": "Parts",
+      "type": "array"
+    },
+    "checks": {
+      "description": "One per joint.",
+      "items": {
+        "$ref": "#/$defs/JointCheck"
+      },
+      "title": "Checks",
+      "type": "array"
+    },
+    "problems": {
+      "description": "What keeps it from Studio; empty: it may go.",
+      "items": {
+        "maxLength": 500,
+        "minLength": 1,
+        "type": "string"
+      },
+      "title": "Problems",
+      "type": "array"
+    },
+    "graph": {
+      "$ref": "#/$defs/TrackGraph"
+    },
+    "stations": {
+      "description": "Används i.",
+      "items": {
+        "$ref": "#/$defs/StationUse"
+      },
+      "title": "Stations",
       "type": "array"
     }
   },

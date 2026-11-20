@@ -143,26 +143,30 @@ function Who({ module, clubs, onVisibility }: { module: Module; clubs: ClubChoic
   );
 }
 
-function Used({ module }: { module: Module }) {
+function Used({ module, navigate }: { module: Module; navigate?: Navigate }) {
   const assemblies = (module.used_in ?? []).filter((u) => u.kind === "assembly");
+  const stations = (module.used_in ?? []).filter((u) => u.kind === "station");
   const meets = (module.used_in ?? []).filter((u) => u.kind === "meet");
+  const names = (found: typeof assemblies) => [...new Set(found.map((u) => u.name))].join(", ") || "ingen än";
   return (
     <div className="cad-kort cad-anvands">
       <h2 className="cad-overrubrik">Används i</h2>
       <dl>
         <dt>Anläggningar</dt>
-        <dd>{assemblies.length ? assemblies.map((u) => u.name).join(", ") : "ingen än"}</dd>
+        <dd>{names(assemblies)}</dd>
+        <dt>Stationer i TKL</dt>
+        <dd>{names(stations)}</dd>
         <dt>Träffar</dt>
-        <dd>{meets.length ? meets.map((u) => u.name).join(", ") : "ingen än"}</dd>
+        <dd>{names(meets)}</dd>
       </dl>
       <div className="cad-knapprad">
-        <button type="button" className="tm-knapp" disabled title="Anläggningarna kommer i del d">
+        <a className="tm-knapp" href={PATHS.assemblies} onClick={linkClick(navigate, PATHS.assemblies)}>
           + Lägg i anläggning
-        </button>
-        <button type="button" className="tm-knapp" disabled title="Spårgrafen till Studio kommer i del d">
-          Skicka till TKL Studio
-        </button>
+        </a>
       </div>
+      {module.status === "approved" && module.owner.kind === "person" && module.may_edit ? (
+        <p className="cad-dampad">Godkänd och din: den finns också ensam i TKL Studio › Rita › Från CAD.</p>
+      ) : null}
     </div>
   );
 }
@@ -285,7 +289,7 @@ export function ModulePage(props: Props) {
             <div className="cad-sidokolumn">
               <Facts module={module} />
               <Who module={module} clubs={clubs} onVisibility={onVisibility} />
-              <Used module={module} />
+              <Used module={module} navigate={navigate} />
             </div>
           </div>
           <History module={module} history={history} navigate={navigate} />

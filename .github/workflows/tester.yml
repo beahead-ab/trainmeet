@@ -357,7 +357,10 @@ jobs:
       # upp den syntetiska signalplanen till en låtsad TrainMeet CAD, som svarar med CAD:s egen
       # avläsning av den (contracts/examples/exempelby.drawing-read.json). Priset, frågorna med
       # teckenförklaringen först, förslaget gult i Rita, Bekräfta och Använd (apps/tkl/e2e/ladda-upp.mjs).
-      - name: Ladda upp ritning i webbläsaren (#89 del c4)
+      # Från CAD (#89 del d2): samma låtsade CAD listar en syntetisk anläggning med CAD:s egen spårgraf
+      # (cad/assembly_example.py), förslaget blir gult, bekräftas och tas i bruk, CAD får veta stationen,
+      # och omimporten efter en ändring i CAD visar skillnaden.
+      - name: Ladda upp ritning och Från CAD i webbläsaren (#89 del c4 och d2)
         timeout-minutes: 3
         env:
           CHROME_PATH: /usr/bin/google-chrome
@@ -367,6 +370,7 @@ jobs:
         run: |
           uv run python -m cad.bildkedjan.ritning_syntetisk pdf "$RUNNER_TEMP/ritning.pdf"
           uv run python -m cad.bildkedjan.ritning_syntetisk bild "$RUNNER_TEMP/underlag.png"
+          uv run python -m cad.assembly_example "$RUNNER_TEMP/cad-fore.json" "$RUNNER_TEMP/cad-efter.json"
           docker run -d --name tkl-ladda -p 127.0.0.1:8096:8090 -e TKL_MODE=local \
             -e TKL_ID_ISSUER=http://127.0.0.1:8097/realms/trainmeet \
             -e TKL_ID_INTERNAL=http://host.docker.internal:8097/realms/trainmeet \
@@ -377,6 +381,7 @@ jobs:
             sleep 1
           done
           PROV_RITNING="$RUNNER_TEMP/ritning.pdf" PROV_UNDERLAG="$RUNNER_TEMP/underlag.png" \
+            PROV_CAD_FORE="$RUNNER_TEMP/cad-fore.json" PROV_CAD_EFTER="$RUNNER_TEMP/cad-efter.json" \
             node apps/tkl/e2e/ladda-upp.mjs
 
       - name: TKL:s skärmbilder om något gick fel
@@ -920,6 +925,20 @@ jobs:
           # Exportera (#89 del d1): modulens DXF hämtas och börjar med DXF:s huvud.
           curl -fsS -b "$PROV/kakor" -o "$PROV/modul.dxf" "http://localhost:8086/api/cad/1/modules/$ID/export/1/modul.dxf"
           head -4 "$PROV/modul.dxf" | tr -d ' \r' | paste -sd, - | grep -qx '0,SECTION,2,HEADER'
+          # Anläggningar (#89 del d2): en andra godkänd modul, en anläggning med de två gavel mot gavel,
+          # och spårgrafen Till TKL Studio, ihopskarvad med modulernas id.
+          ANDRA=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' \
+            -d '{"name":"Linje 1000","scale":"H0","shape":{"kind":"straight","length":1000,"width":500},"gables":[{"end":"A","profile":"h0-mmm-enkelspar","tracks":[140]},{"end":"B","profile":"h0-mmm-enkelspar","tracks":[140]}]}' \
+            http://localhost:8086/api/cad/1/modules | jq -r .id)
+          curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' -d '{"version":1}' \
+            "http://localhost:8086/api/cad/1/modules/$ANDRA/approve" >/dev/null
+          ANL=$(curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' -d '{"name":"Provanläggning","scale":"H0"}' \
+            http://localhost:8086/api/cad/1/assemblies | jq -r .id)
+          curl -fsS -b "$PROV/kakor" -X PUT -H 'Content-Type: application/json' \
+            -d "{\"base\":1,\"name\":\"Provanläggning\",\"modules\":[{\"module\":\"$ID\"},{\"module\":\"$ANDRA\"}],\"joints\":[{\"a\":{\"module\":\"$ID\",\"gable\":\"B\"},\"b\":{\"module\":\"$ANDRA\",\"gable\":\"A\"}}]}" \
+            "http://localhost:8086/api/cad/1/assemblies/$ANL" | jq -e '.checks[0].fits and .problems == [] and .modules[1].at == [1500,0]' >/dev/null
+          curl -fsS -b "$PROV/kakor" "http://localhost:8086/api/cad/1/studio/assembly/$ANL" \
+            | jq -e '.source.ready and (.graph.pieces | length) == 2 and (.graph.nodes | length) == 3' >/dev/null
           # CAD runs as its own user, never as root.
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac

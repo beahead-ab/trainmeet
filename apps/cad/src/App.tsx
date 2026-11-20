@@ -30,6 +30,7 @@ import {
   type StorageUse,
   type Visibility,
 } from "./api";
+import { Assemblies } from "./Anlaggningar";
 import { push, redo, startEditor, undo, type Editor } from "./editor";
 import { ExportPage } from "./Export";
 import { PhotoPage, SketchPage, UploadPage } from "./Foto";
@@ -185,21 +186,6 @@ function LoginPage({ session, trialAccounts, search = "", onLogIn }: Pick<ShellP
             Logga in med TrainMeet ID
           </a>
         )}
-      </div>
-    </section>
-  );
-}
-
-function AssembliesPage() {
-  return (
-    <section className="cad-sida" aria-labelledby="rubrik">
-      <h1 id="rubrik">Anläggningar</h1>
-      <div className="cad-kort cad-kommer">
-        <h2>Anläggningarna kommer i nästa steg</h2>
-        <p>
-          Här sätter du ihop moduler till en anläggning: skarvarna kontrolleras, vinkeln sätts per modul och modulversionerna låses.
-          Anläggningen går sedan vidare till TKL Studio, till träffplaneringen i Hubben eller som DXF. Kommer i del d av CAD.
-        </p>
       </div>
     </section>
   );
@@ -369,7 +355,7 @@ function Page(props: ShellProps) {
   if (route.page === "profiles") {
     return props.profiles ? <ProfilesPage list={props.profiles} clubs={session.clubs ?? []} onCreate={props.onNewProfile} /> : <p className="cad-sida">Hämtar gavelprofilerna …</p>;
   }
-  return <AssembliesPage />;
+  return <Assemblies route={route} host={props.host} scale={props.scale ?? "H0"} navigate={navigate} />;
 }
 
 /** Everything on the screen, from the state. */
