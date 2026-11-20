@@ -4577,6 +4577,375 @@
           }
         ]
       }
+    },
+    "/api/cad/1/mobile/handoffs": {
+      "post": {
+        "operationId": "cadMobileHandoff",
+        "responses": {
+          "201": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-handoff"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.mobile-start"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/cad/1/mobile/handoffs/{handoff}": {
+      "get": {
+        "operationId": "cadMobileStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-handoff"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "handoff",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "cadMobileCancel",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-handoff"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "handoff",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/api/cad/1/mobile/exchange": {
+      "post": {
+        "operationId": "cadMobileExchange",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-flow"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.mobile-exchange"
+              }
+            }
+          }
+        },
+        "security": []
+      }
+    },
+    "/api/cad/1/mobile/flow": {
+      "get": {
+        "operationId": "cadMobileFlow",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-flow"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "phone": []
+          }
+        ]
+      },
+      "put": {
+        "operationId": "cadMobileProgress",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-flow"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.mobile-progress"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "phone": []
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "cadMobileEnd",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.mobile-flow"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "phone": []
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -26053,6 +26422,332 @@
         ],
         "title": "Trapezoid",
         "type": "object"
+      },
+      "trainmeet.cad-1.mobile-start": {
+        "additionalProperties": true,
+        "description": "Fota med mobilen: from Ny modul (a new module), or from a module's page (a photo for it).",
+        "properties": {
+          "module": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A photo for this module; null: new.",
+            "title": "Module"
+          }
+        },
+        "title": "MobileStart",
+        "type": "object"
+      },
+      "trainmeet.cad-1.mobile-handoff": {
+        "additionalProperties": true,
+        "description": "A QR code and what the phone has done with it, as the computer sees it.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.mobile-handoff.MobileHandoffState"
+          },
+          "bound": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The module the code was made for.",
+            "title": "Bound"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The module the phone works on now: the bound one, or one made.",
+            "title": "Module"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The photo job the phone started.",
+            "title": "Job"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.cad-1.mobile-handoff.MobileStep"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "description": "When the code stops holding, if never given.",
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "opened_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Opened At"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only in the answer that makes the code: CAD's address with the one-time code in its fragment. Never again: CAD keeps only its hash.",
+            "title": "Url"
+          },
+          "qr": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only in the answer that makes the code: the address as a QR code, an SVG data address.",
+            "title": "Qr"
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "created_at",
+          "expires_at"
+        ],
+        "title": "MobileHandoff",
+        "type": "object"
+      },
+      "trainmeet.cad-1.mobile-handoff.MobileHandoffState": {
+        "enum": [
+          "waiting",
+          "opened",
+          "expired",
+          "ended"
+        ],
+        "title": "MobileHandoffState",
+        "type": "string"
+      },
+      "trainmeet.cad-1.mobile-handoff.MobileStep": {
+        "description": "The phone's steps (CADMOB-01).",
+        "enum": [
+          "start",
+          "matt",
+          "gavlar",
+          "fota",
+          "kontroll",
+          "fraga",
+          "klar"
+        ],
+        "title": "MobileStep",
+        "type": "string"
+      },
+      "trainmeet.cad-1.mobile-exchange": {
+        "additionalProperties": true,
+        "description": "The phone gives the code from the address's fragment.",
+        "properties": {
+          "code": {
+            "pattern": "^[A-Za-z0-9_-]{16,128}$",
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "MobileExchange",
+        "type": "object"
+      },
+      "trainmeet.cad-1.mobile-flow": {
+        "additionalProperties": true,
+        "description": "The phone's own session: what it may reach, until when, and where it was.",
+        "properties": {
+          "handoff": {
+            "format": "uuid",
+            "title": "Handoff",
+            "type": "string"
+          },
+          "bound": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Only this module; null: new ones.",
+            "title": "Bound"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Module"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Job"
+          },
+          "step": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.mobile-flow.MobileStep"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "ended": {
+            "default": false,
+            "title": "Ended",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "handoff",
+          "step",
+          "expires_at"
+        ],
+        "title": "MobileFlow",
+        "type": "object"
+      },
+      "trainmeet.cad-1.mobile-flow.MobileStep": {
+        "description": "The phone's steps (CADMOB-01).",
+        "enum": [
+          "start",
+          "matt",
+          "gavlar",
+          "fota",
+          "kontroll",
+          "fraga",
+          "klar"
+        ],
+        "title": "MobileStep",
+        "type": "string"
+      },
+      "trainmeet.cad-1.mobile-progress": {
+        "additionalProperties": true,
+        "description": "Where the phone is, so that the computer can follow it. The module and the job must be\nwithin the phone's reach.",
+        "properties": {
+          "step": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.mobile-progress.MobileStep"
+          },
+          "module": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Module"
+          },
+          "job": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Job"
+          }
+        },
+        "required": [
+          "step"
+        ],
+        "title": "MobileProgress",
+        "type": "object"
+      },
+      "trainmeet.cad-1.mobile-progress.MobileStep": {
+        "description": "The phone's steps (CADMOB-01).",
+        "enum": [
+          "start",
+          "matt",
+          "gavlar",
+          "fota",
+          "kontroll",
+          "fraga",
+          "klar"
+        ],
+        "title": "MobileStep",
+        "type": "string"
       }
     },
     "securitySchemes": {
@@ -26060,6 +26755,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "cad_session"
+      },
+      "phone": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "cad_mobil"
       },
       "id": {
         "type": "http",

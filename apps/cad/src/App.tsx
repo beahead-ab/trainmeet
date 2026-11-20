@@ -37,12 +37,14 @@ import { PhotoPage, SketchPage, UploadPage } from "./Foto";
 import type { Point } from "./geometry";
 import { LasMatt } from "./LasMatt";
 import { LibraryPage } from "./Library";
+import { MobileApp } from "./Mobil";
+import { MobileHandoffPanel } from "./Mobilkod";
 import { ModuleForm, type Owner } from "./ModuleForm";
 import { ModulePage } from "./ModulePage";
 import { NewModulePage } from "./NewModule";
 import { ProfilesPage } from "./Profiles";
 import { Ritningen } from "./Ritningen";
-import { drawingPath, modulePath, PATHS, photoPath, routeFor, tabOf, type Route } from "./routes";
+import { drawingPath, isMobilePath, modulePath, PATHS, photoPath, routeFor, tabOf, type Route } from "./routes";
 
 const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
 
@@ -284,26 +286,40 @@ function Page(props: ShellProps) {
   }
   if (route.page === "module") {
     if (props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
+    // Fota med mobilen (#90): a photo for this module, taken with the phone.
+    const phone =
+      route.tab === "foto" && props.module.may_edit && props.module.version === props.module.latest ? (
+        <section className="cad-sida cad-mobil-dator" aria-labelledby="mobil-rubrik">
+          <div className="cad-kort">
+            <h2 id="mobil-rubrik">Fota med mobilen</h2>
+            <p className="cad-dampad">Skanna QR-koden med mobilen och fota modulen där den står. Fotot hamnar här, i samma modul.</p>
+            <MobileHandoffPanel key={props.module.id} module={props.module} navigate={navigate} />
+          </div>
+        </section>
+      ) : null;
     return (
-      <ModulePage
-        module={props.module}
-        history={props.history ?? []}
-        tab={route.tab}
-        clubs={session.clubs ?? []}
-        navigate={navigate}
-        onApprove={props.onApprove}
-        onVisibility={props.onVisibility}
-        onRemove={props.onRemove}
-        error={props.error}
-        consent={props.consent}
-        storage={props.storage}
-        busy={props.busy}
-        now={props.now}
-        onUpload={props.onUpload}
-        onPhotoSettings={props.onPhotoSettings}
-        onRecompute={props.onRecompute}
-        onChanged={props.onModuleChanged}
-      />
+      <>
+        <ModulePage
+          module={props.module}
+          history={props.history ?? []}
+          tab={route.tab}
+          clubs={session.clubs ?? []}
+          navigate={navigate}
+          onApprove={props.onApprove}
+          onVisibility={props.onVisibility}
+          onRemove={props.onRemove}
+          error={props.error}
+          consent={props.consent}
+          storage={props.storage}
+          busy={props.busy}
+          now={props.now}
+          onUpload={props.onUpload}
+          onPhotoSettings={props.onPhotoSettings}
+          onRecompute={props.onRecompute}
+          onChanged={props.onModuleChanged}
+        />
+        {phone}
+      </>
     );
   }
   if (route.page === "export") return <ExportPage key={`${route.id}-${route.version ?? ""}`} id={route.id} version={route.version} navigate={navigate} />;
@@ -462,8 +478,14 @@ function message(failure: unknown): string {
   return failure instanceof Error ? failure.message : "Något gick fel. Försök igen.";
 }
 
-/** The app: the state from CAD's API. */
+/** The app: the phone's own pages under /m (#90), or the module library. */
 export function App() {
+  const [phone] = useState(() => isMobilePath(window.location.pathname));
+  return phone ? <MobileApp /> : <LibraryApp />;
+}
+
+/** The module library: the state from CAD's API. */
+function LibraryApp() {
   const [route, setRoute] = useState<Route>(() => routeFor(window.location.pathname, window.location.search));
   const [search, setSearch] = useState(window.location.search);
   const [session, setSession] = useState<Session | null>(null);
@@ -490,6 +512,11 @@ export function App() {
   const query = useRef("");
 
   const navigate = useCallback((href: string) => {
+    // The phone's pages are an app of their own (#90): a whole page load, as after a login.
+    if (isMobilePath(new URL(href, window.location.origin).pathname)) {
+      window.location.assign(href);
+      return;
+    }
     window.history.pushState(null, "", href);
     const url = new URL(href, window.location.origin);
     setRoute(routeFor(url.pathname, url.search));

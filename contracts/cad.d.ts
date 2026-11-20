@@ -788,6 +788,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/mobile/handoffs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadMobileHandoff"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/mobile/handoffs/{handoff}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadMobileStatus"];
+        put?: never;
+        post?: never;
+        delete: operations["cadMobileCancel"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/mobile/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadMobileExchange"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/mobile/flow": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadMobileFlow"];
+        put: operations["cadMobileProgress"];
+        post?: never;
+        delete: operations["cadMobileEnd"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -11232,6 +11296,175 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * MobileStart
+         * @description Fota med mobilen: from Ny modul (a new module), or from a module's page (a photo for it).
+         */
+        "trainmeet.cad-1.mobile-start": {
+            /**
+             * Module
+             * @description A photo for this module; null: new.
+             * @default null
+             */
+            module: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MobileHandoff
+         * @description A QR code and what the phone has done with it, as the computer sees it.
+         */
+        "trainmeet.cad-1.mobile-handoff": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            state: components["schemas"]["trainmeet.cad-1.mobile-handoff.MobileHandoffState"];
+            /**
+             * Bound
+             * @description The module the code was made for.
+             * @default null
+             */
+            bound: string | null;
+            /**
+             * Module
+             * @description The module the phone works on now: the bound one, or one made.
+             * @default null
+             */
+            module: string | null;
+            /**
+             * Job
+             * @description The photo job the phone started.
+             * @default null
+             */
+            job: string | null;
+            /** @default null */
+            step: components["schemas"]["trainmeet.cad-1.mobile-handoff.MobileStep"] | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             * @description When the code stops holding, if never given.
+             */
+            expires_at: string;
+            /**
+             * Opened At
+             * @default null
+             */
+            opened_at: string | null;
+            /**
+             * Url
+             * @description Only in the answer that makes the code: CAD's address with the one-time code in its fragment. Never again: CAD keeps only its hash.
+             * @default null
+             */
+            url: string | null;
+            /**
+             * Qr
+             * @description Only in the answer that makes the code: the address as a QR code, an SVG data address.
+             * @default null
+             */
+            qr: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MobileHandoffState
+         * @enum {string}
+         */
+        "trainmeet.cad-1.mobile-handoff.MobileHandoffState": "waiting" | "opened" | "expired" | "ended";
+        /**
+         * MobileStep
+         * @description The phone's steps (CADMOB-01).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.mobile-handoff.MobileStep": "start" | "matt" | "gavlar" | "fota" | "kontroll" | "fraga" | "klar";
+        /**
+         * MobileExchange
+         * @description The phone gives the code from the address's fragment.
+         */
+        "trainmeet.cad-1.mobile-exchange": {
+            /** Code */
+            code: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MobileFlow
+         * @description The phone's own session: what it may reach, until when, and where it was.
+         */
+        "trainmeet.cad-1.mobile-flow": {
+            /**
+             * Handoff
+             * Format: uuid
+             */
+            handoff: string;
+            /**
+             * Bound
+             * @description Only this module; null: new ones.
+             * @default null
+             */
+            bound: string | null;
+            /**
+             * Module
+             * @default null
+             */
+            module: string | null;
+            /**
+             * Job
+             * @default null
+             */
+            job: string | null;
+            step: components["schemas"]["trainmeet.cad-1.mobile-flow.MobileStep"];
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Ended
+             * @default false
+             */
+            ended: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MobileStep
+         * @description The phone's steps (CADMOB-01).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.mobile-flow.MobileStep": "start" | "matt" | "gavlar" | "fota" | "kontroll" | "fraga" | "klar";
+        /**
+         * MobileProgress
+         * @description Where the phone is, so that the computer can follow it. The module and the job must be
+         *     within the phone's reach.
+         */
+        "trainmeet.cad-1.mobile-progress": {
+            step: components["schemas"]["trainmeet.cad-1.mobile-progress.MobileStep"];
+            /**
+             * Module
+             * @default null
+             */
+            module: string | null;
+            /**
+             * Job
+             * @default null
+             */
+            job: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MobileStep
+         * @description The phone's steps (CADMOB-01).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.mobile-progress.MobileStep": "start" | "matt" | "gavlar" | "fota" | "kontroll" | "fraga" | "klar";
     };
     responses: never;
     parameters: never;
@@ -14955,6 +15188,333 @@ export interface operations {
             };
             /** @description CAD säger nej */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileHandoff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.mobile-start"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-handoff"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoff: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-handoff"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileCancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                handoff: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-handoff"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileExchange: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.mobile-exchange"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-flow"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileFlow: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-flow"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileProgress: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.mobile-progress"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-flow"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMobileEnd: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.mobile-flow"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

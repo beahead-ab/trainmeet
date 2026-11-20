@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.mobile-start.schema.json",
+  "title": "trainmeet.cad-1.mobile-start",
+  "additionalProperties": true,
+  "description": "Fota med mobilen: from Ny modul (a new module), or from a module's page (a photo for it).",
+  "properties": {
+    "module": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A photo for this module; null: new.",
+      "title": "Module"
+    }
+  },
+  "type": "object"
+}

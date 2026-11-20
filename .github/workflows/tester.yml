@@ -1076,8 +1076,10 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Webbläsarprovet, med låtsad ID (#89)
-        timeout-minutes: 8
+      # bibliotek.mjs kör också CAD i mobilen (#90, mobil.mjs): QR-koden på datorn och flödet i en
+      # telefon i en egen Chrome med en låtsad kamera (cad/prov_kamera.py), ungefär en minut till.
+      - name: Webbläsarprovet, med låtsad ID (#89) och CAD i mobilen (#90)
+        timeout-minutes: 10
         env:
           CHROME_PATH: /usr/bin/google-chrome
           PROV_ADRESS: http://127.0.0.1:8095

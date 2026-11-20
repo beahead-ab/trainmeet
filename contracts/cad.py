@@ -190,7 +190,7 @@ class ProblemCode(StrEnum):
     NO_TOKENS = "no_tokens"
     """The balance is not enough for a photo's AI reading (part c1)."""
     TOO_MANY = "too_many"
-    """The day's cap in ID is reached."""
+    """The day's cap in ID is reached, or too many QR codes or tries in a short while (#90)."""
     READING_FAILED = "reading_failed"
     """The AI's reading failed; nothing was drawn."""
     BAD_PHOTO = "bad_photo"
@@ -2829,3 +2829,121 @@ class MeetAssembly(Contract):
     stations: list[MeetStation] = Field(
         default_factory=list, description="Används i for the assembly itself."
     )
+
+
+# --- CAD i mobilen (#90, CAD1, CADMOB-01–16) ------------------------------------------------
+#
+#     POST   /api/cad/1/mobile/handoffs              MobileStart -> MobileHandoff, 201: the QR
+#                                                    code, with its address shown once
+#     GET    /api/cad/1/mobile/handoffs/{handoff}    MobileHandoff: the computer follows the phone
+#     DELETE /api/cad/1/mobile/handoffs/{handoff}    MobileHandoff, ended: the code and the
+#                                                    phone's session end
+#     POST   /api/cad/1/mobile/exchange              MobileExchange -> MobileFlow: the phone's
+#                                                    own session starts
+#     GET    /api/cad/1/mobile/flow                  MobileFlow, the phone's
+#     PUT    /api/cad/1/mobile/flow                  MobileProgress -> MobileFlow
+#     DELETE /api/cad/1/mobile/flow                  MobileFlow, ended: the phone is done
+#
+# Fota med mobilen on the computer shows a QR code with CAD's address and a one-time code in its
+# fragment (/m#k=<code>), which no server or proxy sees in its logs. The code is used once and
+# lives ten minutes; CAD keeps only its SHA-256, bound to the person and, from a module's page,
+# to the module. The phone gives it for a session of its own, an HttpOnly cookie that reaches
+# only the mobile flow's addresses (the measures, the gable profiles, the photos and the
+# approval) and only the module it was bound to, or the modules the person makes from the phone.
+# The phone writes into the same module as the web, through the same addresses (CADMOB-05):
+# nothing of its own is kept but the hand-off. The computer follows the phone's progress.
+
+MOBILE_CODE_MINUTES: Final = 10
+"""A QR code's one-time code holds this long, once."""
+
+MOBILE_SESSION_HOURS: Final = 2
+"""The phone's session holds this long from when the code was given."""
+
+
+class MobileStart(Contract):
+    """Fota med mobilen: from Ny modul (a new module), or from a module's page (a photo for it)."""
+
+    module: UUID | None = Field(default=None, description="A photo for this module; null: new.")
+
+
+class MobileHandoffState(StrEnum):
+    WAITING = "waiting"
+    """The QR code is shown and no phone has given its code yet."""
+    OPENED = "opened"
+    """A phone gave the code: the flow runs there."""
+    EXPIRED = "expired"
+    """No phone gave the code within ten minutes."""
+    ENDED = "ended"
+    """The phone is done, the computer ended it, or the phone's session ran out."""
+
+
+class MobileStep(StrEnum):
+    """The phone's steps (CADMOB-01)."""
+
+    START = "start"
+    """0 Välj väg."""
+    MEASURES = "matt"
+    """1 Mått, and 1b Kurva for a curve module."""
+    GABLES = "gavlar"
+    """2 Gavlar."""
+    PHOTO = "fota"
+    """3 Fota: the camera with the photo help, then the corners, Kant 1 and gable A."""
+    CHECK = "kontroll"
+    """4 Kontroll: the photo read, the measures against it."""
+    QUESTION = "fraga"
+    """4b AI:n frågar: an uncertain part, or a close-up."""
+    DONE = "klar"
+    """5 Klart."""
+
+
+class MobileHandoff(Contract):
+    """A QR code and what the phone has done with it, as the computer sees it."""
+
+    id: UUID
+    state: MobileHandoffState
+    bound: UUID | None = Field(default=None, description="The module the code was made for.")
+    module: UUID | None = Field(
+        default=None, description="The module the phone works on now: the bound one, or one made."
+    )
+    job: UUID | None = Field(default=None, description="The photo job the phone started.")
+    step: MobileStep | None = None
+    created_at: datetime
+    expires_at: datetime = Field(description="When the code stops holding, if never given.")
+    opened_at: datetime | None = None
+    url: str | None = Field(
+        default=None,
+        description="Only in the answer that makes the code: CAD's address with the one-time "
+        "code in its fragment. Never again: CAD keeps only its hash.",
+    )
+    qr: str | None = Field(
+        default=None,
+        description="Only in the answer that makes the code: the address as a QR code, an SVG "
+        "data address.",
+    )
+
+
+class MobileExchange(Contract):
+    """The phone gives the code from the address's fragment."""
+
+    code: Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{16,128}$")]
+
+
+class MobileFlow(Contract):
+    """The phone's own session: what it may reach, until when, and where it was."""
+
+    handoff: UUID
+    bound: UUID | None = Field(default=None, description="Only this module; null: new ones.")
+    module: UUID | None = None
+    job: UUID | None = None
+    step: MobileStep
+    expires_at: datetime
+    ended: bool = False
+
+
+class MobileProgress(Contract):
+    """Where the phone is, so that the computer can follow it. The module and the job must be
+    within the phone's reach."""
+
+    step: MobileStep
+    module: UUID | None = None
+    job: UUID | None = None

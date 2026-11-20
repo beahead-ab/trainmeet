@@ -4,8 +4,9 @@
 // biblioteket med gavlarna och statusen, modulens sida och gavelprofilerna. Sedan Ritningen och Lås
 // mått (#89 del b, ritningen.mjs), Foto och kontroll (#89 del c1, foto.mjs), en kurvmodul ur ett foto
 // och en modul ur en skiss (#89 del c2, kurvaskiss.mjs), Landskapet och Exportera (#89 del d1,
-// landskap.mjs), och en anläggning av två moduler med Till TKL Studio (#89 del d2, anlaggning.mjs),
-// som körs härifrån så att CI-steget är detsamma.
+// landskap.mjs), en anläggning av två moduler med Till TKL Studio (#89 del d2, anlaggning.mjs), och
+// CAD i mobilen med QR-koden och en låtsad kamera i en telefon (#90, mobil.mjs), som körs härifrån så
+// att CI-steget är detsamma.
 //
 //   CHROME_PATH=/usr/bin/google-chrome node apps/cad/e2e/bibliotek.mjs
 //
@@ -18,6 +19,7 @@ import { anlaggning } from "./anlaggning.mjs";
 import { foto } from "./foto.mjs";
 import { kurvaOchSkiss } from "./kurvaskiss.mjs";
 import { landskap } from "./landskap.mjs";
+import { mobil } from "./mobil.mjs";
 import { ritningen } from "./ritningen.mjs";
 
 const BASE = (process.env.PROV_ADRESS ?? "http://127.0.0.1:8095").replace(/\/+$/, "");
@@ -32,6 +34,8 @@ async function shot(page, name) {
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: join(SHOTS, `${name}.png`), fullPage: true });
 }
+/** Where the phone's screenshots go (mobil.mjs). */
+shot.dir = SHOTS;
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
@@ -147,9 +151,10 @@ try {
   await kurvaOchSkiss(page, { base: BASE, shot, check });
   await landskap(page, { base: BASE, shot, check });
   await anlaggning(page, { base: BASE, shot, check });
+  await mobil(page, { base: BASE, shot, check, chrome: CHROME });
 
   check(problems.length === 0, `Fel i webbläsaren: ${problems.join(" | ")}`);
-  console.log("Webbläsarprovet för modulbiblioteket, Ritningen, Foto och kontroll, kurvmodulen ur foto, skissen, Landskapet och Exportera, och anläggningen gick igenom.");
+  console.log("Webbläsarprovet för modulbiblioteket, Ritningen, Foto och kontroll, kurvmodulen ur foto, skissen, Landskapet och Exportera, anläggningen och CAD i mobilen gick igenom.");
 } catch (error) {
   await shot(page, "fel");
   throw error;

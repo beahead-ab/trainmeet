@@ -37,6 +37,8 @@ from cad import (
     matbilder_api,
     meet_api,
     migrate,
+    mobile,
+    mobile_api,
     photos_api,
     smoothing,
     store,
@@ -120,6 +122,7 @@ NO_WEB_APP = """<!doctype html>
 """
 
 SessionCookie = Annotated[str | None, Cookie(alias=login.COOKIE)]
+PhoneCookie = Annotated[str | None, Cookie(alias=mobile.COOKIE)]
 IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
 
 
@@ -194,6 +197,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     modules.uses = assemblies
     # Mätbilden i TKL:s Foto (part d4): the measuring images of what Studio has.
     matbilder = Matbilder(db, photo_store, assemblies)
+    # CAD i mobilen (#90): Fota med mobilen's QR code and the phone's own session.
+    handoffs = mobile.Handoffs(db, modules)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -251,8 +256,21 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         problem = CadProblem(code=error.code, message=error.message)
         return JSONResponse(problem.model_dump(mode="json"), status_code=error.status)
 
-    def logged_in(session: SessionCookie = None) -> CadAccount | None:
-        return sessions.account(session)
+    def logged_in(
+        request: Request, session: SessionCookie = None, phone: PhoneCookie = None
+    ) -> CadAccount | None:
+        # CAD i mobilen (#90): a phone's own session holds only on the mobile flow's addresses,
+        # and for the modules within its reach (cad/mobile.py); anything else wants a login.
+        on_phone = handoffs.session(phone) if phone else None
+        if on_phone is not None and handoffs.allows(
+            on_phone, request.method, request.url.path, request.url.query
+        ):
+            request.state.mobile_reach = lambda module: handoffs.reaches(on_phone, module)
+            return on_phone.account
+        account = sessions.account(session)
+        if account is None and on_phone is not None:
+            raise Refused(403, ProblemCode.FORBIDDEN, mobile.OUTSIDE)
+        return account
 
     def who(account: CadAccount | None = Depends(logged_in)) -> Who:  # noqa: B008
         if account is None:
@@ -514,6 +532,14 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.include_router(assemblies_api.router(assemblies, who, drawing_asker))
     app.include_router(matbilder_api.router(matbilder, drawing_asker))
     app.include_router(meet_api.router(assemblies, hub_asker))
+
+    def public_origin(request: Request) -> str:
+        """CAD's own address for the QR code: as ID knows it, else as the browser asked."""
+        if settings.id is not None:
+            return settings.id.public_url
+        return f"{request.url.scheme}://{request.url.netloc}"
+
+    app.include_router(mobile_api.router(handoffs, who, public_origin))
 
     @app.api_route(
         "/api/{rest:path}",

@@ -482,6 +482,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.image-under-choice": tkl.TklImageUnderChoice,
     # The meet's assembly to the Hub's import (#89 del d3, CAD-11, CAD-12).
     "trainmeet.cad-1.meet-assembly": cad.MeetAssembly,
+    # CAD i mobilen (#90): Fota med mobilen's QR code and the phone's own session.
+    "trainmeet.cad-1.mobile-start": cad.MobileStart,
+    "trainmeet.cad-1.mobile-handoff": cad.MobileHandoff,
+    "trainmeet.cad-1.mobile-exchange": cad.MobileExchange,
+    "trainmeet.cad-1.mobile-flow": cad.MobileFlow,
+    "trainmeet.cad-1.mobile-progress": cad.MobileProgress,
 }
 
 
@@ -2746,6 +2752,41 @@ def cad_openapi() -> str:
         "meet-assembly",
         problems=(401, 404, 422, 503),
     )
+    # CAD i mobilen (#90): the computer's QR code, and the phone's own session, which the
+    # code gives and which reaches only the mobile flow's addresses (cad/mobile.py).
+    mb = a + "/mobile"
+    route(
+        "post",
+        mb + "/handoffs",
+        "cadMobileHandoff",
+        "mobile-handoff",
+        "mobile-start",
+        created=True,
+        problems=(401, 403, 404, 429, 503),
+    )
+    route("get", mb + "/handoffs/{handoff}", "cadMobileStatus", "mobile-handoff", problems=read)
+    route("delete", mb + "/handoffs/{handoff}", "cadMobileCancel", "mobile-handoff", problems=read)
+    route(
+        "post",
+        mb + "/exchange",
+        "cadMobileExchange",
+        "mobile-flow",
+        "mobile-exchange",
+        problems=(401, 422, 429),
+    )
+    route("get", mb + "/flow", "cadMobileFlow", "mobile-flow", problems=(401,))
+    route(
+        "put",
+        mb + "/flow",
+        "cadMobileProgress",
+        "mobile-flow",
+        "mobile-progress",
+        problems=(401, 404, 422),
+    )
+    route("delete", mb + "/flow", "cadMobileEnd", "mobile-flow", problems=(401,))
+    paths[mb + "/exchange"]["post"]["security"] = []
+    for method in ("get", "put", "delete"):
+        paths[mb + "/flow"][method]["security"] = [{"phone": []}]
     # Studio's server calls these with the person's access token for TKL from ID (TKL18).
     for path, methods in paths.items():
         if path.startswith((a + "/drawings", a + "/studio")):
@@ -2766,6 +2807,7 @@ def cad_openapi() -> str:
                     "schemas": components([s for s in CONTRACTS if s.startswith(CAD_PREFIX)]),
                     "securitySchemes": {
                         "session": {"type": "apiKey", "in": "cookie", "name": "cad_session"},
+                        "phone": {"type": "apiKey", "in": "cookie", "name": "cad_mobil"},
                         "id": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
                     },
                 },

@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.mobile-handoff.schema.json",
+  "title": "trainmeet.cad-1.mobile-handoff",
+  "$defs": {
+    "MobileHandoffState": {
+      "enum": [
+        "waiting",
+        "opened",
+        "expired",
+        "ended"
+      ],
+      "title": "MobileHandoffState",
+      "type": "string"
+    },
+    "MobileStep": {
+      "description": "The phone's steps (CADMOB-01).",
+      "enum": [
+        "start",
+        "matt",
+        "gavlar",
+        "fota",
+        "kontroll",
+        "fraga",
+        "klar"
+      ],
+      "title": "MobileStep",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "A QR code and what the phone has done with it, as the computer sees it.",
+  "properties": {
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "state": {
+      "$ref": "#/$defs/MobileHandoffState"
+    },
+    "bound": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The module the code was made for.",
+      "title": "Bound"
+    },
+    "module": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The module the phone works on now: the bound one, or one made.",
+      "title": "Module"
+    },
+    "job": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The photo job the phone started.",
+      "title": "Job"
+    },
+    "step": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/MobileStep"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expires_at": {
+      "description": "When the code stops holding, if never given.",
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "opened_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Opened At"
+    },
+    "url": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only in the answer that makes the code: CAD's address with the one-time code in its fragment. Never again: CAD keeps only its hash.",
+      "title": "Url"
+    },
+    "qr": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Only in the answer that makes the code: the address as a QR code, an SVG data address.",
+      "title": "Qr"
+    }
+  },
+  "required": [
+    "id",
+    "state",
+    "created_at",
+    "expires_at"
+  ],
+  "type": "object"
+}
