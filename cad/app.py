@@ -33,7 +33,10 @@ from cad.db import Database
 from cad.drawings import Drawings
 from cad.errors import Refused
 from cad.errors import login as login_first
+from cad.export import Exports
 from cad.id_roles import IdRoles
+from cad.landscapes import Landscapes
+from cad.landscapes_api import router as landscapes_router
 from cad.library import Access, Modules, Who
 from cad.meter import IdMeter
 from cad.photos import Photos
@@ -166,6 +169,9 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     modules.photos = photos
     # Ladda upp ritning (part c4): Studio's drawings, in the same store, with the same meter.
     drawings = Drawings(db, photo_store, IdMeter(roles) if roles is not None else None)
+    # Landskapet and Exportera (part d1): the measuring images from the same store.
+    landscapes = Landscapes(db, photo_store, modules)
+    exports = Exports(modules, landscapes)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -470,6 +476,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
 
     app.include_router(photos_api.router(photos, who, disk))
     app.include_router(drawings_api.router(drawings, drawing_asker))
+    app.include_router(landscapes_router(landscapes, exports, who))
 
     @app.api_route(
         "/api/{rest:path}",

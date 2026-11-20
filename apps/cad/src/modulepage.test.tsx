@@ -52,7 +52,7 @@ describe("Modulens sida", () => {
     expect(html).not.toContain(">Godkänn</button>");
   });
 
-  it("draws the module read-only under Ritning, offers the photo under Foto, and says Landskap comes later", () => {
+  it("draws the module read-only under Ritning, offers the photo under Foto, Landskap and Exportera", () => {
     const drawing = page({ tab: "ritning" });
     expect(drawing).toContain("Spårgrafen ur måtten · 2 spårbitar · 4 noder");
     expect(drawing).toContain('aria-label="Kurva 30° · K2 ovanifrån"');
@@ -61,7 +61,9 @@ describe("Modulens sida", () => {
     expect(page({ tab: "foto" })).not.toContain("kurvmoduler kommer");
     expect(page({ module: STATION, tab: "foto" })).toContain("Modulen är inte fotad än");
     expect(page({ module: STATION, tab: "foto" })).toContain("Ladda upp ett foto av modulen");
-    expect(page({ tab: "landskap" })).toContain("Kommer med landskapet.");
+    // Landskapet fetches its surfaces itself (part d1, landskap.test.tsx).
+    expect(page({ tab: "landskap" })).toContain("Hämtar landskapet");
+    expect(page()).toContain('href="/moduler/1f7d3a1b-2c3d-4e4f-9051-6b7c8d9e0f1a/exportera">Exportera</a>');
     expect(page({ module: STATION, tab: "ritning" })).toContain("Spåren mellan gavlarna är okända tills modulen är fotad");
   });
 });

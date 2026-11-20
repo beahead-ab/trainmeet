@@ -456,6 +456,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.drawing-read-ask": cad.DrawingReadAsk,
     "trainmeet.cad-1.drawing-answers": cad.DrawingAnswers,
     "trainmeet.cad-1.drawing-read": cad.DrawingRead,
+    # Landskapet and Exportera (part d1).
+    "trainmeet.cad-1.landscape": cad.Landscape,
+    "trainmeet.cad-1.landscape-edit": cad.LandscapeEdit,
+    "trainmeet.cad-1.landscape-make": cad.LandscapeMake,
+    "trainmeet.cad-1.module-export": cad.ModuleExport,
+    "trainmeet.cad-1.module-record": cad.ModuleRecord,
 }
 
 
@@ -2574,6 +2580,57 @@ def cad_openapi() -> str:
         "content": {
             "image/png": {"schema": {"type": "string", "format": "binary"}},
             "image/jpeg": {"schema": {"type": "string", "format": "binary"}},
+        },
+    }
+    # Landskapet and Exportera (part d1).
+    version_query = (("version", {"type": "integer"}),)
+    route(
+        "get",
+        a + "/modules/{module}/landscape",
+        "cadLandscape",
+        "landscape",
+        query=version_query,
+        problems=read,
+    )
+    for path, operation, request in (
+        ("/landscape", "cadLandscapePreview", "landscape-edit"),
+        ("/landscape/make", "cadMakeLandscape", "landscape-make"),
+        ("/landscape/save", "cadSaveLandscape", "landscape-edit"),
+        ("/landscape/approve", "cadApproveLandscape", "landscape-edit"),
+    ):
+        route(
+            "post",
+            a + "/modules/{module}" + path,
+            operation,
+            "landscape",
+            request,
+            problems=write,
+        )
+    route(
+        "get",
+        a + "/modules/{module}/export",
+        "cadModuleExport",
+        "module-export",
+        query=version_query,
+        problems=read,
+    )
+    route(
+        "get",
+        a + "/modules/{module}/export/{version}/{file}",
+        "cadExportFile",
+        "module-record",
+        query=(("rails", {"type": "boolean"}), ("landscape", {"type": "boolean"})),
+        problems=read,
+    )
+    paths[a + "/modules/{module}/export/{version}/{file}"]["get"]["responses"]["200"] = {
+        "description": "The file: " + ", ".join(cad.EXPORT_FILES),
+        "content": {
+            media.split(";")[0]: (
+                {"schema": openapi_ref(c + "module-record")}
+                if media == "application/json"
+                else {"schema": {"type": "string"}}
+            )
+            for _, media in cad.EXPORT_FILES.values()
         },
     }
     # Studio's server calls these with the person's access token for TKL from ID (TKL18).

@@ -21,7 +21,8 @@ describe("Ritningen", () => {
     expect(html).toContain('<h1 id="rubrik">Ritningen</h1>');
     expect(html).toContain(">Ritad</span>");
     expect(html).toContain("⚠ 3 saker att kolla");
-    expect(html).toMatch(/<button type="button" class="tm-knapp" disabled="" title="Exporten kommer i del d">Exportera <span class="cad-kommer-text">kommer<\/span><\/button>/);
+    // Exportera (part d1) exports the saved version.
+    expect(html).toMatch(/<a class="tm-knapp" href="\/moduler\/[0-9a-f-]+\/exportera" title="Exporterar den sparade versionen">Exportera<\/a>/);
     expect(html).toMatch(/<button type="button" class="tm-knapp primar" disabled="" title="Svara på det som står under Att kolla först.">✓ Godkänn spårplanen<\/button>/);
     expect(page({ view: { ...DRAWING, checks: [] } })).not.toMatch(/primar" disabled=""/);
   });

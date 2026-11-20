@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.landscape-make.schema.json",
+  "title": "trainmeet.cad-1.landscape-make",
+  "additionalProperties": true,
+  "description": "Gör landskapet: from the measuring image, or empty without one. Replaces the landscape.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "base"
+  ],
+  "type": "object"
+}

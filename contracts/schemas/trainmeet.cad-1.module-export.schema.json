@@ -1,0 +1,518 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.module-export.schema.json",
+  "title": "trainmeet.cad-1.module-export",
+  "$defs": {
+    "ExportFile": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/ExportKind"
+        },
+        "name": {
+          "description": "FREMO-ritning (SVG) …",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "file": {
+          "description": "The name it is saved as.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "File",
+          "type": "string"
+        },
+        "url": {
+          "title": "Url",
+          "type": "string"
+        },
+        "media_type": {
+          "title": "Media Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "file",
+        "url",
+        "media_type"
+      ],
+      "title": "ExportFile",
+      "type": "object"
+    },
+    "ExportKind": {
+      "description": "Exportera (CAD-07).",
+      "enum": [
+        "fremo",
+        "database",
+        "mmm",
+        "dxf",
+        "print"
+      ],
+      "title": "ExportKind",
+      "type": "string"
+    },
+    "ExportVersion": {
+      "additionalProperties": true,
+      "description": "A version that can be exported: the approved one, and the newest draft.",
+      "properties": {
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/ModuleStatus"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "status",
+        "label"
+      ],
+      "title": "ExportVersion",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "MmmGable": {
+      "additionalProperties": true,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "width": {
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "tracks": {
+          "items": {
+            "$ref": "#/$defs/MmmTrack"
+          },
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "end",
+        "label",
+        "width"
+      ],
+      "title": "MmmGable",
+      "type": "object"
+    },
+    "MmmTrack": {
+      "additionalProperties": true,
+      "description": "One track in a gable, as MMM measures it: from Kant 1, the distance to the track before,\nMMM's position for it and how far the gable lies from it.",
+      "properties": {
+        "track": {
+          "maximum": 12,
+          "minimum": 1,
+          "title": "Track",
+          "type": "integer"
+        },
+        "from_kant1": {
+          "title": "From Kant1",
+          "type": "number"
+        },
+        "spacing": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "To the track before, c/c, mm.",
+          "title": "Spacing"
+        },
+        "mmm": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "MMM's position, mm.",
+          "title": "Mmm"
+        },
+        "deviation": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "from_kant1 - mmm, mm.",
+          "title": "Deviation"
+        }
+      },
+      "required": [
+        "track",
+        "from_kant1"
+      ],
+      "title": "MmmTrack",
+      "type": "object"
+    },
+    "ModuleRecord": {
+      "additionalProperties": true,
+      "description": "Moduldatabasen: one module as a row in a module list (format RECORD_FORMAT). The JSON is\nthis record; the CSV has the same fields in RECORD_COLUMNS' order, comma-separated, UTF-8,\ndecimal point, the gables' tracks joined with /.",
+      "properties": {
+        "format": {
+          "const": "trainmeet.cad.moduldatabas/1",
+          "default": "trainmeet.cad.moduldatabas/1",
+          "title": "Format",
+          "type": "string"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "number": {
+          "title": "Number",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "owner": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "scale": {
+          "$ref": "#/$defs/Scale"
+        },
+        "shape": {
+          "enum": [
+            "straight",
+            "curve",
+            "trapezoid"
+          ],
+          "title": "Shape",
+          "type": "string"
+        },
+        "length": {
+          "description": "Along Kant 1; a curve: track 1's arc, mm.",
+          "minimum": 0,
+          "title": "Length",
+          "type": "number"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A curve's track 1, mm, exact.",
+          "title": "Radius"
+        },
+        "angle": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A curve's angle, degrees, exact.",
+          "title": "Angle"
+        },
+        "offset": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "A trapezoid's förskjutning, mm.",
+          "title": "Offset"
+        },
+        "gables": {
+          "items": {
+            "$ref": "#/$defs/RecordGable"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "title": "Gables",
+          "type": "array"
+        },
+        "track_length": {
+          "description": "mm.",
+          "minimum": 0,
+          "title": "Track Length",
+          "type": "number"
+        },
+        "switches": {
+          "minimum": 0,
+          "title": "Switches",
+          "type": "integer"
+        },
+        "crossings": {
+          "minimum": 0,
+          "title": "Crossings",
+          "type": "integer"
+        },
+        "landscape": {
+          "description": "The version has a landscape.",
+          "title": "Landscape",
+          "type": "boolean"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "status": {
+          "$ref": "#/$defs/ModuleStatus"
+        },
+        "approved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved At"
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "name",
+        "owner",
+        "scale",
+        "shape",
+        "length",
+        "gables",
+        "track_length",
+        "switches",
+        "crossings",
+        "landscape",
+        "version",
+        "status"
+      ],
+      "title": "ModuleRecord",
+      "type": "object"
+    },
+    "ModuleStatus": {
+      "enum": [
+        "draft",
+        "approved"
+      ],
+      "title": "ModuleStatus",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0",
+        "fremo_n"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "RecordGable": {
+      "additionalProperties": true,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "width": {
+          "description": "mm.",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "tracks": {
+          "description": "From Kant 1, mm.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "end",
+        "label",
+        "width"
+      ],
+      "title": "RecordGable",
+      "type": "object"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Exportera: the version exported, the files and what they hold. draft: every file is\nmarked Utkast.",
+  "properties": {
+    "module": {
+      "format": "uuid",
+      "title": "Module",
+      "type": "string"
+    },
+    "number": {
+      "title": "Number",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/ModuleStatus"
+    },
+    "versions": {
+      "items": {
+        "$ref": "#/$defs/ExportVersion"
+      },
+      "minItems": 1,
+      "title": "Versions",
+      "type": "array"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/ExportFile"
+      },
+      "title": "Files",
+      "type": "array"
+    },
+    "record": {
+      "$ref": "#/$defs/ModuleRecord"
+    },
+    "mmm": {
+      "items": {
+        "$ref": "#/$defs/MmmGable"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "Mmm",
+      "type": "array"
+    },
+    "landscape": {
+      "title": "Landscape",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "module",
+    "number",
+    "name",
+    "version",
+    "status",
+    "versions",
+    "files",
+    "record",
+    "mmm",
+    "landscape"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,258 @@
+/* Landskapet and Exportera (#89 del d1): the tab's tools, canvas and legend, the export page, and
+   the print, which shows only the sheets (as the hub prints its pages). */
+
+.cad-landskap {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 340px;
+  gap: 20px;
+  align-items: start;
+}
+.cad-landskap.las {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+.cad-landskap.tom {
+  display: block;
+}
+.cad-landskap.tom .cad-landskap-yta {
+  margin-top: 16px;
+  max-height: 420px;
+}
+.cad-landskap .cad-kortrubrik {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.cad-landskapkort {
+  padding: 16px;
+}
+.cad-landskap-yta {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 680px;
+  touch-action: none;
+  user-select: none;
+}
+.cad-landskap-yta.verktyg-paint,
+.cad-landskap-yta.verktyg-erase,
+.cad-landskap-yta.verktyg-fill {
+  cursor: crosshair;
+}
+.cad-landskap-yta .cad-yta {
+  stroke-linejoin: round;
+}
+.cad-landskap-yta .cad-forslagskant {
+  fill: none;
+  stroke: var(--cad-orange);
+  pointer-events: none;
+}
+.cad-landskap-yta .cad-sparbadd,
+.cad-landskap-yta .cad-spar,
+.cad-landskap-yta .cad-kant1 {
+  pointer-events: none;
+}
+.cad-landskap-yta .cad-penseldrag {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.cad-landskap-yta .cad-pensel {
+  fill: none;
+  stroke: var(--tm-text);
+  stroke-dasharray: 2 2;
+  pointer-events: none;
+}
+.cad-ytval {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 4px 0 12px;
+}
+.cad-ytval button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--tm-line);
+  border-radius: 999px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.cad-ytval button[aria-checked="true"] {
+  border-color: var(--tm-blue);
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+  font-weight: 600;
+}
+.cad-ytval button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.cad-farg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+.cad-penselval {
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+  text-align: center;
+}
+.cad-landskap-fot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+.cad-landskap .cad-forslag-text {
+  margin: 10px 0 0;
+  color: var(--cad-orange);
+}
+.cad-modellnot {
+  margin: 6px 0 0;
+  font-size: 14px;
+}
+.cad-ytlista ul {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.cad-ytlista li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto 44px;
+  gap: 10px;
+  align-items: center;
+}
+.cad-ytlista li > :last-child {
+  text-align: right;
+}
+.cad-landskap-knappar {
+  display: grid;
+  gap: 10px;
+}
+.cad-landskap-knappar p {
+  margin: 0;
+}
+
+/* Exportera. */
+.cad-exportval {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 20px;
+}
+.cad-exportval article {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+.cad-exportval h2 {
+  margin: 0;
+}
+.cad-exportval p {
+  margin: 0;
+}
+.cad-exportbild {
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--tm-line);
+  border-radius: 8px;
+  background: #fff;
+}
+.cad-versionsval {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin: 0 0 16px;
+}
+.cad-versionsval a[aria-current="page"] {
+  font-weight: 700;
+  text-decoration: none;
+}
+.cad-utkastruta {
+  border-color: var(--cad-orange);
+  background: var(--cad-orange-soft);
+  color: var(--cad-orange);
+}
+.cad-postlista {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 0;
+}
+.cad-postlista dt {
+  color: var(--tm-mute);
+}
+.cad-postlista dd {
+  margin: 0;
+}
+.cad-mmm caption {
+  padding: 4px 0;
+  text-align: left;
+  font-weight: 600;
+}
+.cad-mmm th,
+.cad-mmm td {
+  padding: 6px 10px;
+}
+.cad-mmm tr.avviker td {
+  color: var(--cad-orange);
+  font-weight: 600;
+}
+.cad-utskrift {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .cad-landskap,
+  .cad-landskap.las {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cad-landskap .cad-verktyg {
+    position: static;
+    grid-auto-flow: column;
+  }
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 0;
+  }
+  body {
+    background: #fff;
+  }
+  .tm-hoppa,
+  .tm-sidhuvud,
+  .cad-fot,
+  .cad-export > :not(.cad-utskrift) {
+    display: none !important;
+  }
+  main {
+    padding: 0;
+    max-width: none;
+  }
+  .cad-sida.cad-export {
+    padding: 0;
+    margin: 0;
+    max-width: none;
+  }
+  .cad-utskrift {
+    display: block;
+  }
+  .cad-utskriftssida {
+    display: block;
+    width: 297mm;
+    height: 210mm;
+    break-after: page;
+  }
+  .cad-utskriftssida:last-child {
+    break-after: auto;
+  }
+}

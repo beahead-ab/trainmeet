@@ -8,7 +8,7 @@ import type { CheckItem, DrawingView, EditOp, Module, Smoothing, SwitchInfo } fr
 import { Canvas, type Layers, type Selection } from "./Canvas";
 import { op, sourceBadge, TOOLS, type Tool } from "./editor";
 import { mmText, type Point } from "./geometry";
-import { lockPath, modulePath, PATHS, photoPath } from "./routes";
+import { exportPath, lockPath, modulePath, PATHS, photoPath } from "./routes";
 
 type Props = {
   module: Module;
@@ -352,9 +352,9 @@ export function Ritningen({
         <span className="cad-pill">Version {module.version}</span>
         {module.status === "approved" && !changes ? <span className="cad-status godkand">✓ Godkänd</span> : null}
         <span className="cad-fyll" />
-        <button type="button" className="tm-knapp" disabled title="Exporten kommer i del d">
-          Exportera <span className="cad-kommer-text">kommer</span>
-        </button>
+        <a className="tm-knapp" href={exportPath(module.id)} title="Exporterar den sparade versionen" onClick={linkClick(navigate, exportPath(module.id))}>
+          Exportera
+        </a>
         <button type="button" className="tm-knapp" disabled={!changes || busy} onClick={() => onSave?.()}>
           Spara
         </button>

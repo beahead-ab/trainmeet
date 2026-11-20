@@ -1,0 +1,261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.module-record.schema.json",
+  "title": "trainmeet.cad-1.module-record",
+  "$defs": {
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "ModuleStatus": {
+      "enum": [
+        "draft",
+        "approved"
+      ],
+      "title": "ModuleStatus",
+      "type": "string"
+    },
+    "Norm": {
+      "description": "A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).",
+      "enum": [
+        "fremo",
+        "mmm",
+        "usms",
+        "club",
+        "fremo_spur_0",
+        "fremo_n"
+      ],
+      "title": "Norm",
+      "type": "string"
+    },
+    "RecordGable": {
+      "additionalProperties": true,
+      "properties": {
+        "end": {
+          "$ref": "#/$defs/GableEnd"
+        },
+        "norm": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Norm"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profile"
+        },
+        "label": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "width": {
+          "description": "mm.",
+          "exclusiveMinimum": 0,
+          "title": "Width",
+          "type": "number"
+        },
+        "tracks": {
+          "description": "From Kant 1, mm.",
+          "items": {
+            "type": "number"
+          },
+          "title": "Tracks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "end",
+        "label",
+        "width"
+      ],
+      "title": "RecordGable",
+      "type": "object"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Moduldatabasen: one module as a row in a module list (format RECORD_FORMAT). The JSON is\nthis record; the CSV has the same fields in RECORD_COLUMNS' order, comma-separated, UTF-8,\ndecimal point, the gables' tracks joined with /.",
+  "properties": {
+    "format": {
+      "const": "trainmeet.cad.moduldatabas/1",
+      "default": "trainmeet.cad.moduldatabas/1",
+      "title": "Format",
+      "type": "string"
+    },
+    "id": {
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "number": {
+      "title": "Number",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "owner": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Owner",
+      "type": "string"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "shape": {
+      "enum": [
+        "straight",
+        "curve",
+        "trapezoid"
+      ],
+      "title": "Shape",
+      "type": "string"
+    },
+    "length": {
+      "description": "Along Kant 1; a curve: track 1's arc, mm.",
+      "minimum": 0,
+      "title": "Length",
+      "type": "number"
+    },
+    "radius": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A curve's track 1, mm, exact.",
+      "title": "Radius"
+    },
+    "angle": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A curve's angle, degrees, exact.",
+      "title": "Angle"
+    },
+    "offset": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A trapezoid's förskjutning, mm.",
+      "title": "Offset"
+    },
+    "gables": {
+      "items": {
+        "$ref": "#/$defs/RecordGable"
+      },
+      "maxItems": 2,
+      "minItems": 2,
+      "title": "Gables",
+      "type": "array"
+    },
+    "track_length": {
+      "description": "mm.",
+      "minimum": 0,
+      "title": "Track Length",
+      "type": "number"
+    },
+    "switches": {
+      "minimum": 0,
+      "title": "Switches",
+      "type": "integer"
+    },
+    "crossings": {
+      "minimum": 0,
+      "title": "Crossings",
+      "type": "integer"
+    },
+    "landscape": {
+      "description": "The version has a landscape.",
+      "title": "Landscape",
+      "type": "boolean"
+    },
+    "version": {
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/ModuleStatus"
+    },
+    "approved_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approved At"
+    }
+  },
+  "required": [
+    "id",
+    "number",
+    "name",
+    "owner",
+    "scale",
+    "shape",
+    "length",
+    "gables",
+    "track_length",
+    "switches",
+    "crossings",
+    "landscape",
+    "version",
+    "status"
+  ],
+  "type": "object"
+}

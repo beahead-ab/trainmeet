@@ -532,6 +532,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/modules/{module}/landscape": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadLandscape"];
+        put?: never;
+        post: operations["cadLandscapePreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/landscape/make": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadMakeLandscape"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/landscape/save": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadSaveLandscape"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/landscape/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadApproveLandscape"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadModuleExport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/export/{version}/{file}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadExportFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -8007,6 +8103,672 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * Landscape
+         * @description Landskapet of one module version: its surfaces, the ballast under the tracks from the
+         *     track plan, and the measuring image to paint over.
+         */
+        "trainmeet.cad-1.landscape": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /**
+             * Version
+             * @description The version shown.
+             */
+            version: number;
+            /** Latest */
+            latest: number;
+            /**
+             * Saved In
+             * @description The version the landscape was saved in; an earlier one when the version keeps it.
+             * @default null
+             */
+            saved_in: number | null;
+            status: components["schemas"]["trainmeet.cad-1.landscape.LandscapeStatus"];
+            /** @default null */
+            method: components["schemas"]["trainmeet.cad-1.landscape.LandscapeMethod"] | null;
+            /**
+             * Made By
+             * @description What made it: Färgklustring 1 …
+             * @default null
+             */
+            made_by: string | null;
+            /** @default null */
+            grid: components["schemas"]["trainmeet.cad-1.landscape.LandscapeGrid"] | null;
+            /** Areas */
+            areas?: components["schemas"]["trainmeet.cad-1.landscape.LandscapeArea"][];
+            /**
+             * Track Bed
+             * @description The ballast under the tracks, from the track plan.
+             */
+            track_bed?: [
+                number,
+                number
+            ][][];
+            /** Totals */
+            totals?: components["schemas"]["trainmeet.cad-1.landscape.SurfaceTotal"][];
+            /**
+             * Surfaces
+             * @description Every class, in order.
+             */
+            surfaces?: components["schemas"]["trainmeet.cad-1.landscape.SurfaceInfo"][];
+            /**
+             * @description The measuring image under.
+             * @default null
+             */
+            photo: components["schemas"]["trainmeet.cad-1.landscape.PhotoLayer"] | null;
+            /** May Edit */
+            may_edit: boolean;
+            /**
+             * Changed
+             * @description The operations changed something.
+             * @default false
+             */
+            changed: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LandscapeArea
+         * @description Yta: one connected surface as a polygon in mm, simplified, with its holes. painted: the
+         *     owner painted it; otherwise it is what the photo gave.
+         */
+        "trainmeet.cad-1.landscape.LandscapeArea": {
+            surface: components["schemas"]["trainmeet.cad-1.landscape.Surface"];
+            /** Outline */
+            outline: [
+                number,
+                number
+            ][];
+            /** Holes */
+            holes?: [
+                number,
+                number
+            ][][];
+            /**
+             * Area
+             * @description mm².
+             */
+            area: number;
+            /**
+             * Painted
+             * @default false
+             */
+            painted: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LandscapeGrid
+         * @description The landscape's cells in the module's millimetres: cell (0, 0)'s corner at (x0, y0), cell
+         *     mm on a side. Painting changes whole cells.
+         */
+        "trainmeet.cad-1.landscape.LandscapeGrid": {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** Cell */
+            cell: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LandscapeMethod
+         * @description How the landscape was made (CAD8).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.landscape.LandscapeMethod": "model" | "colour" | "hand";
+        /**
+         * LandscapeStatus
+         * @enum {string}
+         */
+        "trainmeet.cad-1.landscape.LandscapeStatus": "none" | "proposal" | "approved";
+        /**
+         * PhotoGrid
+         * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
+         *     (x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner
+         *     chose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm
+         *     it was measured in to the module's.
+         */
+        "trainmeet.cad-1.landscape.PhotoGrid": {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** Ppm */
+            ppm: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Matrix
+             * @default null
+             */
+            matrix: number[] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoLayer
+         * @description Fotot under: the measuring image under the drawing, in the module's millimetres.
+         */
+        "trainmeet.cad-1.landscape.PhotoLayer": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /**
+             * Url
+             * @description The measuring image at 1 px per mm, a signed address.
+             */
+            url: string;
+            grid: components["schemas"]["trainmeet.cad-1.landscape.PhotoGrid"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Surface
+         * @description Ytklass: what a part of the landscape is (bildkedjan step 14).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.landscape.Surface": "grass" | "ballast" | "ground" | "platform" | "water" | "building" | "trees" | "path" | "unknown";
+        /**
+         * SurfaceInfo
+         * @description A surface class as Landskapet shows it: its name and colour.
+         */
+        "trainmeet.cad-1.landscape.SurfaceInfo": {
+            surface: components["schemas"]["trainmeet.cad-1.landscape.Surface"];
+            /** Name */
+            name: string;
+            /** Colour */
+            colour: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SurfaceTotal
+         * @description How much of the board a surface covers: the legend. The ballast counts the track bed.
+         */
+        "trainmeet.cad-1.landscape.SurfaceTotal": {
+            surface: components["schemas"]["trainmeet.cad-1.landscape.Surface"];
+            /**
+             * Area
+             * @description mm².
+             */
+            area: number;
+            /** Share */
+            share: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LandscapeEdit
+         * @description The landscape's change set on top of base, the newest version the person read, as in
+         *     Ritningen: replayed for every call and refused with 409 when a newer version exists.
+         */
+        "trainmeet.cad-1.landscape-edit": {
+            /** Base */
+            base: number;
+            /** Operations */
+            operations?: (components["schemas"]["trainmeet.cad-1.landscape-edit.PaintLandscape"] | components["schemas"]["trainmeet.cad-1.landscape-edit.EraseLandscape"] | components["schemas"]["trainmeet.cad-1.landscape-edit.FillLandscape"])[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * EraseLandscape
+         * @description Sudda: nothing along the stroke, as a shadow wrongly classed (CAD-04).
+         */
+        "trainmeet.cad-1.landscape-edit.EraseLandscape": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "erase";
+            /** Radius */
+            radius: number;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FillLandscape
+         * @description Fyll: the connected area under the point, of the same surface or empty, becomes the
+         *     surface.
+         */
+        "trainmeet.cad-1.landscape-edit.FillLandscape": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "fill";
+            surface: components["schemas"]["trainmeet.cad-1.landscape-edit.Surface"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PaintLandscape
+         * @description Måla: the surface along a stroke, with a brush radius mm.
+         */
+        "trainmeet.cad-1.landscape-edit.PaintLandscape": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            op: "paint";
+            surface: components["schemas"]["trainmeet.cad-1.landscape-edit.Surface"];
+            /** Radius */
+            radius: number;
+            /** Points */
+            points: [
+                number,
+                number
+            ][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Surface
+         * @description Ytklass: what a part of the landscape is (bildkedjan step 14).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.landscape-edit.Surface": "grass" | "ballast" | "ground" | "platform" | "water" | "building" | "trees" | "path" | "unknown";
+        /**
+         * LandscapeMake
+         * @description Gör landskapet: from the measuring image, or empty without one. Replaces the landscape.
+         */
+        "trainmeet.cad-1.landscape-make": {
+            /** Base */
+            base: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ModuleExport
+         * @description Exportera: the version exported, the files and what they hold. draft: every file is
+         *     marked Utkast.
+         */
+        "trainmeet.cad-1.module-export": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            status: components["schemas"]["trainmeet.cad-1.module-export.ModuleStatus"];
+            /** Versions */
+            versions: components["schemas"]["trainmeet.cad-1.module-export.ExportVersion"][];
+            /** Files */
+            files: components["schemas"]["trainmeet.cad-1.module-export.ExportFile"][];
+            record: components["schemas"]["trainmeet.cad-1.module-export.ModuleRecord"];
+            /** Mmm */
+            mmm: components["schemas"]["trainmeet.cad-1.module-export.MmmGable"][];
+            /** Landscape */
+            landscape: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ExportFile */
+        "trainmeet.cad-1.module-export.ExportFile": {
+            kind: components["schemas"]["trainmeet.cad-1.module-export.ExportKind"];
+            /**
+             * Name
+             * @description FREMO-ritning (SVG) …
+             */
+            name: string;
+            /**
+             * File
+             * @description The name it is saved as.
+             */
+            file: string;
+            /** Url */
+            url: string;
+            /** Media Type */
+            media_type: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ExportKind
+         * @description Exportera (CAD-07).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-export.ExportKind": "fremo" | "database" | "mmm" | "dxf" | "print";
+        /**
+         * ExportVersion
+         * @description A version that can be exported: the approved one, and the newest draft.
+         */
+        "trainmeet.cad-1.module-export.ExportVersion": {
+            /** Version */
+            version: number;
+            status: components["schemas"]["trainmeet.cad-1.module-export.ModuleStatus"];
+            /** Label */
+            label: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-export.GableEnd": "A" | "B";
+        /** MmmGable */
+        "trainmeet.cad-1.module-export.MmmGable": {
+            end: components["schemas"]["trainmeet.cad-1.module-export.GableEnd"];
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.module-export.Norm"] | null;
+            /** Label */
+            label: string;
+            /** Width */
+            width: number;
+            /** Tracks */
+            tracks?: components["schemas"]["trainmeet.cad-1.module-export.MmmTrack"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MmmTrack
+         * @description One track in a gable, as MMM measures it: from Kant 1, the distance to the track before,
+         *     MMM's position for it and how far the gable lies from it.
+         */
+        "trainmeet.cad-1.module-export.MmmTrack": {
+            /** Track */
+            track: number;
+            /** From Kant1 */
+            from_kant1: number;
+            /**
+             * Spacing
+             * @description To the track before, c/c, mm.
+             * @default null
+             */
+            spacing: number | null;
+            /**
+             * Mmm
+             * @description MMM's position, mm.
+             * @default null
+             */
+            mmm: number | null;
+            /**
+             * Deviation
+             * @description from_kant1 - mmm, mm.
+             * @default null
+             */
+            deviation: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ModuleRecord
+         * @description Moduldatabasen: one module as a row in a module list (format RECORD_FORMAT). The JSON is
+         *     this record; the CSV has the same fields in RECORD_COLUMNS' order, comma-separated, UTF-8,
+         *     decimal point, the gables' tracks joined with /.
+         */
+        "trainmeet.cad-1.module-export.ModuleRecord": {
+            /**
+             * Format
+             * @default trainmeet.cad.moduldatabas/1
+             * @constant
+             */
+            format: "trainmeet.cad.moduldatabas/1";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Owner */
+            owner: string;
+            scale: components["schemas"]["trainmeet.cad-1.module-export.Scale"];
+            /**
+             * Shape
+             * @enum {string}
+             */
+            shape: "straight" | "curve" | "trapezoid";
+            /**
+             * Length
+             * @description Along Kant 1; a curve: track 1's arc, mm.
+             */
+            length: number;
+            /**
+             * Radius
+             * @description A curve's track 1, mm, exact.
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @description A curve's angle, degrees, exact.
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Offset
+             * @description A trapezoid's förskjutning, mm.
+             * @default null
+             */
+            offset: number | null;
+            /** Gables */
+            gables: components["schemas"]["trainmeet.cad-1.module-export.RecordGable"][];
+            /**
+             * Track Length
+             * @description mm.
+             */
+            track_length: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /**
+             * Landscape
+             * @description The version has a landscape.
+             */
+            landscape: boolean;
+            /** Version */
+            version: number;
+            status: components["schemas"]["trainmeet.cad-1.module-export.ModuleStatus"];
+            /**
+             * Approved At
+             * @default null
+             */
+            approved_at: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ModuleStatus
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-export.ModuleStatus": "draft" | "approved";
+        /**
+         * Norm
+         * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-export.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
+        /** RecordGable */
+        "trainmeet.cad-1.module-export.RecordGable": {
+            end: components["schemas"]["trainmeet.cad-1.module-export.GableEnd"];
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.module-export.Norm"] | null;
+            /**
+             * Profile
+             * @default null
+             */
+            profile: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Width
+             * @description mm.
+             */
+            width: number;
+            /**
+             * Tracks
+             * @description From Kant 1, mm.
+             */
+            tracks?: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-export.Scale": "H0" | "N" | "0";
+        /**
+         * ModuleRecord
+         * @description Moduldatabasen: one module as a row in a module list (format RECORD_FORMAT). The JSON is
+         *     this record; the CSV has the same fields in RECORD_COLUMNS' order, comma-separated, UTF-8,
+         *     decimal point, the gables' tracks joined with /.
+         */
+        "trainmeet.cad-1.module-record": {
+            /**
+             * Format
+             * @default trainmeet.cad.moduldatabas/1
+             * @constant
+             */
+            format: "trainmeet.cad.moduldatabas/1";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Owner */
+            owner: string;
+            scale: components["schemas"]["trainmeet.cad-1.module-record.Scale"];
+            /**
+             * Shape
+             * @enum {string}
+             */
+            shape: "straight" | "curve" | "trapezoid";
+            /**
+             * Length
+             * @description Along Kant 1; a curve: track 1's arc, mm.
+             */
+            length: number;
+            /**
+             * Radius
+             * @description A curve's track 1, mm, exact.
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @description A curve's angle, degrees, exact.
+             * @default null
+             */
+            angle: number | null;
+            /**
+             * Offset
+             * @description A trapezoid's förskjutning, mm.
+             * @default null
+             */
+            offset: number | null;
+            /** Gables */
+            gables: components["schemas"]["trainmeet.cad-1.module-record.RecordGable"][];
+            /**
+             * Track Length
+             * @description mm.
+             */
+            track_length: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /**
+             * Landscape
+             * @description The version has a landscape.
+             */
+            landscape: boolean;
+            /** Version */
+            version: number;
+            status: components["schemas"]["trainmeet.cad-1.module-record.ModuleStatus"];
+            /**
+             * Approved At
+             * @default null
+             */
+            approved_at: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-record.GableEnd": "A" | "B";
+        /**
+         * ModuleStatus
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-record.ModuleStatus": "draft" | "approved";
+        /**
+         * Norm
+         * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-record.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
+        /** RecordGable */
+        "trainmeet.cad-1.module-record.RecordGable": {
+            end: components["schemas"]["trainmeet.cad-1.module-record.GableEnd"];
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.module-record.Norm"] | null;
+            /**
+             * Profile
+             * @default null
+             */
+            profile: string | null;
+            /** Label */
+            label: string;
+            /**
+             * Width
+             * @description mm.
+             */
+            width: number;
+            /**
+             * Tracks
+             * @description From Kant 1, mm.
+             */
+            tracks?: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-record.Scale": "H0" | "N" | "0";
     };
     responses: never;
     parameters: never;
@@ -10499,6 +11261,485 @@ export interface operations {
                 content: {
                     "image/png": string;
                     "image/jpeg": string;
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadLandscape: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.landscape"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadLandscapePreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.landscape-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.landscape"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMakeLandscape: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.landscape-make"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.landscape"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadSaveLandscape: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.landscape-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.landscape"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadApproveLandscape: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.landscape-edit"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.landscape"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadModuleExport: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.module-export"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadExportFile: {
+        parameters: {
+            query?: {
+                rails?: boolean;
+                landscape?: boolean;
+            };
+            header?: never;
+            path: {
+                module: string;
+                version: string;
+                file: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The file: fremo.svg, utskrift.svg, moduldatabas.json, moduldatabas.csv, mmm.csv, modul.dxf */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                    "application/json": components["schemas"]["trainmeet.cad-1.module-record"];
+                    "text/csv": string;
+                    "application/dxf": string;
                 };
             };
             /** @description CAD säger nej */

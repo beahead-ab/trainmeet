@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.landscape-edit.schema.json",
+  "title": "trainmeet.cad-1.landscape-edit",
+  "$defs": {
+    "EraseLandscape": {
+      "additionalProperties": true,
+      "description": "Sudda: nothing along the stroke, as a shadow wrongly classed (CAD-04).",
+      "properties": {
+        "op": {
+          "const": "erase",
+          "default": "erase",
+          "title": "Op",
+          "type": "string"
+        },
+        "radius": {
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Radius",
+          "type": "number"
+        },
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "radius",
+        "points"
+      ],
+      "title": "EraseLandscape",
+      "type": "object"
+    },
+    "FillLandscape": {
+      "additionalProperties": true,
+      "description": "Fyll: the connected area under the point, of the same surface or empty, becomes the\nsurface.",
+      "properties": {
+        "op": {
+          "const": "fill",
+          "default": "fill",
+          "title": "Op",
+          "type": "string"
+        },
+        "surface": {
+          "$ref": "#/$defs/Surface"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        }
+      },
+      "required": [
+        "surface",
+        "at"
+      ],
+      "title": "FillLandscape",
+      "type": "object"
+    },
+    "PaintLandscape": {
+      "additionalProperties": true,
+      "description": "Måla: the surface along a stroke, with a brush radius mm.",
+      "properties": {
+        "op": {
+          "const": "paint",
+          "default": "paint",
+          "title": "Op",
+          "type": "string"
+        },
+        "surface": {
+          "$ref": "#/$defs/Surface"
+        },
+        "radius": {
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Radius",
+          "type": "number"
+        },
+        "points": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 2000,
+          "minItems": 1,
+          "title": "Points",
+          "type": "array"
+        }
+      },
+      "required": [
+        "surface",
+        "radius",
+        "points"
+      ],
+      "title": "PaintLandscape",
+      "type": "object"
+    },
+    "Surface": {
+      "description": "Ytklass: what a part of the landscape is (bildkedjan step 14).",
+      "enum": [
+        "grass",
+        "ballast",
+        "ground",
+        "platform",
+        "water",
+        "building",
+        "trees",
+        "path",
+        "unknown"
+      ],
+      "title": "Surface",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The landscape's change set on top of base, the newest version the person read, as in\nRitningen: replayed for every call and refused with 409 when a newer version exists.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "operations": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "erase": "#/$defs/EraseLandscape",
+            "fill": "#/$defs/FillLandscape",
+            "paint": "#/$defs/PaintLandscape"
+          },
+          "propertyName": "op"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/PaintLandscape"
+          },
+          {
+            "$ref": "#/$defs/EraseLandscape"
+          },
+          {
+            "$ref": "#/$defs/FillLandscape"
+          }
+        ]
+      },
+      "maxItems": 500,
+      "title": "Operations",
+      "type": "array"
+    }
+  },
+  "required": [
+    "base"
+  ],
+  "type": "object"
+}

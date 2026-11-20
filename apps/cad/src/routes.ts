@@ -15,6 +15,7 @@ export type Route =
   | { page: "drawing"; id: string }
   | { page: "lock"; id: string }
   | { page: "photo"; id: string; job: string; view: PhotoView; question?: string }
+  | { page: "export"; id: string; version?: number }
   | { page: "assemblies" }
   | { page: "profiles" }
   | { page: "login" }
@@ -63,6 +64,11 @@ export function photoPath(id: string, job: string, view: PhotoView = "kontroll",
   return question ? `${path}?fraga=${encodeURIComponent(question)}` : path;
 }
 
+/** Exportera (part d1): the approved version, or the one asked for. */
+export function exportPath(id: string, version?: number): string {
+  return `${PATHS.library}/${id}/exportera${version ? `?version=${version}` : ""}`;
+}
+
 export function editPath(id: string): string {
   return `${PATHS.library}/${id}/andra`;
 }
@@ -86,6 +92,10 @@ export function routeFor(pathname: string, search = ""): Route {
     if (parts.length === 2) return withVersion({ page: "module", id, tab: "oversikt" }, search);
     if (parts.length === 3 && parts[2] === "andra") return { page: "form", kind: "straight", id };
     if (parts.length === 3 && parts[2] === "ritningen") return { page: "drawing", id };
+    if (parts.length === 3 && parts[2] === "exportera") {
+      const version = Number(new URLSearchParams(search).get("version"));
+      return Number.isInteger(version) && version > 0 ? { page: "export", id, version } : { page: "export", id };
+    }
     if (parts.length === 4 && parts[2] === "ritningen" && parts[3] === "las-matt") return { page: "lock", id };
     if (parts[2] === "foto" && parts[3] && UUID.test(parts[3]) && parts.length <= 5) {
       const view = (parts[4] ?? "kontroll") as PhotoView;
@@ -109,6 +119,6 @@ function withVersion(route: Extract<Route, { page: "module" }>, search: string):
 export function tabOf(route: Route): "library" | "assemblies" | "profiles" | null {
   if (route.page === "assemblies") return "assemblies";
   if (route.page === "profiles") return "profiles";
-  if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo"].includes(route.page)) return "library";
+  if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo", "export"].includes(route.page)) return "library";
   return null;
 }

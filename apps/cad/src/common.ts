@@ -19,9 +19,10 @@ export function shapeText(shape: Shape): string {
 export type StatusKind = "godkand" | "matt" | "utkast";
 
 /** Godkänd; Mått klara · inget foto when the gables agree; Utkast while tracks are unknown. */
-export function status(module: Pick<ModuleBrief, "status" | "graph">): { text: string; kind: StatusKind } {
+export function status(module: Pick<ModuleBrief, "status" | "graph" | "photographed">): { text: string; kind: StatusKind } {
   if (module.status === "approved") return { text: "Godkänd", kind: "godkand" };
-  if (module.graph.complete) return { text: "Mått klara · inget foto", kind: "matt" };
+  // A photographed draft (a new version after the photo, the drawing or the landscape) is an Utkast.
+  if (module.graph.complete && !module.photographed) return { text: "Mått klara · inget foto", kind: "matt" };
   return { text: "Utkast", kind: "utkast" };
 }
 

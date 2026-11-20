@@ -5,8 +5,9 @@ import type { ClubChoice, Module, ModuleEvent, PhotoConsent, PhotoStart, Storage
 import { bendText, dayText, NORM_NAMES, stampText, status, VISIBILITY } from "./common";
 import { ModuleDrawing, ProfileBar } from "./Drawing";
 import { PhotoTab } from "./Foto";
+import { LandskapTab } from "./Landskap";
 import { metres } from "./geometry";
-import { drawingPath, editPath, modulePath, PATHS, type Tab } from "./routes";
+import { drawingPath, editPath, exportPath, modulePath, PATHS, type Tab } from "./routes";
 
 const TABS: [Tab, string][] = [
   ["oversikt", "Översikt"],
@@ -34,6 +35,8 @@ type Props = {
   onUpload?: (start: PhotoStart, files: File[]) => void;
   onPhotoSettings?: (change: { keep_original?: boolean; training?: boolean }) => void;
   onRecompute?: (job: string) => void;
+  /** Landskapet (part d1) saved a new version: the module and its history again. */
+  onChanged?: () => void;
 };
 
 function Facts({ module }: { module: Module }) {
@@ -218,9 +221,9 @@ export function ModulePage(props: Props) {
         </span>
         <span className="cad-pill">Version {module.version}</span>
         <span className="cad-fyll" />
-        <button type="button" className="tm-knapp" disabled title="Exporten kommer i del d">
+        <a className="tm-knapp" href={exportPath(module.id, old ? module.version : undefined)} onClick={linkClick(navigate, exportPath(module.id, old ? module.version : undefined))}>
           Exportera
-        </button>
+        </a>
         {module.may_edit && !old ? (
           <a className="tm-knapp" href={editPath(module.id)} onClick={linkClick(navigate, editPath(module.id))}>
             Ändra måtten
@@ -325,12 +328,7 @@ export function ModulePage(props: Props) {
           onRecompute={props.onRecompute}
         />
       ) : null}
-      {tab === "landskap" ? (
-        <div className="cad-kort cad-kommer">
-          <h2>Landskapet</h2>
-          <p>Ytorna ur fotot, med verktyg för att måla och sudda skuggor. Kommer med landskapet.</p>
-        </div>
-      ) : null}
+      {tab === "landskap" ? <LandskapTab module={module} onChanged={props.onChanged} /> : null}
       {tab === "historik" ? <History module={module} history={history} navigate={navigate} /> : null}
       {module.may_edit && !old ? (
         <p className="cad-tabort">
