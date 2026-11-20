@@ -216,6 +216,16 @@ Rita's draft, everything yellow until the owner confirms it (tkl/studio/ritning.
     GET  /api/tkl/1/studio/ritning/{job}/underlag     the straightened drawing (PNG or JPEG)
     POST /api/tkl/1/studio/ritning/{job}/forslag      TklRita: the proposal as Rita's draft
 
+Från CAD (#89 del d2, STUDIO-01, STUDIO-03, CAD-15): TKL asks TrainMeet CAD the same way for the
+person's assemblies and approved modules, and turns the track graph of the one the owner picks
+into Rita's draft, laid over what the station has by CAD's ids, with the difference
+(tkl/studio/fran_cad.py). When Använd ritningen takes a draft from CAD into use, TKL tells CAD
+which station uses it, for CAD's Används i; CAD never makes a station:
+
+    GET  /api/tkl/1/studio/fran-cad                          TklFromCad: open or grey, the list
+    POST /api/tkl/1/studio/fran-cad/{kind}/{source}/forslag  TklCadImport: Rita's draft and the
+                                                             difference
+
 Fjärrstyrning (#36 del c, tkl/fjarr/): TKL started in the remote role is a remote interlocking
 with no station of its own (FR1, TKL47); it connects as the station protocol's client kind remote
 with its remote area (FR4). A station's own TKL controls a neighbour with the same fjärrbild, as
@@ -284,7 +294,14 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import ValidationError
 
 from contracts import station
-from contracts.cad import DrawingAnswers, DrawingJob, DrawingJobState, DrawingReadAsk
+from contracts.cad import (
+    DrawingAnswers,
+    DrawingJob,
+    DrawingJobState,
+    DrawingReadAsk,
+    StationUseAsk,
+    StudioSourceKind,
+)
 from contracts.hub import Version
 from contracts.station_model import StationModel, StationPart, dump
 from contracts.station_outside import StationOutside
@@ -297,6 +314,8 @@ from contracts.tkl import (
     TklAccount,
     TklAnswer,
     TklAutomatAsk,
+    TklCadImport,
+    TklCadLink,
     TklCardModule,
     TklCloudStation,
     TklCloudStations,
@@ -327,6 +346,7 @@ from contracts.tkl import (
     TklFjarr,
     TklFjarrChoice,
     TklFjarrStudio,
+    TklFromCad,
     TklFunctionAction,
     TklFunctionAsk,
     TklIdState,
@@ -366,6 +386,7 @@ from contracts.tkl import (
     TklReport,
     TklReportKind,
     TklReset,
+    TklRita,
     TklRouteAsk,
     TklRouteRef,
     TklSave,
@@ -436,7 +457,7 @@ from tkl.store import (
     first_outside,
     token_hash,
 )
-from tkl.studio import dela, rita
+from tkl.studio import dela, fran_cad, rita
 from tkl.studio import fjarr as remote_choice
 from tkl.studio import ritning as studio_ritning
 
@@ -505,6 +526,15 @@ LOG_IN_UPLOAD = (
     "alltid."
 )
 BOUND_UPLOAD = "Ladda upp ritning kräver inloggning med TrainMeet ID. Logga in igen."
+FROM_CAD_REASONS = {
+    NO_CAD: "Från CAD kräver internet och TrainMeet CAD, som den här TKL inte är inställd för. "
+    "Rita går alltid.",
+    NEEDS_ID: "Från CAD kräver internet och inloggning med TrainMeet ID. Rita går alltid.",
+    LOG_IN_UPLOAD: "Från CAD kräver inloggning med TrainMeet ID: logga in under Inställningar. "
+    "Rita går alltid.",
+    BOUND_UPLOAD: "Från CAD kräver inloggning med TrainMeet ID. Logga in igen.",
+}
+"""Why Från CAD is grey: the same reasons as Ladda upp ritning's."""
 BOUND_SET_UP = (
     "TKL i molnet loggar in med TrainMeet ID. Skapa stationen under Dina stationer, så sparas den "
     "i molnet."
@@ -972,6 +1002,10 @@ def create_app(
             kept = store.save_model(found, made)
         except InterlockingBusy as error:
             raise HTTPException(409, BUSY) from error
+        _, pending = store.cad_links(found)
+        if pending is not None:
+            # A draft from CAD in use: CAD's Används i gets the station (CAD-15).
+            store.save_cad_links(found, register_use(found, pending), None)
         return rita.view(*drawn(found), kept).model_dump(mode="json")
 
     @routes.delete("/studio/rita")
@@ -986,6 +1020,7 @@ def create_app(
         no_store(response)
         found = unlocked(slot, session)
         store.forget_drawing(found)
+        forget_pending(found)
         made, state = drawn(found)
         return rita.view(made, state).model_dump(mode="json")
 
@@ -1651,7 +1686,115 @@ def create_app(
             raise HTTPException(
                 409, f"Motorn kan inte lägga ut förslaget ur ritningen. {error}"
             ) from error
+        forget_pending(found)
         return keep_drawing(found, made)
+
+    # --- Från CAD (#89 del d2, STUDIO-01, STUDIO-03, CAD-15, CAD-20) ------------------------
+
+    def from_cad_reason(found: str) -> str | None:
+        """Why Från CAD is grey here, or None when it is open."""
+        reason = upload_reason(found)
+        return FROM_CAD_REASONS.get(reason, reason) if reason is not None else None
+
+    def forget_pending(found: str) -> None:
+        """Rita's draft is no longer the one from CAD."""
+        in_use, pending = store.cad_links(found)
+        if pending is not None:
+            store.save_cad_links(found, in_use, None)
+
+    def register_use(found: str, link: TklCadLink) -> TklCadLink:
+        """Tell CAD which station took the source into use (CAD-15), as far as CAD answers; the
+        link says whether it did, and the next look at Från CAD tries again."""
+        own = store.station_of(found)
+        if own is None or from_cad_reason(found) is not None:
+            return link.model_copy(update={"registered": False})
+        ask = StationUseAsk(station_id=own.station_id, name=own.name[:80], revision=link.revision)
+        try:
+            cad_for(found).station_use(link.kind, link.id, ask)
+        except cad_client.CadError:
+            return link.model_copy(update={"registered": False})
+        return link.model_copy(update={"registered": True})
+
+    @routes.get("/studio/fran-cad")
+    def from_cad(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Whether the way in is open, the person's assemblies and modules in CAD, and the one
+        the station is linked to."""
+        no_store(response)
+        found = unlocked(slot, session)
+        in_use, pending = store.cad_links(found)
+        reason = from_cad_reason(found)
+        sources = []
+        if reason is None:
+            try:
+                sources = cad_for(found).sources().sources
+            except cad_client.CadError as error:
+                reason = error.detail
+            else:
+                if in_use is not None and not in_use.registered:
+                    in_use = register_use(found, in_use)
+                    store.save_cad_links(found, in_use, pending)
+        return TklFromCad(
+            available=reason is None, reason=reason, sources=sources, link=in_use, pending=pending
+        ).model_dump(mode="json")
+
+    @routes.post("/studio/fran-cad/{kind}/{source}/forslag")
+    def from_cad_proposal(
+        kind: StudioSourceKind,
+        source: UUID,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Gör förslaget: the source's track graph as Rita's draft, laid over what the station
+        has by CAD's ids, everything new or moved yellow until the owner confirms it (CAD-15,
+        CAD-20). Never the station's model: Använd ritningen is the owner's, after Bekräfta."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        reason = from_cad_reason(found)
+        if reason is not None:
+            raise HTTPException(409, reason)
+        try:
+            studio = cad_for(found).graph(kind, source)
+        except cad_client.CadError as error:
+            cad_failed(error)
+        if not studio.source.ready:
+            raise HTTPException(
+                409,
+                {
+                    "message": "Det här kan inte gå till Studio än. Rätta det i TrainMeet CAD "
+                    "först.",
+                    "problems": studio.source.problems,
+                },
+            )
+        own = store.station_of(found)
+        assert own is not None
+        draft = store.drawing(found)
+        before = rita.model_of(draft) if draft is not None else store.station_model(found)
+        fresh = fran_cad.proposal(studio, own.station_id, own.name)
+        in_use, pending = store.cad_links(found)
+        last = pending or in_use
+        earlier = last.modules if last is not None else {}
+        model, diff = fran_cad.reimport(before, fresh, studio, earlier)
+        try:
+            made = rita.drawing_of(model)
+        except LayoutError as error:
+            raise HTTPException(
+                409, f"Motorn kan inte lägga ut förslaget ur CAD. {error}"
+            ) from error
+        link = TklCadLink(
+            kind=kind,
+            id=source,
+            name=studio.source.name,
+            revision=studio.source.revision,
+            modules=fran_cad.modules_of(studio),
+        )
+        view = TklRita.model_validate(keep_drawing(found, made))
+        store.save_cad_links(found, in_use, link if view.state == TklDrawingState.DRAFT else None)
+        return TklCadImport(rita=view, diff=diff, link=link).model_dump(mode="json")
 
     # --- TKL i molnet: the station belongs to the account (#88, TKL5, TKLMOLN-02) -------------
 

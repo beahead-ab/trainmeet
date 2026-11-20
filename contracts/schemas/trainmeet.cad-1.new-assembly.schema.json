@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.new-assembly.schema.json",
+  "title": "trainmeet.cad-1.new-assembly",
+  "$defs": {
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Ny anläggning. owner a club's id makes it the club's: the club's administrator may.",
+  "properties": {
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
+    }
+  },
+  "required": [
+    "name",
+    "scale"
+  ],
+  "type": "object"
+}

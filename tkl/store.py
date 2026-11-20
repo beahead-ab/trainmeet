@@ -99,6 +99,7 @@ from contracts.station_outside import Exit, StationOutside, StationTrack
 from contracts.sync import StationPackage
 from contracts.tkl import (
     OutsideVersion,
+    TklCadLink,
     TklDeckDeviations,
     TklDeckSettings,
     TklDelaEdit,
@@ -201,6 +202,9 @@ CREATE TABLE IF NOT EXISTS dela (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS rita (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cad_link (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS interlocking (
@@ -640,6 +644,7 @@ class TklStore:
             db.execute("DELETE FROM manover WHERE slot=?", (slot,))
             db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
             db.execute("DELETE FROM fjarr WHERE slot=?", (slot,))
+            db.execute("DELETE FROM cad_link WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     # --- Rita (#85): the drawing, kept as a draft until it is taken into use ----------------
@@ -667,6 +672,38 @@ class TklStore:
     def forget_drawing(self, slot: str) -> None:
         with self._transaction() as db:
             db.execute("DELETE FROM rita WHERE slot=?", (slot,))
+
+    # --- Från CAD (#89 del d2): the assembly or module the track plan comes from -----------
+
+    def cad_links(self, slot: str) -> tuple[TklCadLink | None, TklCadLink | None]:
+        """The link the station's model is from, and the one Rita's draft is from."""
+        with self._transaction() as db:
+            row = db.execute("SELECT body FROM cad_link WHERE slot=?", (slot,)).fetchone()
+        if row is None:
+            return None, None
+        try:
+            found = json.loads(row[0])
+            in_use, pending = found.get("in_use"), found.get("pending")
+            return (
+                TklCadLink.model_validate(in_use) if in_use else None,
+                TklCadLink.model_validate(pending) if pending else None,
+            )
+        except (ValueError, AttributeError):
+            return None, None
+
+    def save_cad_links(
+        self, slot: str, in_use: TklCadLink | None, pending: TklCadLink | None
+    ) -> None:
+        body = json.dumps(
+            {
+                "in_use": in_use.model_dump(mode="json") if in_use else None,
+                "pending": pending.model_dump(mode="json") if pending else None,
+            }
+        )
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                raise NotSetUp()
+            db.execute("INSERT OR REPLACE INTO cad_link VALUES (?, ?)", (slot, body))
 
     # --- Dela stationen (#87 del b): the parts, kept as a draft until Använd ----------------
 

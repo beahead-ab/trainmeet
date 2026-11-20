@@ -93,6 +93,11 @@ POINTS: Final = frozenset({NodeType.BUFFER_STOP, NodeType.STOP_POINT})
 READ: Final = "Förslag ur en uppladdad ritning"
 """The note on everything Studio proposed from a drawing read by CAD (tkl/studio/ritning.py):
 yellow, assumed, until the owner confirms it (TKL27, RS5)."""
+FROM_CAD: Final = "Förslag ur TrainMeet CAD"
+"""The note on everything Studio proposed from an assembly or a module in TrainMeet CAD
+(tkl/studio/fran_cad.py): yellow, assumed, until the owner confirms it (CAD-15, RS5)."""
+PROPOSED: Final = frozenset({READ, FROM_CAD})
+"""The proposals the owner confirms before Använd ritningen."""
 
 
 # --- The drawing and the model -------------------------------------------------------------
@@ -592,8 +597,9 @@ def _named(text: str, at: int, name: str) -> bool:
 
 
 def unconfirmed(model: StationModel) -> int:
-    """How many of the things proposed from an uploaded drawing the owner has not confirmed:
-    a station is never made from a drawing without the owner's yes (TKL27, CAD6)."""
+    """How many of the things proposed from an uploaded drawing or from TrainMeet CAD the owner
+    has not confirmed: a station is never made from them without the owner's yes (TKL27, CAD6,
+    CAD-15)."""
     items: list[Any] = [
         *model.pieces,
         *model.switches,
@@ -603,7 +609,7 @@ def unconfirmed(model: StationModel) -> int:
     return sum(
         1
         for item in items
-        if item.origin is not None and item.origin.note == READ and not item.origin.confirmed
+        if item.origin is not None and item.origin.note in PROPOSED and not item.origin.confirmed
     )
 
 
@@ -611,8 +617,17 @@ def unconfirmed_problems(model: StationModel) -> list[str]:
     left = unconfirmed(model)
     if not left:
         return []
+    where = (
+        "ur TrainMeet CAD"
+        if any(
+            i.origin is not None and i.origin.note == FROM_CAD
+            for items in (model.pieces, model.switches, model.line_exits)
+            for i in items
+        )
+        else "ur den uppladdade ritningen"
+    )
     return [
-        f"{left} {'sak' if left == 1 else 'saker'} ur den uppladdade ritningen är inte "
+        f"{left} {'sak' if left == 1 else 'saker'} {where} är inte "
         "bekräftade. Bekräfta dem en och en, eller alla med Bekräfta förslaget."
     ]
 

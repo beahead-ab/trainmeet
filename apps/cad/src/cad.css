@@ -1660,3 +1660,203 @@
 .cad-fotolayout .cad-tabell td.tm-mono {
   white-space: nowrap;
 }
+
+/* Anläggningar and Till TKL Studio (#89 del d2): the drawing beside the panels, the free gables,
+   the joints that do not fit, and the preview Studio gets, realistic or dark. */
+.cad-anl-lista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 24px;
+  align-items: start;
+  margin-top: 24px;
+}
+.cad-anl-ny {
+  display: grid;
+  gap: 12px;
+}
+.cad-status.fel {
+  background: #fde7e7;
+  color: #8a1c1c;
+}
+.cad-tagg.rod {
+  background: #fde7e7;
+  color: #8a1c1c;
+  border-color: transparent;
+}
+.cad-anl-problem ul,
+.cad-anl-varfor {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+.cad-anl-yta {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 420px;
+  gap: 24px;
+  align-items: start;
+}
+.cad-anl-sida {
+  display: grid;
+  gap: 16px;
+}
+.cad-anl-sida ul,
+.cad-anl-sida ol {
+  margin: 0;
+  padding-left: 20px;
+}
+.cad-anl-sida li {
+  margin: 6px 0;
+}
+.cad-anl-moduler ul,
+.cad-anl-skarvar > ul {
+  list-style: none;
+  padding: 0;
+}
+.cad-anl-moduler li,
+.cad-anl-skarvar > ul > li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cad-anl-skarvar > ul > li.fel {
+  border-left: 4px solid #b42318;
+  padding-left: 10px;
+}
+.cad-anl-vinkel {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+.cad-anl-vinkel input {
+  width: 84px;
+}
+.cad-anl-skarva {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+.cad-anl-skarva h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.cad-anl-lagg {
+  display: grid;
+  gap: 12px;
+}
+.tm-knapp.gul {
+  background: var(--cad-yellow-soft);
+  color: var(--cad-yellow);
+}
+.tm-knapp.avstangd {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.cad-anl-ritkort .cad-ritning {
+  max-height: 720px;
+}
+.cad-anl-teckenforklaring {
+  margin: 12px 0 0;
+}
+.cad-prov {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+.cad-prov.fri {
+  border: 2px solid var(--tm-blue-text);
+}
+.cad-prov.fel {
+  background: #b42318;
+}
+.cad-skiva.osedd {
+  fill: var(--tm-panel-2);
+  stroke-dasharray: 12 8;
+}
+.cad-fri-gavel {
+  fill: var(--tm-panel);
+  stroke: var(--tm-blue-text);
+  stroke-width: 6;
+}
+.cad-skarv-fel {
+  fill: rgba(180, 35, 24, 0.25);
+  stroke: #b42318;
+  stroke-width: 6;
+}
+.cad-anl-nummer {
+  fill: var(--tm-mute);
+  font-weight: 700;
+}
+.cad-anl-utseende {
+  margin-bottom: 12px;
+}
+.cad-anl-utseende [aria-pressed="true"] {
+  background: var(--tm-blue-soft);
+  color: var(--tm-blue-text);
+}
+.cad-anl-bild.realistisk .cad-skiva {
+  fill: #e8dcc0;
+  stroke: #9b8a68;
+}
+.cad-anl-bild .cad-ballast {
+  fill: none;
+  stroke: #b7b2a6;
+  stroke-linecap: round;
+}
+.cad-anl-bild .cad-sliprar {
+  fill: none;
+  stroke: #6b5a46;
+}
+.cad-anl-bild.realistisk .cad-spar {
+  stroke: #3b3f45;
+}
+.cad-anl-bild .cad-ralsmellan {
+  fill: none;
+  stroke: #b7b2a6;
+  stroke-linecap: round;
+}
+.cad-anl-bild.mork {
+  background: #11151b;
+  border-radius: 12px;
+}
+.cad-anl-bild.mork .cad-skiva {
+  fill: #1b2129;
+  stroke: #3a4250;
+}
+.cad-anl-bild.mork .cad-spar {
+  stroke: #e9ebef;
+}
+@media (max-width: 1100px) {
+  .cad-anl-yta,
+  .cad-anl-lista {
+    grid-template-columns: 1fr;
+  }
+}
+.cad-anl-sida input,
+.cad-anl-sida select,
+.cad-anl-ny input,
+.cad-anl-ny select {
+  min-height: 40px;
+  width: 100%;
+  padding: 0 12px;
+  border: 1px solid var(--tm-line);
+  border-radius: 10px;
+  background: var(--tm-panel);
+  color: var(--tm-text);
+  font: inherit;
+}
+.cad-anl-sida .cad-anl-vinkel input {
+  width: 96px;
+  min-height: 34px;
+}
+.cad-anl-sida .cad-knapprad .cad-falt {
+  flex: 1 1 200px;
+}
+.cad-anl-foljer ul + h2 {
+  margin-top: 18px;
+}

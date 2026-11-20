@@ -1127,3 +1127,39 @@ svg.rita-rutnat .forslag-punkt {
   background: #fff4d6;
   border-color: #f0c674;
 }
+
+/* Från CAD (#89 del d2): the person's assemblies and modules in TrainMeet CAD, the link to the one
+   the station comes from, and the difference a re-import shows. */
+.fran-cad-lista {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.fran-cad-lista > li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--tm-line, #d0d5dd);
+}
+.fran-cad-lista > li.ej-klar strong {
+  color: #b54708;
+}
+.fran-cad-problem {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.fran-cad-lank {
+  margin: 6px 0;
+}
+.fran-cad-skillnad {
+  margin-bottom: 12px;
+}
+.fran-cad-skillnad h2 {
+  margin: 0;
+}
+.fran-cad-skillnad h3 {
+  margin: 8px 0 2px;
+  font-size: 15px;
+}

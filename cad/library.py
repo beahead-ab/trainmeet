@@ -82,6 +82,7 @@ from contracts.cad import (
     Scale,
     Shape,
     TrackGraph,
+    UsedIn,
     Visibility,
     VisibilityChange,
 )
@@ -202,11 +203,19 @@ class PhotoHooks(Protocol):
     def approved(self, conn: Connection[DictRow], module: UUID) -> None: ...
 
 
+class UsesHook(Protocol):
+    """Where the module is used (cad/assemblies.py, part d2): the assemblies the person sees and
+    the stations in TKL, for Används i."""
+
+    def used_in(self, who: Who, module: UUID) -> list[UsedIn]: ...
+
+
 class Modules:
     def __init__(self, db: Database, access: Access) -> None:
         self.db = db
         self.access = access
         self.photos: PhotoHooks | None = None
+        self.uses: UsesHook | None = None
 
     # --- Rights -------------------------------------------------------------------------------
 
@@ -347,7 +356,10 @@ class Modules:
         with self.db.transaction() as conn:
             row = self._row(conn, module, version)
             known = self._profiles_for(conn, [row["gables"]])
-        return self._module(row, right, known)
+        made = self._module(row, right, known)
+        if self.uses is not None:
+            made = made.model_copy(update={"used_in": self.uses.used_in(who, module)})
+        return made
 
     # --- Checking the measures ----------------------------------------------------------------
 

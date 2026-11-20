@@ -1,0 +1,151 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.assembly-change.schema.json",
+  "title": "trainmeet.cad-1.assembly-change",
+  "$defs": {
+    "AssemblyPart": {
+      "additionalProperties": true,
+      "description": "A module in a change: the version it pins, null for its newest approved one (adding it,\nor taking the newer one offered); and where it lies when no joint places it.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        },
+        "at": {
+          "default": [
+            0.0,
+            0.0
+          ],
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "angle": {
+          "default": 0,
+          "maximum": 360,
+          "minimum": -360,
+          "title": "Angle",
+          "type": "number"
+        }
+      },
+      "required": [
+        "module"
+      ],
+      "title": "AssemblyPart",
+      "type": "object"
+    },
+    "GableEnd": {
+      "enum": [
+        "A",
+        "B"
+      ],
+      "title": "GableEnd",
+      "type": "string"
+    },
+    "Joint": {
+      "additionalProperties": true,
+      "description": "Skarv: two modules' gables together, at an angle (CAD-06). The angle turns b's module\ncounterclockwise about the middle of the tracks in the joint; 0 is flush.",
+      "properties": {
+        "a": {
+          "$ref": "#/$defs/JointEnd"
+        },
+        "b": {
+          "$ref": "#/$defs/JointEnd"
+        },
+        "angle": {
+          "default": 0,
+          "description": "What the joint adds, in degrees counterclockwise.",
+          "maximum": 15.0,
+          "minimum": -15.0,
+          "title": "Angle",
+          "type": "number"
+        }
+      },
+      "required": [
+        "a",
+        "b"
+      ],
+      "title": "Joint",
+      "type": "object"
+    },
+    "JointEnd": {
+      "additionalProperties": true,
+      "description": "One side of a joint: a module in the assembly, and its gable.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "gable": {
+          "$ref": "#/$defs/GableEnd"
+        }
+      },
+      "required": [
+        "module",
+        "gable"
+      ],
+      "title": "JointEnd",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Spara: the whole assembly as the page has it, on top of base, the newest revision the\nperson read. Refused with 409 when a newer revision exists.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "name": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/AssemblyPart"
+      },
+      "maxItems": 200,
+      "title": "Modules",
+      "type": "array"
+    },
+    "joints": {
+      "items": {
+        "$ref": "#/$defs/Joint"
+      },
+      "maxItems": 400,
+      "title": "Joints",
+      "type": "array"
+    }
+  },
+  "required": [
+    "base",
+    "name"
+  ],
+  "type": "object"
+}

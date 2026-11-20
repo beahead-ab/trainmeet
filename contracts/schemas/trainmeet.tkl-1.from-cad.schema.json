@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.from-cad.schema.json",
+  "title": "trainmeet.tkl-1.from-cad",
+  "$defs": {
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    },
+    "StationUse": {
+      "additionalProperties": true,
+      "description": "Används i: a station in TKL that took an assembly or a module into use, as Studio told CAD\nwhen the owner confirmed it (CAD-15). The station's id is TKL's, the station's own.",
+      "properties": {
+        "station_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Station Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The assembly's revision, or the module's version.",
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "station_id",
+        "name",
+        "revision",
+        "at"
+      ],
+      "title": "StationUse",
+      "type": "object"
+    },
+    "StudioModule": {
+      "additionalProperties": true,
+      "description": "A module in what Studio gets: its id is the prefix of its ids in the graph.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "number": {
+          "pattern": "^M-\\d{3,}$",
+          "title": "Number",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "number",
+        "name",
+        "version"
+      ],
+      "title": "StudioModule",
+      "type": "object"
+    },
+    "StudioSource": {
+      "additionalProperties": true,
+      "description": "Från CAD: an assembly or a single module the person may connect to a station.",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/StudioSourceKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scale": {
+          "$ref": "#/$defs/Scale"
+        },
+        "owner": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The assembly's revision, or the module's version.",
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "modules": {
+          "items": {
+            "$ref": "#/$defs/StudioModule"
+          },
+          "title": "Modules",
+          "type": "array"
+        },
+        "ready": {
+          "description": "It may go to Studio: no problems.",
+          "title": "Ready",
+          "type": "boolean"
+        },
+        "problems": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        },
+        "stations": {
+          "description": "Används i.",
+          "items": {
+            "$ref": "#/$defs/StationUse"
+          },
+          "title": "Stations",
+          "type": "array"
+        },
+        "changed_at": {
+          "format": "date-time",
+          "title": "Changed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name",
+        "scale",
+        "owner",
+        "revision",
+        "ready",
+        "changed_at"
+      ],
+      "title": "StudioSource",
+      "type": "object"
+    },
+    "StudioSourceKind": {
+      "description": "What Studio's Från CAD connects to a station: a group of modules (STUDIO-03).",
+      "enum": [
+        "assembly",
+        "module"
+      ],
+      "title": "StudioSourceKind",
+      "type": "string"
+    },
+    "TklCadLink": {
+      "additionalProperties": true,
+      "description": "The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a\nsingle module, at a revision. registered: CAD knows the station uses it (Används i).",
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/StudioSourceKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "registered": {
+          "default": false,
+          "title": "Registered",
+          "type": "boolean"
+        },
+        "modules": {
+          "additionalProperties": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "description": "Its modules by id, as the owner sees them: \"M-002 Linje\". A re-import says which module a piece that is gone was on.",
+          "title": "Modules",
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "id",
+        "name",
+        "revision"
+      ],
+      "title": "TklCadLink",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Från CAD i Studio: whether the way in is open here and why not, the person's assemblies and\napproved modules in TrainMeet CAD, and the one the station is linked to. TKL asks CAD for the\nperson with the person's access token from ID, as Ladda upp ritning; CAD never makes a\nstation (TKL8, CAD-15).",
+  "properties": {
+    "available": {
+      "title": "Available",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför vägen in är grå.",
+      "title": "Reason"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/StudioSource"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "link": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklCadLink"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The station's, in use."
+    },
+    "pending": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TklCadLink"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The draft's, until Använd ritningen."
+    }
+  },
+  "required": [
+    "available"
+  ],
+  "type": "object"
+}

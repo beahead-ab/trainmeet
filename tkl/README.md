@@ -29,6 +29,12 @@ PROV_TKL=http://127.0.0.1:8096 PROV_LATSAS=8097 CHROME_PATH=/usr/bin/google-chro
 
 med TKL startad med `TKL_ID_ISSUER=http://127.0.0.1:8097/realms/trainmeet`, `TKL_PUBLIC_URL=http://127.0.0.1:8096` och `TKL_CAD=http://127.0.0.1:8097`.
 
+## Från CAD
+
+Den tredje vägen in (STUDIO-01, STUDIO-03, #89 del d2) går till samma TrainMeet CAD på samma sätt. *Från CAD* listar personens anläggningar och egna godkända moduler, och *Gör förslaget i Rita* gör Ritas utkast av spårgrafen CAD skickar (tkl/studio/fran_cad.py): spåren med sin verkliga form, så att stationen får skalet Foto, växlarna, ett spår vid en fri gavel som linjeutfart och ett som slutar i en modul som stoppbock, allt gult tills ägaren bekräftar det. CAD skapar aldrig en station (CAD-15): när ägaren använder ritningen säger TKL till CAD vilken station som använder anläggningen, och CAD visar den under *Används i*.
+
+*Läs in igen* lägger CAD:s nya spårgraf över det stationen har, efter CAD:s id, som aldrig byts (CAD-20), och visar skillnaden: nya spår, borta och flyttade, gula igen. Ägarens signaler, blockstreck, växelnummer, utfartsnamn och stationsspår på spår med samma id står kvar; det som hängde på ett spår som är borta följer inte med och står i listan. Webbläsarprovet ovan kör Från CAD efter Ladda upp ritning, med en syntetisk anläggning som CAD:s egen kod gör (`python -m cad.assembly_example`).
+
 ## Stream Deck över USB
 
 En lokal TKL sköter sina Stream Deck själv över USB (SD50). Decket fungerar då utan att någon flik är öppen, och i alla webbläsare. TKL letar efter deck var tredje sekund, så ett deck kan kopplas in och ur när som helst. Varje deck känns igen på sitt serienummer och får förvalet för sin modell. I Ställverket står det *Decket sköts av TKL över USB* i rutan Stream Deck.

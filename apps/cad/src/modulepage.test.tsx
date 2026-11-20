@@ -25,7 +25,8 @@ describe("Modulens sida", () => {
     expect(html).toContain("Min klubb");
     expect(html).toContain("Alla i TrainMeet");
     expect(html).toContain("Används i");
-    expect(html.match(/ingen än/g)?.length).toBe(2);
+    expect(html.match(/ingen än/g)?.length).toBe(3);
+    expect(html).toContain("Stationer i TKL");
     expect(html).toContain("2 + 2");
     expect(html).not.toContain(">Godkänn</button>");
   });

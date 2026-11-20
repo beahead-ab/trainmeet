@@ -1,4 +1,4 @@
-// Webbläsarprovet för Ladda upp ritning i Studio (#89 del c4), i en riktig Chrome mot en TKL ur
+// Webbläsarprovet för Ladda upp ritning och Från CAD i Studio (#89 del c4 och d2), i en riktig Chrome mot en TKL ur
 // bilden, en låtsad TrainMeet ID och en låtsad TrainMeet CAD som provet själv kör. TKL startar
 // som Uppby med PIN, loggar in med TrainMeet ID under Inställningar, och i Studio › Rita blir
 // Ladda upp ritning öppen. Provet laddar upp den syntetiska signalplanen, ser priset (gratis, en
@@ -8,6 +8,12 @@
 // svarar med kontraktets exempel, CAD:s egen avläsning av samma ritning
 // (contracts/examples/exempelby.drawing-read.json), och godtar bara personens token från ID.
 //
+// Från CAD (#89 del d2): samma låtsade CAD listar en syntetisk anläggning, vars spårgraf CAD:s egen
+// kod gör (python -m cad.assembly_example, eller PROV_CAD_FORE och PROV_CAD_EFTER). Förslaget blir
+// gult i Rita, bekräftas och tas i bruk, och TKL säger då till CAD vilken station som använder
+// anläggningen. Sedan ändras anläggningen i CAD, och Läs in igen visar skillnaden: ett nytt spår och
+// ett som flyttat, gula tills ägaren bekräftar dem.
+//
 //   PROV_TKL=http://127.0.0.1:8096 PROV_LATSAS=8097 PROV_RITNING=ritning.pdf \
 //     CHROME_PATH=/usr/bin/google-chrome node apps/tkl/e2e/ladda-upp.mjs
 //
@@ -16,9 +22,11 @@
 // PROV_BILDER är en mapp för skärmbilderna; PROV_UNDERLAG en PNG som den låtsade CAD:en ger som
 // den uträtade ritningen.
 import { chromium } from "playwright-core";
+import { execFileSync } from "node:child_process";
 import { createServer } from "node:http";
 import { generateKeyPairSync, randomUUID, sign } from "node:crypto";
-import { mkdirSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, existsSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -32,6 +40,23 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const EXAMPLE = JSON.parse(readFileSync(join(ROOT, "contracts/examples/exempelby.drawing-read.json"), "utf8"));
 const DRAWING = process.env.PROV_RITNING && existsSync(process.env.PROV_RITNING) ? process.env.PROV_RITNING : "";
 const ACCESS = `prov-${randomUUID()}`;
+
+/** The synthetic assembly's track graph before and after its change, as CAD's own code makes it. */
+function cadGraphs() {
+  const given = [process.env.PROV_CAD_FORE, process.env.PROV_CAD_EFTER];
+  if (given.every((f) => f && existsSync(f))) return given.map((f) => JSON.parse(readFileSync(f, "utf8")));
+  const dir = mkdtempSync(join(tmpdir(), "cad-graf-"));
+  try {
+    const files = [join(dir, "fore.json"), join(dir, "efter.json")];
+    execFileSync("uv", ["run", "--locked", "python", "-m", "cad.assembly_example", ...files], { cwd: ROOT, stdio: "inherit" });
+    return files.map((f) => JSON.parse(readFileSync(f, "utf8")));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+const [BEFORE, AFTER] = cadGraphs();
+let graph = BEFORE;
+const stationUses = [];
 const PERSON = randomUUID();
 
 class ProvFel extends Error {}
@@ -132,6 +157,20 @@ const pretend = createServer(async (req, res) => {
     reply(res, 200, { keys: [jwk] });
     return;
   }
+  if (path.startsWith("/api/cad/1/studio")) {
+    if (req.headers.authorization !== `Bearer ${ACCESS}`) {
+      reply(res, 401, { code: "login", message: "Logga in först." });
+      return;
+    }
+    const where = `/api/cad/1/studio/assembly/${graph.source.id}`;
+    if (path === "/api/cad/1/studio") reply(res, 200, { sources: [graph.source] });
+    else if (path === where) reply(res, 200, graph);
+    else if (path === `${where}/station` && req.method === "PUT") {
+      stationUses.push(JSON.parse(sent.toString()));
+      reply(res, 200, graph.source);
+    } else reply(res, 404, { code: "not_found", message: "Finns inte." });
+    return;
+  }
   if (path.startsWith("/api/cad/1/drawings")) {
     if (req.headers.authorization !== `Bearer ${ACCESS}`) {
       reply(res, 401, { code: "login", message: "Logga in först." });
@@ -185,6 +224,57 @@ async function firstStart(page) {
     await page.getByRole("button", { name: "Lås upp" }).click();
   }
   await page.getByRole("link", { name: "Studio" }).first().waitFor();
+}
+
+// --- Från CAD (#89 del d2) --------------------------------------------------------------------
+
+async function openFromCad(page) {
+  await page.goto(`${TKL}/studio/rita`);
+  const way = page.getByRole("navigation", { name: "Väg in" }).getByRole("button", { name: "Från CAD" });
+  await way.waitFor();
+  await page.waitForFunction(() => {
+    const button = [...document.querySelectorAll("nav.rita-vagar button")].find((b) => b.textContent === "Från CAD");
+    return button && !button.disabled;
+  });
+  await way.click();
+  const panel = page.getByRole("region", { name: "Från CAD" });
+  await panel.locator(`li[data-kalla="${graph.source.id}"]`).waitFor();
+  return panel;
+}
+
+async function franCad(page) {
+  let panel = await openFromCad(page);
+  await screenshot(page, "fran-cad-listan");
+  await panel.getByRole("button", { name: "Gör förslaget i Rita" }).click();
+  // Rita: CAD's track graph yellow, the engine's panel, and Använd ritningen waiting for the yes.
+  await page.getByText("Förslaget ur TrainMeet CAD är gult").waitFor();
+  await page.getByRole("region", { name: "Skillnaden mot CAD" }).getByText("Förslaget ur TrainMeet CAD").waitFor();
+  await page.locator("svg.rita-rutnat .antagen").first().waitFor({ state: "attached" });
+  check(await page.getByRole("button", { name: "Använd ritningen" }).isDisabled(), "Förslaget ur CAD kunde användas utan ägarens ja.");
+  check(stationUses.length === 0, "CAD fick veta stationen före ägarens ja.");
+  await screenshot(page, "fran-cad-forslag-gult");
+  await page.getByRole("button", { name: /Bekräfta förslaget \(\d+\)/ }).click();
+  await page.waitForFunction(() => document.querySelectorAll("svg.rita-rutnat .antagen").length === 0);
+  await page.waitForFunction(() => {
+    const button = [...document.querySelectorAll("button")].find((b) => b.textContent === "Använd ritningen");
+    return button && !button.disabled;
+  });
+  await page.getByRole("button", { name: "Använd ritningen" }).click();
+  await page.getByText("Används i Ställverket").waitFor();
+  check(stationUses.length === 1 && stationUses[0].station_id === "upb" && stationUses[0].revision === BEFORE.source.revision, `CAD fick inte veta stationen: ${JSON.stringify(stationUses)}`);
+  // The assembly changes in CAD: Läs in igen shows the difference.
+  graph = AFTER;
+  panel = await openFromCad(page);
+  await panel.getByText("CAD visar stationen under Används i.").waitFor();
+  await screenshot(page, "fran-cad-kopplad");
+  await panel.getByRole("button", { name: "Läs in igen" }).click();
+  const diff = page.getByRole("region", { name: "Skillnaden mot CAD" });
+  await diff.getByText("Skillnaden mot förra gången").waitFor();
+  await diff.locator('[data-skillnad="nytt"]', { hasText: "Nytt 1" }).waitFor();
+  await diff.locator('[data-skillnad="flyttat"]', { hasText: "Flyttat 1" }).waitFor();
+  await diff.getByText("M-003 Linje bortom · spår 1").waitFor();
+  await page.getByRole("button", { name: /Bekräfta förslaget \(3\)/ }).waitFor();
+  await screenshot(page, "fran-cad-skillnad");
 }
 
 async function main() {
@@ -251,6 +341,8 @@ async function main() {
     await screenshot(page, "i-bruk");
     check(asked >= 4, "TKL frågade inte CAD.");
     console.log("Ladda upp ritning: grå utan inloggning, priset, frågorna med teckenförklaringen först, förslaget gult och bekräftat, i bruk.");
+    await franCad(page);
+    console.log("Från CAD: anläggningen listad, förslaget gult, bekräftat och i bruk, CAD fick veta stationen, och omimporten visade skillnaden.");
   } catch (error) {
     await screenshot(page, "fel");
     throw error;

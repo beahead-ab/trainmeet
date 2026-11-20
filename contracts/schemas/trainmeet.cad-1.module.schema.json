@@ -1666,17 +1666,19 @@
     },
     "UsedIn": {
       "additionalProperties": true,
-      "description": "Används i: an assembly or a meet that uses the module, at the version it pinned (part d).",
+      "description": "Används i: an assembly or a meet that uses the module, at the version it pinned (part d);\nor a station in TKL that took the module into use, alone or in an assembly (CAD-15).",
       "properties": {
         "kind": {
           "enum": [
             "assembly",
-            "meet"
+            "meet",
+            "station"
           ],
           "title": "Kind",
           "type": "string"
         },
         "id": {
+          "description": "The assembly or meet; for a station, what it took.",
           "format": "uuid",
           "title": "Id",
           "type": "string"
@@ -1691,6 +1693,20 @@
           "minimum": 1,
           "title": "Version",
           "type": "integer"
+        },
+        "station": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The station's id in TKL.",
+          "title": "Station"
         }
       },
       "required": [

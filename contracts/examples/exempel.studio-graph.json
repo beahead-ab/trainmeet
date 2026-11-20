@@ -1,0 +1,207 @@
+{
+ "source": {
+  "kind": "assembly",
+  "id": "556772e4-bc7e-5819-a809-9d5bc5ae17cd",
+  "name": "Exempelanläggning",
+  "scale": "H0",
+  "owner": "Provkonto A",
+  "revision": 2,
+  "modules": [
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce",
+    "number": "M-001",
+    "name": "Infart",
+    "version": 1
+   },
+   {
+    "id": "af0a0c90-579e-5532-864c-d2d2e2d27694",
+    "number": "M-002",
+    "name": "Linje",
+    "version": 1
+   }
+  ],
+  "ready": true,
+  "problems": [],
+  "stations": [],
+  "changed_at": "2026-11-20T12:00:00Z"
+ },
+ "graph": {
+  "geometry": "mm",
+  "nodes": [
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n1",
+    "type": "module_joint",
+    "at": [
+     0.0,
+     140.0
+    ],
+    "gable": "A",
+    "track": 1
+   },
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n4",
+    "type": "switch",
+    "at": [
+     400.0,
+     140.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n6",
+    "type": "joint",
+    "at": [
+     564.056,
+     156.375
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "af0a0c90-579e-5532-864c-d2d2e2d27694:n1",
+    "type": "module_joint",
+    "at": [
+     1500.0,
+     140.0
+    ],
+    "gable": "A",
+    "track": 1
+   },
+   {
+    "id": "af0a0c90-579e-5532-864c-d2d2e2d27694:n2",
+    "type": "module_joint",
+    "at": [
+     3000.0,
+     140.0
+    ],
+    "gable": "B",
+    "track": 1
+   }
+  ],
+  "pieces": [
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s3",
+    "start": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n1",
+    "end": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n4",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       0.0,
+       140.0
+      ],
+      "end": [
+       400.0,
+       140.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "measures",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s5",
+    "start": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n4",
+    "end": "af0a0c90-579e-5532-864c-d2d2e2d27694:n1",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       400.0,
+       140.0
+      ],
+      "end": [
+       1500.0,
+       140.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "measures",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s7",
+    "start": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n4",
+    "end": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n6",
+    "segments": [
+     {
+      "kind": "arc",
+      "start": [
+       400.0,
+       140.0
+      ],
+      "end": [
+       564.056,
+       156.375
+      ],
+      "center": [
+       400.0,
+       970.0
+      ],
+      "radius": 830.0,
+      "clockwise": true
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawn",
+     "certainty": "confirmed"
+    }
+   },
+   {
+    "id": "af0a0c90-579e-5532-864c-d2d2e2d27694:s3",
+    "start": "af0a0c90-579e-5532-864c-d2d2e2d27694:n1",
+    "end": "af0a0c90-579e-5532-864c-d2d2e2d27694:n2",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       1500.0,
+       140.0
+      ],
+      "end": [
+       3000.0,
+       140.0
+      ]
+     }
+    ],
+    "track": "1",
+    "origin": {
+     "source": "measures",
+     "certainty": "probable"
+    }
+   }
+  ],
+  "switches": [
+   {
+    "id": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:v8",
+    "node": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:n4",
+    "type": "ordinary",
+    "trunk": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s3",
+    "straight": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s5",
+    "diverging": "d744bba5-bfd5-5450-b299-8eae1c4cc4ce:s7",
+    "radius": 830.0,
+    "angle": 11.4,
+    "origin": {
+     "source": "drawn",
+     "certainty": "confirmed"
+    },
+    "number": "1",
+    "design": null,
+    "toward": "B",
+    "locked": false
+   }
+  ],
+  "labels": [],
+  "symbols": [],
+  "complete": true,
+  "issued": 0
+ }
+}

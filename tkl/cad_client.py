@@ -6,7 +6,11 @@ TKL speaks only the contract with CAD (contracts/cad.py, Ladda upp ritning). The
 Authorization header and nowhere else, and is never written to a log; nor is the drawing. CAD's
 answer is said to the owner in Swedish, as CAD said it.
 
-TKL_CAD is CAD's address. Without it, or without a login with ID, the way in is shut, and Rita
+Från CAD (#89 del d2, STUDIO-03, CAD-15) asks the same CAD the same way: the person's assemblies
+and approved modules, the track graph of the one the owner picks, and, when the owner has taken
+it into use, which station uses it, for CAD's Används i. CAD never makes a station.
+
+TKL_CAD is CAD's address. Without it, or without a login with ID, the ways in are shut, and Rita
 still works: a local TKL without internet can only Rita (CAD6).
 """
 
@@ -19,10 +23,21 @@ from uuid import UUID
 import httpx
 from pydantic import BaseModel, ValidationError
 
-from contracts.cad import DrawingAnswers, DrawingJob, DrawingReadAsk, DrawingStart
+from contracts.cad import (
+    DrawingAnswers,
+    DrawingJob,
+    DrawingReadAsk,
+    DrawingStart,
+    StationUseAsk,
+    StudioGraph,
+    StudioSource,
+    StudioSourceKind,
+    StudioSources,
+)
 
 LOGGER = logging.getLogger("tkl.cad")
 DRAWINGS: Final = "/api/cad/1/drawings"
+STUDIO: Final = "/api/cad/1/studio"
 TIMEOUT: Final = 60.0
 """An upload of up to 30 MB to CAD, and its intake."""
 NO_ANSWER: Final = "TrainMeet CAD svarar inte. Försök igen om en stund."
@@ -47,8 +62,15 @@ def _said(answer: httpx.Response) -> str | None:
     return found if isinstance(found, str) else None
 
 
+def _read[M: BaseModel](model: type[M], answer: httpx.Response) -> M:
+    try:
+        return model.model_validate_json(answer.content)
+    except ValidationError as error:
+        raise CadError(502, UNEXPECTED) from error
+
+
 class Cad:
-    """The person's drawings in TrainMeet CAD."""
+    """The person's drawings, assemblies and modules in TrainMeet CAD."""
 
     def __init__(self, http: httpx.Client, address: str, access: str) -> None:
         self.http = http
@@ -81,17 +103,14 @@ class Cad:
         if answer.status_code == 401:
             raise CadError(401, LOG_IN_AGAIN)
         if answer.status_code >= 400:
-            LOGGER.warning("CAD svarade %s på en ritning.", answer.status_code)
+            LOGGER.warning("CAD svarade %s.", answer.status_code)
             known = (402, 404, 409, 413, 415, 422, 429)
             status = answer.status_code if answer.status_code in known else 502
             raise CadError(status, _said(answer) or "TrainMeet CAD sa nej.")
         return answer
 
     def _job(self, answer: httpx.Response) -> DrawingJob:
-        try:
-            return DrawingJob.model_validate_json(answer.content)
-        except ValidationError as error:
-            raise CadError(502, UNEXPECTED) from error
+        return _read(DrawingJob, answer)
 
     def upload(self, name: str, data: bytes, content_type: str) -> DrawingJob:
         start = DrawingStart(name=name[:120] or None)
@@ -116,3 +135,18 @@ class Cad:
         if kind not in ("image/png", "image/jpeg"):
             raise CadError(502, UNEXPECTED)
         return answer.content, kind
+
+    # --- Från CAD (#89 del d2) ---------------------------------------------------------------
+
+    def sources(self) -> StudioSources:
+        """The person's assemblies and approved modules."""
+        return _read(StudioSources, self._call("GET", STUDIO))
+
+    def graph(self, kind: StudioSourceKind, source: UUID) -> StudioGraph:
+        """The track graph of one, with ids CAD never changes (CAD-10, CAD-20)."""
+        return _read(StudioGraph, self._call("GET", f"{STUDIO}/{kind.value}/{source}"))
+
+    def station_use(self, kind: StudioSourceKind, source: UUID, ask: StationUseAsk) -> StudioSource:
+        """The station took it into use: CAD's Används i (CAD-15)."""
+        answer = self._call("PUT", f"{STUDIO}/{kind.value}/{source}/station", json_body=ask)
+        return _read(StudioSource, answer)

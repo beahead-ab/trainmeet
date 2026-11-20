@@ -78,10 +78,13 @@ describe("logging in", () => {
 });
 
 describe("Anläggningar", () => {
-  it("is an empty page that says it comes in part d", () => {
+  it("fetches the assemblies under its own tab, and so do an assembly and Till TKL Studio", () => {
     const html = render({ route: routeFor("/anlaggningar") });
-    expect(html).toContain("Anläggningarna kommer i nästa steg");
-    expect(html).toContain("Kommer i del d av CAD");
+    expect(html).toContain("Hämtar anläggningarna …");
     expect(html).toContain('href="/anlaggningar" aria-current="page"');
+    const id = "3c9d7e10-2a4b-4c5d-8e6f-708192a3b4c5";
+    expect(routeFor(`/anlaggningar/${id}`)).toEqual({ page: "assembly", id });
+    expect(routeFor(`/anlaggningar/${id}/studio`)).toEqual({ page: "studio", id });
+    expect(render({ route: routeFor(`/anlaggningar/${id}/studio`) })).toContain('href="/anlaggningar" aria-current="page"');
   });
 });
