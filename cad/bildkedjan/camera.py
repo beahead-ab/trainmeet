@@ -414,6 +414,9 @@ def lens(
     others."""
     centre = (size[0] / 2, size[1] / 2)
     flags = list(bent) if bent is not None else [False] * len(sides)
+    if len(flags) != len(sides):
+        # An outline whose sides were not all found (part c5): no lens from it.
+        return 0.0
     usable = [(s, f) for s, f in zip(sides, flags, strict=True) if len(s) >= 12]
     if len(usable) < 2:
         return 0.0

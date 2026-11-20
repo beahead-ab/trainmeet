@@ -132,6 +132,36 @@ describe("Längden ur fotot", () => {
   });
 });
 
+describe("Vilken kontur följer modulens kant? (part c5)", () => {
+  it("shows code's outlines in their colours, and picks one", () => {
+    const red: [number, number][] = [
+      [262, 430],
+      [1146, 398],
+      [1208, 784],
+      [246, 820],
+    ];
+    const blue: [number, number][] = red.map(([x, y], i) => [x, i >= 2 ? y + 20 : y]);
+    const job = {
+      ...CORNERS,
+      corners: {
+        ...CORNERS.corners!,
+        certain: false,
+        why: "Vilken kontur följer modulens kant? Tryck på den långsida som är Kant 1 och på gavel A.",
+        outlines: [
+          { id: "rod" as const, text: "Röd", corners: red },
+          { id: "bla" as const, text: "Blå", corners: blue },
+        ],
+      },
+    };
+    const html = photo({ job });
+    expect(html).toContain('aria-label="Vilken kontur följer modulens kant?"');
+    expect(html.match(/class="cad-kontur cad-kontur-/g)?.length).toBe(2);
+    expect(html).toContain('data-kontur="bla"');
+    expect(html).toContain('aria-checked="true" class="tm-knapp liten cad-kontur-val cad-kontur-rod">Röd</button>');
+    expect(html).toContain('aria-checked="false" class="tm-knapp liten cad-kontur-val cad-kontur-bla">Blå</button>');
+  });
+});
+
 describe("Osäkert parti", () => {
   it("shows the part enlarged, what the AI sees, the choices with sketches, the close-up and Spara", () => {
     const html = photo({ view: "osakert", question: "nod:x1" });
@@ -154,6 +184,31 @@ describe("Osäkert parti", () => {
     expect(html).toContain("Fråga mig senare");
     expect(html).toContain("✓ Spara: två växlar");
     expect(html).toContain("250 mm från gavel B");
+  });
+
+  it("marks the ends a bridge's question names, A, B, C (part c5)", () => {
+    const bridge = {
+      ...DONE.questions![0]!,
+      key: "skiss:b1",
+      kind: "bridge" as const,
+      title: "Vilka spårändar hänger ihop under bron?",
+      choices: [
+        { id: "grenar", text: "En växel vid bron", hint: "Som koden läser skissen.", sketch: null },
+        { id: "slutar", text: "Ett spår slutar vid bron", hint: null, sketch: null },
+      ],
+      code: "grenar",
+      ai: "slutar",
+      marks: [
+        { label: "A", at: [1200, 280] as [number, number] },
+        { label: "B", at: [1300, 320] as [number, number] },
+      ],
+      span: 600,
+    };
+    const html = photo({ view: "osakert", question: "skiss:b1", job: { ...DONE, questions: [bridge] } });
+    expect(html.match(/class="cad-osakert-mark"/g)?.length).toBe(2);
+    expect(html).toContain('data-mark="A"');
+    expect(html).toContain("<b>Ett spår slutar vid bron</b>");
+    expect(html).toContain("koden</span>");
   });
 
   it("draws the sketches: switches as rings, a crossing as a diamond", () => {

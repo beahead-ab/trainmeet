@@ -105,6 +105,8 @@ class PretendMeter:
     own_ai: str | None = None
     reservations: dict[str, dict[str, Any]] = field(default_factory=dict)
     reads: int = 0
+    hard: list[bool] = field(default_factory=list)
+    """Each read's hard flag: CAD's follow-up questions where code is not sure (CAD18)."""
     answer: Callable[[str], str] | None = None
     """What the AI says to a prompt; None: an empty answer, which CAD cannot read."""
 
@@ -169,9 +171,15 @@ class PretendMeter:
                 return httpx.Response(
                     409, json={"code": "conflict", "message": "Ingen reservation."}
                 )
-            self.reads += 1
-            text = self.answer(body["prompt"]) if self.answer is not None else "{}"
             cost = 0 if self.own_ai else 12 * len(body["images"])
+            if held["amount"] < cost:
+                # As ID's meter: no picture is read on less than its price (id/meter.py).
+                return httpx.Response(
+                    422, json={"code": "invalid", "message": "Reservationen räcker inte."}
+                )
+            self.reads += 1
+            self.hard.append(bool(body.get("hard")))
+            text = self.answer(body["prompt"]) if self.answer is not None else "{}"
             return httpx.Response(
                 200,
                 json={"text": text, "cost": cost, "model": "provmodell", "reservation": made(held)},

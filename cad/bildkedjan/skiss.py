@@ -27,6 +27,20 @@ lines from the text to what it names. In order:
 6. Ren geometri (geometry): each track redrawn as straights and arcs that follow the sketch,
    within ± SKETCH_MM: a sketch is not measured, so every measure is a proposal from the sketch
    until the owner measures or approves (CAD-17).
+
+Part c5, the reference depot (22 switches and 2 crossings, all frames found by code):
+
+- Frames in faint pencil, under coloured pencil in places, with a corner cut (frames_of_lines):
+  long straight lines drawn in one stroke that close a module's shape; the corners where they
+  cross. Leader lines are short and close nothing.
+- A bridge drawn over the tracks (bands): two thin dark parallel lines across the tracks'
+  ink. The ends either side are joined under it by direction and place (under_bands); an end
+  left over is a switch hidden under the bridge.
+- Two tracks whose ink runs together into a wedge where they meet (hairpins): the thinning
+  turns back in it; read from the wedge's shape as a switch, with its third leg on the way the
+  two were going.
+- Code is not sure of a bridge or a wedge: each is a question (Asked, B1, K1 …) with fixed
+  answers for the AI or the owner, and the sketch is read again as answered.
 """
 
 from __future__ import annotations
@@ -178,7 +192,57 @@ def prepare(pixels: NDArray[Any]) -> Sheet:
             sheet = cv2.warpPerspective(work, matrix, (width, height), flags=cv2.INTER_LINEAR)
     gray = cv2.cvtColor(sheet, cv2.COLOR_BGR2GRAY)
     paper = float(np.percentile(gray, 90))
-    return Sheet(sheet, frames(sheet, paper), paper, factor)
+    return Sheet(sheet, merged(frames(sheet, paper), frames_of_lines(sheet, paper)), paper, factor)
+
+
+FRAME_SAME = 0.05
+"""Two frames whose corners all lie within this share of the sheet's shorter side are one."""
+
+
+def _overlap(a: Array, b: Array) -> float:
+    """How much of the smaller of two quads the other covers, roughly: 0 to 1."""
+    inter, _ = cv2.intersectConvexConvex(a.astype(np.float32), b.astype(np.float32))
+    smaller = min(cv2.contourArea(a.astype(np.float32)), cv2.contourArea(b.astype(np.float32)))
+    return float(inter) / max(float(smaller), 1e-9)
+
+
+def _square(quad: Array) -> bool:
+    """A quad with a module's shape: square corners and a module's proportions."""
+    corners = _clockwise(quad)
+    sides = np.roll(corners, -1, axis=0) - corners
+    lengths = np.linalg.norm(sides, axis=1)
+    for i in range(4):
+        a, b = sides[i - 1] / lengths[i - 1], sides[i] / lengths[i]
+        if abs(float(a @ b)) > math.sin(math.radians(FRAME_SQUARE)):
+            return False
+    aspect = float((lengths[0] + lengths[2]) / max(lengths[1] + lengths[3], 1e-9))
+    return bool(FRAME_ASPECT[0] <= max(aspect, 1 / max(aspect, 1e-9)) <= FRAME_ASPECT[1])
+
+
+def merged(closed: list[Array], drawn: list[Array]) -> list[Array]:
+    """The frames found as closed areas (frames) and as lines (frames_of_lines, part c5) as
+    one list: an area and a frame of lines that are the same are the area; of two that overlap
+    otherwise the area is kept when it has a module's shape or is the larger, else the frame of
+    lines (an area cut up by a bridge or leader lines is a piece of its frame)."""
+    if not drawn:
+        return closed
+    side = min(float(np.ptp(np.concatenate([*closed, *drawn])[:, k])) for k in (0, 1))
+    found = list(closed)
+    for quad in drawn:
+        if any(
+            float(np.max(np.linalg.norm(_clockwise(quad) - _clockwise(q), axis=1)))
+            <= FRAME_SAME * side
+            for q in found
+        ):
+            continue
+        area = cv2.contourArea(quad.astype(np.float32))
+        overlapping = [q for q in found if _overlap(quad, q) > 0.3]
+        if any(cv2.contourArea(q.astype(np.float32)) > area or _square(q) for q in overlapping):
+            # An area that is itself a module's shape is its frame.
+            continue
+        found = [q for q in found if not any(q is o for o in overlapping)]
+        found.append(quad)
+    return sorted(found, key=lambda q: (round(float(q[:, 1].min()) / 50), float(q[:, 0].min())))
 
 
 def ink(pixels: NDArray[Any], paper: float) -> NDArray[Any]:
@@ -242,6 +306,196 @@ def frames(pixels: NDArray[Any], paper: float) -> list[Array]:
         if quad is not None:
             found.append(quad)
     return sorted(found, key=lambda q: (round(float(q[:, 1].min()) / 50), float(q[:, 0].min())))
+
+
+FRAME_HAT = 7
+FRAME_CONTRAST = 40
+"""A frame's line drawn in pencil, faint or under coloured pencil (part c5): thinner than
+FRAME_HAT px and at least FRAME_CONTRAST darker than what lies beside it (a black-hat)."""
+FRAME_LINE = 0.12
+"""and straight for at least this share of the sheet's shorter side, its pieces between the
+tracks it crosses joined."""
+FRAME_GAP = 30
+FRAME_SUPPORT = 0.4
+"""Each side of a frame lies on its line along at least this share of its length (a corner
+may be cut), and the four together along at least FRAME_SUPPORT_ALL."""
+FRAME_SUPPORT_ALL = 0.6
+FRAME_CONTINUOUS = 0.95
+"""A frame's line is drawn in one stroke: at least this share of it is on, leaving out the
+tracks it crosses (pencil shading joined into a line over the gaps is not)."""
+FRAME_ON_TRACK = 0.7
+"""A line that lies on the tracks' ink for more than this share of it runs along a track."""
+FRAME_ASPECT = (1.3, 7.0)
+"""A frame is a module: its long sides over its short ones within this."""
+FRAME_SQUARE = 6.0
+"""Its corners within this many degrees of square, its opposite sides of parallel."""
+
+
+def _lines_of(mask: NDArray[Any], least: float, gap: int) -> list[tuple[Array, Array, float]]:
+    """The straight lines in a mask: Hough's pieces joined when they lie on one line, each as
+    its middle, its direction and its length."""
+    found = cv2.HoughLinesP(
+        mask, 1, np.pi / 720, threshold=int(0.5 * least), minLineLength=least, maxLineGap=gap
+    )
+    if found is None:
+        return []
+    groups: list[list[tuple[Array, Array]]] = []
+    for x1, y1, x2, y2 in found.reshape(-1, 4).astype(np.float64):
+        a, b = np.array([x1, y1]), np.array([x2, y2])
+        u = (b - a) / max(float(np.linalg.norm(b - a)), 1e-9)
+        if u[0] < 0 or (u[0] == 0 and u[1] < 0):
+            u = -u
+        for group in groups:
+            g0, gu = group[0]
+            normal = np.array([-gu[1], gu[0]])
+            if (
+                abs(float(u @ gu)) >= math.cos(math.radians(1.5))
+                and abs(float((a - g0) @ normal)) <= 4.0
+                and abs(float((b - g0) @ normal)) <= 4.0
+            ):
+                group.extend([(a, u), (b, u)])
+                break
+        else:
+            groups.append([(a, u), (b, u)])
+    lines: list[tuple[Array, Array, float]] = []
+    for group in groups:
+        points = np.array([p for p, _ in group])
+        u = group[0][1]
+        t = (points - points[0]) @ u
+        first, last = points[0] + u * float(t.min()), points[0] + u * float(t.max())
+        lines.append(((first + last) / 2, u, float(t.max() - t.min())))
+    return lines
+
+
+def _support(
+    mask: NDArray[Any], a: Array, b: Array, leave_out: NDArray[Any] | None = None
+) -> float:
+    """The share of the line from a to b that lies on the mask, leaving out where it lies on
+    leave_out."""
+    length = float(np.linalg.norm(b - a))
+    count = max(2, int(length / 2))
+    ts = np.linspace(0.0, 1.0, count)
+    points = a[None, :] + ts[:, None] * (b - a)[None, :]
+    h, w = mask.shape
+    xs = np.clip(np.round(points[:, 0]).astype(int), 0, w - 1)
+    ys = np.clip(np.round(points[:, 1]).astype(int), 0, h - 1)
+    on = mask[ys, xs] > 0
+    if leave_out is not None:
+        free = leave_out[ys, xs] == 0
+        return float(on[free].mean()) if free.any() else 0.0
+    return float(on.mean())
+
+
+def frames_of_lines(pixels: NDArray[Any], paper: float) -> list[Array]:
+    """Frames drawn in faint pencil, partly under coloured pencil, with a corner cut (part c5):
+    four long straight lines (FRAME_LINE) that close a module's shape (FRAME_ASPECT), square
+    (FRAME_SQUARE), each side on its line along FRAME_SUPPORT of it; the corners where the
+    lines cross, also where a corner is cut. A frame that another long line, parallel to its
+    sides, crosses all the way is two frames (two modules side by side), and of a frame inside
+    another one (a track's edge for a side) the outer one is kept. Leader lines are short and
+    close nothing."""
+    grey = cv2.cvtColor(pixels, cv2.COLOR_BGR2GRAY)
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (FRAME_HAT, FRAME_HAT))
+    hat = cv2.morphologyEx(grey, cv2.MORPH_BLACKHAT, kernel)
+    mask = np.where(hat >= FRAME_CONTRAST, 255, 0).astype(np.uint8)
+    h, w = mask.shape
+    least = FRAME_LINE * min(h, w)
+    near = cv2.dilate(mask, np.ones((5, 5), np.uint8))
+    close = cv2.dilate(mask, np.ones((3, 3), np.uint8))
+    thick = tracks_ink(pixels, paper)
+    # A line along a track is the track's own edge, never a frame's.
+    track = cv2.dilate(thick, np.ones((7, 7), np.uint8))
+    lines = []
+    for line in _lines_of(mask, least, FRAME_GAP):
+        if line[2] < least:
+            continue
+        a, b = line[0] - line[1] * line[2] / 2, line[0] + line[1] * line[2] / 2
+        if _support(track, a, b) > FRAME_ON_TRACK:
+            continue
+        # Drawn in one stroke, but for the tracks it crosses: shading joined into a line by
+        # the gaps is not.
+        if _support(close, a, b, thick) < FRAME_CONTINUOUS:
+            continue
+        lines.append(line)
+    parallel = math.cos(math.radians(FRAME_SQUARE))
+    pairs: list[tuple[int, int]] = []
+    for i, (_, ui, _) in enumerate(lines):
+        for j in range(i + 1, len(lines)):
+            uj = lines[j][1]
+            if abs(float(ui @ uj)) >= parallel:
+                apart = abs(float((lines[j][0] - lines[i][0]) @ np.array([-ui[1], ui[0]])))
+                if apart >= 0.05 * min(h, w):
+                    pairs.append((i, j))
+    square = math.sin(math.radians(FRAME_SQUARE))
+    found: list[tuple[float, Array, tuple[int, int, int, int]]] = []
+    for p, (i, j) in enumerate(pairs):
+        for k, m in pairs[p + 1 :]:
+            if {i, j} & {k, m}:
+                continue
+            if abs(float(lines[i][1] @ lines[k][1])) > square:
+                continue
+            sides = [lines[i], lines[k], lines[j], lines[m]]
+            corners = np.array([_cross(sides[(n - 1) % 4], sides[n]) for n in range(4)])
+            if not np.isfinite(corners).all():
+                continue
+            if (corners[:, 0] < 0).any() or (corners[:, 0] > w).any():
+                continue
+            if (corners[:, 1] < 0).any() or (corners[:, 1] > h).any():
+                continue
+            lengths = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
+            aspect = (lengths[0] + lengths[2]) / max(lengths[1] + lengths[3], 1e-9)
+            aspect = max(aspect, 1 / max(aspect, 1e-9))
+            if not FRAME_ASPECT[0] <= aspect <= FRAME_ASPECT[1]:
+                continue
+            support = [_support(near, corners[n], corners[(n + 1) % 4]) for n in range(4)]
+            if min(support) < FRAME_SUPPORT or float(np.mean(support)) < FRAME_SUPPORT_ALL:
+                continue
+            area = float(cv2.contourArea(corners.astype(np.float32)))
+            if area < FRAME_SHARE * h * w:
+                continue
+            found.append((area, _clockwise(corners), (i, j, k, m)))
+    # Two modules side by side: a long line all the way across the frame, along a side.
+    split: list[tuple[float, Array, tuple[int, int, int, int]]] = []
+    for area, corners, used in found:
+        centre = corners.mean(axis=0)
+        across = False
+        for side in (0, 1):
+            d = corners[side + 1] - corners[side]
+            reach = float(np.linalg.norm(d))
+            d /= reach
+            normal = np.array([-d[1], d[0]])
+            far = float(np.linalg.norm(corners[side + 2] - corners[side + 1]))
+            for number, (middle, u, length) in enumerate(lines):
+                if number in used or abs(float(u @ d)) < parallel:
+                    continue
+                if length >= 0.8 * reach and abs(float((middle - centre) @ normal)) < 0.4 * far:
+                    across = True
+        if not across:
+            split.append((area, corners, used))
+    # The outer of two frames that share their gables.
+    kept: list[Array] = []
+    for _, corners, _ in sorted(split, key=lambda f: -f[0]):
+        centre = corners.mean(axis=0)
+        if any(
+            cv2.pointPolygonTest(
+                other.astype(np.float32), (float(centre[0]), float(centre[1])), False
+            )
+            > 0
+            for other in kept
+        ):
+            continue
+        kept.append(corners)
+    return kept
+
+
+def _cross(a: tuple[Array, Array, float], b: tuple[Array, Array, float]) -> Array:
+    (p, d, _), (q, e, _) = a, b
+    m = np.array([[d[0], -e[0]], [d[1], -e[1]]])
+    if abs(float(np.linalg.det(m))) < 1e-9:
+        return np.array([np.nan, np.nan])
+    t = np.linalg.solve(m, q - p)
+    found: Array = p + t[0] * d
+    return found
 
 
 # --- The graph -------------------------------------------------------------------------------
@@ -446,6 +700,255 @@ def _crossed(found: Graph, edge: GEdge, ppm: float) -> bool:
     return best <= math.radians(CROSS_ALIGN) and angle >= math.radians(CROSS_MIN_ANGLE)
 
 
+BAND_LINE_MM = 120.0
+"""A side of a bridge drawn over the tracks is a thin dark straight line at least this long."""
+BAND_WIDTH_MM = (25.0, 140.0)
+"""and its two sides lie this far apart, mm, within BAND_PARALLEL degrees of parallel."""
+BAND_PARALLEL = 4.0
+BAND_NEAR_MM = 40.0
+"""A track's end this near a bridge's side, with its way on into it, goes under it."""
+BAND_JOIN_MM = 30.0
+"""Two ends either side of a bridge whose ways on meet its middle this near each other are
+one track (part c5)."""
+BAND_HIDDEN_MM = 90.0
+"""A track does not end under a bridge: an end left over joins the nearest track joined under
+it whose way on meets the middle within this, a switch hidden there. Code is not sure of it:
+it is asked (Osäkert parti)."""
+
+
+@dataclass
+class Band:
+    """A bridge or another thing drawn over the tracks (part c5): its middle line, its
+    direction along it and its width, in the sheet's px as read (or the module's mm)."""
+
+    middle: tuple[float, float]
+    along: tuple[float, float]
+    width: float
+    length: float
+    pairs: list[tuple[str, str]] = field(default_factory=list)
+    """The ends joined under it, by the ids the graph's nodes had then."""
+    hidden: list[str] = field(default_factory=list)
+    """The switches put under it."""
+    ends: dict[str, Point] = field(default_factory=dict)
+    """The ends that go under it, where they were."""
+    left: list[str] = field(default_factory=list)
+    """The ends left over when the others were paired: joined as a hidden switch unless the
+    answer says the track ends at the bridge (slutar)."""
+    kept: bool = False
+    """Tracks go under it: it is a bridge."""
+
+    def offset(self, at: Point) -> tuple[float, float]:
+        """How far along its middle line a point lies, and how far across from it."""
+        d = (at[0] - self.middle[0], at[1] - self.middle[1])
+        return (
+            d[0] * self.along[0] + d[1] * self.along[1],
+            -d[0] * self.along[1] + d[1] * self.along[0],
+        )
+
+
+def bands(image: NDArray[Any], tracks: NDArray[Any], paper: float, ppm: float) -> list[Band]:
+    """Bridges drawn over the tracks (part c5): two thin, dark, straight lines, parallel and
+    BAND_WIDTH_MM apart, each at least BAND_LINE_MM long, across the tracks' ink (which stops
+    at them). In the frame as read (its px)."""
+    grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    dark = np.where(grey < 0.6 * paper, 255, 0).astype(np.uint8)
+    thin_lines = cv2.subtract(dark, cv2.dilate(tracks, np.ones((5, 5), np.uint8)))
+    lines = cv2.HoughLinesP(
+        thin_lines,
+        1,
+        np.pi / 360,
+        threshold=60,
+        minLineLength=BAND_LINE_MM * ppm,
+        maxLineGap=12,
+    )
+    if lines is None:
+        return []
+    # The segments joined into lines: the same direction and place across, end to end.
+    segments: list[tuple[Array, Array]] = []
+    for x1, y1, x2, y2 in lines.reshape(-1, 4).astype(np.float64):
+        a, b = np.array([x1, y1]), np.array([x2, y2])
+        u = (b - a) / max(float(np.linalg.norm(b - a)), 1e-9)
+        if u[0] < 0 or (u[0] == 0 and u[1] < 0):
+            u = -u
+        segments.append((a, u))
+        segments.append((b, u))
+    joined: list[list[tuple[Array, Array]]] = []
+    for k in range(0, len(segments), 2):
+        a, u = segments[k]
+        b, _ = segments[k + 1]
+        n = np.array([-u[1], u[0]])
+        for group in joined:
+            g0, gu = group[0]
+            if (
+                math.degrees(math.acos(min(1.0, abs(float(u @ gu))))) <= 2.0
+                and abs(float((a - g0) @ np.array([-gu[1], gu[0]]))) <= 4.0
+            ):
+                group.extend([(a, u), (b, u)])
+                break
+        else:
+            joined.append([(a, u), (b, u)])
+        del n
+    found: list[tuple[Array, Array, float]] = []
+    for group in joined:
+        points = np.array([p for p, _ in group])
+        u = group[0][1]
+        t = (points - points[0]) @ u
+        start_at, end_at = points[0] + u * float(t.min()), points[0] + u * float(t.max())
+        found.append(((start_at + end_at) / 2, u, float(t.max() - t.min())))
+    found.sort(key=lambda f: -f[2])
+    made: list[Band] = []
+    for i, (ma, ua, la) in enumerate(found):
+        for mb, ub, lb in found[i + 1 :]:
+            if math.degrees(math.acos(min(1.0, abs(float(ua @ ub))))) > BAND_PARALLEL:
+                continue
+            n = np.array([-ua[1], ua[0]])
+            width = abs(float((mb - ma) @ n)) / ppm
+            if not BAND_WIDTH_MM[0] <= width <= BAND_WIDTH_MM[1]:
+                continue
+            # Side by side: they overlap along the band, which reaches as far as either.
+            sb = float((mb - ma) @ ua)
+            lo, hi = max(-la / 2, sb - lb / 2), min(la / 2, sb + lb / 2)
+            if hi - lo < 0.3 * min(la, lb):
+                continue
+            first, last = min(-la / 2, sb - lb / 2), max(la / 2, sb + lb / 2)
+            across = float((mb - ma) @ n) / 2
+            middle = ma + ua * (first + last) / 2 + n * across
+            if any(
+                abs(
+                    Band((m.middle[0], m.middle[1]), m.along, m.width, m.length).offset(
+                        (float(middle[0]), float(middle[1]))
+                    )[1]
+                )
+                < m.width / 2
+                for m in made
+            ):
+                continue
+            made.append(
+                Band(
+                    (float(middle[0]), float(middle[1])),
+                    (float(ua[0]), float(ua[1])),
+                    width * ppm,
+                    last - first,
+                )
+            )
+    return made
+
+
+def _way_on(points: list[Point], stroke: float) -> float:
+    """The heading on from a track's end: the track's own, from a stroke's width behind the end
+    to HEADING_MM further (a stroke cut off square thins to a bent end)."""
+    start = points[0]
+    behind = [p for p in points if math.dist(p, start) >= 1.5 * stroke]
+    if len(behind) < 2:
+        return _direction(points) + math.pi
+    near = behind[0]
+    far = next((p for p in behind if math.dist(p, near) >= HEADING_MM), behind[-1])
+    return math.atan2(near[1] - far[1], near[0] - far[0])
+
+
+def under_bands(
+    found: Graph,
+    made: list[Band],
+    ppm: float,
+    answers: dict[str, str] | None = None,
+    stroke: float = 16.0,
+) -> None:
+    """The tracks joined under each bridge (part c5): the ends near either side of it whose
+    ways on go into it, paired by where their ways on meet its middle line (within
+    BAND_JOIN_MM) and by direction; an end left over whose way on meets its middle near an end
+    already joined from the other side is a switch hidden under the bridge, unless the answer
+    to its question (B1 …) says the track ends at the bridge (slutar). A band with fewer than
+    two tracks under it is something else, and is left out (kept False)."""
+    answers = answers or {}
+    ends = [n for n in found.nodes.values() if found.degree(n.id) == 1]
+    counter = 0
+    for index, band in enumerate(made):
+        sides: dict[int, list[tuple[float, str, float]]] = {-1: [], 1: []}
+        for n in ends:
+            if n.id not in found.nodes or found.degree(n.id) != 1:
+                continue
+            along, across = band.offset(n.at)
+            if abs(along) > band.length / 2 + BAND_NEAR_MM * ppm:
+                continue
+            if abs(across) > band.width / 2 + BAND_NEAR_MM * ppm:
+                continue
+            out = _way_on(_away(found.at(n.id)[0], n.id), stroke)
+            way = (math.cos(out), math.sin(out))
+            normal = (-band.along[1], band.along[0])
+            into = way[0] * normal[0] + way[1] * normal[1]
+            side = -1 if across < 0 else 1
+            # Its way on goes into the band, across it.
+            if into * side >= -0.3:
+                continue
+            # Where its way on meets the band's middle line.
+            t = -across / into
+            meet = band.offset((n.at[0] + t * way[0], n.at[1] + t * way[1]))[0]
+            sides[side].append((meet, n.id, out))
+        if len(sides[-1]) + len(sides[1]) < 3 or not sides[-1] or not sides[1]:
+            continue
+        pairs: list[tuple[float, str, str]] = []
+        for meet_a, a, out_a in sides[-1]:
+            for meet_b, b, out_b in sides[1]:
+                if abs(meet_a - meet_b) > BAND_JOIN_MM * ppm:
+                    continue
+                if _turn(out_a, out_b + math.pi) > math.radians(35):
+                    continue
+                pairs.append((abs(meet_a - meet_b), a, b))
+        used: set[str] = set()
+        for _, a, b in sorted(pairs):
+            if a in used or b in used:
+                continue
+            used |= {a, b}
+            band.pairs.append((a, b))
+        if not band.pairs:
+            continue
+        band.ends = {i: found.nodes[i].at for side in sides.values() for _, i, _ in side}
+        # Joined: each pair through a point on the middle line, which a left-over end on the
+        # other side may meet (a switch hidden under the bridge).
+        meets = {i: m for side in sides.values() for m, i, _ in side}
+        middle_of: dict[str, str] = {}
+        for a, b in band.pairs:
+            counter += 1
+            m = (meets[a] + meets[b]) / 2
+            at = (
+                band.middle[0] + m * band.along[0],
+                band.middle[1] + m * band.along[1],
+            )
+            node = GNode(f"u{counter}", at, 2)
+            found.nodes[node.id] = node
+            for end in (a, b):
+                found.edges[f"u{counter}{end}"] = GEdge(
+                    f"u{counter}{end}", end, node.id, _between(found.nodes[end].at, at, ppm)
+                )
+                middle_of[end] = node.id
+        for side, own in sides.items():
+            for meet, i, _ in own:
+                if i in used:
+                    continue
+                other = [(abs(meets[j] - meet), j) for _, j, _ in sides[-side] if j in middle_of]
+                near = min(other, default=None)
+                if near is None or near[0] > BAND_HIDDEN_MM * ppm:
+                    continue
+                band.left.append(i)
+                if answers.get(f"B{index + 1}") == "slutar":
+                    continue
+                hidden = middle_of[near[1]]
+                found.edges[f"{hidden}{i}"] = GEdge(
+                    f"{hidden}{i}",
+                    i,
+                    hidden,
+                    _between(found.nodes[i].at, found.nodes[hidden].at, ppm),
+                )
+                band.hidden.append(hidden)
+                used.add(i)
+        band.kept = True
+    for name in list(found.nodes):
+        if name in found.nodes and found.degree(name) == 2:
+            _join(found, name)
+    for gn in found.nodes.values():
+        gn.ends = found.degree(gn.id)
+
+
 def bridge(found: Graph, ppm: float) -> None:
     """A track hidden for a stretch (under a bridge drawn over it, or where the pen lifted)
     goes on: two ends that face each other across a gap of at most HIDDEN_MM are joined; an
@@ -476,7 +979,7 @@ def bridge(found: Graph, ppm: float) -> None:
             continue
         counter += 1
         a, b = found.nodes[a_id], found.nodes[b_id]
-        found.edges[f"h{counter}"] = GEdge(f"h{counter}", a_id, b_id, [a.at, b.at])
+        found.edges[f"h{counter}"] = GEdge(f"h{counter}", a_id, b_id, _between(a.at, b.at, ppm))
         done |= {a_id, b_id}
         a.ends = b.ends = 2
     for n in ends:
@@ -494,13 +997,23 @@ def bridge(found: Graph, ppm: float) -> None:
         del found.edges[edge.id]
         found.edges[first.id] = first
         found.edges[second.id] = second
-        found.edges[f"h{counter}"] = GEdge(f"h{counter}", n.id, node.id, [n.at, point])
+        found.edges[f"h{counter}"] = GEdge(f"h{counter}", n.id, node.id, _between(n.at, point, ppm))
         done.add(n.id)
     for name in list(found.nodes):
         if name in found.nodes and found.degree(name) == 2:
             _join(found, name)
     for gn in found.nodes.values():
         gn.ends = found.degree(gn.id)
+
+
+def _between(a: Point, b: Point, ppm: float) -> list[Point]:
+    """The hidden stretch from a to b as points every 2 mm, so that a track hidden there too
+    can be found meeting it (part c5)."""
+    count = max(2, math.ceil(math.dist(a, b) / (2.0 * ppm)) + 1)
+    return [
+        (a[0] + (b[0] - a[0]) * k / (count - 1), a[1] + (b[1] - a[1]) * k / (count - 1))
+        for k in range(count)
+    ]
 
 
 def _ray_hit(found: Graph, node: GNode, out: float, ppm: float) -> tuple[GEdge, int, Point] | None:
@@ -519,6 +1032,147 @@ def _ray_hit(found: Graph, node: GNode, out: float, ppm: float) -> tuple[GEdge, 
             if abs(-dx * uy + dy * ux) <= 2.0 * ppm and (best is None or along < best[0]):
                 best = (along, edge, i, p)
     return None if best is None else (best[1], best[2], best[3])
+
+
+HAIRPIN_TURN = 120.0
+"""A piece of ink whose thinned middle turns back by more than this many degrees, with both
+ways close together, is two tracks whose ink ran together where they meet (part c5)."""
+HAIRPIN_SPAN_MM = 60.0
+"""Both ways of a hairpin are followed this far from its tip, mm."""
+HAIRPIN_STUB_MM = 12.0
+
+
+@dataclass
+class Hairpin:
+    """Where two tracks' ink ran together into a wedge (part c5): its tip, the way the two
+    tracks were going, and the bridge it lies at, if any."""
+
+    tip: Point
+    heading: Point
+    band: int | None
+
+
+def _hairpin_at(pts: Array, along: Array, span: float, stroke: float) -> int | None:
+    """The index where a piece of ink turns back on itself, both ways side by side: the
+    sharpest such turn."""
+    best: tuple[float, int] | None = None
+    for i in range(1, len(pts) - 1):
+        if along[i] < span or along[-1] - along[i] < span:
+            continue
+        back = pts[int(np.searchsorted(along, along[i] - span))]
+        ahead = pts[min(len(pts) - 1, int(np.searchsorted(along, along[i] + span)))]
+        u, w = back - pts[i], ahead - pts[i]
+        nu, nw = float(np.linalg.norm(u)), float(np.linalg.norm(w))
+        if nu < 0.5 * span or nw < 0.5 * span:
+            continue
+        turn = 180.0 - math.degrees(math.acos(max(-1.0, min(1.0, float(u @ w) / (nu * nw)))))
+        gap = float(np.linalg.norm(back - ahead))
+        if (
+            turn >= HAIRPIN_TURN
+            and gap <= 6 * stroke + 0.6 * span
+            and (best is None or turn > best[0])
+        ):
+            best = (turn, i)
+    return None if best is None else best[1]
+
+
+def hairpins(
+    found: Graph,
+    ppm: float,
+    stroke: float,
+    made: list[Band] | None = None,
+    answers: dict[str, str] | None = None,
+) -> list[Hairpin]:
+    """Two tracks that come together into one, whose ink runs together into a wedge (at a
+    bridge drawn over the track, say): the thinning turns back inside the wedge, and the two
+    tracks are one piece from gable to gable (part c5). Read from the wedge's shape, each such
+    piece is cut at the wedge's tip into a switch, with a short third leg on in the way the two
+    tracks were going, which under_bands() or bridge() then joins to the track beyond. Code is
+    not sure of it: it is asked (Kil K1 …, or with its bridge B1 …), and as answered the two
+    are two tracks side by side, each going on its own way (tva-spar, or isar at a bridge), or
+    something else, left as drawn (annat)."""
+    answers = answers or {}
+    span = HAIRPIN_SPAN_MM * ppm
+    found_pins: list[Hairpin] = []
+    cuts: list[tuple[GEdge, int, Point, Array, int, int]] = []
+    for edge in list(found.edges.values()):
+        if edge.a == edge.b or len(edge.points) < 8:
+            continue
+        pts = np.array(edge.points, np.float64)
+        along = np.concatenate([[0.0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
+        if along[-1] < 2.5 * span:
+            continue
+        i = _hairpin_at(pts, along, span, stroke * ppm)
+        if i is None:
+            continue
+        # The tip: the point of the U furthest along the way the two tracks were going.
+        back = pts[int(np.searchsorted(along, along[i] - span))]
+        ahead = pts[min(len(pts) - 1, int(np.searchsorted(along, along[i] + span)))]
+        heading = pts[i] - (back + ahead) / 2
+        heading /= max(float(np.linalg.norm(heading)), 1e-9)
+        window = (along >= along[i] - span) & (along <= along[i] + span)
+        k = int(np.argmax(np.where(window, pts @ heading, -np.inf)))
+        # Where each track's own ink ends, before the thinning turns in the wedge's tip.
+        back_k = int(np.searchsorted(along, along[k] - 1.5 * stroke * ppm))
+        ahead_k = min(len(pts) - 1, int(np.searchsorted(along, along[k] + 1.5 * stroke * ppm)))
+        cuts.append(
+            (edge, k, (float(pts[k, 0]), float(pts[k, 1])), heading, max(1, back_k), ahead_k)
+        )
+    cuts.sort(key=lambda c: (c[2][0], c[2][1]))
+    wedges = 0
+    for n, (edge, k, tip, heading, back_k, ahead_k) in enumerate(cuts):
+        band = _band_at(made or [], tip, (float(heading[0]), float(heading[1])), ppm)
+        pin = Hairpin(tip, (float(heading[0]), float(heading[1])), band)
+        found_pins.append(pin)
+        if band is None:
+            wedges += 1
+            answer = answers.get(f"K{wedges}", "vaxel")
+            if answer == "tva-spar":
+                answer = "isar"
+        else:
+            answer = answers.get(f"B{band + 1}", "grenar")
+        if answer == "annat":
+            continue
+        first_points = [*edge.points[:k], tip]
+        second_points = [tip, *edge.points[k + 1 :]]
+        del found.edges[edge.id]
+        if answer == "isar":
+            # Two tracks side by side: each ends where its own ink does, and goes on its own
+            # way from there.
+            for name, end, points in (
+                ("p", edge.a, list(edge.points[: back_k + 1])),
+                ("q", edge.b, list(edge.points[ahead_k:])[::-1]),
+            ):
+                stub = GNode(f"s{name}{n}{edge.id}", points[-1], 1)
+                found.nodes[stub.id] = stub
+                found.edges[f"{edge.id}{name}"] = GEdge(f"{edge.id}{name}", end, stub.id, points)
+            continue
+        node = GNode(f"w{n}{edge.id}", tip, 3)
+        far = HAIRPIN_STUB_MM * ppm
+        stub = GNode(f"s{n}{edge.id}", (tip[0] + heading[0] * far, tip[1] + heading[1] * far), 1)
+        found.nodes[node.id] = node
+        found.nodes[stub.id] = stub
+        found.edges[f"{edge.id}p"] = GEdge(f"{edge.id}p", edge.a, node.id, first_points)
+        found.edges[f"{edge.id}q"] = GEdge(f"{edge.id}q", node.id, edge.b, second_points)
+        found.edges[f"{edge.id}r"] = GEdge(f"{edge.id}r", node.id, stub.id, [tip, stub.at])
+    for gn in found.nodes.values():
+        gn.ends = found.degree(gn.id)
+    return found_pins
+
+
+def _band_at(made: list[Band], tip: Point, heading: Point, ppm: float) -> int | None:
+    """The bridge a wedge's tip lies at, with the two tracks going into it."""
+    for index, band in enumerate(made):
+        along, across = band.offset(tip)
+        if abs(along) > band.length / 2 + BAND_NEAR_MM * ppm:
+            continue
+        if abs(across) > band.width / 2 + BAND_NEAR_MM * ppm:
+            continue
+        normal = (-band.along[1], band.along[0])
+        into = heading[0] * normal[0] + heading[1] * normal[1]
+        if into * (-1 if across < 0 else 1) < -0.3:
+            return index
+    return None
 
 
 def merge_pairs(found: Graph, ppm: float) -> None:
@@ -705,6 +1359,72 @@ class Sketched:
     uncertain: dict[str, Point] = field(default_factory=dict)
     """X1 …: nodes with 4 ends that were two nodes, where code cannot tell a crossing from
     two switches."""
+    asked: dict[str, Asked] = field(default_factory=dict)
+    """B1 …, K1 …: bridges and wedges code is not sure of (part c5)."""
+
+
+BRIDGE_ANSWERS = ("grenar", "slutar", "isar", "vet-inte")
+"""Under a bridge: code's reading (a track parts, or two come together, under it), the end
+left over ends at the bridge, or the two whose ink ran together are two tracks side by side."""
+WEDGE_ANSWERS = ("vaxel", "tva-spar", "annat", "vet-inte")
+
+
+@dataclass
+class Asked:
+    """A part of the sketch code is not sure of (part c5): a bridge drawn over the tracks
+    (bridge: which ends join under it) or a wedge where two tracks' ink ran together (wedge: a
+    switch, two tracks side by side, or something else). Asked of the AI with fixed answers,
+    else of the owner; the sketch is read again as answered."""
+
+    kind: str
+    at: Point
+    """Where, mm."""
+    options: list[str]
+    """The fixed answers that apply here, code's first."""
+    marks: dict[str, Point] = field(default_factory=dict)
+    """The ends at it, marked A, B, C …, mm."""
+    span: float = 260.0
+    """How much of the sketch around it the question shows, mm across."""
+
+    @property
+    def code(self) -> str:
+        return self.options[0]
+
+
+def _asked(made: list[Band], pins: list[Hairpin], found: Graph) -> dict[str, Asked]:
+    """The questions: a bridge where a track parts or two come together under it, or where
+    a wedge lies at it; a wedge elsewhere. In the frame's px as read."""
+    asked: dict[str, Asked] = {}
+    for index, band in enumerate(made):
+        here = [p for p in pins if p.band == index]
+        if not band.kept or not (band.left or here):
+            continue
+        options = ["grenar"]
+        if band.left:
+            options.append("slutar")
+        if here:
+            options.append("isar")
+        options.append("vet-inte")
+        points = [*band.ends.values(), *(p.tip for p in here)]
+        at = (
+            float(np.mean([p[0] for p in points])),
+            float(np.mean([p[1] for p in points])),
+        )
+        # The ends either side, marked in order along the bridge.
+        placed = sorted(
+            (0 if band.offset(point)[1] < 0 else 1, band.offset(point)[0], point)
+            for point in band.ends.values()
+        )
+        marks: dict[str, Point] = {
+            letter: point for letter, (_, _, point) in zip("ABCDEFGHIJ", placed, strict=False)
+        }
+        span = max(260.0, 2.2 * max(math.dist(at, p) for p in points))
+        asked[f"B{index + 1}"] = Asked("bridge", at, options, marks, span)
+    wedges = [p for p in pins if p.band is None]
+    for number, pin in enumerate(wedges, start=1):
+        asked[f"K{number}"] = Asked("wedge", pin.tip, list(WEDGE_ANSWERS))
+    del found
+    return asked
 
 
 def read(
@@ -715,9 +1435,11 @@ def read(
     width_a: float,
     width_b: float,
     offset: float = 0.0,
+    answers: dict[str, str] | None = None,
 ) -> Sketched:
     """The frame (its corners in the sheet's px: A at Kant 1, B at Kant 1, B far, A far) read
-    as a module of the given measures."""
+    as a module of the given measures; the bridges and wedges as answered (part c5: B1, K1 …,
+    by the AI or the owner), else as code reads them."""
     outline = np.array(
         [[0.0, 0.0], [length, offset], [length, offset + width_b], [0.0, width_a]], np.float64
     )
@@ -749,6 +1471,10 @@ def read(
     stroke = _stroke(mask) / ppm
     clean(found, ppm)
     turntables(found, ppm)
+    drawn_over = sorted(bands(image, mask, paper, ppm), key=lambda b: (b.middle[0], b.middle[1]))
+    pins = hairpins(found, ppm, stroke, drawn_over, answers)
+    under_bands(found, drawn_over, ppm, answers, stroke * ppm)
+    asked = _asked(drawn_over, pins, found)
     bridge(found, ppm)
     clean(found, ppm)
     merge_pairs(found, ppm)
@@ -758,6 +1484,12 @@ def read(
         node.parts = [(lo[0] + x / ppm, lo[1] + y / ppm) for x, y in node.parts]
     for edge in found.edges.values():
         edge.points = [(lo[0] + x / ppm, lo[1] + y / ppm) for x, y in edge.points]
+    for question in asked.values():
+        question.at = (lo[0] + question.at[0] / ppm, lo[1] + question.at[1] / ppm)
+        question.marks = {
+            k: (lo[0] + x / ppm, lo[1] + y / ppm) for k, (x, y) in question.marks.items()
+        }
+        question.span /= ppm
     _cut(found, outline, length, offset, width_a, width_b)
     clean(found, 1.0)
     _into_tables(found)
@@ -792,6 +1524,7 @@ def read(
         width_b,
         offset,
         uncertain,
+        asked,
     )
 
 
@@ -896,7 +1629,11 @@ def _back_from_ink(
     if int(finite.sum()) < 20:
         return None
     # From the stem's side, as long as the leg's offset is under INK_D strokes.
-    base = float(np.median(edge[finite & (us <= -0.5 * behind)])) if behind > 0 else 0.0
+    stem_side = finite & (us <= -0.5 * behind)
+    if behind > 0 and not stem_side.any():
+        # No ink behind the parting (a switch hidden under a bridge): nothing to read.
+        return None
+    base = float(np.median(edge[stem_side])) if behind > 0 else 0.0
     top = INK_D[1] * stroke
     over = np.nonzero(finite & (edge - base > top))[0]
     last = int(over[0]) if len(over) else len(us)
@@ -1447,6 +2184,16 @@ def to_json(sketched: Sketched) -> dict[str, Any]:
         "width_b": sketched.width_b,
         "offset": sketched.offset,
         "uncertain": {k: list(v) for k, v in sketched.uncertain.items()},
+        "asked": {
+            k: {
+                "kind": q.kind,
+                "at": list(q.at),
+                "options": q.options,
+                "marks": {m: list(p) for m, p in q.marks.items()},
+                "span": q.span,
+            }
+            for k, q in sketched.asked.items()
+        },
     }
 
 
@@ -1476,4 +2223,14 @@ def from_json(data: dict[str, Any], image: NDArray[Any]) -> Sketched:
         float(data["width_b"]),
         float(data["offset"]),
         {k: (float(v[0]), float(v[1])) for k, v in data["uncertain"].items()},
+        {
+            k: Asked(
+                str(q["kind"]),
+                (float(q["at"][0]), float(q["at"][1])),
+                [str(o) for o in q["options"]],
+                {m: (float(p[0]), float(p[1])) for m, p in q["marks"].items()},
+                float(q["span"]),
+            )
+            for k, q in data.get("asked", {}).items()
+        },
     )

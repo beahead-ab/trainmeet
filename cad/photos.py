@@ -41,7 +41,7 @@ import math
 import threading
 import uuid
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from typing import Any, Final
 from uuid import UUID
@@ -53,9 +53,10 @@ from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
 from cad import curves, geometry, graph, sketches
-from cad.bildkedjan import chain, intake, orient, questions, result
+from cad.bildkedjan import chain, choices, intake, orient, questions, result
+from cad.bildkedjan import corners as corners_
 from cad.bildkedjan.camera import Shape, focal_from_35mm, solve
-from cad.bildkedjan.corners import clockwise
+from cad.bildkedjan.corners import MEASURES_MISFIT, clockwise
 from cad.bildkedjan.rectify import DISPLAY_PPM, MEASURE_PPM
 from cad.bildkedjan.stitch import StitchError
 from cad.db import Database
@@ -92,6 +93,7 @@ from contracts.cad import (
     PhotoLevel,
     PhotoMeasure,
     PhotoOrientation,
+    PhotoOutline,
     PhotoPrice,
     PhotoQuality,
     PhotoQuestion,
@@ -136,6 +138,7 @@ CONSENT_KIND: Final = "ai_photo_consent"
 CONSENT_VERSION: Final = "2026-11-19"
 TRAINMEETS_AI: Final = "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU"
 MAX_TOKENS: Final = 1024
+MAX_CHOICE_TOKENS: Final = 256
 IDLE: Final = 5.0
 """Seconds the queue waits when nothing is waiting."""
 SWEEP_EVERY: Final = timedelta(minutes=10)
@@ -457,7 +460,7 @@ class Photos:
         chain.steady()
         curve = start.kind == "curve" if start.module is None else self._is_curve(who, start.module)
         try:
-            prepared = chain.prepare(taken, curve, self._aspect(who, start))
+            prepared = chain.prepare(taken, curve, self._aspect(who, start), self._bend(who, start))
         except StitchError as error:
             raise _bad(str(error)) from error
         module = self._new_module(who, start, prepared) if start.module is None else start.module
@@ -474,7 +477,10 @@ class Photos:
         start_info = {**start.model_dump(mode="json"), "new_module": start.module is None}
         derived, why = False, _ASK
         known = [Gable.model_validate(g) for g in row["gables"]]
-        if found is not None and any(g.tracks for g in known):
+        misfit = _misfit(found, self._aspect(who, start))
+        if misfit is not None:
+            why = misfit
+        elif found is not None and any(g.tracks for g in known):
             way = self._derived(start_info, row, prepared, corners, kant1, gable_a, known)
             if way is None:
                 why = _SYMMETRIC
@@ -497,14 +503,16 @@ class Photos:
             else _now() + timedelta(days=ORIGINAL_DAYS)
         )
         keep = bool(row.get("keep_original") or start.keep_original)
+        outlines = _outlines(found)
         corners_out = PhotoCorners(
             corners=[(round(float(x), 1), round(float(y), 1)) for x, y in corners],
             kant1=kant1,
             gable_a=gable_a,
             found=found is not None,
-            certain=bool(found.certain) if found is not None else False,
+            certain=bool(found.certain) and not outlines if found is not None else False,
             derived=derived,
-            why=why,
+            why=(f"{choices.CORNER_QUESTION} {why}" if outlines else why),
+            outlines=outlines,
         )
         with self.db.transaction() as conn:
             conn.execute(
@@ -680,6 +688,34 @@ class Photos:
         if isinstance(shape, Straight):
             return chain.aspect_of("straight", shape.width, shape.length)
         return None
+
+    def _bend(self, who: Who, start: PhotoStart) -> corners_.Bend | None:
+        """A curve module's outline: its edges' radii and angle, from the owner's chord and
+        sagitta or the module's radius and angle (part c5)."""
+        if start.module is None:
+            if start.kind != "curve" or not start.chord or not start.sagitta or not start.width:
+                return None
+            try:
+                bend = geometry.from_chord(start.chord, start.sagitta)
+            except ValueError:
+                return None
+            track1 = start.track1 or 0.0
+            edge = bend.radius + track1 if start.edge.value == "outer" else bend.radius - track1
+            return chain.bend_of("curve", start.width, edge, bend.angle, start.edge.value)
+        row, _ = self._module_row(who, start.module, Right.EDIT)
+        shape = SHAPE.validate_python(row["shape"])
+        if not isinstance(shape, Curve):
+            return None
+        gables = [Gable.model_validate(g) for g in row["gables"]]
+        track1 = geometry.track1_of(gables[0].tracks) if gables else 0.0
+        return chain.bend_of(
+            "curve",
+            shape.width,
+            geometry.edge_radius(shape, track1),
+            shape.angle,
+            shape.edge.value,
+            shape.sides.value,
+        )
 
     def _derived(
         self,
@@ -903,6 +939,16 @@ class Photos:
         start = row["start"]
         factor = float((row["result"] or {}).get("preview_factor", 1.0))
         corners = clockwise(np.array(ask.corners, np.float64) / factor)
+        # Code was not sure of the corners and the owner left them as code put them: with AI,
+        # the AI is asked which outline follows the module's edge (part c5).
+        before = (row["result"] or {}).get("corners") or {}
+        suggested = before.get("corners") or []
+        ask_corners = bool(
+            ask.ai
+            and before.get("outlines")
+            and len(suggested) == 4
+            and float(np.abs(corners - clockwise(np.array(suggested, np.float64))).max()) <= 1.0
+        )
         if start.get("profile") == "skiss":
             start = {**start, "length": 1.0}
         gable_a = ask.gable_a if ask.gable_a is not None else chain.default_gable_a(ask.kant1)
@@ -934,7 +980,7 @@ class Photos:
                 "updated_at = now(), result = result || %s WHERE id = %s",
                 (
                     key,
-                    Jsonb({**setup.as_dict(), "ai": ask.ai}),
+                    Jsonb({**setup.as_dict(), "ai": ask.ai, "ask_corners": ask_corners}),
                     who.person,
                     who.name,
                     Jsonb(
@@ -947,6 +993,10 @@ class Photos:
                                 gable_a=gable_a,
                                 found=True,
                                 certain=True,
+                                outlines=[
+                                    PhotoOutline.model_validate(o)
+                                    for o in before.get("outlines", [])
+                                ],
                             ).model_dump(mode="json"),
                             "frame_index": ask.frame,
                         }
@@ -1112,6 +1162,7 @@ class Photos:
         start = job["start"]
         setup_data = dict(job["setup"])
         use_ai = bool(setup_data.pop("ai", False))
+        ask_corners = bool(setup_data.pop("ask_corners", False))
         self._step(job_id, "prepare")
         taken = self._originals(job_id)
         prepared = chain.prepare(
@@ -1120,10 +1171,21 @@ class Photos:
             chain.aspect_of(
                 str(setup_data.get("kind")), setup_data.get("width_a"), setup_data.get("length")
             ),
+            chain.bend_of(
+                str(setup_data.get("kind")),
+                setup_data.get("width_a"),
+                setup_data.get("radius"),
+                setup_data.get("angle"),
+                str(setup_data.get("edge", "outer")),
+                str(setup_data.get("sides", "bent")),
+            ),
         )
         if start.get("focal_35mm") and prepared.focal_35mm is None:
             prepared.focal_35mm = float(start["focal_35mm"])
         setup = chain.Setup.of(setup_data)
+        message: str | None = None
+        if use_ai and ask_corners:
+            setup, message = self._corners_by_ai(job, prepared, setup)
         self._step(job_id, "measure")
         measured = chain.measure(prepared, setup)
         assert measured.image is not None
@@ -1165,7 +1227,6 @@ class Photos:
             )
         crossings = questions.crossing_points(measured.paths, measured.code_pairs())
         reading: questions.AiReading | None = None
-        message: str | None = None
         if use_ai:
             self._step(job_id, "ai")
             try:
@@ -1184,6 +1245,51 @@ class Photos:
         )
 
     # --- AI through ID's meter ----------------------------------------------------------------
+
+    def _corners_by_ai(
+        self, job: dict[str, Any], prepared: chain.Prepared, setup: chain.Setup
+    ) -> tuple[chain.Setup, str | None]:
+        """Vilken kontur följer modulens kant? (part c5) The outlines code found drawn in
+        their colours, the corners enlarged; code refines the one the AI chose. Its own when
+        the AI chose none, or could not be asked."""
+        corners_json = (job["result"] or {}).get("corners") or {}
+        outlines = [
+            clockwise(np.array(o["corners"], np.float64)) for o in corners_json.get("outlines", [])
+        ]
+        if len(outlines) < 2 or setup.corners is None:
+            return setup, None
+        choice = choices.corner_choice(prepared.pixels, outlines)
+        try:
+            chosen = self._ask_choice(job, choice)
+        except Refused as refused:
+            return setup, f"AI:n kunde inte se hörnen: {refused.message} Koden valde konturen."
+        ids = list(choices.COLOURS)
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE photo_job SET result = jsonb_set(result, '{corners,chosen}', %s) "
+                "WHERE id = %s",
+                (Jsonb(chosen), job["id"]),
+            )
+        if chosen == "ingen" or chosen not in ids or ids.index(chosen) >= len(outlines):
+            return setup, (
+                "AI:n såg ingen av konturerna följa modulens kant: kontrollera hörnen."
+                if chosen == "ingen"
+                else None
+            )
+        if chosen == choice.code:
+            return setup, None
+        # Code refines the outline chosen: its sides sharpened where they are.
+        picked = outlines[ids.index(chosen)]
+        refined = corners_.sharpen(corners_._lab(prepared.pixels, 3), picked, 3.0)
+        quad = clockwise(refined.corners if len(refined.sides) == 4 else picked)
+        ordered = [(round(float(x), 1), round(float(y), 1)) for x, y in quad]
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE photo_job SET result = jsonb_set(result, '{corners,corners}', %s) "
+                "WHERE id = %s",
+                (Jsonb([list(p) for p in ordered]), job["id"]),
+            )
+        return replace(setup, corners=tuple(ordered)), None
 
     def _ask_ai(
         self,
@@ -1221,7 +1327,8 @@ class Photos:
             found = questions.understand(str(kept["answer"]), labels, nodes)
             with self.db.transaction() as conn:
                 conn.execute(
-                    "UPDATE photo_job SET ai = %s, model = %s WHERE id = %s",
+                    "UPDATE photo_job SET ai = coalesce(ai, '{}'::jsonb) || %s, model = %s "
+                    "WHERE id = %s",
                     (
                         Jsonb(_reading_json(found, str(kept["model"]))),
                         str(kept["model"]),
@@ -1233,8 +1340,10 @@ class Photos:
         balance = meter.balance(job["person_id"], payer)
         with self.db.transaction() as conn:
             paid = bool(self._row(conn, job["id"])["paid"])
-        # A job already paid for (read again in another frame) asks again at no cost (CAD3).
-        needed = 0 if balance.own_ai or paid else TOKENS_PER_PAGE
+        # A job already paid for (read again in another frame, or a follow-up question) asks
+        # again at no cost (CAD3): the meter holds a picture's price while it reads (it reads no
+        # picture for less), and all of it goes back.
+        needed = 0 if balance.own_ai else TOKENS_PER_PAGE
         if needed > balance.available:
             raise no_tokens(needed, balance.available)
         reservation: TokenReservation | None = None
@@ -1298,8 +1407,8 @@ class Photos:
                 (sheet.checksum, questions.QUESTION_VERSION, answer.model, answer.text),
             )
             conn.execute(
-                "UPDATE photo_job SET ai = %s, model = %s, cost = cost + %s, paid = paid OR %s, "
-                "reservation = NULL WHERE id = %s",
+                "UPDATE photo_job SET ai = coalesce(ai, '{}'::jsonb) || %s, model = %s, "
+                "cost = cost + %s, paid = paid OR %s, reservation = NULL WHERE id = %s",
                 (
                     Jsonb(_reading_json(found, answer.model)),
                     answer.model,
@@ -1309,6 +1418,105 @@ class Photos:
                 ),
             )
         return found
+
+    def _ask_choice(self, job: dict[str, Any], choice: choices.Choice) -> str:
+        """A question with fixed answers where code is not sure (part c5), as a hard question
+        (CAD18): a stored transcript for the same picture and question, or the meter, inside
+        the measuring image's price (the job pays once, the follow-up questions nothing). The
+        answer is kept on the job (ai.choices)."""
+        meter = self.meter
+        if meter is None:
+            raise Refused(503, ProblemCode.UNAVAILABLE, "AI-avläsningen kräver TrainMeet ID.")
+        question = f"{choices.CHOICE_VERSION}:{choice.kind}"
+        with self.db.transaction() as conn:
+            kept = conn.execute(
+                "SELECT answer, model FROM photo_transcript WHERE checksum = %s AND question = %s "
+                "ORDER BY created_at LIMIT 1",
+                (choice.checksum, question),
+            ).fetchone()
+        if kept is not None:
+            # The same question is never asked again: the transcript, at no cost.
+            found = choices.understand(str(kept["answer"]), choice)
+            self._keep_choice(job["id"], choice.key, found, str(kept["model"]), 0, False)
+            return found
+        payer = _payer(job)
+        balance = meter.balance(job["person_id"], payer)
+        with self.db.transaction() as conn:
+            paid = bool(self._row(conn, job["id"])["paid"])
+        # The meter holds a picture's price while it reads; a job already paid for gives it
+        # all back (follow-up questions are included, CAD3).
+        needed = 0 if balance.own_ai else TOKENS_PER_PAGE
+        if needed > balance.available:
+            raise no_tokens(needed, balance.available)
+        reservation: TokenReservation | None = None
+        try:
+            reservation = meter.reserve(
+                TokenReserve(
+                    person=job["person_id"],
+                    owner=payer,
+                    amount=needed,
+                    key=f"cad-fraga-{job['id']}-{choice.checksum[:16]}",
+                    what="Följdfråga om en modul i CAD",
+                )
+            )
+            if reservation.state is not TokenReservationState.HELD:
+                raise failed()
+            answer = meter.read(
+                MeterRead(
+                    reservation=reservation.id,
+                    prompt=choices.prompt(choice),
+                    images=[
+                        MeterImage(
+                            media_type="image/jpeg", data=base64.b64encode(choice.jpeg).decode()
+                        )
+                    ],
+                    max_tokens=MAX_CHOICE_TOKENS,
+                    hold=True,
+                    hard=True,
+                )
+            )
+            found = choices.understand(answer.text, choice)
+            if not 0 <= answer.cost <= reservation.amount:
+                raise choices.Unreadable()
+        except choices.Unreadable:
+            LOGGER.warning("AI-svaret på en följdfråga följde inte formen.")
+            if reservation is not None:
+                self._give_back(reservation.id)
+            raise failed("AI-svaret kunde inte läsas. Inget drogs.") from None
+        except Exception:
+            if reservation is not None:
+                self._give_back(reservation.id)
+            raise
+        cost = 0 if paid else answer.cost
+        try:
+            if cost:
+                meter.draw(reservation.id, cost)
+            else:
+                self._give_back(reservation.id)
+        except Refused:
+            if self._give_back(reservation.id):
+                raise
+        with self.db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO photo_transcript (checksum, question, model, answer) VALUES (%s, "
+                "%s, %s, %s) ON CONFLICT DO NOTHING",
+                (choice.checksum, question, answer.model, answer.text),
+            )
+        self._keep_choice(
+            job["id"], choice.key, found, answer.model, cost, cost > 0 or bool(balance.own_ai)
+        )
+        return found
+
+    def _keep_choice(
+        self, job: UUID, key: str, found: str, model: str, cost: int, paid: bool
+    ) -> None:
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE photo_job SET ai = coalesce(ai, '{}'::jsonb) || jsonb_build_object("
+                "'choices', coalesce(ai->'choices', '{}'::jsonb) || %s), "
+                "model = coalesce(model, %s), cost = cost + %s, paid = paid OR %s WHERE id = %s",
+                (Jsonb({key: found}), model, cost, paid, job),
+            )
 
     def _give_back(self, reservation: UUID) -> bool:
         if self.meter is None:
@@ -1331,7 +1539,7 @@ class Photos:
         message: str | None,
         ai_json: dict[str, Any] | None,
     ) -> None:
-        if reading is None and ai_json is not None:
+        if reading is None and ai_json is not None and "pairs" in ai_json:
             reading = questions.AiReading(
                 {tuple(p) for p in ai_json["pairs"]},
                 dict(ai_json["nodes"]),
@@ -1941,6 +2149,38 @@ class Photos:
         return PhotoLayer(job=found.job, url=found.display_url, grid=found.grid)
 
 
+def _outlines(found: Any) -> list[PhotoOutline]:
+    """The outlines code found when it is not sure (part c5), in the photo's px, in their
+    colours, its own first."""
+    if found is None or not found.outlines:
+        return []
+    names = {"rod": "Röd", "bla": "Blå", "gul": "Gul"}
+    return [
+        PhotoOutline(
+            id=key,  # type: ignore[arg-type]
+            text=names[key],
+            corners=[(round(float(x), 1), round(float(y), 1)) for x, y in quad],
+        )
+        for key, quad in zip(choices.COLOURS, found.outlines, strict=False)
+    ]
+
+
+def _misfit(found: Any, aspect: float | None) -> str | None:
+    """The owner told when the photo and the module's measures do not agree (part c5): the
+    module in the photo is longer or shorter for its width than the measures say."""
+    if found is None or aspect is None or found.seen is None:
+        return None
+    if found.misfit <= MEASURES_MISFIT:
+        return None
+    seen = f"{found.seen:.1f}".replace(".", ",")
+    given = f"{aspect:.1f}".replace(".", ",")
+    return (
+        f"Fotot och modulens mått stämmer inte: i fotot är modulen ungefär {seen} gånger så "
+        f"lång som bred, måtten säger {given}. Kontrollera längden och bredden, eller dra "
+        "hörnen till modulens hörn. Tryck sedan på Kant 1 och på gavel A."
+    )
+
+
 def _on_preview(found: dict[str, Any]) -> PhotoCorners | None:
     """The corners as the browser sees them: in the preview's pixels. They are kept in the
     photo's own (or the mosaic's)."""
@@ -1950,7 +2190,17 @@ def _on_preview(found: dict[str, Any]) -> PhotoCorners | None:
     factor = float(found.get("preview_factor", 1.0))
     return corners.model_copy(
         update={
-            "corners": [(round(x * factor, 1), round(y * factor, 1)) for x, y in corners.corners]
+            "corners": [(round(x * factor, 1), round(y * factor, 1)) for x, y in corners.corners],
+            "outlines": [
+                o.model_copy(
+                    update={
+                        "corners": [
+                            (round(x * factor, 1), round(y * factor, 1)) for x, y in o.corners
+                        ]
+                    }
+                )
+                for o in corners.outlines
+            ],
         }
     )
 

@@ -8,8 +8,10 @@ the station has them, how many of them the chain finds today, and the tolerances
 and where each comes from are in fall.json.
 
 Part c3: where code finds the corners within 1 % of the module's width of the hand-set ones
-(horn_ur_koden), the photo is read with the code's corners, unless fall.json says why not
-(las_med_hand); the hand-set ones stay the truth.
+(horn_ur_koden), the photo is read with the code's corners; the hand-set ones stay the truth.
+Part c5: code finds them on every photo (past a shadow the module casts, a curve's outline by
+its shape), and every photo but one is read with them (las_med_hand, with the reason in the
+case's source).
 A switch's position is what its source means by it (vaxel_lage): the drawn node where the
 diverging arc leaves the straight (AnyRail's), or the blade tips (tungspetsarna, the station
 page's); the median distance is held to vaxel_median_mm.
@@ -122,12 +124,23 @@ def aspect_of(case: dict[str, Any]) -> float | None:
     return chain.aspect_of(case["form"], case.get("bredd"), case.get("langd"))
 
 
+def bend_of(case: dict[str, Any]) -> corners_.Bend | None:
+    """A curve module's outline as CAD knows it: Kant 1's radius, the width and the angle."""
+    if case["form"] != "curve":
+        return None
+    edge = float(case["radie_spar1"]) + float(case["gavel_a_mm"][0])
+    return chain.bend_of("curve", float(case["bredd"]), edge, float(case["vinkel"]))
+
+
 @cache
 def prepared_of(name: str) -> chain.Prepared:
     """The photo taken in, and the corners code finds in it, once."""
     photo, case = BY_NAME[name]
     return chain.prepare(
-        [intake.take(photo.read_bytes())], curve=case["form"] == "curve", aspect=aspect_of(case)
+        [intake.take(photo.read_bytes())],
+        curve=case["form"] == "curve",
+        aspect=aspect_of(case),
+        bend=bend_of(case),
     )
 
 
@@ -316,8 +329,11 @@ def test_the_corners_come_from_code(name: str) -> None:
     )
 
 
-def test_code_finds_the_corners_on_most_photos() -> None:
-    assert sum(bool(c.get("horn_ur_koden")) for _, c in CASES) >= 4
+def test_code_finds_the_corners_on_every_photo() -> None:
+    """Part c5: on every reference photo, and all but one are read with them (the one read
+    with the hand-set ones says why in its source)."""
+    assert all(c.get("horn_ur_koden") for _, c in CASES)
+    assert sum(bool(c.get("las_med_hand")) for _, c in CASES) <= 1
 
 
 @pytest.mark.parametrize("name", CURVES)

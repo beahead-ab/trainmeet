@@ -8065,6 +8065,17 @@ export interface components {
              * @default null
              */
             why: string | null;
+            /**
+             * Outlines
+             * @description Code is not sure (part c5): Vilken kontur följer modulens kant? Its own first. Read with AI, the AI answers when the corners are left as code put them; without, the owner picks one, or drags the corners.
+             */
+            outlines?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoOutline"][];
+            /**
+             * Chosen
+             * @description The outline the AI chose, when it was asked.
+             * @default null
+             */
+            chosen: ("rod" | "bla" | "gul" | "ingen") | null;
         } & {
             [key: string]: unknown;
         };
@@ -8203,6 +8214,24 @@ export interface components {
          */
         "trainmeet.cad-1.photo-job.PhotoLevel": "ok" | "low" | "warn" | "refuse";
         /**
+         * PhotoMark
+         * @description A place marked in a question's picture: a track's end at a bridge, A, B, C …
+         */
+        "trainmeet.cad-1.photo-job.PhotoMark": {
+            /** Label */
+            label: string;
+            /**
+             * At
+             * @description mm, in the module's coordinates.
+             */
+            at: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PhotoMeasure
          * @description Dina mått mot fotot: the owner's measure, or the norm's, against the photo's.
          */
@@ -8232,6 +8261,30 @@ export interface components {
              * @default null
              */
             track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoOutline
+         * @description One of the outlines code found when it is not sure which follows the module's edge
+         *     (part c5): drawn in its colour over the photo, its corners in the preview's pixels.
+         */
+        "trainmeet.cad-1.photo-job.PhotoOutline": {
+            /**
+             * Id
+             * @enum {string}
+             */
+            id: "rod" | "bla" | "gul";
+            /**
+             * Text
+             * @description The colour's name, as the owner sees it.
+             */
+            text: string;
+            /** Corners */
+            corners: [
+                number,
+                number
+            ][];
         } & {
             [key: string]: unknown;
         };
@@ -8334,6 +8387,17 @@ export interface components {
              * @default null
              */
             closeup_ai: string | null;
+            /**
+             * Marks
+             * @description The places the choices name, marked in the picture.
+             */
+            marks?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoMark"][];
+            /**
+             * Span
+             * @description How much of the module around it to show, mm across.
+             * @default null
+             */
+            span: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -8341,7 +8405,7 @@ export interface components {
          * PhotoQuestionKind
          * @enum {string}
          */
-        "trainmeet.cad-1.photo-job.PhotoQuestionKind": "connection" | "node" | "hidden" | "scale" | "gauge" | "switch_fit" | "sleepers" | "curve" | "orientation";
+        "trainmeet.cad-1.photo-job.PhotoQuestionKind": "connection" | "node" | "hidden" | "scale" | "gauge" | "switch_fit" | "sleepers" | "curve" | "orientation" | "bridge" | "wedge";
         /**
          * PhotoSummary
          * @description Spårplanen: what the chain read.
