@@ -22,7 +22,8 @@ lines from the text to what it names. In order:
    its straight leg the one that runs on most nearly from the stem. 4 ends are a crossing, 2 a
    joint, 1 at a gable a gable track and 1 inside an end. Two switches whose nodes the ink has
    merged into one with 4 ends cannot be told from a crossing by code: they are asked (the AI
-   with fixed answers, or the owner).
+   with fixed answers, or the owner), and answered two switches they are drawn as two (part
+   c3). A node with 3 ends in a turntable's pit is the turntable's, not a switch (part c3).
 6. Ren geometri (geometry): each track redrawn as straights and arcs that follow the sketch,
    within ± SKETCH_MM: a sketch is not measured, so every measure is a proposal from the sketch
    until the owner measures or approves (CAD-17).
@@ -30,6 +31,7 @@ lines from the text to what it names. In order:
 
 from __future__ import annotations
 
+import copy
 import itertools
 import math
 from dataclasses import dataclass, field
@@ -254,6 +256,8 @@ class GNode:
     """switch, crossing, end, gable, joint, turntable"""
     merged: list[str] = field(default_factory=list)
     """A crossing made of two nodes with 3 ends: their ids, to split again."""
+    parts: list[Point] = field(default_factory=list)
+    """Where the two nodes with 3 ends were, to split the X again (part c3)."""
     gable: str | None = None
     track: int | None = None
 
@@ -529,7 +533,7 @@ def merge_pairs(found: Graph, ppm: float) -> None:
         if _length(edge.points) / ppm > MERGE_MM and not _crossed(found, edge, ppm):
             continue
         mid = ((a.at[0] + b.at[0]) / 2, (a.at[1] + b.at[1]) / 2)
-        node = GNode(f"m{a.id}{b.id}", mid, 4, merged=[a.id, b.id])
+        node = GNode(f"m{a.id}{b.id}", mid, 4, merged=[a.id, b.id], parts=[a.at, b.at])
         found.nodes[node.id] = node
         del found.edges[edge.id]
         for other in list(found.edges.values()):
@@ -587,6 +591,38 @@ def _radial_ends(found: Graph, ppm: float) -> None:
             if e.b == nid:
                 e.b, e.points = table.id, [*e.points, table.at]
         del found.nodes[nid]
+
+
+TABLE_JOIN_MM = 80.0
+"""Radial tracks drawn into a turntable's pit run together, or are taken for a hidden switch,
+before its middle: a node with 3 ends this near the middle is the pit's, not a switch (part
+c3)."""
+
+
+def _into_tables(found: Graph) -> None:
+    """Nodes with 3 ends in a turntable's pit made part of it: the radial tracks that ran
+    together there end at the turntable."""
+    for table in [n for n in found.nodes.values() if n.kind == "turntable"]:
+        inside = [
+            n
+            for n in found.nodes.values()
+            if n.id != table.id
+            and n.kind != "turntable"
+            and found.degree(n.id) == 3
+            and math.dist(n.at, table.at) <= TABLE_JOIN_MM
+        ]
+        for other in inside:
+            for edge in list(found.at(other.id)):
+                ends = {edge.a, edge.b}
+                if ends == {other.id, table.id} or edge.a == edge.b:
+                    del found.edges[edge.id]
+                    continue
+                if edge.a == other.id:
+                    edge.a, edge.points = table.id, [table.at, *edge.points[1:]]
+                if edge.b == other.id:
+                    edge.b, edge.points = table.id, [*edge.points[:-1], table.at]
+            del found.nodes[other.id]
+        table.ends = found.degree(table.id)
 
 
 def turntables(found: Graph, ppm: float) -> None:
@@ -719,10 +755,12 @@ def read(
     # px to the module's mm.
     for node in found.nodes.values():
         node.at = (lo[0] + node.at[0] / ppm, lo[1] + node.at[1] / ppm)
+        node.parts = [(lo[0] + x / ppm, lo[1] + y / ppm) for x, y in node.parts]
     for edge in found.edges.values():
         edge.points = [(lo[0] + x / ppm, lo[1] + y / ppm) for x, y in edge.points]
     _cut(found, outline, length, offset, width_a, width_b)
     clean(found, 1.0)
+    _into_tables(found)
     uncertain: dict[str, Point] = {}
     k = 0
     for node in sorted(found.nodes.values(), key=lambda n: n.at):
@@ -741,9 +779,10 @@ def read(
             node.kind = "turntable"
         else:
             node.kind = "joint"
+    ink = Ink(mask.astype(np.float32) / 255.0, (float(lo[0]), float(lo[1])), ppm)
     for node in found.nodes.values():
         if node.kind == "switch":
-            _points_back(found, node, stroke)
+            _points_back(found, node, stroke, ink)
     return Sketched(
         found,
         image,
@@ -765,22 +804,157 @@ def _stroke(mask: NDArray[Any]) -> float:
     return float(2 * np.median(values)) if len(values) else float(TRACK_MIN_PX)
 
 
-def _points_back(found: Graph, node: GNode, stroke: float) -> None:
+@dataclass(frozen=True)
+class Ink:
+    """The tracks' ink as read, 0 to 1, in px of the module's mm: its (0, 0) at lo, ppm px per
+    mm."""
+
+    mask: NDArray[Any]
+    lo: tuple[float, float]
+    ppm: float
+
+    def at(self, points: Array) -> Array:
+        px = (points - np.array(self.lo)) * self.ppm
+        flat = px.reshape(-1, 2).astype(np.float32)
+        width = 1024
+        rows = max(1, -(-len(flat) // width))
+        padded = np.zeros((rows * width, 2), np.float32) - 10.0
+        padded[: len(flat)] = flat
+        found = cv2.remap(
+            self.mask,
+            padded[:, 0].reshape(rows, width),
+            padded[:, 1].reshape(rows, width),
+            cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=0.0,
+        )
+        sampled: Array = found.ravel()[: len(flat)].reshape(px.shape[:-1]).astype(np.float64)
+        return sampled
+
+
+INK_BEHIND_MM = 300.0
+"""How far behind where the ink parts the diverging leg's edge is followed, mm."""
+INK_D = (0.15, 1.3)
+"""The leg's offset is fitted up to this many strokes (the second number): where the two strokes
+still overlap, before the thinning bends the ink's middle; it must reach the first."""
+
+
+def _back_from_ink(
+    ink: Ink,
+    at: Point,
+    stem: list[Point],
+    straight: list[Point],
+    diverging: list[Point],
+    stroke: float,
+) -> Parting | None:
+    """How far behind the parting the points lie, from the ink's width across the straight
+    (part c3): where the two strokes overlap the ink is wider by the leg's offset d, so d is
+    read there too, where the thinning cannot tell the legs apart, against the straight's own
+    other edge. d = a·(u - u0)² from the points at u0 on, least squares over u0."""
+    near = [p for p in stem if math.dist(p, at) <= 200.0]
+    near += [p for p in straight if math.dist(p, at) <= 200.0]
+    if len(near) < 5:
+        return None
+    line = np.array(near, np.float64)
+    centre = line.mean(axis=0)
+    _, vectors = np.linalg.eigh((line - centre).T @ (line - centre))
+    t = vectors[:, 1]
+    ahead = np.array(straight[-1], np.float64) - np.array(at, np.float64)
+    if float(t @ ahead) < 0:
+        t = -t
+    n = np.array([-t[1], t[0]])
+    leg = np.array(diverging, np.float64)
+    if float(np.mean((leg - centre) @ n)) < 0:
+        n = -n
+    origin = centre + t * float((np.array(at) - centre) @ t)
+    behind = min(INK_BEHIND_MM, 0.9 * _length(stem))
+    us = np.arange(-behind, 2 * stroke, 1.0)
+    vs = np.arange(-stroke, 2.5 * stroke, 0.25)
+    grid = origin[None, None, :] + us[:, None, None] * t + vs[None, :, None] * n
+    values = ink.at(grid)
+    edges = []
+    for row in values:
+        on = np.nonzero(row >= 0.5)[0]
+        if not len(on):
+            edges.append(np.nan)
+            continue
+        j, i = int(on[-1]), int(on[0])
+        if j + 1 < len(row) and row[j] > row[j + 1]:
+            # Where the ink falls through one half, between the last place on and the next.
+            far = j + (row[j] - 0.5) / (row[j] - row[j + 1])
+        else:
+            far = float(j)
+        if i > 0 and row[i] > row[i - 1]:
+            near_edge = i - (row[i] - 0.5) / (row[i] - row[i - 1])
+        else:
+            near_edge = float(i)
+        # The ink's width across the straight: the leg widens it on its side only, so the
+        # straight's own other edge is the reference wherever the line lies.
+        edges.append(float((far - near_edge) * 0.25))
+    edge = np.array(edges)
+    finite = np.isfinite(edge)
+    if int(finite.sum()) < 20:
+        return None
+    # From the stem's side, as long as the leg's offset is under INK_D strokes.
+    base = float(np.median(edge[finite & (us <= -0.5 * behind)])) if behind > 0 else 0.0
+    top = INK_D[1] * stroke
+    over = np.nonzero(finite & (edge - base > top))[0]
+    last = int(over[0]) if len(over) else len(us)
+    u, d = us[:last][finite[:last]], edge[:last][finite[:last]]
+    if len(u) < 20 or float((d - base).max()) < INK_D[0] * stroke:
+        return None
+    d = d - base
+    # d = a·(u - u0)² + c from u0 on and 0 before it: the leg's arc from the points, and the
+    # step c where the leg's stroke begins (a hand's jog, or the drawing's own px), least
+    # squares for each u0.
+    best: tuple[float, float, float] | None = None
+    for u0 in np.arange(float(u[0]) + 10.0, float(u[-1]) - 10.0, 1.0):
+        q = np.clip(u - u0, 0.0, None) ** 2
+        design = np.stack([q, (u >= u0).astype(np.float64)], axis=1)
+        (a, c), *_ = np.linalg.lstsq(design, d, rcond=None)
+        if a <= 0 or c < -1.0:
+            continue
+        cost = float(np.sum((design @ np.array([a, c]) - d) ** 2))
+        if best is None or cost < best[0]:
+            best = (cost, float(u0), float(a))
+    if best is None:
+        return None
+    _, u0, a = best
+    # The points at u0, behind the parting when u0 < 0.
+    return Parting(max(0.0, -u0), t, n, 1 / (2 * a))
+
+
+def _points_back(found: Graph, node: GNode, stroke: float, ink: Ink | None = None) -> None:
     """A switch's node where its legs' ink parts is not its points: the legs' strokes overlap
     until they lie a stroke apart. Beyond the parting the diverging leg lies d = (s + u)²/2R
     from the straight line through the stem and the straight leg, u along it from the parting
-    and s back to the points: √d is a straight line in u that reaches 0 at u = -s. It is fitted
-    to the diverging leg's ink; when it cannot be, s = 2·w/φ for a leg that leaves at the angle
-    φ (d = s²/2R = w, φ = s/R). The node is moved back along its stem to the points."""
+    and s back to the points: √d is a straight line in u that reaches 0 at u = -s. d is read
+    from how much wider the ink is where the strokes overlap (part c3, _back_from_ink), else
+    fitted to the diverging leg's ink beyond the parting; when neither can be, s = 2·w/φ for a
+    leg that leaves at the angle φ (d = s²/2R = w, φ = s/R). The node is moved back along its
+    stem to the points."""
     found_legs = legs(found, node.id)
     if found_legs is None:
         return
     stem = found.edges[found_legs.stem]
     straight = found.edges[found_legs.straight]
     diverging = found.edges[found_legs.diverging]
-    fitted = _back_from_offsets(
-        node.at, _away(stem, node.id), _away(straight, node.id), _away(diverging, node.id)
+    fitted = (
+        _back_from_ink(
+            ink,
+            node.at,
+            _away(stem, node.id),
+            _away(straight, node.id),
+            _away(diverging, node.id),
+            stroke,
+        )
+        if ink is not None
+        else None
     )
+    if fitted is None:
+        fitted = _back_from_offsets(
+            node.at, _away(stem, node.id), _away(straight, node.id), _away(diverging, node.id)
+        )
     back = fitted.back if fitted is not None else None
     if back is None:
         phi = _turn(
@@ -1091,6 +1265,60 @@ def _fit(points: list[Point], min_radius: float) -> list[Seg]:
     return _split(sampled, min_radius)
 
 
+TWO_SWITCHES = "tva-vaxlar"
+"""The answer (questions.NODE_ANSWERS) that an uncertain X is two switches."""
+
+
+def split_nodes(sketched: Sketched, answers: dict[str, str]) -> list[str]:
+    """The uncertain X's (X1 …) the owner or the AI answered are two switches."""
+    return sorted(name for name in sketched.uncertain if answers.get(name) == TWO_SWITCHES)
+
+
+def _split_x(found: Graph, node: GNode) -> None:
+    """An X that is two switches drawn as the two nodes with 3 ends the ink merged, joined by
+    a piece of their own: each of the four tracks goes to the one on its side (part c3)."""
+    first, second = (np.array(p, np.float64) for p in node.parts)
+    if float(np.linalg.norm(second - first)) < 1.0:
+        return
+    middle, axis = (first + second) / 2, second - first
+    nodes = [
+        GNode(f"{node.id}a", (float(first[0]), float(first[1])), 3, "switch"),
+        GNode(f"{node.id}b", (float(second[0]), float(second[1])), 3, "switch"),
+    ]
+    for edge in found.at(node.id):
+        away = _away(edge, node.id)
+        ahead = next((p for p in away if math.dist(p, node.at) >= HEADING_MM), away[-1])
+        own = nodes[1] if float((np.array(ahead) - middle) @ axis) > 0 else nodes[0]
+        if edge.a == node.id:
+            edge.a = own.id
+            edge.points = [own.at, *edge.points[1:]]
+        if edge.b == node.id:
+            edge.b = own.id
+            edge.points = [*edge.points[:-1], own.at]
+    if any(found.degree(n.id) != 2 for n in nodes):
+        # The four tracks do not pair up two and two: left as a crossing.
+        for edge in found.edges.values():
+            for n in nodes:
+                if edge.a == n.id:
+                    edge.a = node.id
+                    edge.points = [node.at, *edge.points[1:]]
+                if edge.b == n.id:
+                    edge.b = node.id
+                    edge.points = [*edge.points[:-1], node.at]
+        return
+    del found.nodes[node.id]
+    for n in nodes:
+        found.nodes[n.id] = n
+    between = [
+        (float(x), float(y))
+        for x, y in np.linspace(np.array(nodes[0].at), np.array(nodes[1].at), 6)
+    ]
+    joining = GEdge(f"{node.id}j", nodes[0].id, nodes[1].id, between)
+    found.edges[joining.id] = joining
+    for n in nodes:
+        n.ends = found.degree(n.id)
+
+
 def drawing(
     sketched: Sketched,
     target: Drawing,
@@ -1099,13 +1327,24 @@ def drawing(
 ) -> tuple[Drawing, list[float]]:
     """The track plan from the sketch, in the module's drawing (with its measures and no
     pieces): each piece redrawn as straights and arcs, a switch at each node with 3 ends, a
-    crossing at each with 4. An uncertain X is drawn as a crossing whatever the answer: when the
-    owner or the AI calls it two switches, the owner draws them in Ritningen (part c2 does not
-    split the node)."""
+    crossing at each with 4. answers: what each uncertain X is (X1 …: questions.NODE_ANSWERS),
+    the owner's or the AI's; an X answered two switches is drawn as the two (part c3), any
+    other as a crossing."""
     found = sketched.graph
+    split = split_nodes(sketched, answers)
+    if split:
+        found = copy.deepcopy(found)
+        for name in split:
+            at = sketched.uncertain[name]
+            node = min(
+                (n for n in found.nodes.values() if n.kind == "crossing" and n.parts),
+                key=lambda n: math.dist(n.at, at),
+                default=None,
+            )
+            if node is not None and math.dist(node.at, at) < 1.0:
+                _split_x(found, node)
     min_radius = switches.limits(target.scale).switch_min_radius
     origin = GraphOrigin(source=GraphSource.SKETCH, certainty=certainty)
-    del answers
     ids: dict[str, str] = {}
     for node in found.nodes.values():
         if node.kind == "gable" and node.gable is not None:
@@ -1171,10 +1410,12 @@ def drawing(
     return target, deviation
 
 
-def counts(sketched: Sketched) -> tuple[int, int]:
-    """Switches and crossings read."""
+def counts(sketched: Sketched, answers: dict[str, str] | None = None) -> tuple[int, int]:
+    """Switches and crossings read: an X answered two switches counts as two (part c3)."""
     nodes = sketched.graph.nodes.values()
-    return sum(n.kind == "switch" for n in nodes), sum(n.kind == "crossing" for n in nodes)
+    split = len(split_nodes(sketched, answers or {}))
+    switches_ = sum(n.kind == "switch" for n in nodes) + 2 * split
+    return switches_, sum(n.kind == "crossing" for n in nodes) - split
 
 
 # --- Kept with the job ------------------------------------------------------------------------
@@ -1184,7 +1425,17 @@ def to_json(sketched: Sketched) -> dict[str, Any]:
     g = sketched.graph
     return {
         "nodes": [
-            [n.id, list(n.at), n.ends, n.kind, n.merged, n.gable, n.track] for n in g.nodes.values()
+            [
+                n.id,
+                list(n.at),
+                n.ends,
+                n.kind,
+                n.merged,
+                n.gable,
+                n.track,
+                [list(p) for p in n.parts],
+            ]
+            for n in g.nodes.values()
         ],
         "edges": [
             [e.id, e.a, e.b, [[round(x, 2), round(y, 2)] for x, y in e.points]]
@@ -1201,9 +1452,17 @@ def to_json(sketched: Sketched) -> dict[str, Any]:
 
 def from_json(data: dict[str, Any], image: NDArray[Any]) -> Sketched:
     g = Graph()
-    for nid, at, ends, kind, merged, gable, track in data["nodes"]:
+    for nid, at, ends, kind, merged, gable, track, *rest in data["nodes"]:
+        parts = [(float(p[0]), float(p[1])) for p in rest[0]] if rest else []
         g.nodes[nid] = GNode(
-            nid, (float(at[0]), float(at[1])), int(ends), kind, list(merged), gable, track
+            nid,
+            (float(at[0]), float(at[1])),
+            int(ends),
+            kind,
+            list(merged),
+            gable=gable,
+            track=track,
+            parts=parts,
         )
     for eid, a, b, points in data["edges"]:
         g.edges[eid] = GEdge(eid, a, b, [(float(x), float(y)) for x, y in points])
