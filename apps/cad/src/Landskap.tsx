@@ -452,7 +452,11 @@ export function LandskapTab({ module, onChanged, client = landscapeApi }: { modu
   const [error, setError] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const version = module.version;
-  const latest = module.latest;
+  // The newest version, as the base of the next change: from the module, and at once from each
+  // answer, so that Godkänn right after Spara does not send the version before (409) while the
+  // module is read again.
+  const [latest, setLatest] = useState(module.latest);
+  useEffect(() => setLatest((known) => Math.max(known, module.latest)), [module.latest]);
 
   const load = useCallback(() => {
     setOps([]);
@@ -478,6 +482,7 @@ export function LandskapTab({ module, onChanged, client = landscapeApi }: { modu
     }, failed);
   };
   const saved = (found: Landscape) => {
+    setLatest((known) => Math.max(known, found.latest));
     setLandscape(found);
     setOps([]);
     setUndone([]);

@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from threading import Event, Timer
-from time import monotonic
+from threading import Event, Thread
+from time import monotonic, sleep
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -72,7 +72,16 @@ def test_phones_and_reports_run_against_a_hub(tmp_path: Path) -> None:
         "Telefon 1",
     )
     stop = Event()
-    Timer(0.5, stop.set).start()
+
+    def enough() -> None:
+        # Two pictures, then stop: on a busy CI runner the first can take more than half a
+        # second, so a fixed half second sometimes gave only one. At most 10 s.
+        deadline = monotonic() + 10.0
+        while monotonic() < deadline and len(tally.seconds.get("telefonens bild", [])) < 2:
+            sleep(0.02)
+        stop.set()
+
+    Thread(target=enough, daemon=True).start()
     belastning.run_client(near, phone, stop, 0.05, "telefonens bild", False)
     assert len(tally.seconds["telefonens bild"]) >= 2 and not tally.errors
     assert "telefonens bild" in report(tally, 1)
