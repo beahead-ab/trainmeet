@@ -2,7 +2,8 @@
 // assemblies and approved modules in TrainMeet CAD, the one the station comes from, and Gör
 // förslaget: Rita's draft from the track graph, everything new or moved yellow until the owner
 // confirms it, with the difference against what the station had. CAD never makes a station; the
-// owner confirms here, and TKL then tells CAD which station uses it.
+// owner confirms here, and TKL then tells CAD which station uses it. The modules' measuring
+// images for Foto come with the proposal (#89 del d4); how many the station keeps is said here.
 import { useCallback, useEffect, useState } from "react";
 import { api, Problem, type CadDiff, type CadImport, type CadSource, type FromCad } from "./api";
 
@@ -40,6 +41,11 @@ export function FromCadView({ fromCad, busy, message, problems, onPropose, onClo
       {link ? (
         <p className="fran-cad-lank">
           Stationen kommer från <strong>{link.name}</strong>, version {link.revision}. {link.registered ? "CAD visar stationen under Används i." : "CAD vet inte om det än; Studio säger till nästa gång CAD svarar."}
+        </p>
+      ) : null}
+      {link && ((link.images ?? []).length || (link.missing ?? []).length) ? (
+        <p className="liten" title={(link.missing ?? []).join("\n") || undefined}>
+          Mätbilder för Foto: {(link.images ?? []).length} av {(link.images ?? []).length + (link.missing ?? []).length} moduler, kvar med stationen. Slå på Mätbilden under i Foto i Ställverket.
         </p>
       ) : null}
       {pending ? (

@@ -11,11 +11,18 @@
 // where parallel tracks lie about 3.4 gauges apart (H0: 16.5 mm gauge, 56 mm apart; 0: 32 and
 // 113). A station without the real geometry has no Foto: it is greyed with the reason (STV-18).
 //
+// Mätbilden under (#89 del d4, CAD8, CAD-33): a station from CAD may show its modules' measuring
+// images, the photos straightened to 1 px per mm, under the tracks, each moved by its matrix from
+// its pixels to the station's mm (the same mm as the real geometry, from the same track graph in
+// CAD) and clipped to its module's board. On a board with a photo Foto leaves out its own grass,
+// trees, platforms, ballast and sleepers, which the photo has; the rails, the states and the
+// trains stay vectors on top. The choice is the station's, off by default.
+//
 // Trains: short and rounded for a passenger train, longer and square for a goods train, which
 // is a train numbered 4000 to 9999; a shunt without a number is only the locomotive (trainmeet-
 // spec docs/tkl-tag-och-tagnummer.md). The number stands on the roof. Kör rolls the train along
 // the route's pieces from the section it was on to the next (STV-06).
-import type { Panel } from "./api";
+import type { ImageUnder, Panel } from "./api";
 import { lengthOf, slice, type Cell, type Drawing, type DrawnSignal, type DrawnSwitch, type DrawnTable, type Filled, type TrackState } from "./stallverk";
 
 export type Pt = [number, number];
@@ -489,14 +496,27 @@ function inside(p: Pt, poly: Pt[]): boolean {
   return yes;
 }
 
+/** Mätbilden under: the gauge of the source's scale, and the photographed boards, which the view
+ * shows whole. */
+export type FotoPhoto = { gauge: number | null; boards: Pt[][] };
+
 /** Everything Foto draws, in the drawing's units: the same logical drawing as every skin, put
- * on the station's real geometry. Null without the real shape. */
-export function fotoScene(panel: Panel, drawn: Drawing, state: Filled): FotoScene | null {
+ * on the station's real geometry. Null without the real shape. With the measuring images under,
+ * the rails are laid at the scale's own gauge, on the photo's, and the view takes in the boards. */
+export function fotoScene(panel: Panel, drawn: Drawing, state: Filled, photo: FotoPhoto | null = null): FotoScene | null {
   if (!hasRealForm(panel) || !panel.real_box) return null;
-  const u = gaugeOf(panel) / FOTO.gauge;
+  const u = (photo?.gauge ?? gaugeOf(panel)) / FOTO.gauge;
   const [bx, by, bw, bh] = panel.real_box;
   const pad = 40 * u;
-  const box: [number, number, number, number] = [bx - pad, by - pad, bw + 2 * pad, bh + 2 * pad];
+  let box: [number, number, number, number] = [bx - pad, by - pad, bw + 2 * pad, bh + 2 * pad];
+  const corners = (photo?.boards ?? []).flat();
+  if (corners.length) {
+    const x0 = Math.min(box[0], ...corners.map((p) => p[0]));
+    const y0 = Math.min(box[1], ...corners.map((p) => p[1]));
+    const x1 = Math.max(box[0] + box[2], ...corners.map((p) => p[0]));
+    const y1 = Math.max(box[1] + box[3], ...corners.map((p) => p[1]));
+    box = [x0, y0, x1 - x0, y1 - y0];
+  }
   const real = new Map(panel.lines.map((l) => [l.piece, (l.real ?? []) as Pt[]]));
   const tracks: FotoTrack[] = drawn.lines.filter((l) => (real.get(l.piece) ?? []).length > 1).map((l) => ({ piece: l.piece, path: real.get(l.piece) as Pt[], state: l.state, route: l.route, line: l.line }));
   const panelSignals = new Map((panel.signals ?? []).map((s) => [s.name, s]));
@@ -539,6 +559,44 @@ export function fotoScene(panel: Panel, drawn: Drawing, state: Filled): FotoScen
   const { platforms, building } = platformsOf(panel, u);
   const trees = treesOf(box, tracks, building ? [...platforms, building] : platforms, u);
   return { box, u, tracks, signals, switches, buffers, points, names, labels, tables, buttons, platforms, building, trees, trains: trainsOf(panel, state) };
+}
+
+// --- Mätbilden under (#89 del d4) -----------------------------------------------------------------
+
+/** SVG's matrix (a, b, c, d, e, f) applied to a point. */
+export function applyMatrix(m: readonly number[], p: Pt): Pt {
+  const [a = 1, b = 0, c = 0, d = 1, e = 0, f = 0] = m;
+  return [a * p[0] + c * p[1] + e, b * p[0] + d * p[1] + f];
+}
+
+/** A measuring image as Foto draws it: its pixels moved by `transform` into the station's mm,
+ * clipped to `clip`, its module's board. */
+export type FotoImage = { key: string; url: string; title: string; width: number; height: number; matrix: number[]; transform: string; clip: Pt[] };
+
+/** The images to draw: none unless the station has them and has chosen to show them. */
+export function imagesOf(under: ImageUnder | null | undefined): FotoImage[] {
+  if (!under?.available || !under.on) return [];
+  return (under.images ?? []).flatMap((i) =>
+    i.url && i.outline.length >= 3
+      ? [{ key: `${i.module}:${i.version}`, url: i.url, title: i.title, width: i.width, height: i.height, matrix: i.matrix, transform: `matrix(${i.matrix.map((v) => Math.round(v * 1e6) / 1e6).join(" ")})`, clip: i.outline as Pt[] }]
+      : [],
+  );
+}
+
+/** Does a point lie on a photographed board? */
+export function onPhoto(images: FotoImage[], p: Pt): boolean {
+  return images.some((i) => inside(p, i.clip));
+}
+
+/** Does a track lie on a photographed board, by its middle? */
+export function trackOnPhoto(images: FotoImage[], path: Pt[]): boolean {
+  return images.length > 0 && path.length > 1 && onPhoto(images, along(path, lengthOf(path) / 2).at);
+}
+
+/** A polygon's middle, by its corners. */
+export function middleOf(poly: Pt[]): Pt {
+  const n = poly.length || 1;
+  return [poly.reduce((s, p) => s + p[0], 0) / n, poly.reduce((s, p) => s + p[1], 0) / n];
 }
 
 /** A point's place in the view, from 0 to 1 across and down: for scrolling to a train. */

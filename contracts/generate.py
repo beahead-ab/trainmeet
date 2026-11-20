@@ -474,6 +474,11 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.landscape-make": cad.LandscapeMake,
     "trainmeet.cad-1.module-export": cad.ModuleExport,
     "trainmeet.cad-1.module-record": cad.ModuleRecord,
+    # Mätbilden i TKL:s Foto (#89 del d4): CAD's measuring images to Studio, kept with the
+    # station in TKL, and the station's choice to draw them under the tracks.
+    "trainmeet.cad-1.studio-images": cad.StudioImages,
+    "trainmeet.tkl-1.image-under": tkl.TklImageUnder,
+    "trainmeet.tkl-1.image-under-choice": tkl.TklImageUnderChoice,
 }
 
 
@@ -2096,6 +2101,17 @@ def tkl_openapi() -> str:
     fc = a + "/studio/fran-cad"
     route("get", fc, "tklFromCad", t + "from-cad")
     route("post", fc + "/{kind}/{source}/forslag", "tklFromCadProposal", t + "cad-import")
+    # Mätbilden under i Foto (#89 del d4): the measuring images kept with the station.
+    mb = a + "/matbilden"
+    route("get", mb, "tklImageUnder", t + "image-under")
+    route("put", mb, "tklChooseImageUnder", t + "image-under", t + "image-under-choice")
+    route("get", mb + "/{module}/{version}", "tklImageUnderImage", None)
+    paths[mb + "/{module}/{version}"]["get"]["responses"] = {
+        "200": {
+            "description": "The measuring image, JPEG at 1 px per mm",
+            "content": {"image/jpeg": {"schema": {"type": "string", "format": "binary"}}},
+        }
+    }
     # Studio, Dela stationen (#87 del b): the parts, kept as a draft until they are used.
     route("get", a + "/studio/dela", "tklParts", t + "dela")
     route("put", a + "/studio/dela", "tklSaveParts", t + "dela", t + "dela-edit")
@@ -2700,6 +2716,14 @@ def cad_openapi() -> str:
         "station-use-ask",
         problems=(401, 404, 422, 503),
     )
+    # Mätbilden i TKL:s Foto (#89 del d4): the modules' measuring images, for Studio.
+    images = a + "/studio/{kind}/{source}/images"
+    route("get", images, "cadStudioImages", "studio-images", problems=read)
+    route("get", images + "/{module}/{version}", "cadStudioImage", "studio-images", problems=read)
+    paths[images + "/{module}/{version}"]["get"]["responses"]["200"] = {
+        "description": "The module's measuring image, JPEG at 1 px per mm.",
+        "content": {cad.STUDIO_IMAGE_TYPE: {"schema": {"type": "string", "format": "binary"}}},
+    }
     # Studio's server calls these with the person's access token for TKL from ID (TKL18).
     for path, methods in paths.items():
         if path.startswith((a + "/drawings", a + "/studio")):

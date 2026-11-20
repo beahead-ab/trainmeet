@@ -15,9 +15,10 @@
 // this browser. Klarering is level 0's, as it is. Fjärrstyrning (#36 del b): the operating form
 // in a bar over the panel, with Lämna till … and Ta tillbaka, and the station row with the
 // automats and the name; while the station is remote-controlled the panel only shows, and the
-// arrows at the main signals say who lays the routes (FR33).
+// arrows at the main signals say who lays the routes (FR33). Mätbilden under in Foto (#89 del d4)
+// is the station's own choice, the same on every screen.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { api, Problem, type AutomatSpec, type Connection, type FunctionAsk, type FunctionShown, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
+import { api, Problem, type AutomatSpec, type Connection, type FunctionAsk, type FunctionShown, type ImageUnder, type InterlockingAnswer, type Interlocking, type Manover, type Outside, type TrackPlan, type View } from "./api";
 import { DriftformBar, Stationsrad } from "./Fjarrstyrning";
 import { arrowsOf, controlled, specsOf } from "./fjarrstation";
 import { Foto, FotoGreyed } from "./Foto";
@@ -70,7 +71,7 @@ type Props = {
   onSend: Send;
   onExit: (section: string, exit: string) => void;
   /** For tests and a second render: the model and the state, without fetching them. */
-  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language; manover?: Manover | null; automats?: AutomatSpec[] };
+  initial?: { plan: TrackPlan | null; state: Interlocking | null; valet?: Valet; refusals?: Said[]; screen?: Screen; language?: Language; manover?: Manover | null; automats?: AutomatSpec[]; under?: ImageUnder | null };
 };
 
 const storage = (): Storage | null => (typeof localStorage === "undefined" ? null : localStorage);
@@ -162,6 +163,25 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, automats 
   const owner = settings.skin === "manover" ? ownerChoices(manover ?? initial?.manover ?? null) : null;
   const skin = skinOf(settings.skin, symbols);
   const fotoReady = hasRealForm(panel);
+  // Mätbilden under (#89 del d4): the station's choice, read when Foto is shown on this screen.
+  const [under, setUnder] = useState<ImageUnder | null>(initial?.under ?? null);
+  const fotoShown = settings.skin === "foto" && fotoReady;
+  useEffect(() => {
+    if (initial || !fotoShown) return;
+    let alive = true;
+    api
+      .imageUnder()
+      .then((found) => alive && setUnder(found))
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [initial, fotoShown]);
+  const chooseUnder = (on: boolean) =>
+    void api
+      .chooseImageUnder(on)
+      .then(setUnder)
+      .catch(() => api.imageUnder().then(setUnder, () => undefined));
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
   const drawn = drawing(panel, state, busyLines(state, snapshot), ends);
   // Fjärrstyrning (#36 del b): while remote-controlled the station's own panel only shows.
@@ -277,6 +297,8 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, automats 
                 onRoute={(route) => setValet({ ...valet, route, confirm: null })}
                 onButton={button}
                 onTable={turn}
+                under={under}
+                onUnder={initial ? undefined : chooseUnder}
               />
             ) : (
               <FotoGreyed say={say} height={panelHeight} />

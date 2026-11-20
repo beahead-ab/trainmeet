@@ -2680,3 +2680,81 @@ class StationUseAsk(Contract):
     station_id: Id
     name: Text = Field(max_length=80)
     revision: int = Field(ge=1)
+
+
+# --- Mätbilden i TKL:s Foto (#89 del d4, CAD-13, CAD-33) ---------------------------------
+#
+# The modules' measuring images, for the station Studio made from an assembly or a module, so
+# that TKL's Foto can draw them under the tracks (CAD8: "mätbilden kan väljas som bakgrund i
+# Foto-skalet"). TKL asks with the person's access token from ID, as for the graph:
+#
+#   GET /api/cad/1/studio/{kind}/{source}/images                     StudioImages
+#   GET /api/cad/1/studio/{kind}/{source}/images/{module}/{version}  the image, image/jpeg
+#
+# The image is the measuring image's display copy, JPEG at 1 px per mm (a quarter of the 2 px
+# per mm measuring image's pixels, and sharp enough for a whole station); CAD keeps it already
+# and sends it as it is.
+
+STUDIO_IMAGE_TYPE: Final = "image/jpeg"
+
+Matrix = Annotated[list[float], Field(min_length=6, max_length=6)]
+"""SVG's matrix (a, b, c, d, e, f): x' = a x + c y + e, y' = b x + d y + f."""
+
+
+class StudioImageFrame(Contract):
+    """Where a measuring image lies in its module: its size in pixels, the mm per pixel across
+    and down, where the module's origin (gable A at Kant 1) is in the image, and all of it as
+    matrix, from the image's pixels ((0, 0) its top left corner, y down) to the module's mm. A
+    photo read with another Kant 1 or gable A is mirrored or turned by the matrix too
+    (PhotoGrid.matrix)."""
+
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+    mm_per_px: tuple[float, float] = Field(description="Across and down.")
+    origin: Point = Field(description="The module's origin in the image's pixels.")
+    matrix: Matrix
+
+
+class StudioImage(Contract):
+    """A module's measuring image in what Studio has, at the version pinned: where the assembly
+    put the module (at and angle, as PlacedModule; a single module lies at the origin), the
+    image's frame, and to_source, the two together: from the image's pixels to the source's mm,
+    which are the track graph's, and so the station's real geometry. Outside outline, the board
+    in the source's mm, the image is margin: Foto clips it there."""
+
+    module: UUID
+    version: int = Field(ge=1)
+    number: str = Field(pattern=r"^M-\d{3,}$")
+    name: Text = Field(max_length=80)
+    job: UUID = Field(description="The photo it came from: a new photo is a new image.")
+    at: Point
+    angle: float
+    frame: StudioImageFrame
+    to_source: Matrix
+    outline: list[Point] = Field(min_length=3)
+    media_type: Literal["image/jpeg"] = "image/jpeg"
+
+
+class StudioImageMissing(Contract):
+    """A module in the source without a measuring image for Foto, and why: Foto draws it as
+    vectors."""
+
+    module: UUID
+    version: int = Field(ge=1)
+    title: Text = Field(description='"M-002 Linje", or "En modul du inte ser".')
+    reason: Text
+
+
+class StudioImages(Contract):
+    """Mätbilderna till Foto (CAD-13, CAD-33): the measuring image of each module in an assembly
+    or a single module Studio has, at the version it pins, for whoever sees the module (CAD-21).
+    A module without one is in missing, with the reason."""
+
+    kind: StudioSourceKind
+    source: UUID
+    revision: int = Field(ge=1, description="The assembly's revision, or the module's version.")
+    gauge: float = Field(
+        gt=0, description="Spårvidden i källans skala, mm: Foto lägger rälsen på fotots."
+    )
+    images: list[StudioImage] = Field(default_factory=list)
+    missing: list[StudioImageMissing] = Field(default_factory=list)

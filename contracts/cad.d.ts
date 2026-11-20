@@ -724,6 +724,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/studio/{kind}/{source}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadStudioImages"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/studio/{kind}/{source}/images/{module}/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadStudioImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10347,6 +10379,149 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.module-record.Scale": "H0" | "N" | "0";
+        /**
+         * StudioImages
+         * @description Mätbilderna till Foto (CAD-13, CAD-33): the measuring image of each module in an assembly
+         *     or a single module Studio has, at the version it pins, for whoever sees the module (CAD-21).
+         *     A module without one is in missing, with the reason.
+         */
+        "trainmeet.cad-1.studio-images": {
+            kind: components["schemas"]["trainmeet.cad-1.studio-images.StudioSourceKind"];
+            /**
+             * Source
+             * Format: uuid
+             */
+            source: string;
+            /**
+             * Revision
+             * @description The assembly's revision, or the module's version.
+             */
+            revision: number;
+            /**
+             * Gauge
+             * @description Spårvidden i källans skala, mm: Foto lägger rälsen på fotots.
+             */
+            gauge: number;
+            /** Images */
+            images?: components["schemas"]["trainmeet.cad-1.studio-images.StudioImage"][];
+            /** Missing */
+            missing?: components["schemas"]["trainmeet.cad-1.studio-images.StudioImageMissing"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioImage
+         * @description A module's measuring image in what Studio has, at the version pinned: where the assembly
+         *     put the module (at and angle, as PlacedModule; a single module lies at the origin), the
+         *     image's frame, and to_source, the two together: from the image's pixels to the source's mm,
+         *     which are the track graph's, and so the station's real geometry. Outside outline, the board
+         *     in the source's mm, the image is margin: Foto clips it there.
+         */
+        "trainmeet.cad-1.studio-images.StudioImage": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /**
+             * Job
+             * Format: uuid
+             * @description The photo it came from: a new photo is a new image.
+             */
+            job: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** Angle */
+            angle: number;
+            frame: components["schemas"]["trainmeet.cad-1.studio-images.StudioImageFrame"];
+            /** To Source */
+            to_source: number[];
+            /** Outline */
+            outline: [
+                number,
+                number
+            ][];
+            /**
+             * Media Type
+             * @default image/jpeg
+             * @constant
+             */
+            media_type: "image/jpeg";
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioImageFrame
+         * @description Where a measuring image lies in its module: its size in pixels, the mm per pixel across
+         *     and down, where the module's origin (gable A at Kant 1) is in the image, and all of it as
+         *     matrix, from the image's pixels ((0, 0) its top left corner, y down) to the module's mm. A
+         *     photo read with another Kant 1 or gable A is mirrored or turned by the matrix too
+         *     (PhotoGrid.matrix).
+         */
+        "trainmeet.cad-1.studio-images.StudioImageFrame": {
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Mm Per Px
+             * @description Across and down.
+             */
+            mm_per_px: [
+                number,
+                number
+            ];
+            /**
+             * Origin
+             * @description The module's origin in the image's pixels.
+             */
+            origin: [
+                number,
+                number
+            ];
+            /** Matrix */
+            matrix: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioImageMissing
+         * @description A module in the source without a measuring image for Foto, and why: Foto draws it as
+         *     vectors.
+         */
+        "trainmeet.cad-1.studio-images.StudioImageMissing": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /**
+             * Title
+             * @description "M-002 Linje", or "En modul du inte ser".
+             */
+            title: string;
+            /** Reason */
+            reason: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StudioSourceKind
+         * @description What Studio's Från CAD connects to a station: a group of modules (STUDIO-03).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.studio-images.StudioSourceKind": "assembly" | "module";
     };
     responses: never;
     parameters: never;
@@ -13863,6 +14038,108 @@ export interface operations {
             };
             /** @description CAD säger nej */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadStudioImages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                source: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.studio-images"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadStudioImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kind: string;
+                source: string;
+                module: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The module's measuring image, JPEG at 1 px per mm. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

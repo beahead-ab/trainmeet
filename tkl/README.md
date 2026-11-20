@@ -35,6 +35,12 @@ Den tredje vägen in (STUDIO-01, STUDIO-03, #89 del d2) går till samma TrainMee
 
 *Läs in igen* lägger CAD:s nya spårgraf över det stationen har, efter CAD:s id, som aldrig byts (CAD-20), och visar skillnaden: nya spår, borta och flyttade, gula igen. Ägarens signaler, blockstreck, växelnummer, utfartsnamn och stationsspår på spår med samma id står kvar; det som hängde på ett spår som är borta följer inte med och står i listan. Webbläsarprovet ovan kör Från CAD efter Ladda upp ritning, med en syntetisk anläggning som CAD:s egen kod gör (`python -m cad.assembly_example`).
 
+### Mätbilden under i Foto
+
+För en station från CAD hämtar *Gör förslaget* och *Läs in igen* också modulernas mätbilder ur CAD (#89 del d4, CAD-13, CAD-33): fotot uträtat ovanifrån, JPEG med 1 bildpunkt per mm, och var modulen ligger i anläggningen. Bara bilder vars modulversion eller foto har ändrats hämtas igen. TKL har dem kvar med stationen (`tkl/matbilder.py`), högst 4 MB per bild och 32 MB per station, så att Foto visar dem på en träff utan internet. De följer aldrig med i stationspaketet till molnet; i TKL i molnet läses stationen in igen efter att den öppnats.
+
+I Ställverket har Foto knappen *Mätbilden under*, av från början. Den gäller stationen på alla skärmar och skickar inga order. På: bilderna ligger under spåren, var och en klippt efter sin modul, och rälsen ritas i skalans spårvidd ovanpå fotots. Utan foton är knappen grå och säger varför; en modul utan foto ritas som vektorer. Webbläsarprovet ovan slår på den med syntetiska mätbilder som CAD:s egen kod gör (`python -m cad.matbild_example`).
+
 ## Stream Deck över USB
 
 En lokal TKL sköter sina Stream Deck själv över USB (SD50). Decket fungerar då utan att någon flik är öppen, och i alla webbläsare. TKL letar efter deck var tredje sekund, så ett deck kan kopplas in och ur när som helst. Varje deck känns igen på sitt serienummer och får förvalet för sin modell. I Ställverket står det *Decket sköts av TKL över USB* i rutan Stream Deck.

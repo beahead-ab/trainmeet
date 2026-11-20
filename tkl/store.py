@@ -23,6 +23,12 @@ with its panel plan, problems and all. Taking it into use saves it as the statio
 an import; a new model, imported or taken from a reference station, or none, leaves no draft
 behind.
 
+Från CAD (#89 del d2) keeps the assembly or module the model came from, and the one Rita's draft
+came from. Part d4 keeps the modules' measuring images from CAD with them, so that Foto shows
+them at a meet without internet, and the station's choice to show them (Mätbilden under, off by
+default). An image stays as long as one of the two links shows it; they are TKL's own copy of
+CAD's, never in the station package.
+
 Studio's Dela stationen (#87 del b) keeps the parts as a draft too, until Använd makes them the
 model's (TKL97–TKL103): the stored model with the draft's parts, under the same rules as any
 model, never under set routes or train numbers. A drawing in Rita's draft gets the same parts, so
@@ -206,6 +212,14 @@ CREATE TABLE IF NOT EXISTS rita (
 );
 CREATE TABLE IF NOT EXISTS cad_link (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, body TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS cad_image (
+    slot TEXT NOT NULL REFERENCES station(slot) ON DELETE CASCADE,
+    module TEXT NOT NULL, version INTEGER NOT NULL, job TEXT NOT NULL, data BLOB NOT NULL,
+    PRIMARY KEY (slot, module, version)
+);
+CREATE TABLE IF NOT EXISTS image_under (
+    slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE, chosen INTEGER NOT NULL
 );
 CREATE TABLE IF NOT EXISTS interlocking (
     slot TEXT PRIMARY KEY REFERENCES station(slot) ON DELETE CASCADE,
@@ -645,6 +659,7 @@ class TklStore:
             db.execute("DELETE FROM streamdeck WHERE slot=?", (slot,))
             db.execute("DELETE FROM fjarr WHERE slot=?", (slot,))
             db.execute("DELETE FROM cad_link WHERE slot=?", (slot,))
+            db.execute("DELETE FROM cad_image WHERE slot=?", (slot,))
             db.execute("UPDATE station SET level=0 WHERE slot=?", (slot,))
 
     # --- Rita (#85): the drawing, kept as a draft until it is taken into use ----------------
@@ -700,10 +715,63 @@ class TklStore:
                 "pending": pending.model_dump(mode="json") if pending else None,
             }
         )
+        used = {
+            (str(image.module), image.version)
+            for link in (in_use, pending)
+            if link is not None
+            for image in link.images
+        }
         with self._transaction() as db:
             if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
                 raise NotSetUp()
             db.execute("INSERT OR REPLACE INTO cad_link VALUES (?, ?)", (slot, body))
+            # The measuring images go with the last link that shows them.
+            kept = db.execute("SELECT module, version FROM cad_image WHERE slot=?", (slot,))
+            for module, version in kept.fetchall():
+                if (module, version) not in used:
+                    db.execute(
+                        "DELETE FROM cad_image WHERE slot=? AND module=? AND version=?",
+                        (slot, module, version),
+                    )
+
+    # --- Mätbilden under i Foto (#89 del d4): the images kept with the station --------------
+
+    def cad_images(self, slot: str) -> dict[tuple[str, int], tuple[str, int]]:
+        """The kept images by module and version: the photo each is from, and its size."""
+        with self._transaction() as db:
+            rows = db.execute(
+                "SELECT module, version, job, length(data) FROM cad_image WHERE slot=?", (slot,)
+            ).fetchall()
+        return {(r[0], int(r[1])): (r[2], int(r[3])) for r in rows}
+
+    def keep_cad_image(self, slot: str, module: str, version: int, job: str, data: bytes) -> None:
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                raise NotSetUp()
+            db.execute(
+                "INSERT OR REPLACE INTO cad_image VALUES (?, ?, ?, ?, ?)",
+                (slot, module, version, job, data),
+            )
+
+    def cad_image(self, slot: str, module: str, version: int) -> bytes | None:
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT data FROM cad_image WHERE slot=? AND module=? AND version=?",
+                (slot, module, version),
+            ).fetchone()
+        return None if row is None else bytes(row[0])
+
+    def image_under(self, slot: str) -> bool:
+        """The station's choice: Mätbilden under in Foto. Off until the owner turns it on."""
+        with self._transaction() as db:
+            row = db.execute("SELECT chosen FROM image_under WHERE slot=?", (slot,)).fetchone()
+        return row is not None and bool(row[0])
+
+    def choose_image_under(self, slot: str, on: bool) -> None:
+        with self._transaction() as db:
+            if db.execute("SELECT 1 FROM station WHERE slot=?", (slot,)).fetchone() is None:
+                raise NotSetUp()
+            db.execute("INSERT OR REPLACE INTO image_under VALUES (?, ?)", (slot, int(on)))
 
     # --- Dela stationen (#87 del b): the parts, kept as a draft until Använd ----------------
 

@@ -1,0 +1,263 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.studio-images.schema.json",
+  "title": "trainmeet.cad-1.studio-images",
+  "$defs": {
+    "StudioImage": {
+      "additionalProperties": true,
+      "description": "A module's measuring image in what Studio has, at the version pinned: where the assembly\nput the module (at and angle, as PlacedModule; a single module lies at the origin), the\nimage's frame, and to_source, the two together: from the image's pixels to the source's mm,\nwhich are the track graph's, and so the station's real geometry. Outside outline, the board\nin the source's mm, the image is margin: Foto clips it there.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "number": {
+          "pattern": "^M-\\d{3,}$",
+          "title": "Number",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "job": {
+          "description": "The photo it came from: a new photo is a new image.",
+          "format": "uuid",
+          "title": "Job",
+          "type": "string"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "angle": {
+          "title": "Angle",
+          "type": "number"
+        },
+        "frame": {
+          "$ref": "#/$defs/StudioImageFrame"
+        },
+        "to_source": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "title": "To Source",
+          "type": "array"
+        },
+        "outline": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 3,
+          "title": "Outline",
+          "type": "array"
+        },
+        "media_type": {
+          "const": "image/jpeg",
+          "default": "image/jpeg",
+          "title": "Media Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "version",
+        "number",
+        "name",
+        "job",
+        "at",
+        "angle",
+        "frame",
+        "to_source",
+        "outline"
+      ],
+      "title": "StudioImage",
+      "type": "object"
+    },
+    "StudioImageFrame": {
+      "additionalProperties": true,
+      "description": "Where a measuring image lies in its module: its size in pixels, the mm per pixel across\nand down, where the module's origin (gable A at Kant 1) is in the image, and all of it as\nmatrix, from the image's pixels ((0, 0) its top left corner, y down) to the module's mm. A\nphoto read with another Kant 1 or gable A is mirrored or turned by the matrix too\n(PhotoGrid.matrix).",
+      "properties": {
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "mm_per_px": {
+          "description": "Across and down.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Mm Per Px",
+          "type": "array"
+        },
+        "origin": {
+          "description": "The module's origin in the image's pixels.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Origin",
+          "type": "array"
+        },
+        "matrix": {
+          "items": {
+            "type": "number"
+          },
+          "maxItems": 6,
+          "minItems": 6,
+          "title": "Matrix",
+          "type": "array"
+        }
+      },
+      "required": [
+        "width",
+        "height",
+        "mm_per_px",
+        "origin",
+        "matrix"
+      ],
+      "title": "StudioImageFrame",
+      "type": "object"
+    },
+    "StudioImageMissing": {
+      "additionalProperties": true,
+      "description": "A module in the source without a measuring image for Foto, and why: Foto draws it as\nvectors.",
+      "properties": {
+        "module": {
+          "format": "uuid",
+          "title": "Module",
+          "type": "string"
+        },
+        "version": {
+          "minimum": 1,
+          "title": "Version",
+          "type": "integer"
+        },
+        "title": {
+          "description": "\"M-002 Linje\", or \"En modul du inte ser\".",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "module",
+        "version",
+        "title",
+        "reason"
+      ],
+      "title": "StudioImageMissing",
+      "type": "object"
+    },
+    "StudioSourceKind": {
+      "description": "What Studio's Från CAD connects to a station: a group of modules (STUDIO-03).",
+      "enum": [
+        "assembly",
+        "module"
+      ],
+      "title": "StudioSourceKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Mätbilderna till Foto (CAD-13, CAD-33): the measuring image of each module in an assembly\nor a single module Studio has, at the version it pins, for whoever sees the module (CAD-21).\nA module without one is in missing, with the reason.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/StudioSourceKind"
+    },
+    "source": {
+      "format": "uuid",
+      "title": "Source",
+      "type": "string"
+    },
+    "revision": {
+      "description": "The assembly's revision, or the module's version.",
+      "minimum": 1,
+      "title": "Revision",
+      "type": "integer"
+    },
+    "gauge": {
+      "description": "Spårvidden i källans skala, mm: Foto lägger rälsen på fotots.",
+      "exclusiveMinimum": 0,
+      "title": "Gauge",
+      "type": "number"
+    },
+    "images": {
+      "items": {
+        "$ref": "#/$defs/StudioImage"
+      },
+      "title": "Images",
+      "type": "array"
+    },
+    "missing": {
+      "items": {
+        "$ref": "#/$defs/StudioImageMissing"
+      },
+      "title": "Missing",
+      "type": "array"
+    }
+  },
+  "required": [
+    "kind",
+    "source",
+    "revision",
+    "gauge"
+  ],
+  "type": "object"
+}

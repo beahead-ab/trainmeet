@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.tkl-1.image-under-choice.schema.json",
+  "title": "trainmeet.tkl-1.image-under-choice",
+  "additionalProperties": true,
+  "description": "The station's choice: Mätbilden under in Foto, or not.",
+  "properties": {
+    "on": {
+      "title": "On",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "on"
+  ],
+  "type": "object"
+}

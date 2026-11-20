@@ -8,7 +8,9 @@ answer is said to the owner in Swedish, as CAD said it.
 
 Från CAD (#89 del d2, STUDIO-03, CAD-15) asks the same CAD the same way: the person's assemblies
 and approved modules, the track graph of the one the owner picks, and, when the owner has taken
-it into use, which station uses it, for CAD's Används i. CAD never makes a station.
+it into use, which station uses it, for CAD's Används i. CAD never makes a station. Part d4 asks
+for the modules' measuring images too, for Foto (CAD-13, CAD-33): the list, and each image as
+JPEG, never larger than the limit TKL gives.
 
 TKL_CAD is CAD's address. Without it, or without a login with ID, the ways in are shut, and Rita
 still works: a local TKL without internet can only Rita (CAD6).
@@ -24,12 +26,14 @@ import httpx
 from pydantic import BaseModel, ValidationError
 
 from contracts.cad import (
+    STUDIO_IMAGE_TYPE,
     DrawingAnswers,
     DrawingJob,
     DrawingReadAsk,
     DrawingStart,
     StationUseAsk,
     StudioGraph,
+    StudioImages,
     StudioSource,
     StudioSourceKind,
     StudioSources,
@@ -150,3 +154,22 @@ class Cad:
         """The station took it into use: CAD's Används i (CAD-15)."""
         answer = self._call("PUT", f"{STUDIO}/{kind.value}/{source}/station", json_body=ask)
         return _read(StudioSource, answer)
+
+    # --- Mätbilden i Foto (#89 del d4) -------------------------------------------------------
+
+    def images(self, kind: StudioSourceKind, source: UUID) -> StudioImages:
+        """Each module's measuring image where the source puts it, and those without one."""
+        return _read(StudioImages, self._call("GET", f"{STUDIO}/{kind.value}/{source}/images"))
+
+    def image(
+        self, kind: StudioSourceKind, source: UUID, module: UUID, version: int, limit: int
+    ) -> bytes:
+        """One module's measuring image as JPEG; CadError 413 when it is larger than limit."""
+        answer = self._call("GET", f"{STUDIO}/{kind.value}/{source}/images/{module}/{version}")
+        if answer.headers.get("content-type", "").split(";")[0].strip() != STUDIO_IMAGE_TYPE:
+            raise CadError(502, UNEXPECTED)
+        if len(answer.content) > limit:
+            raise CadError(413, "Mätbilden är för stor.")
+        if answer.content[:3] != b"\xff\xd8\xff":
+            raise CadError(502, UNEXPECTED)
+        return answer.content

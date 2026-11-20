@@ -86,6 +86,10 @@ export type FromCad = Schemas["trainmeet.tkl-1.from-cad"];
 export type CadImport = Schemas["trainmeet.tkl-1.cad-import"];
 export type CadDiff = CadImport["diff"];
 export type CadSource = NonNullable<FromCad["sources"]>[number];
+// Mätbilden under i Foto (#89 del d4): the modules' measuring images from CAD, kept with the
+// station, and the station's choice to draw them under the tracks.
+export type ImageUnder = Schemas["trainmeet.tkl-1.image-under"];
+export type CadImage = Schemas["trainmeet.tkl-1.image-under.TklCadImage"];
 export type ModelNode = Schemas["trainmeet.tkl-1.drawing.Node"];
 export type NodeType = Schemas["trainmeet.tkl-1.drawing.NodeType"];
 export type Piece = Schemas["trainmeet.tkl-1.drawing.TrackPiece"];
@@ -286,6 +290,9 @@ export const api = {
   // Från CAD (#89 del d2): with the person's login with ID, as Ladda upp ritning.
   fromCad: () => call<FromCad>(`${TKL}/studio/fran-cad`),
   fromCadProposal: (kind: string, source: string) => call<CadImport>(`${TKL}/studio/fran-cad/${kind}/${source}/forslag`, "POST"),
+  // Mätbilden under i Foto (#89 del d4): the station's choice, the same on every screen.
+  imageUnder: () => call<ImageUnder>(`${TKL}/matbilden`),
+  chooseImageUnder: (on: boolean) => call<ImageUnder>(`${TKL}/matbilden`, "PUT", { on }),
   // Dela stationen (#87 del b): the parts are saved as a draft, checks and all, until Använd.
   dela: () => call<Dela>(`${TKL}/studio/dela`),
   saveParts: (parts: StationPart[]) => call<Dela>(`${TKL}/studio/dela`, "PUT", { parts }),
