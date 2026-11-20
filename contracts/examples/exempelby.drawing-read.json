@@ -1,0 +1,1168 @@
+{
+ "job": "5e1c0a4d-7b2f-4c89-9d3e-0c4a1b2c3d4e",
+ "page": 1,
+ "kind": "vector",
+ "graph": {
+  "geometry": "schema",
+  "nodes": [
+   {
+    "id": "n1",
+    "type": "line_exit",
+    "at": [
+     40.0,
+     330.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n2",
+    "type": "line_exit",
+    "at": [
+     40.0,
+     360.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n3",
+    "type": "switch",
+    "at": [
+     120.0,
+     360.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n4",
+    "type": "switch",
+    "at": [
+     150.0,
+     330.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n5",
+    "type": "switch",
+    "at": [
+     220.0,
+     330.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n6",
+    "type": "switch",
+    "at": [
+     540.0,
+     300.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n7",
+    "type": "switch",
+    "at": [
+     650.0,
+     330.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n8",
+    "type": "buffer_stop",
+    "at": [
+     700.0,
+     270.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n9",
+    "type": "line_exit",
+    "at": [
+     800.0,
+     330.0
+    ],
+    "gable": null,
+    "track": null
+   },
+   {
+    "id": "n10",
+    "type": "line_exit",
+    "at": [
+     800.0,
+     360.0
+    ],
+    "gable": null,
+    "track": null
+   }
+  ],
+  "pieces": [
+   {
+    "id": "p1",
+    "start": "n1",
+    "end": "n4",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       40.0,
+       330.0
+      ],
+      "end": [
+       150.0,
+       330.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p2",
+    "start": "n2",
+    "end": "n3",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       40.0,
+       360.0
+      ],
+      "end": [
+       120.0,
+       360.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p3",
+    "start": "n3",
+    "end": "n4",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       120.0,
+       360.0
+      ],
+      "end": [
+       150.0,
+       330.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p4",
+    "start": "n3",
+    "end": "n10",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       120.0,
+       360.0
+      ],
+      "end": [
+       800.0,
+       360.0
+      ]
+     }
+    ],
+    "track": "1",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p5",
+    "start": "n4",
+    "end": "n5",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       150.0,
+       330.0
+      ],
+      "end": [
+       220.0,
+       330.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p6",
+    "start": "n5",
+    "end": "n6",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       220.0,
+       330.0
+      ],
+      "end": [
+       250.0,
+       300.0
+      ]
+     },
+     {
+      "kind": "line",
+      "start": [
+       250.0,
+       300.0
+      ],
+      "end": [
+       540.0,
+       300.0
+      ]
+     }
+    ],
+    "track": "3",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p7",
+    "start": "n5",
+    "end": "n7",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       220.0,
+       330.0
+      ],
+      "end": [
+       650.0,
+       330.0
+      ]
+     }
+    ],
+    "track": "2",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p8",
+    "start": "n6",
+    "end": "n8",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       540.0,
+       300.0
+      ],
+      "end": [
+       570.0,
+       270.0
+      ]
+     },
+     {
+      "kind": "line",
+      "start": [
+       570.0,
+       270.0
+      ],
+      "end": [
+       700.0,
+       270.0
+      ]
+     }
+    ],
+    "track": "4",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p9",
+    "start": "n6",
+    "end": "n7",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       540.0,
+       300.0
+      ],
+      "end": [
+       620.0,
+       300.0
+      ]
+     },
+     {
+      "kind": "line",
+      "start": [
+       620.0,
+       300.0
+      ],
+      "end": [
+       650.0,
+       330.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "p10",
+    "start": "n7",
+    "end": "n9",
+    "segments": [
+     {
+      "kind": "line",
+      "start": [
+       650.0,
+       330.0
+      ],
+      "end": [
+       800.0,
+       330.0
+      ]
+     }
+    ],
+    "track": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   }
+  ],
+  "switches": [
+   {
+    "id": "v1",
+    "node": "n3",
+    "type": "ordinary",
+    "trunk": "p2",
+    "straight": "p4",
+    "diverging": "p3",
+    "radius": null,
+    "angle": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "number": "1",
+    "design": null,
+    "toward": null,
+    "locked": false
+   },
+   {
+    "id": "v2",
+    "node": "n4",
+    "type": "ordinary",
+    "trunk": "p5",
+    "straight": "p1",
+    "diverging": "p3",
+    "radius": null,
+    "angle": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "number": "2",
+    "design": null,
+    "toward": null,
+    "locked": false
+   },
+   {
+    "id": "v3",
+    "node": "n5",
+    "type": "ordinary",
+    "trunk": "p5",
+    "straight": "p7",
+    "diverging": "p6",
+    "radius": null,
+    "angle": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "number": "3",
+    "design": null,
+    "toward": null,
+    "locked": false
+   },
+   {
+    "id": "v4",
+    "node": "n6",
+    "type": "ordinary",
+    "trunk": "p6",
+    "straight": "p9",
+    "diverging": "p8",
+    "radius": null,
+    "angle": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "number": "5",
+    "design": null,
+    "toward": null,
+    "locked": false
+   },
+   {
+    "id": "v5",
+    "node": "n7",
+    "type": "ordinary",
+    "trunk": "p10",
+    "straight": "p7",
+    "diverging": "p9",
+    "radius": null,
+    "angle": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "number": "4",
+    "design": null,
+    "toward": null,
+    "locked": false
+   }
+  ],
+  "labels": [
+   {
+    "id": "t1",
+    "text": "Exempelby signaler och spårledningar",
+    "at": [
+     376.28,
+     117.36
+    ],
+    "ref": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t2",
+    "text": "11 (101)",
+    "at": [
+     238.76,
+     309.36
+    ],
+    "ref": "s1",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t3",
+    "text": "2",
+    "at": [
+     154.5,
+     322.36
+    ],
+    "ref": "n4",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t4",
+    "text": "3",
+    "at": [
+     216.5,
+     322.36
+    ],
+    "ref": "n5",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t5",
+    "text": "1",
+    "at": [
+     112.5,
+     369.36
+    ],
+    "ref": "n3",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t6",
+    "text": "13 (103)",
+    "at": [
+     128.76,
+     381.36
+    ],
+    "ref": "s2",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t7",
+    "text": "15",
+    "at": [
+     227.0,
+     377.36
+    ],
+    "ref": "s3",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t8",
+    "text": "(105)",
+    "at": [
+     232.5,
+     387.36
+    ],
+    "ref": "s3",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t9",
+    "text": "Hdvsi 21 (201)",
+    "at": [
+     313.26,
+     293.36
+    ],
+    "ref": "s4",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t10",
+    "text": "Spår 3",
+    "at": [
+     433.26,
+     294.36
+    ],
+    "ref": "p6",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t11",
+    "text": "5",
+    "at": [
+     534.5,
+     292.36
+    ],
+    "ref": "n6",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t12",
+    "text": "Spår 4",
+    "at": [
+     643.26,
+     264.36
+    ],
+    "ref": "p8",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t13",
+    "text": "Dvsi 22 (202)",
+    "at": [
+     564.76,
+     309.36
+    ],
+    "ref": "s5",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t14",
+    "text": "12 (102)",
+    "at": [
+     684.76,
+     309.36
+    ],
+    "ref": "s6",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t15",
+    "text": "Spår 2",
+    "at": [
+     613.26,
+     324.36
+    ],
+    "ref": "p7",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t16",
+    "text": "4",
+    "at": [
+     654.5,
+     322.36
+    ],
+    "ref": "n7",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t17",
+    "text": "Spår 1",
+    "at": [
+     433.26,
+     354.36
+    ],
+    "ref": "p4",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t18",
+    "text": "14 (104)",
+    "at": [
+     684.76,
+     381.36
+    ],
+    "ref": "s7",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t19",
+    "text": "Teckenförklaring",
+    "at": [
+     653.26,
+     467.36
+    ],
+    "ref": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   },
+   {
+    "id": "t20",
+    "text": "Tågvägsknapp",
+    "at": [
+     679.52,
+     487.36
+    ],
+    "ref": null,
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    },
+    "read_by": "text_layer"
+   }
+  ],
+  "symbols": [
+   {
+    "id": "s1",
+    "kind": "signal",
+    "signal": "hsi",
+    "lamps": 2,
+    "facing": "east",
+    "at": [
+     200.0,
+     330.0
+    ],
+    "piece": "p5",
+    "name": "11",
+    "address": 101,
+    "label": "t2",
+    "shape": "signalfigur",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s2",
+    "kind": "signal",
+    "signal": "hsi",
+    "lamps": 3,
+    "facing": "east",
+    "at": [
+     90.0,
+     360.0
+    ],
+    "piece": "p2",
+    "name": "13",
+    "address": 103,
+    "label": "t6",
+    "shape": "signalfigur",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s3",
+    "kind": "signal",
+    "signal": "hsi",
+    "lamps": 2,
+    "facing": "east",
+    "at": [
+     200.0,
+     360.0
+    ],
+    "piece": "p4",
+    "name": "15",
+    "address": 105,
+    "label": "t7",
+    "shape": "signalfigur",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s4",
+    "kind": "signal",
+    "signal": "hdvsi",
+    "lamps": null,
+    "facing": "west",
+    "at": [
+     280.0,
+     300.0
+    ],
+    "piece": "p6",
+    "name": "21",
+    "address": 201,
+    "label": "t9",
+    "shape": "text",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s5",
+    "kind": "signal",
+    "signal": "dvsi",
+    "lamps": null,
+    "facing": "east",
+    "at": [
+     600.0,
+     300.0
+    ],
+    "piece": "p9",
+    "name": "22",
+    "address": 202,
+    "label": "t13",
+    "shape": "text",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s6",
+    "kind": "signal",
+    "signal": "hsi",
+    "lamps": 2,
+    "facing": "west",
+    "at": [
+     720.0,
+     330.0
+    ],
+    "piece": "p10",
+    "name": "12",
+    "address": 102,
+    "label": "t14",
+    "shape": "signalfigur",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s7",
+    "kind": "signal",
+    "signal": "hsi",
+    "lamps": 2,
+    "facing": "west",
+    "at": [
+     720.0,
+     360.0
+    ],
+    "piece": "p4",
+    "name": "14",
+    "address": 104,
+    "label": "t18",
+    "shape": "signalfigur",
+    "origin": {
+     "source": "drawing",
+     "certainty": "probable"
+    }
+   },
+   {
+    "id": "s8",
+    "kind": "unknown",
+    "signal": null,
+    "lamps": null,
+    "facing": null,
+    "at": [
+     330.0,
+     352.0
+    ],
+    "piece": "p4",
+    "name": null,
+    "address": null,
+    "label": null,
+    "shape": "▲ gröna",
+    "origin": {
+     "source": "drawing",
+     "certainty": "uncertain"
+    }
+   },
+   {
+    "id": "s9",
+    "kind": "unknown",
+    "signal": null,
+    "lamps": null,
+    "facing": null,
+    "at": [
+     480.0,
+     352.0
+    ],
+    "piece": "p4",
+    "name": null,
+    "address": null,
+    "label": null,
+    "shape": "▲ gröna",
+    "origin": {
+     "source": "drawing",
+     "certainty": "uncertain"
+    }
+   },
+   {
+    "id": "s10",
+    "kind": "unknown",
+    "signal": null,
+    "lamps": null,
+    "facing": null,
+    "at": [
+     636.0,
+     487.0
+    ],
+    "piece": null,
+    "name": null,
+    "address": null,
+    "label": null,
+    "shape": "▲ gröna",
+    "origin": {
+     "source": "drawing",
+     "certainty": "uncertain"
+    }
+   }
+  ],
+  "complete": true,
+  "issued": 55
+ },
+ "boundaries": [
+  {
+   "id": "g1",
+   "at": [
+    90.0,
+    360.0
+   ],
+   "piece": "p2",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g2",
+   "at": [
+    200.0,
+    360.0
+   ],
+   "piece": "p4",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g3",
+   "at": [
+    720.0,
+    360.0
+   ],
+   "piece": "p4",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g4",
+   "at": [
+    90.0,
+    330.0
+   ],
+   "piece": "p1",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g5",
+   "at": [
+    200.0,
+    330.0
+   ],
+   "piece": "p5",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g6",
+   "at": [
+    720.0,
+    330.0
+   ],
+   "piece": "p10",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g7",
+   "at": [
+    280.0,
+    300.0
+   ],
+   "piece": "p6",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g8",
+   "at": [
+    600.0,
+    300.0
+   ],
+   "piece": "p9",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  },
+  {
+   "id": "g9",
+   "at": [
+    620.0,
+    270.0
+   ],
+   "piece": "p8",
+   "origin": {
+    "source": "drawing",
+    "certainty": "probable"
+   }
+  }
+ ],
+ "questions": [
+  {
+   "key": "linje.orange-tunna",
+   "kind": "legend",
+   "title": "Vad är de orange linjerna?",
+   "text": "Ritningen har 2 sådana streck. Koden tror att de är något annat.",
+   "choices": [
+    {
+     "id": "spar",
+     "text": "Spår"
+    },
+    {
+     "id": "grans",
+     "text": "Spårledningsgränser"
+    },
+    {
+     "id": "annat",
+     "text": "Något annat: tas inte med"
+    }
+   ],
+   "code": "annat",
+   "answer": null,
+   "sample": "orange linjerna",
+   "count": 2,
+   "at": [
+    300.0,
+    342.0
+   ]
+  },
+  {
+   "key": "symbol.triangle-grona",
+   "kind": "legend",
+   "title": "Vad betyder ▲ i den här ritningen?",
+   "text": "Ritningen har 3 sådana figurer (▲ gröna). Den finns inte i standardställverkets katalog.",
+   "choices": [
+    {
+     "id": "hsi",
+     "text": "Huvudsignal"
+    },
+    {
+     "id": "hdvsi",
+     "text": "Huvuddvärgsignal"
+    },
+    {
+     "id": "dvsi",
+     "text": "Dvärgsignal"
+    },
+    {
+     "id": "stoppbock",
+     "text": "Stoppbock"
+    },
+    {
+     "id": "grans",
+     "text": "Spårledningsgräns"
+    },
+    {
+     "id": "knapp",
+     "text": "Knapp eller lampa på panelen: tas inte med"
+    },
+    {
+     "id": "annat",
+     "text": "Något annat: tas inte med"
+    }
+   ],
+   "code": null,
+   "answer": null,
+   "sample": "▲ gröna",
+   "count": 3,
+   "at": [
+    330.0,
+    352.0
+   ]
+  }
+ ],
+ "underlay": {
+  "url": "/api/cad/1/drawings/5e1c0a4d-7b2f-4c89-9d3e-0c4a1b2c3d4e/underlay",
+  "width": 2400,
+  "height": 1696,
+  "transform": [
+   2.8503562945368173,
+   0.0,
+   0.0,
+   2.8503562945368173,
+   0.0,
+   0.0
+  ]
+ },
+ "summary": {
+  "pieces": 10,
+  "switches": 5,
+  "crossings": 0,
+  "line_exits": 4,
+  "buffer_stops": 1,
+  "signals": 7,
+  "boundaries": 9,
+  "labels": 20,
+  "unknown_symbols": 3
+ },
+ "price": {
+  "tokens": 0,
+  "why": "vector",
+  "text": "Gratis: sidan har ritade linjer och text, som koden läser utan AI."
+ },
+ "cost": 0,
+ "notes": []
+}

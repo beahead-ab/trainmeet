@@ -1,0 +1,59 @@
+{
+  "kalla": "Gårdsjös underlag i ref/gardsjo/underlag i trainmeet-spec (ägarens signalplan och panelskiss, som PDF och som bild). Ritningarna omfattas inte av CAD17, som gäller fotona, så de ligger inte i repot: testet läser dem där de ligger och hoppas över utan dem. Sanningen står i ref/gardsjo/station.json och ref/gardsjo/filer/gardsjo-signaler.csv: 12 växlar (101, 102, 111, 112, 113, 131, 132, 133, 136, 151, 152 i signalplanen, och 171 på förgreningen, som planen inte visar), 22 signaler (20 i planen; 23 och 44 på förgreningen finns inte där), 6 linjeutfarter (Gren finns inte i planen), 2 stoppbockar (spår 31 och 32) och 31 spårledningar. Signalplanens text 43 (226), 24 (225), Spår 31 och Enkelspårslinje är ritad som figurer och inte som text, så koden läser dem inte. Panelskissens trianglar var tågvägsknappar, inte signaler (station.json, learned). signalplan.png läses med PDF:ens textlager som en låtsad AI-avskrift, eftersom provet inte får fråga en riktig AI.",
+  "mapp": "underlag",
+  "signaler_csv": "filer/gardsjo-signaler.csv",
+  "ritningar": [
+    {
+      "fil": "Gardsjo-signaler-och-sparledning.pdf",
+      "vantat": {
+        "vaxlar": 11,
+        "vaxelnummer": ["101", "102", "111", "112", "113", "131", "132", "133", "136", "151", "152"],
+        "korsningar": 0,
+        "linjeutfarter": 5,
+        "stoppbockar": 2,
+        "signaler": 20,
+        "signaler_med_namn": 18,
+        "signaler_ratt": 18,
+        "spargranser": 31,
+        "fragor": [],
+        "spar": ["1", "2", "3", "32", "4"]
+      }
+    },
+    {
+      "fil": "Gardsjo-stallverkspanel.pdf",
+      "vantat": {
+        "vaxlar": 11,
+        "korsningar": 0,
+        "linjeutfarter": 5,
+        "stoppbockar": 2,
+        "signaler": 0,
+        "spargranser": 0,
+        "fragor": ["linje.turkosa-tunna", "symbol.triangle-grona", "symbol.circle-gula", "symbol.rect-gula", "symbol.circle-turkosa", "symbol.circle-roda"],
+        "spar": ["1", "2", "3", "4"]
+      }
+    },
+    {
+      "fil": "signalplan.png",
+      "text_ur": "Gardsjo-signaler-och-sparledning.pdf",
+      "vantat": {
+        "vaxlar": 11,
+        "vaxelnummer": ["101", "102", "111", "112", "113", "131", "132", "133", "136", "151", "152"],
+        "korsningar": 0,
+        "linjeutfarter": 5,
+        "stoppbockar": [2, 6],
+        "signaler": [16, 20],
+        "signaler_med_namn": [15, 18],
+        "signaler_ratt": [11, 18],
+        "spargranser": [28, 31]
+      }
+    },
+    {
+      "fil": "panel.png",
+      "vantat": {
+        "vaxlar": [5, 11],
+        "signaler": 0,
+        "spargranser": 0
+      }
+    }
+  ]
+}

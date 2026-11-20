@@ -90,6 +90,9 @@ CUTS: Final = frozenset({*ENDS, NodeType.BLOCK_BOUNDARY, NodeType.SIGNAL_POINT})
 """Where one track circuit ends and the next begins."""
 POINTS: Final = frozenset({NodeType.BUFFER_STOP, NodeType.STOP_POINT})
 """Named points the engine labels at a track's end."""
+READ: Final = "Förslag ur en uppladdad ritning"
+"""The note on everything Studio proposed from a drawing read by CAD (tkl/studio/ritning.py):
+yellow, assumed, until the owner confirms it (TKL27, RS5)."""
 
 
 # --- The drawing and the model -------------------------------------------------------------
@@ -588,6 +591,32 @@ def _named(text: str, at: int, name: str) -> bool:
     return text.startswith(name, at) and (end == len(text) or text[end] in " .,:;)–")
 
 
+def unconfirmed(model: StationModel) -> int:
+    """How many of the things proposed from an uploaded drawing the owner has not confirmed:
+    a station is never made from a drawing without the owner's yes (TKL27, CAD6)."""
+    items: list[Any] = [
+        *model.pieces,
+        *model.switches,
+        *model.signals,
+        *model.line_exits,
+    ]
+    return sum(
+        1
+        for item in items
+        if item.origin is not None and item.origin.note == READ and not item.origin.confirmed
+    )
+
+
+def unconfirmed_problems(model: StationModel) -> list[str]:
+    left = unconfirmed(model)
+    if not left:
+        return []
+    return [
+        f"{left} {'sak' if left == 1 else 'saker'} ur den uppladdade ritningen är inte "
+        "bekräftade. Bekräfta dem en och en, eller alla med Bekräfta förslaget."
+    ]
+
+
 def findings(
     model: StationModel, loose: Sequence[str], plan: PanelPlan | None = None
 ) -> list[TklFinding]:
@@ -619,6 +648,7 @@ def findings(
         if t not in said
     ]
     found += [TklFinding(text=t, problem=False, target=target_of(t, model)) for t in notes]
+    found += [TklFinding(text=t, problem=True) for t in unconfirmed_problems(model)]
     return found
 
 

@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.drawing-read-ask.schema.json",
+  "title": "trainmeet.cad-1.drawing-read-ask",
+  "additionalProperties": true,
+  "description": "Läs ritningen: the page, with AI for a raster page's text or without.",
+  "properties": {
+    "page": {
+      "default": 1,
+      "maximum": 20,
+      "minimum": 1,
+      "title": "Page",
+      "type": "integer"
+    },
+    "ai": {
+      "default": true,
+      "title": "Ai",
+      "type": "boolean"
+    },
+    "consent": {
+      "default": false,
+      "title": "Consent",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

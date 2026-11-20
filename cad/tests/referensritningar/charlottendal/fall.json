@@ -1,0 +1,22 @@
+{
+  "kalla": "Charlottendals ritning CDA-utan-ombyggnad-av-modul-9.pdf och AnyRail-utskriften anyrail.jpg i ref/charlottendal/underlag i trainmeet-spec; de ligger inte i repot (CAD17 gäller fotona), så testet läser dem där de ligger och hoppas över utan dem. PDF:en är en enda bild (en AnyRail-utskrift i 150 dpi), alltså en rastersida (R2), och läses här utan AI. Sanningen i ref/charlottendal/station.json och filer/charlottendal-vaxlar.csv: 57 växlar och 4 korsningar. AnyRail ritar varje spår med två räler och ett rutnät under, så koden ser rälerna som spår och korsningar där rälerna korsar: läsningen är svag och siffrorna här är vad den ger i dag, inte sanningen.",
+  "mapp": "underlag",
+  "ritningar": [
+    {
+      "fil": "CDA-utan-ombyggnad-av-modul-9.pdf",
+      "vantat": {
+        "vaxlar": [40, 60],
+        "korsningar": [10, 30],
+        "signaler": 0
+      }
+    },
+    {
+      "fil": "anyrail.jpg",
+      "vantat": {
+        "vaxlar": [30, 55],
+        "korsningar": [15, 35],
+        "signaler": 0
+      }
+    }
+  ]
+}

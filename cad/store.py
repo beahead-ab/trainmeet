@@ -5,8 +5,8 @@ The files are private. The browser fetches them with signed addresses that expir
 Storage's presigned ones, or, on disk, addresses CAD signs itself with an HMAC and serves at
 FILES_PATH. An address stays the same for half an hour, so the browser can keep the picture.
 
-A key is random, under the owner's id, never guessable: <owner>/<32 hex>.<jpg|png>. Keys and
-secrets are never written to the log.
+A key is random, under the owner's id, never guessable: <owner>/<32 hex>.<jpg|png|pdf|svg>. Keys
+and secrets are never written to the log.
 """
 
 from __future__ import annotations
@@ -35,9 +35,17 @@ LOGGER = logging.getLogger("cad.store")
 LINK_LIFETIME: Final = 3600
 FILES_PATH: Final = "/api/cad/1/photos/file/"
 KEY: Final = re.compile(
-    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{32}\.(?:jpg|png)"
+    r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{32}"
+    r"\.(?:jpg|png|pdf|svg)"
 )
-TYPES: Final = {"jpg": "image/jpeg", "png": "image/png"}
+TYPES: Final = {
+    "jpg": "image/jpeg",
+    "png": "image/png",
+    "pdf": "application/pdf",
+    "svg": "image/svg+xml",
+}
+"""A module photo is a JPEG or a PNG; a station drawing as sent is a PDF or an SVG (part c4),
+kept as it came and never given an address."""
 
 
 class StoreFailed(Exception):

@@ -73,6 +73,13 @@ export type RitaState = Schemas["trainmeet.tkl-1.rita.TklDrawingState"];
 export type Finding = Schemas["trainmeet.tkl-1.rita.TklFinding"];
 export type ObjectRef = Schemas["trainmeet.tkl-1.rita.TklObjectRef"];
 export type Model = Schemas["trainmeet.tkl-1.drawing.StationModel"];
+// Ladda upp ritning (#89 del c4): TrainMeet CAD reads the drawing through TKL, and Förslaget is
+// Rita's draft, everything yellow until the owner confirms it.
+export type Upload = Schemas["trainmeet.tkl-1.upload"];
+export type DrawingJob = Schemas["trainmeet.tkl-1.upload.DrawingJob"];
+export type DrawingRead = Schemas["trainmeet.tkl-1.upload.DrawingRead"];
+export type DrawingPage = Schemas["trainmeet.tkl-1.upload.DrawingPage"];
+export type DrawingQuestion = Schemas["trainmeet.tkl-1.upload.DrawingQuestion"];
 export type ModelNode = Schemas["trainmeet.tkl-1.drawing.Node"];
 export type NodeType = Schemas["trainmeet.tkl-1.drawing.NodeType"];
 export type Piece = Schemas["trainmeet.tkl-1.drawing.TrackPiece"];
@@ -195,10 +202,10 @@ export class Problem extends Error {
   }
 }
 
-export async function call<T>(path: string, method = "GET", body?: unknown, raw?: string): Promise<T> {
+export async function call<T>(path: string, method = "GET", body?: unknown, raw?: string | Blob, rawType = "application/json"): Promise<T> {
   const response = await fetch(path, {
     method,
-    headers: body === undefined && raw === undefined ? {} : { "Content-Type": "application/json" },
+    headers: body === undefined && raw === undefined ? {} : { "Content-Type": raw instanceof Blob ? rawType : "application/json" },
     body: raw ?? (body === undefined ? undefined : JSON.stringify(body)),
     credentials: "same-origin",
     cache: "no-store",
@@ -262,6 +269,14 @@ export const api = {
   saveDrawing: (drawing: Drawing) => call<Rita>(`${TKL}/studio/rita`, "PUT", drawing),
   useDrawing: () => call<Rita>(`${TKL}/studio/rita/use`, "POST"),
   forgetDrawing: () => call<Rita>(`${TKL}/studio/rita`, "DELETE"),
+  // Ladda upp ritning (#89 del c4): the file goes to TrainMeet CAD through TKL, with the person's
+  // login with TrainMeet ID; the price comes before anything is read.
+  upload: () => call<Upload>(`${TKL}/studio/ritning`),
+  uploadDrawing: (file: File) => call<Upload>(`${TKL}/studio/ritning?namn=${encodeURIComponent(file.name)}`, "POST", undefined, file, file.type || "application/octet-stream"),
+  uploadJob: (job: string) => call<Upload>(`${TKL}/studio/ritning/${job}`),
+  readDrawing: (job: string, page: number, ai: boolean, consent: boolean) => call<Upload>(`${TKL}/studio/ritning/${job}/read`, "POST", { page, ai, consent }),
+  answerDrawing: (job: string, key: string, answer: string) => call<Upload>(`${TKL}/studio/ritning/${job}/answers`, "POST", { answers: [{ key, answer }] }),
+  proposal: (job: string) => call<Rita>(`${TKL}/studio/ritning/${job}/forslag`, "POST"),
   // Dela stationen (#87 del b): the parts are saved as a draft, checks and all, until Använd.
   dela: () => call<Dela>(`${TKL}/studio/dela`),
   saveParts: (parts: StationPart[]) => call<Dela>(`${TKL}/studio/dela`, "PUT", { parts }),

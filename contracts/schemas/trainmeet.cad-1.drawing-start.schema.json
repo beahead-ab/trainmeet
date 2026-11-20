@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.drawing-start.schema.json",
+  "title": "trainmeet.cad-1.drawing-start",
+  "additionalProperties": true,
+  "description": "The form's data part.",
+  "properties": {
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The file's name.",
+      "title": "Name"
+    }
+  },
+  "type": "object"
+}

@@ -28,8 +28,9 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from cad import curves, id_login, login, migrate, photos_api, smoothing, store
+from cad import curves, drawings_api, id_login, login, migrate, photos_api, smoothing, store
 from cad.db import Database
+from cad.drawings import Drawings
 from cad.errors import Refused
 from cad.errors import login as login_first
 from cad.id_roles import IdRoles
@@ -70,6 +71,9 @@ from contracts.common import AppKey
 
 LOGGER = logging.getLogger("cad")
 API = "/api/cad/1"
+DRAWING_APPS: Final = frozenset({"tkl"})
+"""The apps whose access tokens from ID may read drawings for a person: Studio in TKL (part
+c4)."""
 
 
 def content_security_policy(photos_origin: str | None = None) -> str:
@@ -160,6 +164,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     )
     photos = Photos(db, photo_store, IdMeter(roles) if roles is not None else None, modules)
     modules.photos = photos
+    # Ladda upp ritning (part c4): Studio's drawings, in the same store, with the same meter.
+    drawings = Drawings(db, photo_store, IdMeter(roles) if roles is not None else None)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -180,15 +186,21 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         )
         stop = threading.Event()
         queue = threading.Thread(target=photos.run, args=(stop,), name="fotokon", daemon=True)
+        drawing_queue = threading.Thread(
+            target=drawings.run, args=(stop,), name="ritningskon", daemon=True
+        )
         if settings.photo_queue:
             queue.start()
+            drawing_queue.start()
         try:
             yield
         finally:
             stop.set()
             photos.wake()
-            if queue.is_alive():
-                queue.join(timeout=10)
+            drawings.wake()
+            for thread in (queue, drawing_queue):
+                if thread.is_alive():
+                    thread.join(timeout=10)
             db.close()
 
     # The interactive API pages load scripts from another site, so they are off. The contracts
@@ -204,6 +216,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.add_middleware(SecurityHeaders, photos_origin=s3.origin if s3 is not None else None)
     app.state.db = db
     app.state.photos = photos
+    app.state.drawings = drawings
 
     @app.exception_handler(Refused)
     def refused(_: Request, error: Refused) -> JSONResponse:
@@ -217,6 +230,24 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         if account is None:
             raise login_first()
         return Who(person=account.id, name=account.name, access=access)
+
+    def drawing_asker(
+        request: Request,
+        account: CadAccount | None = Depends(logged_in),  # noqa: B008
+    ) -> Who:
+        """Studio through TKL, with the person's access token from ID (TKL18); or CAD's own
+        session."""
+        authorization = request.headers.get("authorization")
+        if authorization:
+            found = with_id.app_account(authorization, DRAWING_APPS) if with_id else None
+            if found is None:
+                raise Refused(
+                    401,
+                    ProblemCode.LOGIN,
+                    "TrainMeet ID godtog inte inloggningen. Logga in med TrainMeet ID igen.",
+                )
+            return Who(person=found.id, name=found.name, access=access)
+        return who(account)
 
     app_keys = {key.value for key in AppKey}
 
@@ -438,6 +469,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         return modules.new_profile(asker, body)
 
     app.include_router(photos_api.router(photos, who, disk))
+    app.include_router(drawings_api.router(drawings, drawing_asker))
 
     @app.api_route(
         "/api/{rest:path}",

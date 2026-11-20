@@ -80,7 +80,7 @@ from uuid import UUID
 from pydantic import Field, StringConstraints, model_validator
 
 from contracts.common import AppKey, Contract, Id, Text
-from contracts.station_model import NodeType, Point, SwitchType
+from contracts.station_model import NodeType, Point, SignalType, SwitchType
 
 FORMAT: Final = "trainmeet.cad/1"
 
@@ -200,6 +200,8 @@ class ProblemCode(StrEnum):
     """The person has not said yes to sending the photo to AI yet."""
     BUSY = "busy"
     """A photo is being read already."""
+    BAD_DRAWING = "bad_drawing"
+    """The drawing cannot be taken in: its format, its size or its pages (part c4)."""
 
 
 class CadProblem(Contract):
@@ -528,6 +530,19 @@ CAD_NODE_TYPES: Final = frozenset(
 """The station model's node types CAD draws. Signals, stop points and line exits are Studio's
 (CAD-09); a track at the gable is a module joint until Studio says it is the station's border."""
 
+SCHEMA_NODE_TYPES: Final = frozenset(
+    {
+        NodeType.SWITCH,
+        NodeType.CROSSING,
+        NodeType.BUFFER_STOP,
+        NodeType.LINE_EXIT,
+        NodeType.JOINT,
+    }
+)
+"""The node types of a drawing read for Studio (geometry "schema", bildkedjan R4): switch,
+crossing, buffer stop, line exit, and a joint where a track only bends. A track's end is a
+buffer stop or a line exit, with its certainty; there are no gables in a drawing."""
+
 
 class Certainty(StrEnum):
     """How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4)."""
@@ -552,6 +567,17 @@ class GraphSource(StrEnum):
     ANYRAIL = "anyrail"
     DRAWN = "drawn"
     """Drawn or changed in the drawing (part b)."""
+    DRAWING = "drawing"
+    """Read from a station drawing uploaded in Studio (profile Stationsritning, part c4)."""
+
+
+class ReadBy(StrEnum):
+    """How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+    layer, read by code; OCR; or transcribed by AI from a raster page."""
+
+    TEXT_LAYER = "text_layer"
+    OCR = "ocr"
+    AI = "ai"
 
 
 class GraphOrigin(Contract):
@@ -571,7 +597,7 @@ class GraphNode(Contract):
 
     @model_validator(mode="after")
     def _kind(self) -> Self:
-        if self.type not in CAD_NODE_TYPES:
+        if self.type not in CAD_NODE_TYPES | SCHEMA_NODE_TYPES:
             raise ValueError(f"CAD ritar inte noder av typen {self.type.value}.")
         if (self.type == NodeType.MODULE_JOINT) != (self.gable is not None):
             raise ValueError("En nod i gaveln är en modulskarv, och en modulskarv sitter i gaveln.")
@@ -625,19 +651,60 @@ class GraphSwitch(Contract):
 
 class GraphLabel(Contract):
     """Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
-    (bildkedjan, R4 and point 21). The Text tool writes them."""
+    (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+    point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+    one), and read_by says how the text was read."""
 
     id: Id
     text: Text = Field(max_length=40)
     at: Point
-    ref: Id | None = Field(default=None, description="The piece or switch it names.")
+    ref: Id | None = Field(default=None, description="The piece, switch, node or symbol it names.")
+    origin: GraphOrigin | None = None
+    read_by: ReadBy | None = Field(
+        default=None, description="Textlager, OCR eller AI; null: written in CAD."
+    )
+
+
+class SymbolKind(StrEnum):
+    """What a symbol in a drawing is, classed against the standard interlocking's catalogue
+    (bildkedjan R3, contracts/station_model.py)."""
+
+    SIGNAL = "signal"
+    """A signal of the catalogue's types (SignalType: Hsi, Hdvsi, Dvsi, Fsi, stop lamp)."""
+    BUFFER_STOP = "buffer_stop"
+    UNKNOWN = "unknown"
+    """Not in the catalogue, or not yet answered: a question per symbol type."""
+
+
+class GraphSymbol(Contract):
+    """Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+    the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+    A signal's name and address are those read from its label, when there is one."""
+
+    id: Id
+    kind: SymbolKind
+    signal: SignalType | None = Field(default=None, description="The catalogue's class.")
+    lamps: int | None = Field(default=None, ge=1, le=9, description="Hsi 2, Hsi 4 …")
+    facing: Literal["east", "west"] | None = Field(
+        default=None, description="The way it applies: trains going east or west."
+    )
+    at: Point
+    piece: Id | None = Field(default=None, description="The track it stands by.")
+    name: Text | None = Field(default=None, max_length=20)
+    address: int | None = Field(default=None, ge=0, le=65535)
+    label: Id | None = Field(default=None, description="The label it was named by.")
+    shape: Text | None = Field(
+        default=None, max_length=40, description="What it looks like: signalfigur, ▲, ● …"
+    )
     origin: GraphOrigin | None = None
 
 
 class TrackGraph(Contract):
     """Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
-    real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+    real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+    in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+    and buffer stops at the tracks' ends. The same format goes both ways to Studio.
     complete is false while the tracks between the gables are unknown: a module from measures
     whose gables differ waits for its photo or its drawing."""
 
@@ -646,6 +713,9 @@ class TrackGraph(Contract):
     pieces: list[GraphPiece] = Field(default_factory=list)
     switches: list[GraphSwitch] = Field(default_factory=list)
     labels: list[GraphLabel] = Field(default_factory=list)
+    symbols: list[GraphSymbol] = Field(
+        default_factory=list, description="Symbols read from a drawing (bildkedjan R3, 21)."
+    )
     complete: bool = True
     issued: int = Field(default=0, ge=0, description="Ids issued so far; the next is one more.")
 
@@ -653,9 +723,23 @@ class TrackGraph(Contract):
     def _linked(self) -> Self:
         node_ids = [n.id for n in self.nodes]
         piece_ids = [p.id for p in self.pieces]
-        ids = node_ids + piece_ids + [s.id for s in self.switches] + [x.id for x in self.labels]
+        ids = (
+            node_ids
+            + piece_ids
+            + [s.id for s in self.switches]
+            + [x.id for x in self.labels]
+            + [x.id for x in self.symbols]
+        )
         if len(ids) != len(set(ids)):
             raise ValueError("Två delar av spårgrafen har samma id.")
+        for kind in {n.type for n in self.nodes}:
+            if self.geometry == "mm" and kind not in CAD_NODE_TYPES:
+                raise ValueError(f"En modul har inga noder av typen {kind.value}.")
+            if self.geometry == "schema" and kind not in SCHEMA_NODE_TYPES:
+                raise ValueError(f"En ritning har inga noder av typen {kind.value}.")
+        for symbol in self.symbols:
+            if symbol.piece is not None and symbol.piece not in piece_ids:
+                raise ValueError(f"Symbolen {symbol.id} står vid ett spår som inte finns.")
         nodes = {n.id: n for n in self.nodes}
         for piece in self.pieces:
             ends = ((piece.start, piece.segments[0].start), (piece.end, piece.segments[-1].end))
@@ -1755,6 +1839,212 @@ class StorageUse(Contract):
     used: int = Field(ge=0)
     limit: int = Field(ge=0)
     waiting: int = Field(ge=0, description="Originals kept until approval, not counted.")
+
+
+# --- Ladda upp ritning: the profile Stationsritning (part c4, CAD6, CAD-31) ---------------
+#
+# Studio's Ladda upp ritning sends a signal plan, a panel drawing or a track plan here and gets
+# a ritningsavläsning back (bildkedjan, Stationsritning R1–R4). The chain never makes a station:
+# Studio turns the read into its station model by the standard interlocking, everything a
+# proposal until the owner confirms it (TKL23, TKL27). TKL calls on the person's behalf with
+# the person's own access token from TrainMeet ID (TKL18), as Authorization: Bearer; a browser
+# logged in to CAD may call the same addresses with its session.
+#
+#     POST   /api/cad/1/drawings                    form: data DrawingStart, file one PDF, SVG,
+#                                                   JPEG, PNG or WebP -> DrawingJob, 201; the
+#                                                   same file again is the same job
+#     GET    /api/cad/1/drawings/{job}              DrawingJob
+#     POST   /api/cad/1/drawings/{job}/read         DrawingReadAsk -> DrawingJob
+#     POST   /api/cad/1/drawings/{job}/answers      DrawingAnswers -> DrawingJob
+#     GET    /api/cad/1/drawings/{job}/underlay     the straightened drawing, image/png or jpeg
+#
+# R1: a page with drawn lines and a text layer is read by code, free (as the import's known
+# formats). R2: a raster page (an image, a scanned PDF, a photo of paper) is straightened, its
+# lines found by code and its text transcribed by AI: 12 tokens a page through ID's meter, or
+# nothing with the account's own AI or without AI. The same page again costs nothing.
+
+MAX_DRAWING_PAGES: Final = 20
+"""The most pages of a PDF taken in; one page is read at a time."""
+
+
+class DrawingJobState(StrEnum):
+    WAITING = "waiting"
+    """Taken in: the pages and the price are shown, and the owner starts."""
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+    FAILED = "failed"
+
+
+class DrawingPageKind(StrEnum):
+    VECTOR = "vector"
+    """Drawn lines and a text layer: read by code (R1)."""
+    RASTER = "raster"
+    """Pixels: straightened, lines by code, text by AI (R2)."""
+
+
+class DrawingPage(Contract):
+    number: int = Field(ge=1, le=MAX_DRAWING_PAGES)
+    kind: DrawingPageKind
+    width: float = Field(gt=0, description="In the page's own units: pt, or px for pixels.")
+    height: float = Field(gt=0)
+    text: bool = Field(description="The page has a text layer that code reads.")
+    tokens: int = Field(ge=0, description="What reading it with TrainMeets AI costs.")
+
+
+class DrawingPrice(Contract):
+    """The price before start (CAD-29, bildkedjan Pris): a vector page is free, a raster page
+    12 tokens when TrainMeets AI transcribes its text."""
+
+    tokens: int = Field(ge=0)
+    why: Literal["vector", "first", "same", "own_ai", "no_ai"]
+    text: Text
+
+
+class DrawingAi(Contract):
+    """Whether AI can transcribe a raster page here, what is sent and to whom, and the yes
+    (as the photo's, CAT-142)."""
+
+    available: bool
+    given: bool
+    version: Text
+    sent_to: Text
+    text: Text
+    balance: int | None = None
+    message: Text | None = Field(default=None, description="Why AI cannot be used now.")
+
+
+class DrawingQuestionKind(StrEnum):
+    LEGEND = "legend"
+    """Teckenförklaringen: what a colour of line, or a symbol type, means in this drawing."""
+    END = "end"
+    """A track's end: a buffer stop or a line exit."""
+
+
+class DrawingChoice(Contract):
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+    text: Text = Field(max_length=60)
+
+
+class DrawingQuestion(Contract):
+    """A question from the drawing's read: one per colour of line or symbol type that code
+    cannot place (R3: "Vad betyder ▲ i den här ritningen?"), the legend's first. The code's
+    choice stands until the owner answers; the answer changes the read without reading again,
+    at no cost."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,79}$")]
+    kind: DrawingQuestionKind
+    title: Text
+    text: Text
+    choices: list[DrawingChoice] = Field(min_length=1)
+    code: str | None = Field(default=None, description="The choice the code makes.")
+    answer: str | None = Field(default=None, description="The owner's.")
+    sample: Text | None = Field(default=None, max_length=40, description="▲, ●, a colour …")
+    count: int = Field(ge=0, description="How many there are in the drawing.")
+    at: Point | None = Field(default=None, description="One of them, in the drawing.")
+
+
+class DrawingAnswer(Contract):
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,79}$")]
+    answer: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+
+
+class DrawingAnswers(Contract):
+    answers: list[DrawingAnswer] = Field(min_length=1, max_length=50)
+
+
+class DrawingBoundary(Contract):
+    """Spårledningsgräns where the drawing shows one: a stroke across a track."""
+
+    id: Id
+    at: Point
+    piece: Id | None = Field(default=None, description="The track it crosses.")
+    origin: GraphOrigin
+
+
+class DrawingUnderlay(Contract):
+    """The straightened drawing, for Studio to show under Rita: the image, its size, and the
+    affine transform from the drawing's coordinates to the image's pixels (a, b, c, d, e, f as
+    SVG's matrix)."""
+
+    url: str
+    width: int = Field(gt=0)
+    height: int = Field(gt=0)
+    transform: tuple[float, float, float, float, float, float]
+
+
+class DrawingSummary(Contract):
+    pieces: int = Field(ge=0)
+    switches: int = Field(ge=0)
+    crossings: int = Field(ge=0)
+    line_exits: int = Field(ge=0)
+    buffer_stops: int = Field(ge=0)
+    signals: int = Field(ge=0)
+    boundaries: int = Field(ge=0)
+    labels: int = Field(ge=0)
+    unknown_symbols: int = Field(ge=0)
+
+
+class DrawingRead(Contract):
+    """Ritningsavläsning (bildkedjan R4): what the chain read from one page, for Studio. The
+    track graph is "schema": pieces, nodes and switches in the drawing's coordinates, the labels
+    with the object each names and how it was read, and the symbols with their class. Then the
+    track-circuit boundaries, the questions with the legend's first, the straightened drawing,
+    and the job and its price. Everything is a proposal until the owner confirms it in Studio."""
+
+    job: UUID
+    page: int = Field(ge=1)
+    kind: DrawingPageKind
+    graph: TrackGraph
+    boundaries: list[DrawingBoundary] = Field(default_factory=list)
+    questions: list[DrawingQuestion] = Field(default_factory=list)
+    underlay: DrawingUnderlay | None = None
+    summary: DrawingSummary
+    price: DrawingPrice
+    cost: int = Field(ge=0, description="Tokens drawn for this read.")
+    notes: list[Text] = Field(default_factory=list, description="What else to know, in Swedish.")
+
+    @model_validator(mode="after")
+    def _schema(self) -> Self:
+        if self.graph.geometry != "schema":
+            raise ValueError("En ritningsavläsning har spårgrafen i ritningens koordinater.")
+        return self
+
+
+class DrawingJob(Contract):
+    """One drawing taken in, and its read. The same file, page and input give the same job, at
+    no new cost (bildkedjan, Reproducerbarhet)."""
+
+    id: UUID
+    name: Text = Field(max_length=120, description="The file's name, as the owner gave it.")
+    state: DrawingJobState
+    progress: int = Field(ge=0, le=100)
+    step: Text
+    created_at: datetime
+    format: Literal["pdf", "svg", "image"]
+    pages: list[DrawingPage] = Field(min_length=1, max_length=MAX_DRAWING_PAGES)
+    page: int = Field(ge=1, description="The page read, or to read.")
+    price: DrawingPrice
+    ai: DrawingAi
+    read: DrawingRead | None = None
+    cost: int = Field(ge=0)
+    chain: Text
+    key: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    message: Text | None = Field(default=None, description="Why it stopped, in Swedish.")
+
+
+class DrawingStart(Contract):
+    """The form's data part."""
+
+    name: Text | None = Field(default=None, max_length=120, description="The file's name.")
+
+
+class DrawingReadAsk(Contract):
+    """Läs ritningen: the page, with AI for a raster page's text or without."""
+
+    page: int = Field(default=1, ge=1, le=MAX_DRAWING_PAGES)
+    ai: bool = True
+    consent: bool = False
 
 
 # --- The assembly (part d) ----------------------------------------------------------------

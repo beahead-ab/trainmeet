@@ -16,6 +16,19 @@ TKL:s egen fil (`tkl.sqlite3`) håller i molnet bara det som behövs medan någo
 
 LocoNet, nivå 3, finns bara i en lokal TKL (TKLMOLN-08). En lokal TKL har kvar sin egen station, PIN och *Spara i molnet* under Inställningar, och kan köra samtidigt (TKLMOLN-04). Utan `TKL_ID_ISSUER`, eller utan `TKL_KONTO=on`, har TKL i molnet en station per webbläsare, som före #88. Testmiljön slår på `TKL_KONTO` när TrainMeet ID går att nå där, så att ingen blir utelåst medan ID:s adress och mejlnyckel saknas.
 
+## Ladda upp ritning
+
+I Studio › Rita är *Ladda upp ritning* den andra vägen in (STUDIO-01, STUDIO-03). Ägaren väljer stationens signalplan, panelritning eller spårplan som PDF, SVG eller bild, ser priset, läser den och svarar på frågorna, teckenförklaringen först. TKL:s server skickar ritningen till TrainMeet CAD:s bildkedja med personens egen token från TrainMeet ID (CAD6), och Studio gör ett förslag av CAD:s ritningsavläsning: Ritas utkast med allt gult och panelen som motorn lägger ut. *Använd ritningen* väntar tills ägaren har bekräftat förslaget, en sak i taget eller med *Bekräfta förslaget* (TKL27).
+
+Vägen in kräver `TKL_CAD`, CAD:s adress, och inloggning med TrainMeet ID. Utan dem är den grå och säger varför, och Rita fungerar som vanligt: en lokal TKL utan internet kan bara Rita. Webbläsarprovet `apps/tkl/e2e/ladda-upp.mjs` kör en låtsad ID och en låtsad CAD själv:
+
+```
+PROV_TKL=http://127.0.0.1:8096 PROV_LATSAS=8097 CHROME_PATH=/usr/bin/google-chrome \
+  node apps/tkl/e2e/ladda-upp.mjs
+```
+
+med TKL startad med `TKL_ID_ISSUER=http://127.0.0.1:8097/realms/trainmeet`, `TKL_PUBLIC_URL=http://127.0.0.1:8096` och `TKL_CAD=http://127.0.0.1:8097`.
+
 ## Stream Deck över USB
 
 En lokal TKL sköter sina Stream Deck själv över USB (SD50). Decket fungerar då utan att någon flik är öppen, och i alla webbläsare. TKL letar efter deck var tredje sekund, så ett deck kan kopplas in och ur när som helst. Varje deck känns igen på sitt serienummer och får förvalet för sin modell. I Ställverket står det *Decket sköts av TKL över USB* i rutan Stream Deck.

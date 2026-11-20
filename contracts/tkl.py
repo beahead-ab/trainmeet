@@ -35,6 +35,14 @@ has a model, under /api/tkl/1/studio/rita. The drawing is the station model with
 it is kept as a draft, problems and all, until the owner takes it into use, and then it is the
 station's model like an imported one (STUDIO-02, STUDIO-30).
 
+Ladda upp ritning (#89 del c4), under /api/tkl/1/studio/ritning: TKL sends the drawing to
+TrainMeet CAD's image chain with the person's access token from TrainMeet ID and passes CAD's
+answer on (TklUpload, with contracts.cad.DrawingJob): the pages and the price, the questions with
+the legend first, the answers, and the straightened drawing. Förslaget turns the read into Rita's
+draft by the standard interlocking, everything assumed and yellow until the owner confirms it
+(TKL27); the engine lays out the panel (TKL81). Without CAD's address (TKL_CAD) or a login with ID
+the way in is grey, with the reason, and Rita still works (CAD6).
+
 Studio's Prova (#85 del c), under /api/tkl/1/studio/prova: TKL's simulator runs a train through
 every train route and every shunting route of the station's model, one at a time from a clean
 state, in the background (STUDIO-05, STUDIO-21, STUDIO-27). At level 3 against the pretend
@@ -87,6 +95,7 @@ from typing import Annotated, Final, Literal
 
 from pydantic import Field, StringConstraints, model_validator
 
+from contracts.cad import DrawingJob
 from contracts.common import Contract, Id, Text, TimeOfDay
 from contracts.station import (
     Action,
@@ -675,6 +684,20 @@ class TklRita(Contract):
     )
     routes: dict[RouteKind, int] = Field(description="Vägarna per slag.")
     route_list: list[TklRoute] = Field(default_factory=list)
+
+
+class TklUpload(Contract):
+    """Ladda upp ritning i Studio (#89 del c4, STUDIO-01, STUDIO-03, CAD6): whether the way in is
+    open here and why not, and the drawing being read, as TrainMeet CAD answers it. TKL asks
+    CAD for the person with the person's access token from ID; a local TKL without internet or
+    without a login with ID can only Rita. The underlay comes through TKL, at underlay."""
+
+    available: bool
+    reason: Text | None = Field(default=None, description="Varför vägen in är grå.")
+    job: DrawingJob | None = None
+    underlay: str | None = Field(
+        default=None, description="TKL:s egen adress till den uträtade ritningen."
+    )
 
 
 # --- Manöver: the owner's free panel (STV-46, TKL86) ---------------------------------------

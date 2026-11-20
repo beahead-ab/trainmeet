@@ -353,6 +353,32 @@ jobs:
           done
           node apps/tkl/e2e/rita.mjs
 
+      # Ladda upp ritning (#89 del c4): TKL ur bilden loggar in med en låtsad TrainMeet ID och laddar
+      # upp den syntetiska signalplanen till en låtsad TrainMeet CAD, som svarar med CAD:s egen
+      # avläsning av den (contracts/examples/exempelby.drawing-read.json). Priset, frågorna med
+      # teckenförklaringen först, förslaget gult i Rita, Bekräfta och Använd (apps/tkl/e2e/ladda-upp.mjs).
+      - name: Ladda upp ritning i webbläsaren (#89 del c4)
+        timeout-minutes: 3
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_TKL: http://127.0.0.1:8096
+          PROV_LATSAS: "8097"
+          PROV_BILDER: ${{ runner.temp }}/tkl/ladda-upp
+        run: |
+          uv run python -m cad.bildkedjan.ritning_syntetisk pdf "$RUNNER_TEMP/ritning.pdf"
+          uv run python -m cad.bildkedjan.ritning_syntetisk bild "$RUNNER_TEMP/underlag.png"
+          docker run -d --name tkl-ladda -p 127.0.0.1:8096:8090 -e TKL_MODE=local \
+            -e TKL_ID_ISSUER=http://127.0.0.1:8097/realms/trainmeet \
+            -e TKL_ID_INTERNAL=http://host.docker.internal:8097/realms/trainmeet \
+            -e TKL_PUBLIC_URL=http://127.0.0.1:8096 -e TKL_CAD=http://host.docker.internal:8097 \
+            --add-host=host.docker.internal:host-gateway trainmeet-tkl:prov
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8096/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          PROV_RITNING="$RUNNER_TEMP/ritning.pdf" PROV_UNDERLAG="$RUNNER_TEMP/underlag.png" \
+            node apps/tkl/e2e/ladda-upp.mjs
+
       - name: TKL:s skärmbilder om något gick fel
         if: failure()
         uses: actions/upload-artifact@v4
@@ -367,6 +393,7 @@ jobs:
           docker logs tkl || true
           docker logs tkl-lokal || true
           docker logs tkl-rita || true
+          docker logs tkl-ladda || true
           docker logs tkl-fjarr || true
           docker logs tkl-granne || true
           docker logs tkl-station || true
@@ -894,7 +921,7 @@ jobs:
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac
 
-      - name: Bildkedjan i bilden (#89 del c1 och c2)
+      - name: Bildkedjan i bilden (#89 del c1, c2 och c4)
         run: |
           cd "$PROV"
           # OpenCV och bildkedjan i bilden: ett syntetiskt foto görs och tas in där, och fotona
@@ -923,6 +950,25 @@ jobs:
           SKISS=$(curl -fsS -b kakor -F 'data={"profile":"skiss","name":"Skissmodul","scale":"H0","kind":"straight","width":600,"length":1500};type=application/json' \
             -F 'images=@skiss.jpg;type=image/jpeg' http://localhost:8086/api/cad/1/photos)
           echo "$SKISS" | jq -e '.profile == "skiss" and .state == "corners" and (.frames | length) == 2' >/dev/null
+          # Del c4: Ladda upp ritning. En syntetisk signalplan som vektor-PDF tas in, läses gratis av
+          # koden (R1) i bildens ritningskö, och underlaget ritas med bildens typsnitt.
+          docker compose exec -T cad python -m cad.bildkedjan.ritning_syntetisk pdf /tmp/ritning.pdf
+          docker compose cp cad:/tmp/ritning.pdf ritning.pdf
+          RITNING=$(curl -fsS -b kakor -F 'file=@ritning.pdf;type=application/pdf' \
+            http://localhost:8086/api/cad/1/drawings)
+          echo "$RITNING" | jq -e '.state == "waiting" and .pages[0].kind == "vector" and .price.tokens == 0' >/dev/null
+          RID=$(echo "$RITNING" | jq -r .id)
+          curl -fsS -b kakor -H 'Content-Type: application/json' -d '{"page":1}' \
+            "http://localhost:8086/api/cad/1/drawings/$RID/read" | jq -e '.state == "queued"' >/dev/null
+          for i in $(seq 1 30); do
+            STATE=$(curl -fsS -b kakor "http://localhost:8086/api/cad/1/drawings/$RID" | jq -r .state)
+            [ "$STATE" = done ] && break
+            sleep 1
+          done
+          curl -fsS -b kakor "http://localhost:8086/api/cad/1/drawings/$RID" \
+            | jq -e '.read.summary.switches == 5 and .read.summary.signals == 7 and .read.summary.boundaries == 9' >/dev/null
+          curl -fsS -b kakor -o underlag.png "http://localhost:8086/api/cad/1/drawings/$RID/underlay"
+          head -c 4 underlag.png | grep -q PNG
 
       - name: Nattens säkerhetskopia, med data i
         run: |

@@ -1,0 +1,13 @@
+{
+  "kalla": "Särös AnyRail-utskrift anyrail.jpg i ref/saro/underlag i trainmeet-spec; den ligger inte i repot. Sanningen i ref/saro/filer/saro-vaxlar.csv: 6 växlar, varav en Y-växel, och en vändskiva. Utskriften har färgade spår, räler och ett rutnät, och läses här utan AI: koden hittar långt fler växlar än det finns, och ägaren får frågorna om färgerna. Siffrorna är vad läsningen ger i dag, så att en ändring syns; de är inte sanningen. Träkvistas underlag (ref/trakvista/underlag) har ingen ritning, bara JMRI-filer, och finns därför inte här.",
+  "mapp": "underlag",
+  "ritningar": [
+    {
+      "fil": "anyrail.jpg",
+      "vantat": {
+        "vaxlar": [50, 90],
+        "signaler": 0
+      }
+    }
+  ]
+}
