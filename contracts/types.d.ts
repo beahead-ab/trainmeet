@@ -2004,6 +2004,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/planering/1/meets/{meet}/cad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadAssemblies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/cad/{assembly}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["addCadAssembly"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/planering/1/meets/{meet}/paper-reading": {
         parameters: {
             query?: never;
@@ -18714,6 +18746,16 @@ export interface components {
              * @description Stationernas utsidor bland underlagen (IMPORT-10).
              */
             stations?: components["schemas"]["trainmeet.planning-1.draft.StationVersion"][];
+            /**
+             * @description CAD:s anläggning bland underlagen (CAD-11, K4).
+             * @default null
+             */
+            assembly: components["schemas"]["trainmeet.planning-1.draft.AssemblyLayout"] | null;
+            /**
+             * Lengths
+             * @description Sträckornas längder ur anläggningen (CAD-11).
+             */
+            lengths?: components["schemas"]["trainmeet.planning-1.draft.SectionLength"][];
         } & {
             [key: string]: unknown;
         };
@@ -18751,6 +18793,142 @@ export interface components {
             label: string;
             /** Origins */
             origins?: components["schemas"]["trainmeet.planning-1.draft.Origin"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyLayout
+         * @description CAD:s anläggning som underlag (K4, CAD-11), as Integrationer read it.
+         */
+        "trainmeet.planning-1.draft.AssemblyLayout": {
+            /** Source */
+            source: string;
+            /**
+             * Assembly
+             * Format: uuid
+             */
+            assembly: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Scale
+             * @description Skalan: H0, N eller 0.
+             */
+            scale: string;
+            /**
+             * Ratio
+             * @description Skalans förhållande: 87 för H0.
+             */
+            ratio: number;
+            /** Places */
+            places?: components["schemas"]["trainmeet.planning-1.draft.AssemblyPlace"][];
+            /** Links */
+            links?: components["schemas"]["trainmeet.planning-1.draft.AssemblyLink"][];
+            /** Through */
+            through?: components["schemas"]["trainmeet.planning-1.draft.AssemblyThrough"][];
+            /**
+             * Modules
+             * @description Modulerna i anläggningen.
+             * @default 0
+             */
+            modules: number;
+            /**
+             * Problems
+             * @description Det CAD:s kontroll fann.
+             */
+            problems?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyLink
+         * @description The tracks between two places of the assembly through modules without switches, with
+         *     their length along the track.
+         */
+        "trainmeet.planning-1.draft.AssemblyLink": {
+            /** Id */
+            id: string;
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * Length
+             * @description Längs spåret i modellen, i mm; medel över spåren.
+             */
+            length: number;
+            /**
+             * Tracks
+             * @description Spår bredvid varandra.
+             */
+            tracks: number;
+            /**
+             * Modules
+             * @description Modulerna emellan, i ordning.
+             */
+            modules?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyPlace
+         * @description A place in the assembly: modules joined to each other that have a switch or are used by a
+         *     station in TKL (Används i).
+         */
+        "trainmeet.planning-1.draft.AssemblyPlace": {
+            /**
+             * Id
+             * @description Fast så länge platsens första modul är densamma.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Stationens namn, eller modulernas.
+             */
+            name: string;
+            /**
+             * Stations
+             * @description Stationerna i TKL som använder modulerna.
+             */
+            stations?: string[];
+            /**
+             * Station Ids
+             * @description Samma stationer, med TKL:s egna id:n.
+             */
+            station_ids?: string[];
+            /**
+             * Modules
+             * @description Modulerna, M-001 Namn.
+             */
+            modules: string[];
+            /** @description Platsens mitt i anläggningen, i mm. */
+            at: components["schemas"]["trainmeet.planning-1.draft.MapPoint"];
+            /**
+             * Switches
+             * @default 0
+             */
+            switches: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyThrough
+         * @description Through a place, from one link to another: the shortest way along its tracks.
+         */
+        "trainmeet.planning-1.draft.AssemblyThrough": {
+            /** Place */
+            place: string;
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * Length
+             * @description I modellen, i mm.
+             */
+            length: number;
         } & {
             [key: string]: unknown;
         };
@@ -20115,6 +20293,35 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * SectionLength
+         * @description Längden i Bana (CAD-11): a section's length along the track in the model, from CAD's
+         *     assembly: from where the tracks leave one driftplats's modules to where they reach the
+         *     other's, through the places between.
+         */
+        "trainmeet.planning-1.draft.SectionLength": {
+            /** Section */
+            section: string;
+            /**
+             * Length
+             * @description I modellen, i mm.
+             */
+            length: number;
+            /**
+             * Prototype
+             * @description I förebilden, i meter: längden gånger skalan.
+             */
+            prototype: number;
+            /** Tracks */
+            tracks: number;
+            /**
+             * Links
+             * @description Anläggningens spår emellan.
+             */
+            links?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * SectionPart
          * @description Delsträcka: the physical piece between two places, for map, graph and detection.
          */
@@ -20206,7 +20413,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
+        "trainmeet.planning-1.draft.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside" | "cad_assembly";
         /**
          * StationChange
          * @description Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
@@ -21038,6 +21245,12 @@ export interface components {
              * @default 0
              */
             kept: number;
+            /**
+             * Lengths
+             * @description Sträckor som får sin längd ur CAD:s anläggning (CAD-11).
+             * @default 0
+             */
+            lengths: number;
         } & {
             [key: string]: unknown;
         };
@@ -21206,7 +21419,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
+        "trainmeet.planning-1.import-preview.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside" | "cad_assembly";
         /**
          * Answer
          * @description The planner's answer to a question: one of its alternatives.
@@ -21895,6 +22108,57 @@ export interface components {
          */
         "trainmeet.planning-1.proposal.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
         /**
+         * CadAssemblies
+         * @description Anläggning från CAD in Lägg till underlag: the planner's assemblies in CAD, or why the way
+         *     is grey (no CAD for this hub, or not logged in with TrainMeet ID).
+         */
+        "trainmeet.planning-1.cad-assemblies": {
+            /** Available */
+            available: boolean;
+            /**
+             * Reason
+             * @default null
+             */
+            reason: string | null;
+            /** Assemblies */
+            assemblies?: components["schemas"]["trainmeet.planning-1.cad-assemblies.CadChoice"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CadChoice
+         * @description An assembly in TrainMeet CAD the planner may add (Anläggning från CAD).
+         */
+        "trainmeet.planning-1.cad-assemblies.CadChoice": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Scale */
+            scale: string;
+            /** Modules */
+            modules: number;
+            /** Revision */
+            revision: number;
+            /**
+             * Problems
+             * @default 0
+             */
+            problems: number;
+            /** Owner */
+            owner: string;
+            /**
+             * Changed At
+             * Format: date-time
+             */
+            changed_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Hello
          * @description Vem som ringer: hubben, dess program och de versioner av protokollet den talar.
          */
@@ -22502,6 +22766,142 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * AssemblyLayout
+         * @description CAD:s anläggning som underlag (K4, CAD-11), as Integrationer read it.
+         */
+        "trainmeet.sync-1.home-bundle.AssemblyLayout": {
+            /** Source */
+            source: string;
+            /**
+             * Assembly
+             * Format: uuid
+             */
+            assembly: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Scale
+             * @description Skalan: H0, N eller 0.
+             */
+            scale: string;
+            /**
+             * Ratio
+             * @description Skalans förhållande: 87 för H0.
+             */
+            ratio: number;
+            /** Places */
+            places?: components["schemas"]["trainmeet.sync-1.home-bundle.AssemblyPlace"][];
+            /** Links */
+            links?: components["schemas"]["trainmeet.sync-1.home-bundle.AssemblyLink"][];
+            /** Through */
+            through?: components["schemas"]["trainmeet.sync-1.home-bundle.AssemblyThrough"][];
+            /**
+             * Modules
+             * @description Modulerna i anläggningen.
+             * @default 0
+             */
+            modules: number;
+            /**
+             * Problems
+             * @description Det CAD:s kontroll fann.
+             */
+            problems?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyLink
+         * @description The tracks between two places of the assembly through modules without switches, with
+         *     their length along the track.
+         */
+        "trainmeet.sync-1.home-bundle.AssemblyLink": {
+            /** Id */
+            id: string;
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * Length
+             * @description Längs spåret i modellen, i mm; medel över spåren.
+             */
+            length: number;
+            /**
+             * Tracks
+             * @description Spår bredvid varandra.
+             */
+            tracks: number;
+            /**
+             * Modules
+             * @description Modulerna emellan, i ordning.
+             */
+            modules?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyPlace
+         * @description A place in the assembly: modules joined to each other that have a switch or are used by a
+         *     station in TKL (Används i).
+         */
+        "trainmeet.sync-1.home-bundle.AssemblyPlace": {
+            /**
+             * Id
+             * @description Fast så länge platsens första modul är densamma.
+             */
+            id: string;
+            /**
+             * Name
+             * @description Stationens namn, eller modulernas.
+             */
+            name: string;
+            /**
+             * Stations
+             * @description Stationerna i TKL som använder modulerna.
+             */
+            stations?: string[];
+            /**
+             * Station Ids
+             * @description Samma stationer, med TKL:s egna id:n.
+             */
+            station_ids?: string[];
+            /**
+             * Modules
+             * @description Modulerna, M-001 Namn.
+             */
+            modules: string[];
+            /** @description Platsens mitt i anläggningen, i mm. */
+            at: components["schemas"]["trainmeet.sync-1.home-bundle.MapPoint"];
+            /**
+             * Switches
+             * @default 0
+             */
+            switches: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * AssemblyThrough
+         * @description Through a place, from one link to another: the shortest way along its tracks.
+         */
+        "trainmeet.sync-1.home-bundle.AssemblyThrough": {
+            /** Place */
+            place: string;
+            /** A */
+            a: string;
+            /** B */
+            b: string;
+            /**
+             * Length
+             * @description I modellen, i mm.
+             */
+            length: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * Attachment
          * @description A file the package carries, beside the package, with its own checksum.
          */
@@ -22996,6 +23396,16 @@ export interface components {
              * @description Stationernas utsidor bland underlagen (IMPORT-10).
              */
             stations?: components["schemas"]["trainmeet.sync-1.home-bundle.StationVersion"][];
+            /**
+             * @description CAD:s anläggning bland underlagen (CAD-11, K4).
+             * @default null
+             */
+            assembly: components["schemas"]["trainmeet.sync-1.home-bundle.AssemblyLayout"] | null;
+            /**
+             * Lengths
+             * @description Sträckornas längder ur anläggningen (CAD-11).
+             */
+            lengths?: components["schemas"]["trainmeet.sync-1.home-bundle.SectionLength"][];
         } & {
             [key: string]: unknown;
         };
@@ -23974,6 +24384,35 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * SectionLength
+         * @description Längden i Bana (CAD-11): a section's length along the track in the model, from CAD's
+         *     assembly: from where the tracks leave one driftplats's modules to where they reach the
+         *     other's, through the places between.
+         */
+        "trainmeet.sync-1.home-bundle.SectionLength": {
+            /** Section */
+            section: string;
+            /**
+             * Length
+             * @description I modellen, i mm.
+             */
+            length: number;
+            /**
+             * Prototype
+             * @description I förebilden, i meter: längden gånger skalan.
+             */
+            prototype: number;
+            /** Tracks */
+            tracks: number;
+            /**
+             * Links
+             * @description Anläggningens spår emellan.
+             */
+            links?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * SectionPart
          * @description Delsträcka: the physical piece between two places, for map, graph and detection.
          */
@@ -24080,7 +24519,7 @@ export interface components {
          * SourceKind
          * @enum {string}
          */
-        "trainmeet.sync-1.home-bundle.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside";
+        "trainmeet.sync-1.home-bundle.SourceKind": "planning_json" | "station_lists" | "track_picture" | "graph_picture" | "station_outside" | "cad_assembly";
         /**
          * StationChange
          * @description Koppla en station till driftplatsen i förväg (PLAN-05): its outside is pinned in the
@@ -31163,6 +31602,51 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    cadAssemblies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.cad-assemblies"];
+                };
+            };
+        };
+    };
+    addCadAssembly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+                assembly: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.import-preview"];
                 };
             };
         };

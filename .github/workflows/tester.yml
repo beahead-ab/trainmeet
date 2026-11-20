@@ -224,12 +224,69 @@ jobs:
           docker exec moln /app/.venv/bin/python -c 'import h2, httpx, jwt; from synk.push import ApnsPush'
           echo "Bilden kan skicka push."
 
+      # Anläggning från CAD (#89 del d3, CAD-11, CAD-12): en molnhubb ur bilden loggar in en
+      # planerare med en låtsad TrainMeet ID, hämtar den syntetiska anläggningen ur en låtsad
+      # TrainMeet CAD med planerarens egen token (hub/prov_cad.py, integrationer/cad_example.py),
+      # lägger in den i Värnamos utkast och publicerar. En Pi följer molnet och har anläggningen med
+      # modulerna i versionen, byte för byte, utan att fråga CAD. Hubbens PIN ser vägen grå.
+      - name: Anläggning från CAD i importen, och Pi:n får modulerna med versionen (#89 del d3)
+        timeout-minutes: 3
+        run: |
+          docker run -d --name latsas --network synk -p 127.0.0.1:8098:8098 trainmeet-hub:prov \
+            python -m hub.prov_cad --port 8098 --issuer http://127.0.0.1:8098/realms/trainmeet
+          docker run -d --name moln-cad --network synk -p 127.0.0.1:8092:8080 \
+            -e TRAINMEET_PUBLIC_URL=http://127.0.0.1:8092 \
+            -e TRAINMEET_ID_ISSUER=http://127.0.0.1:8098/realms/trainmeet \
+            -e TRAINMEET_ID_INTERNAL=http://latsas:8098/realms/trainmeet \
+            -e TRAINMEET_ID_SECRET=prov -e TRAINMEET_ID_API=http://latsas:8098 \
+            -e HUB_CAD=http://latsas:8098 trainmeet-hub:prov
+          docker run -d --name pi-cad --network synk -p 127.0.0.1:8093:8080 trainmeet-hub:prov
+          for port in 8098 8092 8093; do
+            for i in $(seq 1 30); do
+              curl -fsS "http://127.0.0.1:$port/healthz" >/dev/null 2>&1 && break
+              sleep 1
+            done
+          done
+          JSON='Content-Type: application/json'
+          MOLN=http://127.0.0.1:8092/api/planering/1/meets
+          MEET_ID=00000000-0000-4000-8000-00000000d303
+          ANL=00000000-0000-4000-8000-0000000000aa
+          curl -fsS -c pin-cad.txt -H "$JSON" -d '{"name":"Molnet","pin":"482915"}' http://127.0.0.1:8092/api/hub/setup >/dev/null
+          curl -fsS -c pi-cad.txt -H "$JSON" -d '{"name":"Pi:n","pin":"482915"}' http://127.0.0.1:8093/api/hub/setup >/dev/null
+          # Planeraren loggar in med ID: hubben, låtsas-ID och tillbaka med koden.
+          curl -fsS -L -c planerare.txt -b planerare.txt -o /dev/null "http://127.0.0.1:8092/api/hub/id/login?next=/planering"
+          curl -fsS -b planerare.txt -H "$JSON" \
+            -d "{\"name\":\"Provträffen\",\"id_meet\":\"$MEET_ID\",\"first_date\":\"2026-10-30\",\"last_date\":\"2026-11-01\"}" \
+            "$MOLN" >/dev/null
+          SRC=$(curl -fsS -b planerare.txt -H 'Content-Type: application/octet-stream' \
+            --data-binary @integrationer/tests/fixtures/varnamo.json.gz "$MOLN/provtraffen/sources?name=varnamo.json.gz" |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["id"])')
+          curl -fsS -b planerare.txt -H "$JSON" -d '{}' "$MOLN/provtraffen/sources/$SRC/apply" >/dev/null
+          curl -fsS -b planerare.txt "$MOLN/provtraffen/cad" | grep -q '"available":true'
+          curl -fsS -b pin-cad.txt "$MOLN/provtraffen/cad" | grep -q '"available":false'
+          CAD=$(curl -fsS -b planerare.txt -H "$JSON" -d '{}' "$MOLN/provtraffen/cad/$ANL" |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["source"]["id"])')
+          curl -fsS -b planerare.txt -H "$JSON" -d '{}' "$MOLN/provtraffen/sources/$CAD/apply" | grep -q '"cad_assembly"'
+          curl -fsS -b pin-cad.txt -H "$JSON" -d '{}' "$MOLN/provtraffen/versions" >/dev/null
+          CODE=$(curl -fsS -b pin-cad.txt -H "$JSON" -d '{}' http://127.0.0.1:8092/api/sync/1/meets/provtraffen/code |
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["code"])')
+          curl -fsS -b pi-cad.txt -H "$JSON" -d "{\"address\":\"http://moln-cad:8080\",\"code\":\"$CODE\"}" \
+            http://127.0.0.1:8093/api/hub/cloud | grep -q '"versions":1'
+          V=api/planering/1/meets/provtraffen/versions/1/attachments/cad-anlaggning
+          curl -fsS "http://127.0.0.1:8093/$V" -o pi-cad.json
+          curl -fsS "http://127.0.0.1:8092/$V" -o moln-cad.json
+          cmp pi-cad.json moln-cad.json && grep -q '"trainmeet.cad-assembly/1"' pi-cad.json
+          echo "Pi:n har anläggningen med modulerna i versionen, utan att fråga CAD."
+
       - name: Visa loggen om något gick fel
         if: failure()
         run: |
           docker logs hub || true
           docker logs moln || true
           docker logs pi || true
+          docker logs moln-cad || true
+          docker logs pi-cad || true
+          docker logs latsas || true
 
   # TrainMeet Catalog: webbappens typer och tester körs när bilden byggs. Sedan provas bilden
   # med testmiljöns egen compose-fil: databasen, säkerhetskopian före migreringen, migreringen,

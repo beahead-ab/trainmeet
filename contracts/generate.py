@@ -272,6 +272,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.ai-pages": planning.AiPages,
     "trainmeet.planning-1.version": planning.Version,
     "trainmeet.planning-1.proposal": planning.Proposal,
+    "trainmeet.planning-1.cad-assemblies": planning.CadAssemblies,
     "trainmeet.sync-1.hello": sync.Hello,
     "trainmeet.sync-1.link-code": sync.LinkCode,
     "trainmeet.sync-1.link-request": sync.LinkRequest,
@@ -479,6 +480,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.studio-images": cad.StudioImages,
     "trainmeet.tkl-1.image-under": tkl.TklImageUnder,
     "trainmeet.tkl-1.image-under-choice": tkl.TklImageUnderChoice,
+    # The meet's assembly to the Hub's import (#89 del d3, CAD-11, CAD-12).
+    "trainmeet.cad-1.meet-assembly": cad.MeetAssembly,
 }
 
 
@@ -1036,6 +1039,9 @@ def openapi() -> str:
     # Lägg till underlag: the file's own bytes, its name in the address.
     route("post", m + "/{meet}/sources", "addSource", p + "import-preview", bearer=True)
     route("post", m + "/{meet}/sources/{source}/apply", "applySource", p + "draft", bearer=True)
+    # Anläggning från CAD (#89 del d3, CAD-11): the planner's assemblies, and one read as a source.
+    route("get", m + "/{meet}/cad", "cadAssemblies", p + "cad-assemblies", bearer=True)
+    route("post", m + "/{meet}/cad/{assembly}", "addCadAssembly", p + "import-preview", bearer=True)
     # Förarna (PLAN-40, LOK-33): who pays when a driver's paper is read.
     route("get", m + "/{meet}/paper-reading", "paperReading", f + "paper-reading")
     route(
@@ -2724,11 +2730,32 @@ def cad_openapi() -> str:
         "description": "The module's measuring image, JPEG at 1 px per mm.",
         "content": {cad.STUDIO_IMAGE_TYPE: {"schema": {"type": "string", "format": "binary"}}},
     }
+    # The meet's assembly to the Hub's import (#89 del d3, CAD-11, CAD-12).
+    route(
+        "get",
+        a + "/meet/assemblies",
+        "cadMeetAssemblies",
+        "assembly-brief",
+        many=True,
+        problems=(401, 503),
+    )
+    route(
+        "get",
+        a + "/meet/assemblies/{assembly}",
+        "cadMeetAssembly",
+        "meet-assembly",
+        problems=(401, 404, 422, 503),
+    )
     # Studio's server calls these with the person's access token for TKL from ID (TKL18).
     for path, methods in paths.items():
         if path.startswith((a + "/drawings", a + "/studio")):
             for entry in methods.values():
                 entry["security"] = [{"id": []}, {"session": []}]
+    # The cloud hub's Planering calls these with the planner's access token for hub from ID.
+    for path, methods in paths.items():
+        if path.startswith(a + "/meet/"):
+            for entry in methods.values():
+                entry["security"] = [{"id": []}]
     return (
         json.dumps(
             {

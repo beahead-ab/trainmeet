@@ -53,6 +53,7 @@ class SourceKind(StrEnum):
     TRACK_PICTURE = "track_picture"  # Banbilden: Tellurians topologi-PDF (4c1)
     GRAPH_PICTURE = "graph_picture"  # Grafen som bild, avskriven av egen AI (4c2)
     STATION_OUTSIDE = "station_outside"  # Stationens utsida från TKL (IMPORT-10)
+    CAD_ASSEMBLY = "cad_assembly"  # CAD:s anläggning (CAD-11, K4)
 
 
 class Source(Contract):
@@ -510,6 +511,104 @@ class Answer(Contract):
     value: Text
 
 
+# --- CAD:s anläggning som underlag (CAD-11, CAD-12, K4) -----------------------------------
+#
+# Integrationer reads the assembly CAD gave (trainmeet.cad-assembly/1, kept as it came) into its
+# places and the tracks between them, in the model's mm. Planering lays it on the draft each time
+# the draft is read again, as it couples the stations: a place in the assembly is a driftplats of
+# the plan by its name or its station, or by the planner's answer; the tracks between two places
+# give the section between them its length; and what differs is a question, never a silent
+# change (CAD-30). The plan's places and sections stay the plan's: the Hub owns Bana (CAD-09).
+
+
+class AssemblyPlace(Contract):
+    """A place in the assembly: modules joined to each other that have a switch or are used by a
+    station in TKL (Används i)."""
+
+    id: Id = Field(description="Fast så länge platsens första modul är densamma.")
+    name: Text = Field(description="Stationens namn, eller modulernas.")
+    stations: list[Text] = Field(
+        default_factory=list, description="Stationerna i TKL som använder modulerna."
+    )
+    station_ids: list[Id] = Field(
+        default_factory=list, description="Samma stationer, med TKL:s egna id:n."
+    )
+    modules: list[Text] = Field(min_length=1, description="Modulerna, M-001 Namn.")
+    at: MapPoint = Field(description="Platsens mitt i anläggningen, i mm.")
+    switches: int = Field(default=0, ge=0)
+
+
+class AssemblyLink(Contract):
+    """The tracks between two places of the assembly through modules without switches, with
+    their length along the track."""
+
+    id: Id
+    a: Id
+    b: Id
+    length: float = Field(ge=0, description="Längs spåret i modellen, i mm; medel över spåren.")
+    tracks: int = Field(ge=1, description="Spår bredvid varandra.")
+    modules: list[Text] = Field(default_factory=list, description="Modulerna emellan, i ordning.")
+
+
+class AssemblyThrough(Contract):
+    """Through a place, from one link to another: the shortest way along its tracks."""
+
+    place: Id
+    a: Id
+    b: Id
+    length: float = Field(ge=0, description="I modellen, i mm.")
+
+
+class AssemblyLayout(Contract):
+    """CAD:s anläggning som underlag (K4, CAD-11), as Integrationer read it."""
+
+    source: Id
+    assembly: UUID
+    name: Text
+    revision: int = Field(ge=1)
+    scale: Text = Field(description="Skalan: H0, N eller 0.")
+    ratio: float = Field(gt=0, description="Skalans förhållande: 87 för H0.")
+    places: list[AssemblyPlace] = Field(default_factory=list)
+    links: list[AssemblyLink] = Field(default_factory=list)
+    through: list[AssemblyThrough] = Field(default_factory=list)
+    modules: int = Field(default=0, ge=0, description="Modulerna i anläggningen.")
+    problems: list[Text] = Field(default_factory=list, description="Det CAD:s kontroll fann.")
+
+
+class SectionLength(Contract):
+    """Längden i Bana (CAD-11): a section's length along the track in the model, from CAD's
+    assembly: from where the tracks leave one driftplats's modules to where they reach the
+    other's, through the places between."""
+
+    section: Id
+    length: float = Field(gt=0, description="I modellen, i mm.")
+    prototype: float = Field(gt=0, description="I förebilden, i meter: längden gånger skalan.")
+    tracks: int = Field(ge=1)
+    links: list[Id] = Field(default_factory=list, description="Anläggningens spår emellan.")
+
+
+class CadChoice(Contract):
+    """An assembly in TrainMeet CAD the planner may add (Anläggning från CAD)."""
+
+    id: UUID
+    name: Text
+    scale: Text
+    modules: int = Field(ge=0)
+    revision: int = Field(ge=1)
+    problems: int = Field(default=0, ge=0)
+    owner: Text
+    changed_at: datetime
+
+
+class CadAssemblies(Contract):
+    """Anläggning från CAD in Lägg till underlag: the planner's assemblies in CAD, or why the way
+    is grey (no CAD for this hub, or not logged in with TrainMeet ID)."""
+
+    available: bool
+    reason: Text | None = None
+    assemblies: list[CadChoice] = Field(default_factory=list)
+
+
 class Draft(Contract):
     """Utkastet: what Planering works on until it is published as a version."""
 
@@ -541,6 +640,12 @@ class Draft(Contract):
     )
     stations: list[StationVersion] = Field(
         default_factory=list, description="Stationernas utsidor bland underlagen (IMPORT-10)."
+    )
+    assembly: AssemblyLayout | None = Field(
+        default=None, description="CAD:s anläggning bland underlagen (CAD-11, K4)."
+    )
+    lengths: list[SectionLength] = Field(
+        default_factory=list, description="Sträckornas längder ur anläggningen (CAD-11)."
     )
 
 
@@ -624,3 +729,6 @@ class ImportPreview(Contract):
     tracks: int = Field(default=0, ge=0, description="Spår som ändras i tågbesök som finns kvar.")
     questions: int = Field(default=0, ge=0)
     kept: int = Field(default=0, ge=0, description="Planerarens ändringar som står kvar.")
+    lengths: int = Field(
+        default=0, ge=0, description="Sträckor som får sin längd ur CAD:s anläggning (CAD-11)."
+    )

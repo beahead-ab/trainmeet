@@ -91,6 +91,248 @@
       "title": "Alternative",
       "type": "object"
     },
+    "AssemblyLayout": {
+      "additionalProperties": true,
+      "description": "CAD:s anläggning som underlag (K4, CAD-11), as Integrationer read it.",
+      "properties": {
+        "source": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Source",
+          "type": "string"
+        },
+        "assembly": {
+          "format": "uuid",
+          "title": "Assembly",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "scale": {
+          "description": "Skalan: H0, N eller 0.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Scale",
+          "type": "string"
+        },
+        "ratio": {
+          "description": "Skalans förhållande: 87 för H0.",
+          "exclusiveMinimum": 0,
+          "title": "Ratio",
+          "type": "number"
+        },
+        "places": {
+          "items": {
+            "$ref": "#/$defs/AssemblyPlace"
+          },
+          "title": "Places",
+          "type": "array"
+        },
+        "links": {
+          "items": {
+            "$ref": "#/$defs/AssemblyLink"
+          },
+          "title": "Links",
+          "type": "array"
+        },
+        "through": {
+          "items": {
+            "$ref": "#/$defs/AssemblyThrough"
+          },
+          "title": "Through",
+          "type": "array"
+        },
+        "modules": {
+          "default": 0,
+          "description": "Modulerna i anläggningen.",
+          "minimum": 0,
+          "title": "Modules",
+          "type": "integer"
+        },
+        "problems": {
+          "description": "Det CAD:s kontroll fann.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Problems",
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "assembly",
+        "name",
+        "revision",
+        "scale",
+        "ratio"
+      ],
+      "title": "AssemblyLayout",
+      "type": "object"
+    },
+    "AssemblyLink": {
+      "additionalProperties": true,
+      "description": "The tracks between two places of the assembly through modules without switches, with\ntheir length along the track.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "a": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "A",
+          "type": "string"
+        },
+        "b": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "B",
+          "type": "string"
+        },
+        "length": {
+          "description": "Längs spåret i modellen, i mm; medel över spåren.",
+          "minimum": 0,
+          "title": "Length",
+          "type": "number"
+        },
+        "tracks": {
+          "description": "Spår bredvid varandra.",
+          "minimum": 1,
+          "title": "Tracks",
+          "type": "integer"
+        },
+        "modules": {
+          "description": "Modulerna emellan, i ordning.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Modules",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "a",
+        "b",
+        "length",
+        "tracks"
+      ],
+      "title": "AssemblyLink",
+      "type": "object"
+    },
+    "AssemblyPlace": {
+      "additionalProperties": true,
+      "description": "A place in the assembly: modules joined to each other that have a switch or are used by a\nstation in TKL (Används i).",
+      "properties": {
+        "id": {
+          "description": "Fast så länge platsens första modul är densamma.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "Stationens namn, eller modulernas.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "stations": {
+          "description": "Stationerna i TKL som använder modulerna.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Stations",
+          "type": "array"
+        },
+        "station_ids": {
+          "description": "Samma stationer, med TKL:s egna id:n.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Station Ids",
+          "type": "array"
+        },
+        "modules": {
+          "description": "Modulerna, M-001 Namn.",
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Modules",
+          "type": "array"
+        },
+        "at": {
+          "$ref": "#/$defs/MapPoint",
+          "description": "Platsens mitt i anläggningen, i mm."
+        },
+        "switches": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Switches",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "modules",
+        "at"
+      ],
+      "title": "AssemblyPlace",
+      "type": "object"
+    },
+    "AssemblyThrough": {
+      "additionalProperties": true,
+      "description": "Through a place, from one link to another: the shortest way along its tracks.",
+      "properties": {
+        "place": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Place",
+          "type": "string"
+        },
+        "a": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "A",
+          "type": "string"
+        },
+        "b": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "B",
+          "type": "string"
+        },
+        "length": {
+          "description": "I modellen, i mm.",
+          "minimum": 0,
+          "title": "Length",
+          "type": "number"
+        }
+      },
+      "required": [
+        "place",
+        "a",
+        "b",
+        "length"
+      ],
+      "title": "AssemblyThrough",
+      "type": "object"
+    },
     "Attachment": {
       "additionalProperties": true,
       "description": "A file the package carries, beside the package, with its own checksum.",
@@ -2646,6 +2888,51 @@
       "title": "SectionChange",
       "type": "object"
     },
+    "SectionLength": {
+      "additionalProperties": true,
+      "description": "Längden i Bana (CAD-11): a section's length along the track in the model, from CAD's\nassembly: from where the tracks leave one driftplats's modules to where they reach the\nother's, through the places between.",
+      "properties": {
+        "section": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Section",
+          "type": "string"
+        },
+        "length": {
+          "description": "I modellen, i mm.",
+          "exclusiveMinimum": 0,
+          "title": "Length",
+          "type": "number"
+        },
+        "prototype": {
+          "description": "I förebilden, i meter: längden gånger skalan.",
+          "exclusiveMinimum": 0,
+          "title": "Prototype",
+          "type": "number"
+        },
+        "tracks": {
+          "minimum": 1,
+          "title": "Tracks",
+          "type": "integer"
+        },
+        "links": {
+          "description": "Anläggningens spår emellan.",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Links",
+          "type": "array"
+        }
+      },
+      "required": [
+        "section",
+        "length",
+        "prototype",
+        "tracks"
+      ],
+      "title": "SectionLength",
+      "type": "object"
+    },
     "SectionPart": {
       "additionalProperties": true,
       "description": "Delsträcka: the physical piece between two places, for map, graph and detection.",
@@ -2825,7 +3112,8 @@
         "station_lists",
         "track_picture",
         "graph_picture",
-        "station_outside"
+        "station_outside",
+        "cad_assembly"
       ],
       "title": "SourceKind",
       "type": "string"
@@ -3619,6 +3907,26 @@
         "$ref": "#/$defs/StationVersion"
       },
       "title": "Stations",
+      "type": "array"
+    },
+    "assembly": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AssemblyLayout"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "CAD:s anläggning bland underlagen (CAD-11, K4)."
+    },
+    "lengths": {
+      "description": "Sträckornas längder ur anläggningen (CAD-11).",
+      "items": {
+        "$ref": "#/$defs/SectionLength"
+      },
+      "title": "Lengths",
       "type": "array"
     }
   },

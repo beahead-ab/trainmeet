@@ -339,7 +339,8 @@ def router(
                 response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
                 return response
             response = RedirectResponse(done.next_path, status_code=303)
-            _set_cookie(request, response, login.log_in_with_id(done.person, done.id_token))
+            session = login.log_in_with_id(done.person, done.id_token, done.access)
+            _set_cookie(request, response, session)
         response.delete_cookie(id_login.COOKIE, path=id_login.COOKIE_PATH)
         return response
 

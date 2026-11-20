@@ -11,6 +11,7 @@ urllib, with nothing to install.
 
 from __future__ import annotations
 
+import hashlib
 import ipaddress
 import json
 import logging
@@ -26,6 +27,7 @@ from urllib.parse import quote, urlsplit
 from pydantic import ValidationError
 
 from contracts.drift import DriftEvent
+from contracts.meet import MeetPackage
 from contracts.sync import (
     HEADER,
     PROTOCOL,
@@ -60,6 +62,15 @@ Station = Callable[[RelayCall], RelayAnswer]
 
 class Unreachable(Exception):
     """The cloud did not answer."""
+
+
+class Files(Protocol):
+    """The files beside the versions' packages (attachments), kept by their checksums: the
+    hub's Planering keeps them (SYNK-20)."""
+
+    def file(self, digest: str) -> tuple[str, bytes] | None: ...
+
+    def keep_file(self, body: bytes, media_type: str) -> str: ...
 
 
 @dataclass(frozen=True)
@@ -141,8 +152,11 @@ class Follower:
         runs: Runs | None = None,
         homes: Homes | None = None,
         station: Station | None = None,
+        files: Files | None = None,
     ) -> None:
         self.links = links
+        self.files = files
+        self._complete: set[tuple[str, int]] = set()
         self.versions = versions
         self.hello = hello
         self.call = call
@@ -221,6 +235,7 @@ class Follower:
             try:
                 data = self._bytes(reach, version.number)
                 changed |= self.versions.receive(version, data)
+                self._attachments(reach, version.number, data)
             except SyncError as error:
                 self.links.heard(reach.meet, now, str(error))
                 return changed
@@ -295,6 +310,32 @@ class Follower:
             )
         except Unreachable as error:
             raise LinkError("Molnhubben svarar inte.") from error
+
+    def _attachments(self, reach: Reach, number: int, data: bytes) -> None:
+        """The files the version carries beside its package, such as CAD's assembly with the
+        modules the meet uses (CAD-12): fetched once, and kept only if they match their
+        checksums, so that the meet has them without the cloud. Raises SyncError."""
+        if self.files is None or (reach.meet, number) in self._complete:
+            return
+        try:
+            attached = MeetPackage.model_validate_json(data).attachments
+        except ValidationError:
+            return
+        meet = quote(reach.meet, safe="")
+        for attachment in attached:
+            if self.files.file(attachment.sha256) is not None:
+                continue
+            status, body = self.call(
+                "GET",
+                f"{reach.address}/api/sync/1/meets/{meet}/files/{attachment.sha256}",
+                self._headers(reach.key),
+                None,
+                60.0,
+            )
+            if status != 200 or hashlib.sha256(body).hexdigest() != attachment.sha256:
+                raise SyncError(f"Filen {attachment.filename} gick inte att hämta ({status}).")
+            self.files.keep_file(body, attachment.media_type)
+        self._complete.add((reach.meet, number))
 
     def _bytes(self, reach: Reach, number: int) -> bytes:
         """The version's bytes: kept here already, or fetched from the cloud."""

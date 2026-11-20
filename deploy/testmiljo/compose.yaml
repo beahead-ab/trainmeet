@@ -18,6 +18,11 @@ services:
       TRAINMEET_ID_INTERNAL: http://id:8080/realms/trainmeet
       TRAINMEET_ID_SECRET: ${ID_HUB_SECRET}
       TRAINMEET_ID_API: http://id-api:8080
+      # Anläggning från CAD i importen (#89 del d3, CAD-11): TrainMeet CAD beside it on
+      # compose's network, asked with the planner's own access token from ID (the client hub).
+      # Without it the way in is grey. Never on the Låtsas-Pi: it gets the modules with the
+      # versions (CAD-12).
+      HUB_CAD: http://cad:8080
       # Tellurian Dispatch i skugga (IMPORT-36): the simulator on 127.0.0.1 inside the hub,
       # fed from Drift's own clearances with one deliberate difference. Never in production.
       TRAINMEET_TELLURIAN_SIMULATOR: "1"

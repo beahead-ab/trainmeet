@@ -756,6 +756,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/meet/assemblies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadMeetAssemblies"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/meet/assemblies/{assembly}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadMeetAssembly"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10522,6 +10554,684 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.studio-images.StudioSourceKind": "assembly" | "module";
+        /**
+         * MeetAssembly
+         * @description Anläggningen som underlag (K4, CAD-11): the assembly placed and joined, with the track
+         *     graph in the assembly's mm (as Till TKL Studio sends it, CAD-10), and every module at the
+         *     version the assembly pins (CAD-12).
+         */
+        "trainmeet.cad-1.meet-assembly": {
+            /**
+             * Format
+             * @default trainmeet.cad-assembly/1
+             * @constant
+             */
+            format: "trainmeet.cad-assembly/1";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            scale: components["schemas"]["trainmeet.cad-1.meet-assembly.Scale"];
+            /** Revision */
+            revision: number;
+            /**
+             * Changed At
+             * @default null
+             */
+            changed_at: string | null;
+            /**
+             * Placed
+             * @description Where each module lies, in the assembly's mm.
+             */
+            placed?: components["schemas"]["trainmeet.cad-1.meet-assembly.PlacedModule"][];
+            /** Joints */
+            joints?: components["schemas"]["trainmeet.cad-1.meet-assembly.Joint"][];
+            /**
+             * Problems
+             * @description What the joint check found (CAD9); shown, not hidden.
+             */
+            problems?: string[];
+            graph?: components["schemas"]["trainmeet.cad-1.meet-assembly.TrackGraph"];
+            /** Modules */
+            modules?: components["schemas"]["trainmeet.cad-1.meet-assembly.MeetModule"][];
+            /**
+             * Stations
+             * @description Används i for the assembly itself.
+             */
+            stations?: components["schemas"]["trainmeet.cad-1.meet-assembly.MeetStation"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.meet-assembly.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * Curve
+         * @description Kurvmodul: track 1's radius and the angle, from the string and sagitta or given directly.
+         *     With Kant 1 as the outer edge the curve turns right seen from gable A, as in the drawing.
+         */
+        "trainmeet.cad-1.meet-assembly.Curve": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "curve";
+            /**
+             * Radius
+             * @description Track 1's centre line, in mm.
+             */
+            radius: number;
+            /**
+             * Angle
+             * @description The angle, in degrees.
+             */
+            angle: number;
+            /**
+             * Width
+             * @description The module body's width, Kant 1 to the other edge.
+             */
+            width: number;
+            /** @default outer */
+            edge: components["schemas"]["trainmeet.cad-1.meet-assembly.EdgeSide"];
+            /** @default bent */
+            sides: components["schemas"]["trainmeet.cad-1.meet-assembly.CurveSides"];
+            /**
+             * @description The string and sagitta the radius and angle came from.
+             * @default null
+             */
+            measured: components["schemas"]["trainmeet.cad-1.meet-assembly.CurveMeasure"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CurveMeasure
+         * @description The owner's measurement of a curve: a string between track 1's centre at A and B, and the
+         *     sagitta (pilhöjd) from the string's middle to the track (CADMOB-03).
+         */
+        "trainmeet.cad-1.meet-assembly.CurveMeasure": {
+            /** Chord */
+            chord: number;
+            /** Sagitta */
+            sagitta: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * CurveSides
+         * @description The box's long sides.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.CurveSides": "bent" | "straight";
+        /**
+         * EdgeSide
+         * @description Which edge of a curve module is Kant 1.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.EdgeSide": "outer" | "inner";
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.GableEnd": "A" | "B";
+        /**
+         * GableLabel
+         * @description A gable as the library shows it: "FREMO dubbelspår", "Egen gavel · 3 spår".
+         */
+        "trainmeet.cad-1.meet-assembly.GableLabel": {
+            end: components["schemas"]["trainmeet.cad-1.meet-assembly.GableEnd"];
+            /** Label */
+            label: string;
+            /** @default null */
+            norm: components["schemas"]["trainmeet.cad-1.meet-assembly.Norm"] | null;
+            /**
+             * Profile
+             * @default null
+             */
+            profile: string | null;
+            /** Tracks */
+            tracks: number[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
+         */
+        "trainmeet.cad-1.meet-assembly.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece, switch, node or symbol it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.meet-assembly.ReadBy"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphNode
+         * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
+         *     its track number there.
+         */
+        "trainmeet.cad-1.meet-assembly.GraphNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.cad-1.meet-assembly.NodeType"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            gable: components["schemas"]["trainmeet.cad-1.meet-assembly.GableEnd"] | null;
+            /**
+             * Track
+             * @description Spår n i gaveln.
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** GraphOrigin */
+        "trainmeet.cad-1.meet-assembly.GraphOrigin": {
+            source: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphSource"];
+            certainty: components["schemas"]["trainmeet.cad-1.meet-assembly.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPiece
+         * @description Spårbit: track centre from one node to another, as LINE and ARC segments in order.
+         */
+        "trainmeet.cad-1.meet-assembly.GraphPiece": {
+            /** Id */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.cad-1.meet-assembly.LineSegment"] | components["schemas"]["trainmeet.cad-1.meet-assembly.ArcSegment"])[];
+            /**
+             * Track
+             * @description Spårnummer, när ägaren har gett det.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSource
+         * @description Where a piece of the graph comes from.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
+        /**
+         * GraphSwitch
+         * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
+         */
+        "trainmeet.cad-1.meet-assembly.GraphSwitch": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            type: components["schemas"]["trainmeet.cad-1.meet-assembly.SwitchType"];
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.meet-assembly.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.meet-assembly.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.meet-assembly.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.meet-assembly.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Joint
+         * @description Skarv: two modules' gables together, at an angle (CAD-06). The angle turns b's module
+         *     counterclockwise about the middle of the tracks in the joint; 0 is flush.
+         */
+        "trainmeet.cad-1.meet-assembly.Joint": {
+            a: components["schemas"]["trainmeet.cad-1.meet-assembly.JointEnd"];
+            b: components["schemas"]["trainmeet.cad-1.meet-assembly.JointEnd"];
+            /**
+             * Angle
+             * @description What the joint adds, in degrees counterclockwise.
+             * @default 0
+             */
+            angle: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * JointEnd
+         * @description One side of a joint: a module in the assembly, and its gable.
+         */
+        "trainmeet.cad-1.meet-assembly.JointEnd": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            gable: components["schemas"]["trainmeet.cad-1.meet-assembly.GableEnd"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.meet-assembly.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetModule
+         * @description A module of the assembly at the version it pins (CAD-21): its own geometry in its own mm,
+         *     without its owner, photos or history.
+         */
+        "trainmeet.cad-1.meet-assembly.MeetModule": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Number */
+            number: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: number;
+            scale: components["schemas"]["trainmeet.cad-1.meet-assembly.Scale"];
+            /** Shape */
+            shape: components["schemas"]["trainmeet.cad-1.meet-assembly.Straight"] | components["schemas"]["trainmeet.cad-1.meet-assembly.Curve"] | components["schemas"]["trainmeet.cad-1.meet-assembly.Trapezoid"];
+            /** Gables */
+            gables: components["schemas"]["trainmeet.cad-1.meet-assembly.GableLabel"][];
+            graph: components["schemas"]["trainmeet.cad-1.meet-assembly.TrackGraph"];
+            /**
+             * Track Length
+             * @description The track pieces' length, in mm.
+             */
+            track_length: number;
+            /**
+             * Stations
+             * @description Används i: the stations in TKL that use the module, by themselves or in another assembly; not through this one.
+             */
+            stations?: components["schemas"]["trainmeet.cad-1.meet-assembly.MeetStation"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeetStation
+         * @description A station in TKL that uses a module, alone or in another assembly (Används i, CAD-15).
+         */
+        "trainmeet.cad-1.meet-assembly.MeetStation": {
+            /**
+             * Station Id
+             * @description The station's id in TKL, the station's own.
+             */
+            station_id: string;
+            /** Name */
+            name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * Norm
+         * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
+        /**
+         * PlacedModule
+         * @description A module in an assembly, at the version it pinned (CAD-21), shifted and turned.
+         */
+        "trainmeet.cad-1.meet-assembly.PlacedModule": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /**
+             * At
+             * @description Where the module's origin (gable A at Kant 1) lies, in mm.
+             */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Angle
+             * @description The module's turn, in degrees, counterclockwise.
+             */
+            angle: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.Scale": "H0" | "N" | "0";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * Straight
+         * @description Rak modul: length × width.
+         */
+        "trainmeet.cad-1.meet-assembly.Straight": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "straight";
+            /**
+             * Length
+             * @description Along Kant 1, gable A to gable B.
+             */
+            length: number;
+            /**
+             * Width
+             * @description Gable width, Kant 1 to the far side.
+             */
+            width: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.meet-assembly.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
+         * TrackGraph
+         * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
+         *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
+         *     complete is false while the tracks between the gables are unknown: a module from measures
+         *     whose gables differ waits for its photo or its drawing.
+         */
+        "trainmeet.cad-1.meet-assembly.TrackGraph": {
+            /**
+             * Geometry
+             * @default mm
+             * @enum {string}
+             */
+            geometry: "mm" | "schema";
+            /** Nodes */
+            nodes?: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphNode"][];
+            /** Pieces */
+            pieces?: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.meet-assembly.GraphSymbol"][];
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
+             * Issued
+             * @description Ids issued so far; the next is one more.
+             * @default 0
+             */
+            issued: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Trapezoid
+         * @description A trapezoid, as MMM's (685 × 480/280): the gables parallel, length apart, width_a and
+         *     width_b wide. Gable B's corner at Kant 1 lies offset mm from gable A's across the module (y
+         *     down), the förskjutning the photo test solved for (lärdomarna, Trapets). With offset 0 Kant 1
+         *     is straight and at right angles to the gables, and only the far side slants. A track at the
+         *     same distance from Kant 1 in both gables of a slanting Kant 1 has to bend: Lås mått makes it
+         *     straight, arc, straight, arc, straight (CAD-24).
+         */
+        "trainmeet.cad-1.meet-assembly.Trapezoid": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "trapezoid";
+            /** Length */
+            length: number;
+            /** Width A */
+            width_a: number;
+            /** Width B */
+            width_b: number;
+            /**
+             * Offset
+             * @description Förskjutning: gable B's Kant 1 corner across the module from gable A's, mm.
+             * @default 0
+             */
+            offset: number;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -14140,6 +14850,102 @@ export interface operations {
             };
             /** @description CAD säger nej */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMeetAssemblies: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.assembly-brief"][];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadMeetAssembly: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                assembly: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.meet-assembly"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

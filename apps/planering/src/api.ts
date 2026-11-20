@@ -18,6 +18,10 @@ export type TrackPicture = Schemas["trainmeet.planning-1.track-picture"];
 export type Answer = Schemas["trainmeet.planning-1.answer"];
 export type Proposal = Schemas["trainmeet.planning-1.proposal"];
 export type DoubleTrackAnswer = Schemas["trainmeet.planning-1.double-track-answer"];
+/** Anläggning från CAD (CAD-11): the planner's assemblies in TrainMeet CAD, or why not. */
+export type CadAssemblies = Schemas["trainmeet.planning-1.cad-assemblies"];
+export type CadChoice = NonNullable<CadAssemblies["assemblies"]>[number];
+export type SectionLength = NonNullable<Draft["lengths"]>[number];
 export type LinkCode = Schemas["trainmeet.sync-1.link-code"];
 export type Follower = Schemas["trainmeet.sync-1.follower"];
 export type Home = Schemas["trainmeet.sync-1.home"];
@@ -76,6 +80,9 @@ export const planning = {
   take: (id: string, proposal: string) => call<Draft>(`${meet(id)}/proposals/${encodeURIComponent(proposal)}/take`, {}),
   reject: (id: string, proposal: string) => call<Proposal>(`${meet(id)}/proposals/${encodeURIComponent(proposal)}/reject`, {}),
   apply: (id: string, source: string) => call<Draft>(`${meet(id)}/sources/${encodeURIComponent(source)}/apply`, {}),
+  /** Anläggning från CAD (CAD-11): the planner's assemblies, and one read as a source. */
+  cadAssemblies: (id: string) => call<CadAssemblies>(`${meet(id)}/cad`),
+  readCad: (id: string, assembly: string) => call<ImportPreview>(`${meet(id)}/cad/${encodeURIComponent(assembly)}`, {}),
   /** The source file as it came, for the administrator. */
   sourceFile: (id: string, source: string) => `${meet(id)}/sources/${encodeURIComponent(source)}`,
   /** Lägg till underlag: the file's own bytes, its name in the address; nothing is put in yet. */

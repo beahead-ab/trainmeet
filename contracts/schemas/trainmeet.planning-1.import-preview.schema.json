@@ -257,7 +257,8 @@
         "station_lists",
         "track_picture",
         "graph_picture",
-        "station_outside"
+        "station_outside",
+        "cad_assembly"
       ],
       "title": "SourceKind",
       "type": "string"
@@ -315,6 +316,13 @@
       "description": "Planerarens ändringar som står kvar.",
       "minimum": 0,
       "title": "Kept",
+      "type": "integer"
+    },
+    "lengths": {
+      "default": 0,
+      "description": "Sträckor som får sin längd ur CAD:s anläggning (CAD-11).",
+      "minimum": 0,
+      "title": "Lengths",
       "type": "integer"
     }
   },

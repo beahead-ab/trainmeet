@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.cad-assemblies.schema.json",
+  "title": "trainmeet.planning-1.cad-assemblies",
+  "$defs": {
+    "CadChoice": {
+      "additionalProperties": true,
+      "description": "An assembly in TrainMeet CAD the planner may add (Anläggning från CAD).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "scale": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Scale",
+          "type": "string"
+        },
+        "modules": {
+          "minimum": 0,
+          "title": "Modules",
+          "type": "integer"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "problems": {
+          "default": 0,
+          "minimum": 0,
+          "title": "Problems",
+          "type": "integer"
+        },
+        "owner": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Owner",
+          "type": "string"
+        },
+        "changed_at": {
+          "format": "date-time",
+          "title": "Changed At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "scale",
+        "modules",
+        "revision",
+        "owner",
+        "changed_at"
+      ],
+      "title": "CadChoice",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Anläggning från CAD in Lägg till underlag: the planner's assemblies in CAD, or why the way\nis grey (no CAD for this hub, or not logged in with TrainMeet ID).",
+  "properties": {
+    "available": {
+      "title": "Available",
+      "type": "boolean"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Reason"
+    },
+    "assemblies": {
+      "items": {
+        "$ref": "#/$defs/CadChoice"
+      },
+      "title": "Assemblies",
+      "type": "array"
+    }
+  },
+  "required": [
+    "available"
+  ],
+  "type": "object"
+}
