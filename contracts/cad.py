@@ -2758,3 +2758,74 @@ class StudioImages(Contract):
     )
     images: list[StudioImage] = Field(default_factory=list)
     missing: list[StudioImageMissing] = Field(default_factory=list)
+
+
+# --- The meet's assembly to the Hub (part d3, CAD-11, CAD-12, CAD-14, K4) ---------------------
+#
+#     GET    /api/cad/1/meet/assemblies                [AssemblyBrief]: the planner's assemblies
+#     GET    /api/cad/1/meet/assemblies/{assembly}     MeetAssembly: the assembly and its modules
+#
+# The Hub's import takes an assembly as underlag (K4, CAD-11), the way it takes Tellurian's file
+# or the track picture, and the Hub owns the meet's track (Bana); CAD only gives the assembly
+# (CAD-09). The cloud hub's Planering calls these with the planner's own access token from ID
+# for the client hub (#78), as Studio does with TKL's; no other app's token is taken here. Only
+# what the person sees: the assembly by its rights, and every module in it, else 422.
+#
+# MeetAssembly is kept by the Hub as it came, with its checksum, so that the same assembly gives
+# the same draft again (IMPORT-15), and it goes with the meet's versions to the Pi, so that the
+# meet has the modules it uses without asking CAD (CAD-12, CAD-14). It carries no person: the
+# modules come without their owners, and the stations only with their names and TKL's ids.
+
+MEET_ASSEMBLY_FORMAT: Final = "trainmeet.cad-assembly/1"
+
+
+class MeetStation(Contract):
+    """A station in TKL that uses a module, alone or in another assembly (Används i, CAD-15)."""
+
+    station_id: Id = Field(description="The station's id in TKL, the station's own.")
+    name: Text = Field(max_length=80)
+
+
+class MeetModule(Contract):
+    """A module of the assembly at the version it pins (CAD-21): its own geometry in its own mm,
+    without its owner, photos or history."""
+
+    id: UUID
+    number: str = Field(pattern=r"^M-\d{3,}$")
+    name: Name
+    version: int = Field(ge=1)
+    scale: Scale
+    shape: Shape
+    gables: list[GableLabel] = Field(min_length=2, max_length=2)
+    graph: TrackGraph
+    track_length: float = Field(ge=0, description="The track pieces' length, in mm.")
+    stations: list[MeetStation] = Field(
+        default_factory=list,
+        description="Används i: the stations in TKL that use the module, by themselves or in "
+        "another assembly; not through this one.",
+    )
+
+
+class MeetAssembly(Contract):
+    """Anläggningen som underlag (K4, CAD-11): the assembly placed and joined, with the track
+    graph in the assembly's mm (as Till TKL Studio sends it, CAD-10), and every module at the
+    version the assembly pins (CAD-12)."""
+
+    format: Literal["trainmeet.cad-assembly/1"] = MEET_ASSEMBLY_FORMAT
+    id: UUID
+    name: Name
+    scale: Scale
+    revision: int = Field(ge=1)
+    changed_at: datetime | None = None
+    placed: list[PlacedModule] = Field(
+        default_factory=list, description="Where each module lies, in the assembly's mm."
+    )
+    joints: list[Joint] = Field(default_factory=list)
+    problems: list[Text] = Field(
+        default_factory=list, description="What the joint check found (CAD9); shown, not hidden."
+    )
+    graph: TrackGraph = Field(default_factory=TrackGraph)
+    modules: list[MeetModule] = Field(default_factory=list)
+    stations: list[MeetStation] = Field(
+        default_factory=list, description="Används i for the assembly itself."
+    )

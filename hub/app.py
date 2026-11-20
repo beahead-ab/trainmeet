@@ -22,6 +22,7 @@ from contracts.sync import Hello
 from drift.store import MissingRun, PreviewStore
 from hub import (
     build_info,
+    cad_access,
     clock_source,
     deltagare,
     drift_api,
@@ -112,9 +113,13 @@ def create_app(
     id_http: httpx.Client | None = None,
     external_clock: ExternalClock | None = None,
     tellurian_client: Callable[[str, bool], TellurianClient] | None = None,
+    cad_address: str | None = None,
+    cad_http: httpx.Client | None = None,
 ) -> FastAPI:
     """id_settings and id_http: the login with TrainMeet ID, for tests; otherwise read from the
-    environment (hub/id_login.py). external_clock: FastClock, for tests with a pretend one."""
+    environment (hub/id_login.py). external_clock: FastClock, for tests with a pretend one.
+    cad_address and cad_http: TrainMeet CAD for the import, for tests; otherwise HUB_CAD
+    (hub/cad_access.py)."""
     info = info if info is not None else build_info.from_env()
     preview_path = provbanan.database_path(preview_db)
     data_dir = preview_path.parent
@@ -175,6 +180,7 @@ def create_app(
         runs=running,
         homes=homes,
         station=lambda call: station_api.relayed(runs, call, relay_address),
+        files=plans,
     )
     relay = Relay()
     # Push (F20): with Apple's key here, otherwise through the cloud, otherwise pretend.
@@ -330,6 +336,7 @@ def create_app(
             published=follower.nudge,
             rights=may,
             tokens=tokens,
+            cad=cad_access.reach_from(login, with_id, cad_address, cad_http),
         )
     )
     app.include_router(

@@ -112,7 +112,7 @@ export function sourceKind(origin: Origin, sources: Draft["sources"]): [label: s
   if (origin.source === "planner") return ["PLAN", "andrad", "Ändrat i Planering"];
   if (origin.source === "regelboken") return ["REGEL", "regel", "Regelboken"];
   const source = (sources ?? []).find((item) => item.id === origin.source);
-  const label = source?.kind === "station_lists" ? "ST" : source?.kind === "track_picture" ? "BILD" : source?.kind === "graph_picture" ? "GRAF" : source?.kind === "station_outside" ? "STN" : "JSON";
+  const label = source?.kind === "station_lists" ? "ST" : source?.kind === "track_picture" ? "BILD" : source?.kind === "graph_picture" ? "GRAF" : source?.kind === "station_outside" ? "STN" : source?.kind === "cad_assembly" ? "CAD" : "JSON";
   return [label, "", source ? source.filename : "Underlaget"];
 }
 
@@ -160,6 +160,7 @@ export function describePreview(preview: ImportPreview): string {
   }
   if (preview.times) parts.push(`${plural(preview.times, "tid", "tider")} ändrade`);
   if (preview.tracks) parts.push(`${plural(preview.tracks, "spår", "spår")} ändrade`);
+  if (preview.lengths) parts.push(`${plural(preview.lengths, "sträcka", "sträckor")} får längd ur anläggningen`);
   if (preview.questions) parts.push(plural(preview.questions, "fråga", "frågor"));
   let text = parts.length ? `${parts.join(" · ")}.` : "Inget ändras: filen ger samma utkast.";
   if (preview.kept) text += ` ${plural(preview.kept, "ändring", "ändringar")} från Planering står kvar.`;
@@ -204,4 +205,19 @@ export function areaId(name: string, taken: readonly string[]): string {
 export function areaChange(pkg: Package, id: string, name: string | null, chosen: readonly string[]) {
   const places = pkg.places.map((place) => place.id).filter((place) => chosen.includes(place));
   return { remote_area: id, name: name?.trim() || null, places: name?.trim() ? places : [] };
+}
+
+// Längden i Bana (CAD-11): a section's length along the track in the model, from CAD's assembly,
+// and as far in the prototype at the assembly's scale.
+
+/** 4,52 m or 830 mm, as Swedish writes it. */
+export function modelLength(mm: number): string {
+  if (mm < 1000) return `${Math.round(mm)} mm`;
+  return `${(mm / 1000).toFixed(2).replace(".", ",")} m`;
+}
+
+/** 393 m or 1,2 km in the prototype. */
+export function prototypeLength(metres: number): string {
+  if (metres < 1000) return `${Math.round(metres)} m`;
+  return `${(metres / 1000).toFixed(1).replace(".", ",")} km`;
 }

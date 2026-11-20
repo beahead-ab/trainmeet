@@ -370,6 +370,15 @@ input.cell { width: 8em; }
 .kostnad { display: flex; gap: 12px; align-items: baseline; border: 1px solid var(--tm-line);
   border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
 .kostnad span { color: var(--tm-mute); font-size: 13.5px; }
+/* Anläggning från CAD (CAD-11): beside the drop, grey with the reason when it cannot be used. */
+.fran-cad { border: 1px solid var(--tm-line); border-radius: 14px; padding: 14px 16px;
+  margin-top: 14px; }
+.fran-cad-rubrik { display: flex; flex-direction: column; gap: 2px; }
+.fran-cad .filer { margin-top: 6px; }
+.fran-cad .filer li:last-child { border-bottom: 0; padding-bottom: 0; }
+.fran-cad.gra { background: var(--tm-panel-2); color: var(--tm-mute); }
+.fran-cad.gra b { color: var(--tm-mute); }
+.fran-cad p { margin: 8px 0 0; }
 
 
 /* Bana: the map, and the chosen section or place beside. */

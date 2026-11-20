@@ -42,7 +42,7 @@ from uuid import UUID
 import httpx
 import jwt
 
-from hub.local import LocalLogin, Person
+from hub.local import IdAccess, LocalLogin, Person
 
 LOGGER = logging.getLogger("hub.id")
 
@@ -145,6 +145,21 @@ def person_from(claims: dict[str, Any]) -> Person:
     return Person(subject, name)
 
 
+def _access(body: Mapping[str, Any], refresh: str | None) -> IdAccess | None:
+    """ID's access token from the token endpoint's answer, with when it runs out."""
+    token = body.get("access_token")
+    if not isinstance(token, str):
+        return None
+    renewed = body.get("refresh_token")
+    lifetime = body.get("expires_in")
+    seconds = float(lifetime) if isinstance(lifetime, int | float) else 60.0
+    return IdAccess(
+        token=token,
+        refresh=renewed if isinstance(renewed, str) else refresh,
+        until=time.time() + seconds,
+    )
+
+
 @dataclass(frozen=True)
 class Started:
     key: str
@@ -160,6 +175,8 @@ class Finished:
     next_path: str
     pi_attempt: str | None = None
     """For a meet's Pi (hub/pi_login.py): a ticket for the Pi instead of a session here."""
+    access: IdAccess | None = None
+    """ID's access token for the client hub, for TrainMeet CAD (CAD-11)."""
 
 
 class IdLogin:
@@ -214,17 +231,38 @@ class IdLogin:
             raise LoginFailed("Fel state tillbaka från ID.", next_path)
         if not code:
             raise LoginFailed("Ingen kod tillbaka från ID.", next_path)
-        id_token = self._exchange(code, attempt.verifier, next_path)
+        id_token, access = self._exchange(code, attempt.verifier, next_path)
         claims = self._check(id_token, attempt.nonce, next_path)
         try:
             person = person_from(claims)
         except LoginFailed as failed:
             raise LoginFailed(str(failed), next_path) from failed
         return Finished(
-            person=person, id_token=id_token, next_path=next_path, pi_attempt=attempt.pi_attempt
+            person=person,
+            id_token=id_token,
+            next_path=next_path,
+            pi_attempt=attempt.pi_attempt,
+            access=access,
         )
 
-    def _exchange(self, code: str, verifier: str, next_path: str) -> str:
+    def refreshed(self, refresh: str) -> IdAccess | None:
+        """A new access token with the refresh token, when the old has run out; None when ID
+        says no or does not answer. Why goes to the log, never a token."""
+        try:
+            answer = self.http.post(
+                f"{self.settings.internal}/protocol/openid-connect/token",
+                data={"grant_type": "refresh_token", "refresh_token": refresh},
+                auth=(self.settings.client, self.settings.secret),
+            )
+        except httpx.HTTPError as error:
+            LOGGER.info("ID svarar inte på förnyelsen: %s", type(error).__name__)
+            return None
+        if answer.status_code != 200:
+            LOGGER.info("ID förnyade inte inloggningen: %s", answer.status_code)
+            return None
+        return _access(answer.json(), refresh)
+
+    def _exchange(self, code: str, verifier: str, next_path: str) -> tuple[str, IdAccess | None]:
         try:
             answer = self.http.post(
                 f"{self.settings.internal}/protocol/openid-connect/token",
@@ -243,10 +281,11 @@ class IdLogin:
             if answer.headers.get("content-type", "").startswith("application/json"):
                 reason = str(answer.json().get("error", ""))[:40]
             raise LoginFailed(f"ID:s token svarade {answer.status_code} {reason}.", next_path)
-        id_token = answer.json().get("id_token")
+        body = answer.json()
+        id_token = body.get("id_token")
         if not isinstance(id_token, str):
             raise LoginFailed("ID gav ingen ID-token.", next_path)
-        return id_token
+        return id_token, _access(body, None)
 
     def _check(self, id_token: str, nonce: str, next_path: str) -> dict[str, Any]:
         try:

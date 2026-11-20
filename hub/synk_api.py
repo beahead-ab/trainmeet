@@ -245,6 +245,32 @@ def router(
             headers={"Cache-Control": "no-store", "X-Checksum": kept.checksum},
         )
 
+    @routes.get("/api/sync/1/meets/{meet}/files/{sha256}")
+    def version_file(
+        meet: str,
+        sha256: str,
+        authorization: Authorization = None,
+        spoken: SyncHeader = None,
+    ) -> Response:
+        """A file one of the meet's versions carries beside its package (an attachment, such as
+        CAD's assembly with its modules, CAD-12, or the instructions as PDF), by its checksum:
+        only to a Pi that follows the meet, and only a file a version names."""
+        _protocol(spoken)
+        known(meet, _key(authorization))
+        named = {
+            a.sha256: a.media_type
+            for v in versions.versions(meet)
+            for a in versions.package(meet, v.number).attachments
+        }
+        kept = plans.file(sha256) if sha256 in named else None
+        if kept is None:
+            raise HTTPException(404, "Filen finns inte i träffens versioner.")
+        return Response(
+            kept[1],
+            media_type="application/octet-stream",
+            headers={"Cache-Control": "no-store", "X-Media-Type": kept[0]},
+        )
+
     # --- Under träffen: molnet följer Pi:n live (SYNK-04, SYNK-14, DRIFT-12) -------------------
 
     @routes.post("/api/sync/1/meets/{meet}/runs")

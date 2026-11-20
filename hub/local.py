@@ -184,6 +184,10 @@ _SESSION_COLUMNS: Final = (
     ("person", "TEXT"),
     ("id_token", "TEXT"),
     ("ticket_roles", "TEXT"),
+    # ID's access and refresh token for the client hub, for TrainMeet CAD (#89 del d3, CAD-11).
+    ("access", "TEXT"),
+    ("refresh", "TEXT"),
+    ("access_until", "REAL"),
 )
 # Columns the login with ID got after its first version (#78).
 _ID_LOGIN_COLUMNS: Final = (("pi_attempt", "TEXT"),)
@@ -208,6 +212,16 @@ class PiAttempt:
     meet: str
     pi: str
     back: str
+
+
+@dataclass(frozen=True)
+class IdAccess:
+    """ID's access token for the client hub, its refresh token and when it runs out (epoch
+    seconds). Never written to the log."""
+
+    token: str = field(repr=False)
+    refresh: str | None = field(default=None, repr=False)
+    until: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -735,16 +749,47 @@ class LocalLogin:
             row = db.execute("SELECT jwks FROM id_keys WHERE id=1").fetchone()
         return str(row[0]) if row is not None else None
 
-    def log_in_with_id(self, person: Person, id_token: str) -> str:
+    def log_in_with_id(self, person: Person, id_token: str, access: IdAccess | None = None) -> str:
         """A session for someone ID vouched for. The hub keeps ID's token only to log out of ID
-        too, and it goes with the session."""
+        too, and the access token for the client hub only to ask TrainMeet CAD for the person
+        (CAD-11); both go with the session and are never shown."""
         with self._transaction() as db:
             token = self._new_session(db, PERSON, name=person.name)
             db.execute(
-                "UPDATE session SET person=?, id_token=? WHERE token_hash=?",
-                (person.id, id_token, _token_hash(token)),
+                "UPDATE session SET person=?, id_token=?, access=?, refresh=?, access_until=? "
+                "WHERE token_hash=?",
+                (
+                    person.id,
+                    id_token,
+                    access.token if access else None,
+                    access.refresh if access else None,
+                    access.until if access else None,
+                    _token_hash(token),
+                ),
             )
         return token
+
+    def id_access(self, token: str | None) -> IdAccess | None:
+        """The access token from ID the session holds for the person, if any."""
+        if not token or len(token) > 120:
+            return None
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT access, refresh, access_until FROM session WHERE token_hash=? "
+                "AND expires>? AND person IS NOT NULL AND access IS NOT NULL",
+                (_token_hash(token), _now().timestamp()),
+            ).fetchone()
+        if row is None:
+            return None
+        return IdAccess(str(row[0]), str(row[1]) if row[1] else None, float(row[2] or 0))
+
+    def new_access(self, token: str, access: IdAccess) -> None:
+        """A renewed access token for the session."""
+        with self._transaction() as db:
+            db.execute(
+                "UPDATE session SET access=?, refresh=?, access_until=? WHERE token_hash=?",
+                (access.token, access.refresh, access.until, _token_hash(token)),
+            )
 
     def person(self, token: str | None) -> Person | None:
         """Who the session is, if it is a login with ID."""

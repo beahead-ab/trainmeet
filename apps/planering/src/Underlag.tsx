@@ -1,21 +1,23 @@
 import { useEffect, useRef, useState } from "react";
-import { planning, type AiPages, type Draft, type ImportPreview } from "./api";
+import { planning, type AiPages, type CadAssemblies, type CadChoice, type Draft, type ImportPreview } from "./api";
 import { LEVELS, describePreview, plural } from "./data";
 
 // Lägg till underlag (S6), opened from Data: drop or choose Tellurian's planning file (JSON) or
 // the station lists. They are read with code, without AI, and nothing is put in before Lägg in
 // i utkastet: first the level and exactly what changes in the draft. Lists added beside the
 // planning file get a verdict each instead (IMPORT-27); without it they build the draft, with
-// places, kinds and sections derived and osäkra (IMPORT-17).
+// places, kinds and sections derived and osäkra (IMPORT-17). Anläggning från CAD (CAD-11, K4)
+// lists the planner's assemblies in TrainMeet CAD; one is read like a file, and gives the plan's
+// places and the sections' lengths in Bana. Grey, with the reason, without CAD or a login with ID.
 
 type Read =
-  | { name: string; state: "reading" }
+  | { name: string; state: "reading"; cad?: boolean }
   | { name: string; state: "read"; preview: ImportPreview; transcribed?: boolean }
   | { name: string; state: "ai"; pages: AiPages; file?: File }
   | { name: string; state: "writing"; pages: AiPages }
-  | { name: string; state: "failed" };
+  | { name: string; state: "failed"; cad?: boolean };
 
-const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD", graph_picture: "GRAF", station_outside: "STN" };
+const TAG: Record<string, string> = { planning_json: "JSON", station_lists: "ST", track_picture: "BILD", graph_picture: "GRAF", station_outside: "STN", cad_assembly: "CAD" };
 
 export function readLine(preview: ImportPreview): string {
   const report = preview.report;
@@ -24,6 +26,7 @@ export function readLine(preview: ImportPreview): string {
   if (preview.source.kind === "track_picture" && !report.trains) return "Banbild · sparas som underlag";
   if (preview.source.kind === "graph_picture" && !report.trains) return "Graf · sparas som underlag";
   if (preview.source.kind === "station_outside") return "Stationens utsida · kopplas till en driftplats i Data";
+  if (preview.source.kind === "cad_assembly") return `Anläggning från CAD · ${plural(preview.lengths ?? 0, "sträcka", "sträckor")} får längd`;
   if (lists && verdicts.length) {
     const rows = verdicts.reduce((sum, verdict) => sum + verdict.rows, 0);
     return `Stationslistor · ${plural(verdicts.length, "lista", "listor")} · ${plural(rows, "tågbesök", "tågbesök")}`;
@@ -35,7 +38,7 @@ export function readLine(preview: ImportPreview): string {
   return lists ? `Stationslistor · ${counts}, härledda` : `Tellurians plan · ${counts}`;
 }
 
-export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: string; onClose: () => void; onApplied: (draft: Draft) => void; onFail?: (error: unknown) => void; initial?: Read }) {
+export function Underlag({ meet, onClose, onApplied, onFail, initial, cad }: { meet: string; onClose: () => void; onApplied: (draft: Draft) => void; onFail?: (error: unknown) => void; initial?: Read; cad?: CadAssemblies }) {
   const [read, setRead] = useState<Read | null>(initial ?? null);
   const [over, setOver] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -63,6 +66,18 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
       setRead("pages" in answer ? { name: file.name, state: "ai", pages: answer.pages, file } : { name: file.name, state: "read", preview: answer.preview });
     } catch (error) {
       setRead({ name: file.name, state: "failed" });
+      failed(error);
+    }
+  };
+
+  // Anläggning från CAD (CAD-11): fetched with the planner's login, read, nothing put in yet.
+  const fromCad = async (choice: CadChoice) => {
+    setRead({ name: choice.name, state: "reading", cad: true });
+    setProblem("");
+    try {
+      setRead({ name: choice.name, state: "read", preview: await planning.readCad(meet, choice.id) });
+    } catch (error) {
+      setRead({ name: choice.name, state: "failed", cad: true });
       failed(error);
     }
   };
@@ -124,13 +139,14 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
             <b>Släpp filen här</b>
             <span>eller välj den. Tellurians planeringsfil (JSON), stationslistorna (ODT, ZIP, Excel, CSV eller PDF) eller banbilden, sidan Topologi i Tellurians PDF. Utan planeringsfilen bygger listorna utkastet och banbilden bekräftar banan. Skannade listor, foton av banan och grafen som bild (JPEG eller PNG) skrivs av med hubbens egna AI.</span>
           </label>
+          <FranCad meet={meet} busy={read?.state === "reading"} onRead={(choice) => void fromCad(choice)} initial={cad ?? null} />
           {read && (
             <ul id="files" className="filer">
               <li>
-                <span className="kalla">{read.state === "read" ? TAG[read.preview.source.kind] : /\.(odt|zip|xlsx|csv|pdf|jpe?g|png)$/i.test(read.name) ? "ST" : "JSON"}</span>
+                <span className="kalla">{read.state === "read" ? TAG[read.preview.source.kind] : "cad" in read && read.cad ? "CAD" : /\.(odt|zip|xlsx|csv|pdf|jpe?g|png)$/i.test(read.name) ? "ST" : "JSON"}</span>
                 <div>
                   <b>{read.name}</b>
-                  <div className="liten">{preview ? readLine(preview) : read.state === "ai" || read.state === "writing" ? "Skannad · skrivs av med AI" : "Tellurians plan"}</div>
+                  <div className="liten">{preview ? readLine(preview) : read.state === "ai" || read.state === "writing" ? "Skannad · skrivs av med AI" : "cad" in read && read.cad ? "Anläggning från CAD" : "Tellurians plan"}</div>
                 </div>
                 {read.state === "reading" && <span className="pill likely">Läser …</span>}
                 {read.state === "ai" && <span className="pill unsure">Behöver AI</span>}
@@ -166,7 +182,7 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
                     <p className="liten" id="derived">
                       Härlett ur listorna: platstyperna och sträckorna är osäkra tills du bekräftar dem i Bana. Banbilden, grafen eller planeringsfilen höjer nivån.
                     </p>
-                  ) : preview.source.kind === "track_picture" || preview.source.kind === "graph_picture" || preview.source.kind === "station_outside" ? (
+                  ) : preview.source.kind === "track_picture" || preview.source.kind === "graph_picture" || preview.source.kind === "station_outside" || preview.source.kind === "cad_assembly" ? (
                     <p className="liten" id="derived">
                       {preview.report.notes?.[0] ?? "Banbilden sparas som underlag."}
                     </p>
@@ -178,7 +194,12 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
               {preview.source.kind !== "station_lists" && preview.report.verdicts?.length ? (
                 <Domar preview={preview} text="Stationslistorna som redan är underlag får en dom var, rad för rad, mot planeringsfilen (IMPORT-27)." />
               ) : null}
-              {read?.state === "read" && read.transcribed ? (
+              {preview.source.kind === "cad_assembly" ? (
+                <div className="kostnad">
+                  <b>Ingen AI</b>
+                  <span>Anläggningen läses med kod ur modulernas riktiga geometri. Inga tokens. Den följer med versionerna till träffens Pi.</span>
+                </div>
+              ) : read?.state === "read" && read.transcribed ? (
                 <div className="kostnad">
                   <b>Egen AI</b>
                   <span>Skrivet av hubbens egna AI och läst med kod. Allt är osäkert tills du bekräftar det.</span>
@@ -203,6 +224,58 @@ export function Underlag({ meet, onClose, onApplied, onFail, initial }: { meet: 
         </footer>
       </div>
     </div>
+  );
+}
+
+/** Anläggning från CAD (CAD-11, K4): the planner's assemblies in TrainMeet CAD, each read like
+ * a file. Grey, with the reason, without CAD for this hub or a login with TrainMeet ID. */
+export function FranCad({ meet, busy, onRead, initial = null }: { meet: string; busy: boolean; onRead: (choice: CadChoice) => void; initial?: CadAssemblies | null }) {
+  const [found, setFound] = useState<CadAssemblies | null>(initial);
+  useEffect(() => {
+    if (initial) return;
+    let live = true;
+    planning
+      .cadAssemblies(meet)
+      .then((given) => live && setFound(given))
+      .catch((error: unknown) => live && setFound({ available: false, reason: error instanceof Error ? error.message : "TrainMeet CAD går inte att nå just nu.", assemblies: [] }));
+    return () => {
+      live = false;
+    };
+  }, [meet, initial]);
+  const assemblies = found?.assemblies ?? [];
+  return (
+    <section id="cad" className={"fran-cad" + (found && !found.available ? " gra" : "")} aria-labelledby="cad-title">
+      <div className="fran-cad-rubrik">
+        <b id="cad-title">Anläggning från CAD</b>
+        <span className="liten">Exakta platser och längder i Bana, ur modulernas riktiga geometri.</span>
+      </div>
+      {!found ? (
+        <p className="liten">Frågar CAD …</p>
+      ) : !found.available ? (
+        <p className="liten" id="cad-grey">
+          {found.reason}
+        </p>
+      ) : assemblies.length === 0 ? (
+        <p className="liten" id="cad-empty">
+          Du har inga anläggningar i CAD än. Lägg ihop modulerna under Anläggningar i TrainMeet CAD.
+        </p>
+      ) : (
+        <ul className="filer" id="cad-list">
+          {assemblies.map((choice) => (
+            <li key={choice.id}>
+              <span className="kalla">CAD</span>
+              <div>
+                <b>{choice.name}</b>
+                <div className="liten">{`${plural(choice.modules, "modul", "moduler")} · ${choice.scale} · revision ${choice.revision} · ${choice.owner}` + (choice.problems ? ` · ${plural(choice.problems, "sak", "saker")} att kolla i CAD` : "")}</div>
+              </div>
+              <button type="button" className="sekundar" disabled={busy} aria-label={`Läs ${choice.name}`} onClick={() => onRead(choice)}>
+                Läs
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
 

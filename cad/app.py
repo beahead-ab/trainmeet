@@ -35,6 +35,7 @@ from cad import (
     id_login,
     login,
     matbilder_api,
+    meet_api,
     migrate,
     photos_api,
     smoothing,
@@ -90,6 +91,9 @@ API = "/api/cad/1"
 DRAWING_APPS: Final = frozenset({"tkl"})
 """The apps whose access tokens from ID may call CAD for a person: Studio in TKL, for Ladda upp
 ritning (part c4) and Från CAD (part d2)."""
+MEET_APPS: Final = frozenset({"hub"})
+"""The apps whose access tokens from ID may fetch a meet's assembly for a person: the cloud
+hub's Planering, for its import (part d3, CAD-11)."""
 
 
 def content_security_policy(photos_origin: str | None = None) -> str:
@@ -272,6 +276,18 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
                 )
             return Who(person=found.id, name=found.name, access=access)
         return who(account)
+
+    def hub_asker(request: Request) -> Who:
+        """The cloud hub's Planering, with the planner's access token from ID (#78), only."""
+        authorization = request.headers.get("authorization")
+        found = with_id.app_account(authorization, MEET_APPS) if with_id else None
+        if found is None:
+            raise Refused(
+                401,
+                ProblemCode.LOGIN,
+                "TrainMeet ID godtog inte inloggningen. Logga in med TrainMeet ID igen.",
+            )
+        return Who(person=found.id, name=found.name, access=access)
 
     app_keys = {key.value for key in AppKey}
 
@@ -497,6 +513,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.include_router(landscapes_router(landscapes, exports, who))
     app.include_router(assemblies_api.router(assemblies, who, drawing_asker))
     app.include_router(matbilder_api.router(matbilder, drawing_asker))
+    app.include_router(meet_api.router(assemblies, hub_asker))
 
     @app.api_route(
         "/api/{rest:path}",

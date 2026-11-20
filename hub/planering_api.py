@@ -27,6 +27,7 @@ from contracts import planning
 from contracts.meet import Attachment, AttachmentKind, MapPoint, Meet
 from contracts.station_outside import StationOutside
 from contracts.tokens import TOKENS_PER_PAGE, TokenOwner, TokenOwnerKind
+from hub.cad_access import NO_CAD, CadReach
 from hub.hubben import Authorization, SessionCookie, service_of, session_of
 from hub.id_roles import PLANS, publishes, roles_of, withdraws
 from hub.id_tokens import IdTokens
@@ -35,6 +36,7 @@ from hub.paper_reading import NoPayer, PaperReadings
 from hub.rights import NOT_LOGGED_IN, Rights
 from integrationer import (
     ai,
+    cad_assembly,
     derive,
     graph_picture,
     planning_json,
@@ -74,10 +76,11 @@ def router(
     published: Callable[[str], None] = lambda meet: None,
     rights: Rights | None = None,
     tokens: IdTokens | None = None,
+    cad: CadReach | None = None,
 ) -> APIRouter:
     """rights: who may plan which meet: the hub's PIN, or Administratör and Arrangör at the
     meet in TrainMeet ID (PLAN-19, #78). tokens: TrainMeets AI through the meter in ID, in a
-    cloud hub with ID's API (#79)."""
+    cloud hub with ID's API (#79). cad: TrainMeet CAD, for Anläggning från CAD (CAD-11)."""
     may = rights if rights is not None else Rights(login)
     readings = PaperReadings(login, tokens, may.roles)
 
@@ -720,6 +723,94 @@ def router(
         except PlanningError as error:
             _fail(error)
 
+    # --- Anläggning från CAD (CAD-11, CAD-12, K4) --------------------------------------------
+    # The cloud hub asks TrainMeet CAD with the planner's own access token from ID (#78). What
+    # CAD gives is kept as it came, read by Integrationer and laid in like any other source.
+
+    @routes.get("/meets/{meet}/cad")
+    def cad_assemblies(
+        meet: str,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """The planner's assemblies in CAD, or why Anläggning från CAD is grey."""
+        response.headers["Cache-Control"] = "no-store"
+        planner(meet, session, authorization)
+        token = session_of(session, authorization)
+        why = cad.why_not(token) if cad is not None else NO_CAD
+        access = cad.token(token) if cad is not None and why is None else None
+        if why is not None or access is None or cad is None or cad.client is None:
+            reason = why or "Inloggningen med TrainMeet ID har gått ut. Logga in igen."
+            return planning.CadAssemblies(available=False, reason=reason).model_dump(mode="json")
+        try:
+            found = cad.client.assemblies(access)
+        except cad_assembly.CadError as error:
+            return planning.CadAssemblies(available=False, reason=str(error)).model_dump(
+                mode="json"
+            )
+        choices = [
+            planning.CadChoice(
+                id=a.id,
+                name=a.name,
+                scale=a.scale.value,
+                modules=a.modules,
+                revision=a.revision,
+                problems=a.problems,
+                owner=a.owner.name,
+                changed_at=a.changed_at,
+            )
+            for a in found
+        ]
+        return planning.CadAssemblies(available=True, assemblies=choices).model_dump(mode="json")
+
+    @routes.post("/meets/{meet}/cad/{assembly}", status_code=201)
+    def add_cad_assembly(
+        meet: str,
+        assembly: UUID,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Lägg till underlag from CAD: the assembly fetched with the planner's token, kept as it
+        came and read; what it gives the plan is shown, and nothing changes until it is laid in."""
+        response.headers["Cache-Control"] = "no-store"
+        planner(meet, session, authorization)
+        token = session_of(session, authorization)
+        why = cad.why_not(token) if cad is not None else NO_CAD
+        if why is not None or cad is None or cad.client is None:
+            raise HTTPException(409 if why == NO_CAD else 401, why)
+        access = cad.token(token)
+        if access is None:
+            raise HTTPException(401, "Inloggningen med TrainMeet ID har gått ut. Logga in igen.")
+        try:
+            data = cad.client.assembly(access, assembly)
+            given = cad_assembly.parse(data)
+        except cad_assembly.CadError as error:
+            status = error.status if error.status in (401, 404, 413, 422) else 502
+            raise HTTPException(status, str(error)) from None
+        except cad_assembly.AssemblyError as error:
+            raise HTTPException(502, str(error)) from None
+        if given.id != assembly:
+            raise HTTPException(502, "CAD svarade med en annan anläggning.")
+        digest = hashlib.sha256(data).hexdigest()
+        source = planning.Source(
+            id=f"u-{digest[:12]}",
+            kind=planning.SourceKind.CAD_ASSEMBLY,
+            filename=filename(f"{given.name}, revision {given.revision}.json"),
+            size=len(data),
+            sha256=digest,
+            level=cad_assembly.LEVEL,
+            added=datetime.now(UTC),
+        )
+        try:
+            layout = cad_assembly.read(data, source.id)
+            return store.stage_assembly(meet, source, data, layout).model_dump(mode="json")
+        except cad_assembly.AssemblyError as error:
+            raise HTTPException(422, str(error)) from None
+        except PlanningError as error:
+            _fail(error)
+
     @routes.post("/meets/{meet}/sources/{source}/apply")
     def apply(
         meet: str,
@@ -1170,6 +1261,29 @@ def router(
             return kept.package(meet, number).model_dump(mode="json")
         except SyncError as error:
             _fail(error)
+
+    @routes.get("/meets/{meet}/versions/{number}/attachments/{attachment}")
+    def version_attachment(meet: str, number: int, attachment: str) -> Response:
+        """A file a published version carries beside its package, such as CAD's assembly with
+        the modules the meet uses (CAD-12): on a meet's Pi too, without the cloud."""
+        try:
+            package = kept.package(meet, number)
+        except SyncError as error:
+            _fail(error)
+        found = next((a for a in package.attachments if a.id == attachment), None)
+        file = store.file(found.sha256) if found is not None else None
+        if found is None or file is None:
+            raise HTTPException(404, "Filen finns inte i versionen.")
+        quoted = found.filename.replace('"', "")
+        return Response(
+            file[1],
+            media_type=file[0],
+            headers={
+                "Cache-Control": "no-store",
+                "Content-Disposition": f"inline; filename*=UTF-8''{_encode(quoted)}",
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     return routes
 

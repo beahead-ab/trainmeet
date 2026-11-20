@@ -37,6 +37,7 @@ from contracts.planning import (
     PLANNER,
     Alternative,
     Answer,
+    AssemblyLayout,
     CallChange,
     Certainty,
     Change,
@@ -70,7 +71,7 @@ from contracts.planning import (
 from contracts.reasons import TEXT_SV
 from contracts.station_outside import StationOutside
 from core import changes as driftchanges
-from planering import compare
+from planering import assembly, compare
 from planering.check import review
 from planering.sanity import deviations
 
@@ -103,6 +104,9 @@ CREATE TABLE IF NOT EXISTS proposal (
 );
 CREATE TABLE IF NOT EXISTS attachment_file (
     sha256 TEXT PRIMARY KEY, media_type TEXT NOT NULL, body BLOB NOT NULL, kept REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS pending_assembly (
+    meet_id TEXT PRIMARY KEY REFERENCES meet(id) ON DELETE CASCADE, layout TEXT NOT NULL
 );
 """
 
@@ -254,6 +258,19 @@ class Planning:
                 "INSERT INTO proposal VALUES (?, ?, ?, ?)",
                 ((meet_id, p.id, p.made.timestamp(), p.model_dump_json()) for p in proposals),
             )
+            # CAD's assembly is also the package's attachment (CAD-12): kept by its checksum.
+            bodies = dict(files)
+            for source in draft.sources:
+                if source.kind == SourceKind.CAD_ASSEMBLY and source.id in bodies:
+                    db.execute(
+                        "INSERT OR IGNORE INTO attachment_file VALUES (?, ?, ?, ?)",
+                        (
+                            source.sha256,
+                            assembly.MEDIA_TYPE,
+                            bodies[source.id],
+                            datetime.now(UTC).timestamp(),
+                        ),
+                    )
         return draft
 
     def check(self, meet_id: str) -> Check:
@@ -330,6 +347,49 @@ class Planning:
                 (meet_id, source.model_dump_json(), body, result.model_dump_json()),
             )
 
+    def stage_assembly(
+        self, meet_id: str, source: Source, body: bytes, layout: AssemblyLayout
+    ) -> ImportPreview:
+        """CAD:s anläggning (CAD-11, K4) waits to be laid in, as other sources do: what it would
+        give the plan's places and sections. It is matched to the plan, so the plan comes first."""
+        with self._transaction() as db:
+            draft = self._draft(db, meet_id)
+            if draft.package is None:
+                raise PlanningError(
+                    "Lägg till planeringsfilen eller stationslistorna först. Anläggningen ger "
+                    "längder och platser till deras sträckor och driftplatser."
+                )
+            before = draft.assembly
+            same = before is not None and any(
+                s.id == before.source and s.sha256 == source.sha256 for s in draft.sources
+            )
+            fresh = draft if same else _with_assembly(draft, source, layout)
+            given = len(fresh.lengths)
+            matched = sum(1 for f in fresh.facts if f.ref.endswith(".modules"))
+            notes = [
+                f"Anläggningen {layout.name}, revision {layout.revision}: "
+                f"{_count(layout.modules, 'modul', 'moduler')}, "
+                f"{_count(len(layout.places), 'plats', 'platser')}. "
+                f"{_count(matched, 'driftplats', 'driftplatser')} i planen finns i anläggningen, "
+                f"och {_count(given, 'sträcka', 'sträckor')} får sin längd ur den."
+            ]
+            if same:
+                notes.append("Samma anläggning som redan finns; inget ändras.")
+            notes += [f"CAD: {problem}" for problem in layout.problems[:5]]
+            level = max([s.level for s in draft.sources] or [source.level])
+            report = ImportReport(source=source.id, level=level, notes=notes)
+            result = ImportResult(package=draft.package, report=report)
+            db.execute(
+                "INSERT OR REPLACE INTO pending VALUES (?, ?, ?, ?)",
+                (meet_id, source.model_dump_json(), body, result.model_dump_json()),
+            )
+            db.execute(
+                "INSERT OR REPLACE INTO pending_assembly VALUES (?, ?)",
+                (meet_id, layout.model_dump_json()),
+            )
+            preview = compare.preview(draft, fresh, source, result)
+            return preview.model_copy(update={"lengths": 0 if same else given})
+
     def apply(self, meet_id: str, source_id: str) -> Draft:
         """Lägg in i utkastet: the waiting source comes into the draft."""
         with self._transaction() as db:
@@ -343,6 +403,15 @@ class Planning:
             source = Source.model_validate_json(row[0])
             if source.kind == SourceKind.STATION_OUTSIDE:
                 return self._add_station(db, meet_id, source, bytes(row[1]))
+            if source.kind == SourceKind.CAD_ASSEMBLY:
+                found = db.execute(
+                    "SELECT layout FROM pending_assembly WHERE meet_id=?", (meet_id,)
+                ).fetchone()
+                db.execute("DELETE FROM pending_assembly WHERE meet_id=?", (meet_id,))
+                if found is None:
+                    raise PlanningError("Anläggningen väntar inte längre. Lägg till den igen.")
+                layout = AssemblyLayout.model_validate_json(found[0])
+                return self._add_assembly(db, meet_id, source, bytes(row[1]), layout)
             result = ImportResult.model_validate_json(row[2])
             return self._add(db, meet_id, source, bytes(row[1]), result)
 
@@ -376,6 +445,34 @@ class Planning:
         )
         answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
         return self._save(db, _replay(updated, answers))
+
+    def _add_assembly(
+        self,
+        db: sqlite3.Connection,
+        meet_id: str,
+        source: Source,
+        body: bytes,
+        layout: AssemblyLayout,
+    ) -> Draft:
+        """CAD:s anläggning among the sources (CAD-11): kept as it came, also beside the package
+        as its attachment, so that it goes with the versions to the Pi (CAD-12). The same
+        assembly again changes nothing; a new one takes the place of the one before."""
+        draft = self._draft(db, meet_id)
+        before = draft.assembly
+        if before is not None and any(
+            s.id == before.source and s.sha256 == source.sha256 for s in draft.sources
+        ):
+            return draft
+        for old in [s for s in draft.sources if s.kind == SourceKind.CAD_ASSEMBLY]:
+            db.execute("DELETE FROM source_file WHERE meet_id=? AND source_id=?", (meet_id, old.id))
+        db.execute(
+            "INSERT OR REPLACE INTO source_file VALUES (?, ?, ?)", (meet_id, source.id, body)
+        )
+        db.execute(
+            "INSERT OR IGNORE INTO attachment_file VALUES (?, ?, ?, ?)",
+            (source.sha256, assembly.MEDIA_TYPE, body, datetime.now(UTC).timestamp()),
+        )
+        return self._save(db, _with_assembly(draft, source, layout))
 
     def add_source(self, meet_id: str, source: Source, body: bytes, result: ImportResult) -> Draft:
         """A source read by Integrationer comes into the draft at once."""
@@ -668,6 +765,10 @@ class Planning:
         return saved
 
 
+def _count(n: int, one: str, many: str) -> str:
+    return f"{n} {one if n == 1 else many}"
+
+
 def _summary(draft: Draft) -> str:
     package = draft.package
     return MeetSummary(
@@ -847,8 +948,20 @@ def _laid_in(draft: Draft, source: Source, result: ImportResult) -> Draft:
         taken=draft.taken,
         double_track_declined=draft.double_track_declined,
         let_stand=draft.let_stand,
+        stations=draft.stations,
+        assembly=draft.assembly,
     )
     return _lay_taken(_replay(fresh, answers))
+
+
+def _with_assembly(draft: Draft, source: Source, layout: AssemblyLayout) -> Draft:
+    """The draft with CAD's assembly as its source, in place of any before (CAD-11)."""
+    sources = [s for s in draft.sources if s.kind != SourceKind.CAD_ASSEMBLY] + [source]
+    answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
+    updated = draft.model_copy(
+        update={"sources": sources, "assembly": layout.model_copy(update={"source": source.id})}
+    )
+    return _replay(updated, answers)
 
 
 def _lay_taken(draft: Draft) -> Draft:
@@ -896,6 +1009,16 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     pool = {s.outside.station_id: s for s in draft.stations}
     places, part_questions, part_facts = _parts(places, coupled, pool, answers)
     facts.update({fact.ref: fact for fact in part_facts})
+    # CAD:s anläggning (CAD-11): laid on anew each time, before the planner's changes, so that
+    # the planner's own choice of single or double track counts over the answer, and a length
+    # can be confirmed.
+    facts = {ref: fact for ref, fact in facts.items() if not assembly.is_cad_fact(ref)}
+    laid: assembly.Laid | None = None
+    if draft.assembly is not None:
+        source = next((s for s in draft.sources if s.id == draft.assembly.source), None)
+        laid = assembly.lay(places, sections, draft.assembly, answers, source)
+        sections = laid.sections
+        facts.update({fact.ref: fact for fact in laid.facts})
     about = dict(package.about)
     attachments = list(package.attachments)
     for change in draft.changes:
@@ -959,8 +1082,10 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
     questions = [
         q.model_copy(update={"answer": answers.get(q.id)})
         for q in draft.questions
-        if q.cause not in (STATION_TRACK, STATION_PART)
+        if q.cause not in (STATION_TRACK, STATION_PART) and q.cause not in assembly.CAUSES
     ] + part_questions
+    if laid is not None:
+        questions += laid.questions
     for place_id, place in list(places.items()):
         if place_id in coupled:
             entry = pool.get(coupled[place_id] or "")
@@ -1004,6 +1129,13 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                 ref=f"train_type:{rule.code}", certainty=Certainty.CONFIRMED, origins=origins
             )
         rules.append(rule)
+    display = package.display
+    attachments = [a for a in attachments if a.id != assembly.ATTACHMENT]
+    if laid is not None:
+        if laid.layout is not None:
+            display = display.model_copy(update={"reference_layout": laid.layout})
+        if laid.attachment is not None:
+            attachments.append(laid.attachment)
     return draft.model_copy(
         update={
             "package": package.model_copy(
@@ -1014,11 +1146,13 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                     "about": about,
                     "attachments": attachments,
                     "remote_areas": areas,
+                    "display": display,
                 }
             ),
             "facts": list(facts.values()),
             "questions": questions,
             "rulebook": draft.rulebook.model_copy(update={"train_types": rules}),
+            "lengths": laid.lengths if laid is not None else [],
         }
     )
 

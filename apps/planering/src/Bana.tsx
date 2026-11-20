@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Problem } from "@trainmeet/hubben";
 import { planning, type Changes, type Draft, type TrackPicture } from "./api";
-import { CERTAINTY, Facts, KINDS, MODES, TRACKS, areaPlaces, partOf, plural, remoteFrom, sourceKind, type Package, type Place, type Section } from "./data";
+import { CERTAINTY, Facts, KINDS, MODES, TRACKS, areaPlaces, modelLength, partOf, plural, prototypeLength, remoteFrom, sourceKind, type Package, type Place, type Section } from "./data";
 import { layout, links, sectionLabel, STEP_X, STEP_Y } from "./karta";
 
 // Bana (S6): the map with the places and the clearance sections, with their parts under. Choose
@@ -9,6 +9,9 @@ import { layout, links, sectionLabel, STEP_X, STEP_Y } from "./karta";
 // changed there and saved at once, as on the old page. What the import derived is confirmed
 // here, one at a time or all at once (IMPORT-04), and with a track picture among the sources the
 // map stands where the picture has the places, with the picture's lines under it (PLAN-02).
+// With CAD's assembly among the sources, a section has its length along the track from the
+// modules' real geometry, with its origin, and the map stands where the assembly has the places
+// when it has them all (CAD-11, K4).
 
 type Choice = { kind: "section" | "place"; id: string } | null;
 
@@ -59,6 +62,8 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
     );
   }
   const facts = new Facts(draft.facts ?? []);
+  // CAD's assembly comes first for the map (import 5): the picture is not drawn under it.
+  const cadMap = Boolean(draft.assembly && facts.byRef.get("display:map")?.origins.some((origin) => origin.source === draft.assembly?.source));
   const unsure = new Set((draft.facts ?? []).filter((fact) => fact.certainty === "unsure").map((fact) => fact.ref));
   const doubtful = [...unsure].filter((ref) => ref.startsWith("place:") || ref.startsWith("section:"));
   const confirmable = [...unsure].filter((ref) => /^(place|section|part):/.test(ref));
@@ -99,7 +104,7 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
             <span id="map-count" className="liten">{`${plural(sections.length, "sträcka", "sträckor")} · ${plural(pkg.places.length, "driftplats", "driftplatser")}`}</span>
           </header>
           <div id="map" className="karta-yta">
-            <Karta pkg={pkg} choice={choice} unsure={unsure} picture={picture} photo={`/api/planering/1/meets/${encodeURIComponent(meet)}/picture/photo`} onSelect={(kind, id) => setChoice({ kind, id })} />
+            <Karta pkg={pkg} choice={choice} unsure={unsure} picture={cadMap ? null : picture} photo={`/api/planering/1/meets/${encodeURIComponent(meet)}/picture/photo`} lengths={draft.lengths ?? []} onSelect={(kind, id) => setChoice({ kind, id })} />
           </div>
           <footer className="forklaring">
             <span>Fyrkant = driftplats med klarering</span>
@@ -112,7 +117,8 @@ export function BanaPage({ admin, meet, draft, initialChoice = null, onDraft, on
               <span key={area.id} className="fjarromrade">{`Fjärrområdet ${area.name}: ${areaPlaces(area, (id) => nameOf(pkg, id))}`}</span>
             ))}
             <span className="bla">Blå = vald</span>
-            {picture && <span id="picture-legend">Grått under = banbilden</span>}
+            {picture && !cadMap && <span id="picture-legend">Grått under = banbilden</span>}
+            {cadMap && <span id="cad-legend">{`Kartan står där anläggningen ${draft.assembly?.name ?? ""} har driftplatserna`}</span>}
           </footer>
         </section>
         <aside className="kort vald" id="choice" aria-label="Valt på kartan">
@@ -135,7 +141,7 @@ const PICTURE_SCALE = 3;
 const nameOf = (pkg: Package, id: string) => pkg.places.find((place) => place.id === id)?.name ?? id;
 
 /** The map itself: an SVG fitted to the card's width, never smaller than the names can be read. */
-export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: { pkg: Package; choice: Choice; unsure: Set<string>; picture?: TrackPicture | null; photo?: string; onSelect: (kind: "section" | "place", id: string) => void }) {
+export function Karta({ pkg, choice, unsure, picture = null, photo, lengths = [], onSelect }: { pkg: Package; choice: Choice; unsure: Set<string>; picture?: TrackPicture | null; photo?: string; lengths?: { section: string; length: number }[]; onSelect: (kind: "section" | "place", id: string) => void }) {
   const host = useRef<HTMLDivElement>(null);
   const [room, setRoom] = useState(0);
   useEffect(() => {
@@ -173,6 +179,7 @@ export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: 
     return `M${ax},${ay} C${middle},${ay} ${middle},${by} ${bx},${by}`;
   };
   const shown = links(pkg).filter((link) => plan.at.has(link.a) && plan.at.has(link.b));
+  const lengthOf = (section: string) => lengths.find((found) => found.section === section)?.length;
   // On the picture, halts can stand close together: every other name goes above its ring.
   const above = new Set<string>();
   if (onPicture) {
@@ -221,7 +228,7 @@ export function Karta({ pkg, choice, unsure, picture = null, photo, onSelect }: 
                   <path d={path} className="enkel" />
                 )}
                 <path d={path} className="traff" />
-                <title>{section ? `${places.get(section.place_a)?.name} – ${places.get(section.place_b)?.name}` : "Spår utan klarering i planen"}</title>
+                <title>{section ? `${places.get(section.place_a)?.name} – ${places.get(section.place_b)?.name}` + (lengthOf(section.id) ? ` · ${modelLength(lengthOf(section.id) ?? 0)}` : "") : "Spår utan klarering i planen"}</title>
               </g>
             );
           })}
@@ -319,7 +326,8 @@ function Origins({ draft, facts, ref_ }: { draft: Draft; facts: Facts; ref_: str
         {found.flatMap((fact) =>
           fact.origins.map((origin, index) => {
             const [label, kind] = sourceKind(origin, draft.sources);
-            const field = fact.ref === ref_ ? "" : ` (${fact.ref.slice(ref_.length + 1)})`;
+            const name = fact.ref.slice(ref_.length + 1);
+            const field = fact.ref === ref_ ? "" : ` (${FIELDS[name] ?? name})`;
             return (
               <li key={`${fact.ref}-${index}`}>
                 <span className={`kalla ${kind}`.trim()}>{label}</span>
@@ -336,6 +344,9 @@ function Origins({ draft, facts, ref_ }: { draft: Draft; facts: Facts; ref_: str
     </div>
   );
 }
+
+/** What a field of a fact is about, as Varifrån says it. */
+const FIELDS: Record<string, string> = { length: "längd", modules: "moduler", phone: "telefon", tracks: "spår", station: "station" };
 
 type Save = (change: Changes["changes"][number] | Changes["changes"], text: string) => void;
 
@@ -361,6 +372,9 @@ function SectionChoice({ admin, draft, pkg, section, facts, unsure, onSave }: { 
   const base = MODES[draft.meet.clearance_mode] ?? draft.meet.clearance_mode;
   const fact = facts.byRef.get(`section:${section.id}`);
   const name = `${nameOf(pkg, section.place_a)} – ${nameOf(pkg, section.place_b)}`;
+  // Längden i Bana (CAD-11): from CAD's assembly, with its origin and certainty.
+  const length = (draft.lengths ?? []).find((found) => found.section === section.id);
+  const lengthFact = facts.byRef.get(`section:${section.id}.length`);
   return (
     <>
       <header>
@@ -404,6 +418,22 @@ function SectionChoice({ admin, draft, pkg, section, facts, unsure, onSave }: { 
             )}
           </dd>
         </div>
+        <div className="par" id="length">
+          <dt>Längd</dt>
+          <dd>
+            {length ? (
+              <>
+                <span>{`${modelLength(length.length)} i modellen · ${prototypeLength(length.prototype)} i ${draft.assembly?.scale ?? "förebilden"}`}</span>
+                {lengthFact && <span className={`pill ${lengthFact.certainty}`}>{CERTAINTY[lengthFact.certainty]}</span>}
+                <span className="liten block">{`Längs spåret ur anläggningen ${draft.assembly?.name ?? ""}${length.tracks > 1 ? `, ${plural(length.tracks, "spår", "spår")} bredvid varandra` : ""}.`}</span>
+              </>
+            ) : draft.assembly ? (
+              <span className="liten">Sträckan finns inte i anläggningen från CAD.</span>
+            ) : (
+              <span className="liten">Lägg till anläggningen från CAD under Data för exakta längder.</span>
+            )}
+          </dd>
+        </div>
         <div className="par">
           <dt>Delsträckor</dt>
           <dd>{parts.map((part) => `${nameOf(pkg, part.from_place)} – ${nameOf(pkg, part.to_place)}`).join(" · ")}</dd>
@@ -418,6 +448,14 @@ function SectionChoice({ admin, draft, pkg, section, facts, unsure, onSave }: { 
         </div>
       </dl>
       {admin && <Confirm refs={[...unsure].filter((ref) => ref === `section:${section.id}` || ref.startsWith(`part:${section.id}.`))} what="Sträckan" onSave={onSave} />}
+      {admin && lengthFact?.certainty === "likely" && (
+        <div className="bekrafta">
+          <p className="liten">Längden kommer ur anläggningen i CAD. Stämmer den med banan på träffen?</p>
+          <button type="button" id="confirm-length" className="sekundar" onClick={() => onSave({ confirm: lengthFact.ref }, "Längden är bekräftad.")}>
+            Bekräfta längden
+          </button>
+        </div>
+      )}
       <Origins draft={draft} facts={facts} ref_={`section:${section.id}`} />
     </>
   );
