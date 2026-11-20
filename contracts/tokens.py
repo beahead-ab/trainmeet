@@ -41,7 +41,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 from uuid import UUID
 
 from pydantic import Field, StringConstraints
@@ -181,6 +181,17 @@ class MeterRead(Contract):
         description="Håll reservationen: mätaren läser och behåller svaret, men drar inget. "
         "Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används (CAT-145).",
     )
+    hard: bool = Field(
+        default=False,
+        description="En svår följdfråga från CAD, där koden är osäker: den läses av den "
+        "starkaste modellen, Claude Fable 5.2 (CAD18). Priset är detsamma, 12 tokens per bild. "
+        "Bara CAD får fråga så.",
+    )
+
+
+HARD_APPS: Final = frozenset({"cad"})
+"""The apps whose questions may be read by the strongest model (CAD18): only CAD's hard
+follow-up questions."""
 
 
 class MeterAnswer(Contract):

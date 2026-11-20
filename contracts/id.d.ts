@@ -1715,6 +1715,12 @@ export interface components {
              * @default false
              */
             hold: boolean;
+            /**
+             * Hard
+             * @description En svår följdfråga från CAD, där koden är osäker: den läses av den starkaste modellen, Claude Fable 5.2 (CAD18). Priset är detsamma, 12 tokens per bild. Bara CAD får fråga så.
+             * @default false
+             */
+            hard: boolean;
         } & {
             [key: string]: unknown;
         };
