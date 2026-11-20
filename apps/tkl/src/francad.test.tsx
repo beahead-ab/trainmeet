@@ -72,11 +72,16 @@ describe("Från CAD", () => {
   });
 
   it("says which assembly the station comes from, offers to read it in again, and greys one that cannot go", () => {
-    const link = { kind: "assembly" as const, id: SOURCE.id, name: SOURCE.name, revision: 2, registered: true, modules: {} };
+    const link = { kind: "assembly" as const, id: SOURCE.id, name: SOURCE.name, revision: 2, registered: true, modules: {}, gauge: null };
     const html = renderToStaticMarkup(<FromCadView {...view({ fromCad: { ...OPEN, link } })} />);
     expect(html).toContain("Stationen kommer från <strong>Exempelanläggning</strong>, version 2.");
     expect(html).toContain("CAD visar stationen under Används i.");
     expect(html).toContain(">Läs in igen</button>");
+    expect(html).not.toContain("Mätbilder för Foto");
+    const image = { module: "m1", version: 1, job: "j1", title: "M-001 Infart", width: 10, height: 5, matrix: [1, 0, 0, 1, 0, 0], outline: [[0, 0], [10, 0], [10, 5]] as [number, number][], bytes: 100, url: null };
+    const photographed = { ...link, images: [image], missing: ["M-002 Linje: Modulen är inte fotad i TrainMeet CAD."] };
+    const shown = renderToStaticMarkup(<FromCadView {...view({ fromCad: { ...OPEN, link: photographed } })} />);
+    expect(shown).toContain("Mätbilder för Foto: 1 av 2 moduler, kvar med stationen.");
     const blocked = { ...SOURCE, ready: false, problems: ["Skarven går inte ihop."] };
     const grey = renderToStaticMarkup(<FromCadView {...view({ fromCad: { ...OPEN, sources: [blocked] } })} />);
     expect(grey).toContain("Skarven går inte ihop.");

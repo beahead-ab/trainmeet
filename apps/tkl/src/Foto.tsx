@@ -5,10 +5,13 @@
 // shunting, red occupied); red buffer stops; the signals from above, post, screen and lamp, with
 // the name on a white sign; and the trains, which roll along the route's pieces when Kör moves
 // them (STV-06). The geometry is worked out in foto.ts; a click goes to the page through the same
-// click flow as every skin, and the page asks the interlocking (STV-43).
+// click flow as every skin, and the page asks the interlocking (STV-43). Mätbilden under (#89 del
+// d4, CAD-33): for a station from CAD, the modules' measuring images under the tracks, each clipped
+// to its board, where Foto leaves out its own landscape, ballast and sleepers; the station's
+// choice, off by default, and grey with the reason without images.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Panel } from "./api";
-import { along, ease, FOTO, fotoScene, offset, placeIn, placeTrain, PX_PER_UNIT, ROLL_MS, rollOf, type FotoScene, type FotoTrain, type Pt, type Roll } from "./foto";
+import type { ImageUnder, Panel } from "./api";
+import { along, ease, FOTO, fotoScene, imagesOf, middleOf, offset, onPhoto, placeIn, placeTrain, PX_PER_UNIT, ROLL_MS, rollOf, trackOnPhoto, type FotoImage, type FotoScene, type FotoTrain, type Pt, type Roll } from "./foto";
 import type { Skin } from "./skal";
 import { round } from "./sparplan";
 import { angleOf, goals, slice, type Choice, type Drawing, type Filled, type TrackState } from "./stallverk";
@@ -33,6 +36,9 @@ type Props = {
   onRoute?: (route: number) => void;
   onButton?: (name: string) => void;
   onTable?: (fn: string, piece: string) => void;
+  /** Mätbilden under: the station's measuring images and its choice; none: no button. */
+  under?: ImageUnder | null;
+  onUnder?: (on: boolean) => void;
 };
 
 /** The state's colour in Foto: the glow and the band between the rails (the skins document). */
@@ -117,8 +123,9 @@ function useRolling(trains: FotoTrain[], u: number, onStart: (to: Pt) => void): 
   return { rolls, t };
 }
 
-export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = null, height, zoom: startZoom = "near", onPoint, onSwitch, onRoute, onButton, onTable }: Props) {
-  const scene = useMemo(() => fotoScene(panel, drawn, state), [panel, drawn, state]);
+export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = null, height, zoom: startZoom = "near", onPoint, onSwitch, onRoute, onButton, onTable, under = null, onUnder }: Props) {
+  const images = useMemo(() => imagesOf(under), [under]);
+  const scene = useMemo(() => fotoScene(panel, drawn, state, images.length ? { gauge: under?.gauge ?? null, boards: images.map((i) => i.clip) } : null), [panel, drawn, state, images, under?.gauge]);
   const [zoom, setZoom] = useState<Zoom>(startZoom);
   const frame = useRef<HTMLDivElement>(null);
   const follow = (to: Pt, smooth = true) => {
@@ -150,6 +157,8 @@ export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = n
   };
   const place = (where: Pt, heading: Pt = [1, 0]) => `translate(${round(where[0])} ${round(where[1])}) rotate(${degrees(heading)}) scale(${round(u * 1000) / 1000})`;
   const width = zoom === "near" ? `${Math.round((box[2] / u) * PX_PER_UNIT)}px` : "100%";
+  // On a photographed board the photo has the ballast and the sleepers.
+  const bedded = scene.tracks.filter((k) => !trackOnPhoto(images, k.path));
   return (
     <div className="stv-foto">
       <div className="stv-foto-rad" role="group" aria-label={say("fotoZoom")}>
@@ -159,7 +168,24 @@ export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = n
         <button type="button" aria-pressed={zoom === "whole"} onClick={() => setZoom("whole")}>
           {say("fotoWhole")}
         </button>
+        {under ? (
+          <button
+            type="button"
+            className="stv-matbild"
+            aria-pressed={!!under.on}
+            disabled={!under.available || !onUnder}
+            title={under.available ? [say("imageUnderTitle"), ...((under.missing ?? []).length ? [say("imageUnderVectors", { modules: (under.missing ?? []).join(" · ") })] : [])].join("\n") : (under.reason ?? "")}
+            onClick={() => onUnder?.(!under.on)}
+          >
+            {say("imageUnder")}
+          </button>
+        ) : null}
       </div>
+      {under && !under.available && under.reason ? (
+        <p className="stv-foto-notis liten" role="note">
+          {under.reason}
+        </p>
+      ) : null}
       <div ref={frame} className="stv-ram skal-foto" style={{ background: skin.ground, maxHeight: height }}>
         <svg
           className="stv-panel skal-foto"
@@ -190,15 +216,16 @@ export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = n
           </defs>
           <rect x={box[0]} y={box[1]} width={box[2]} height={box[3]} fill="#91a265" />
           <rect x={box[0]} y={box[1]} width={box[2]} height={box[3]} fill="url(#foto-gras)" />
-          <Landscape scene={scene} />
+          {images.length ? <Photos images={images} /> : null}
+          <Landscape scene={scene} images={images} />
           <g className="ballast" fill="none" strokeLinejoin="round">
-            {scene.tracks.map((k) => (
+            {bedded.map((k) => (
               <polyline key={`b${k.piece}`} points={pts(k.path)} stroke="#8d8a80" strokeWidth={FOTO.bank * u} opacity={0.55} />
             ))}
-            {scene.tracks.map((k) => (
+            {bedded.map((k) => (
               <polyline key={`c${k.piece}`} points={pts(k.path)} stroke="#aaa69c" strokeWidth={FOTO.ballast * u} />
             ))}
-            {scene.tracks.map((k) => (
+            {bedded.map((k) => (
               <polyline key={`d${k.piece}`} points={pts(k.path)} stroke="url(#foto-ballast)" strokeWidth={FOTO.ballast * u} />
             ))}
           </g>
@@ -210,7 +237,7 @@ export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = n
               ))}
           </g>
           <g className="syllar" fill="none" strokeLinejoin="round">
-            {scene.tracks.map((k) => (
+            {bedded.map((k) => (
               <polyline key={`s${k.piece}`} points={pts(k.path)} stroke="#bdb8ad" strokeWidth={FOTO.sleeper * u} strokeDasharray={`${round(FOTO.sleeperDash[0] * u)} ${round(FOTO.sleeperDash[1] * u)}`} />
             ))}
           </g>
@@ -425,17 +452,43 @@ export function Foto({ panel, drawn, state, skin, say, choice = null, chosen = n
   );
 }
 
+/** Mätbilden under: each module's measuring image moved into the station's mm by its matrix and
+ * clipped to its board, so that the margin around it does not cover the next module. */
+function Photos({ images }: { images: FotoImage[] }) {
+  return (
+    <g className="matbilder">
+      <defs>
+        {images.map((image, i) => (
+          <clipPath key={image.key} id={`foto-matbild-${i}`} clipPathUnits="userSpaceOnUse">
+            <polygon points={pts(image.clip)} />
+          </clipPath>
+        ))}
+      </defs>
+      {images.map((image, i) => (
+        <g key={image.key} clipPath={`url(#foto-matbild-${i})`} data-matbild={image.key}>
+          <image href={image.url} x={0} y={0} width={image.width} height={image.height} preserveAspectRatio="none" transform={image.transform}>
+            <title>{image.title}</title>
+          </image>
+        </g>
+      ))}
+    </g>
+  );
+}
+
 /** The landscape: the platforms with their white edge, the building in brick red, and the trees
- * and bushes, each a few circles with a soft shadow. */
-function Landscape({ scene }: { scene: FotoScene }) {
+ * and bushes, each a few circles with a soft shadow; none on a photographed board. */
+function Landscape({ scene, images }: { scene: FotoScene; images: FotoImage[] }) {
   const { u } = scene;
+  const free = (p: Pt) => !images.length || !onPhoto(images, p);
   return (
     <g className="landskap">
-      {scene.platforms.map((p, i) => (
-        <polygon key={`p${i}`} className="plattform" points={pts(p)} fill="#8d929a" stroke="#ecebe5" strokeWidth={2.2 * u} strokeLinejoin="round" />
-      ))}
-      {scene.building ? <polygon className="hus" points={pts(scene.building)} fill="#8e3f30" stroke="#6c2c22" strokeWidth={2 * u} strokeLinejoin="round" /> : null}
-      {scene.trees.map((tree, i) => {
+      {scene.platforms
+        .filter((p) => free(middleOf(p)))
+        .map((p, i) => (
+          <polygon key={`p${i}`} className="plattform" points={pts(p)} fill="#8d929a" stroke="#ecebe5" strokeWidth={2.2 * u} strokeLinejoin="round" />
+        ))}
+      {scene.building && free(middleOf(scene.building)) ? <polygon className="hus" points={pts(scene.building)} fill="#8e3f30" stroke="#6c2c22" strokeWidth={2 * u} strokeLinejoin="round" /> : null}
+      {scene.trees.filter((tree) => free(tree.at)).map((tree, i) => {
         const [x, y] = tree.at;
         const r = tree.r;
         return tree.bush ? (

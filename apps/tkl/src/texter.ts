@@ -186,6 +186,13 @@ const T = {
     en: "Passenger trains short and rounded, goods trains (4000–9999) longer and square; Run rolls the train",
   },
   skinNameFoto: { sv: "Foto · stationen ovanifrån i sin verkliga form", en: "Foto · the station from above in its real shape" },
+  // Mätbilden under (#89 del d4, CAD-33): the station's choice, the same on every screen
+  imageUnder: { sv: "Mätbilden under", en: "Measuring image under" },
+  imageUnderTitle: {
+    sv: "Modulernas mätbilder ur TrainMeet CAD under spåren. Gäller stationen på alla skärmar och skickar inga order.",
+    en: "The modules' measuring images from TrainMeet CAD under the tracks. For the station on every screen; it sends no orders.",
+  },
+  imageUnderVectors: { sv: "Ritas som vektorer: {modules}", en: "Drawn as vectors: {modules}" },
   // Delställverk (#87): the box at the top of Ställverket, the part's requests and Klara att skicka
   partBox: { sv: "Delställverken", en: "The station's parts" },
   partAsks: { sv: "{part} begär", en: "{part} requests" },

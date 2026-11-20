@@ -226,6 +226,15 @@ which station uses it, for CAD's Används i; CAD never makes a station:
     POST /api/tkl/1/studio/fran-cad/{kind}/{source}/forslag  TklCadImport: Rita's draft and the
                                                              difference
 
+Mätbilden under i Foto (#89 del d4, CAD-13, CAD-33): Gör förslaget and Läs in igen also fetch the
+modules' measuring images from CAD, those that changed, and keep them with the station
+(tkl/matbilder.py), so that Foto shows them without internet. The choice to draw them under the
+tracks is the station's, off by default, and grey with the reason:
+
+    GET  /api/tkl/1/matbilden                     TklImageUnder: the images, the choice, or why
+    PUT  /api/tkl/1/matbilden                     TklImageUnderChoice -> TklImageUnder
+    GET  /api/tkl/1/matbilden/{module}/{version}  the kept image, JPEG at 1 px per mm
+
 Fjärrstyrning (#36 del c, tkl/fjarr/): TKL started in the remote role is a remote interlocking
 with no station of its own (FR1, TKL47); it connects as the station protocol's client kind remote
 with its remote area (FR4). A station's own TKL controls a neighbour with the same fjärrbild, as
@@ -350,6 +359,7 @@ from contracts.tkl import (
     TklFunctionAction,
     TklFunctionAsk,
     TklIdState,
+    TklImageUnderChoice,
     TklInterlocking,
     TklLearnAnswer,
     TklLearnAsk,
@@ -409,6 +419,7 @@ from tkl import (
     hub_reports,
     id_login,
     manover,
+    matbilder,
     moln,
     prova,
     track_plan,
@@ -1785,16 +1796,79 @@ def create_app(
             raise HTTPException(
                 409, f"Motorn kan inte lägga ut förslaget ur CAD. {error}"
             ) from error
-        link = TklCadLink(
-            kind=kind,
-            id=source,
-            name=studio.source.name,
-            revision=studio.source.revision,
-            modules=fran_cad.modules_of(studio),
+        # The modules' measuring images for Foto (part d4), those that changed since the last.
+        fetched = matbilder.fetch(cad_for(found), store, found, kind, source)
+        link = fetched.on(
+            TklCadLink(
+                kind=kind,
+                id=source,
+                name=studio.source.name,
+                revision=studio.source.revision,
+                modules=fran_cad.modules_of(studio),
+            )
         )
         view = TklRita.model_validate(keep_drawing(found, made))
-        store.save_cad_links(found, in_use, link if view.state == TklDrawingState.DRAFT else None)
+        if view.state == TklDrawingState.DRAFT:
+            store.save_cad_links(found, in_use, link)
+        else:
+            # Nothing new to take into use: the station's track plan is the source's as it is,
+            # and its images follow the source's newest, unless CAD did not give them now.
+            same = in_use is not None and (in_use.kind, in_use.id) == (kind, source)
+            kept = (
+                fetched.on(in_use) if in_use is not None and same and not fetched.failed else in_use
+            )
+            store.save_cad_links(found, kept, None)
         return TklCadImport(rita=view, diff=diff, link=link).model_dump(mode="json")
+
+    # --- Mätbilden under i Foto (#89 del d4, CAD-13, CAD-33) --------------------------------
+
+    def image_under(found: str) -> dict[str, Any]:
+        in_use, _ = store.cad_links(found)
+        shown = matbilder.under(in_use, store.station_model(found), store.image_under(found))
+        return shown.model_dump(mode="json")
+
+    @routes.get("/matbilden")
+    def image_under_now(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """The station's measuring images from CAD for Foto, and its choice; or why it is
+        grey."""
+        no_store(response)
+        return image_under(unlocked(slot, session))
+
+    @routes.put("/matbilden")
+    def choose_image_under(
+        choice: TklImageUnderChoice,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Mätbilden under, on or off for the station, on every screen. It sends no order to the
+        interlocking (STV-18). On is refused while the station has no images to show."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        if choice.on:
+            now = image_under(found)
+            if not now["available"]:
+                raise HTTPException(409, now["reason"])
+        store.choose_image_under(found, choice.on)
+        return image_under(found)
+
+    @routes.get("/matbilden/{module}/{version}", response_model=None)
+    def image_under_image(
+        module: UUID, version: int, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Response:
+        """A measuring image kept with the station, as CAD sent it: JPEG at 1 px per mm. The
+        address carries the photo, so the browser may keep it."""
+        found = unlocked(slot, session)
+        data = store.cad_image(found, str(module), version)
+        if data is None:
+            raise HTTPException(404, "Mätbilden finns inte här.")
+        return Response(
+            data, media_type="image/jpeg", headers={"Cache-Control": "private, max-age=86400"}
+        )
 
     # --- TKL i molnet: the station belongs to the account (#88, TKL5, TKLMOLN-02) -------------
 

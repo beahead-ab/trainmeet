@@ -34,6 +34,7 @@ from cad import (
     drawings_api,
     id_login,
     login,
+    matbilder_api,
     migrate,
     photos_api,
     smoothing,
@@ -49,6 +50,7 @@ from cad.id_roles import IdRoles
 from cad.landscapes import Landscapes
 from cad.landscapes_api import router as landscapes_router
 from cad.library import Access, Modules, Who
+from cad.matbilder import Matbilder
 from cad.meter import IdMeter
 from cad.photos import Photos
 from cad.settings import Settings, from_env
@@ -186,6 +188,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     # Anläggningar and Till TKL Studio (part d2), with the library's rights.
     assemblies = Assemblies(db, modules)
     modules.uses = assemblies
+    # Mätbilden i TKL:s Foto (part d4): the measuring images of what Studio has.
+    matbilder = Matbilder(db, photo_store, assemblies)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -492,6 +496,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.include_router(drawings_api.router(drawings, drawing_asker))
     app.include_router(landscapes_router(landscapes, exports, who))
     app.include_router(assemblies_api.router(assemblies, who, drawing_asker))
+    app.include_router(matbilder_api.router(matbilder, drawing_asker))
 
     @app.api_route(
         "/api/{rest:path}",

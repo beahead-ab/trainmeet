@@ -704,6 +704,27 @@ class TklUpload(Contract):
 # --- Från CAD in Studio (#89 del d2, STUDIO-01, STUDIO-03, CAD-15, CAD-20) ------------------
 
 
+class TklCadImage(Contract):
+    """A module's measuring image from TrainMeet CAD, kept with the station so that Foto shows it
+    without internet (#89 del d4, CAD-13, CAD-33). matrix, SVG's (a, b, c, d, e, f), takes the
+    image's pixels ((0, 0) its top left corner, y down) to the station's real geometry in mm,
+    which is the source's in CAD (contracts.cad.StudioImage.to_source); outline is the board,
+    which the image is clipped to."""
+
+    module: UUID
+    version: int = Field(ge=1)
+    job: UUID = Field(description="The photo it came from: a new photo is a new image.")
+    title: Text = Field(max_length=120, description='"M-002 Linje".')
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+    matrix: list[float] = Field(min_length=6, max_length=6)
+    outline: list[Point] = Field(min_length=3)
+    bytes: int = Field(ge=0)
+    url: str | None = Field(
+        default=None, description="TKL:s egen adress till bilden, i TklImageUnder."
+    )
+
+
 class TklCadLink(Contract):
     """The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
     single module, at a revision. registered: CAD knows the station uses it (Används i)."""
@@ -717,6 +738,17 @@ class TklCadLink(Contract):
         default_factory=dict,
         description='Its modules by id, as the owner sees them: "M-002 Linje". A re-import says '
         "which module a piece that is gone was on.",
+    )
+    images: list[TklCadImage] = Field(
+        default_factory=list,
+        description="The modules' measuring images for Foto, kept with the station (part d4).",
+    )
+    missing: list[Text] = Field(
+        default_factory=list,
+        description='The modules without one, and why: "M-002 Linje: Modulen är inte fotad …".',
+    )
+    gauge: float | None = Field(
+        default=None, gt=0, description="The source's gauge in mm, for the rails over the images."
     )
 
 
@@ -772,6 +804,34 @@ class TklCadImport(Contract):
     rita: TklRita
     diff: TklCadDiff
     link: TklCadLink
+
+
+class TklImageUnder(Contract):
+    """Mätbilden under i Foto (#89 del d4, CAD8, CAD-33): the modules' measuring images from
+    TrainMeet CAD for a station that came from CAD, kept with the station, and the station's
+    choice to draw them under the tracks in Foto. The choice is the station's, the same on every
+    screen, off by default; it sends no order (STV-18). Grey with the reason when the station
+    has no images to show."""
+
+    available: bool
+    reason: Text | None = Field(default=None, description="Varför Mätbilden under är grå.")
+    on: bool = Field(description="The station's choice; drawn only while available.")
+    images: list[TklCadImage] = Field(default_factory=list)
+    missing: list[Text] = Field(default_factory=list, description="Modules drawn as vectors.")
+    gauge: float | None = Field(
+        default=None,
+        gt=0,
+        description="The gauge in mm of the source's scale: Foto draws its rails at it over the "
+        "images, which show the real ones.",
+    )
+    bytes: int = Field(ge=0, description="What the images take with the station.")
+    limit: int = Field(ge=0, description="The most a station keeps, in bytes.")
+
+
+class TklImageUnderChoice(Contract):
+    """The station's choice: Mätbilden under in Foto, or not."""
+
+    on: bool
 
 
 # --- Manöver: the owner's free panel (STV-46, TKL86) ---------------------------------------

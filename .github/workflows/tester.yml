@@ -360,8 +360,11 @@ jobs:
       # Från CAD (#89 del d2): samma låtsade CAD listar en syntetisk anläggning med CAD:s egen spårgraf
       # (cad/assembly_example.py), förslaget blir gult, bekräftas och tas i bruk, CAD får veta stationen,
       # och omimporten efter en ändring i CAD visar skillnaden.
-      - name: Ladda upp ritning och Från CAD i webbläsaren (#89 del c4 och d2)
-        timeout-minutes: 3
+      # Mätbilden under i Foto (#89 del d4): CAD ger modulernas syntetiska mätbilder, som CAD:s egen kod
+      # gör (cad/matbild_example.py). TKL hämtar dem med förslaget, och i Foto är Mätbilden under av
+      # tills provet slår på den; bilderna ligger där modulerna ligger, och valet står kvar.
+      - name: Ladda upp ritning, Från CAD och Mätbilden under i webbläsaren (#89 del c4, d2 och d4)
+        timeout-minutes: 4
         env:
           CHROME_PATH: /usr/bin/google-chrome
           PROV_TKL: http://127.0.0.1:8096
@@ -371,6 +374,7 @@ jobs:
           uv run python -m cad.bildkedjan.ritning_syntetisk pdf "$RUNNER_TEMP/ritning.pdf"
           uv run python -m cad.bildkedjan.ritning_syntetisk bild "$RUNNER_TEMP/underlag.png"
           uv run python -m cad.assembly_example "$RUNNER_TEMP/cad-fore.json" "$RUNNER_TEMP/cad-efter.json"
+          uv run python -m cad.matbild_example "$RUNNER_TEMP/cad-matbilder"
           docker run -d --name tkl-ladda -p 127.0.0.1:8096:8090 -e TKL_MODE=local \
             -e TKL_ID_ISSUER=http://127.0.0.1:8097/realms/trainmeet \
             -e TKL_ID_INTERNAL=http://host.docker.internal:8097/realms/trainmeet \
@@ -382,7 +386,7 @@ jobs:
           done
           PROV_RITNING="$RUNNER_TEMP/ritning.pdf" PROV_UNDERLAG="$RUNNER_TEMP/underlag.png" \
             PROV_CAD_FORE="$RUNNER_TEMP/cad-fore.json" PROV_CAD_EFTER="$RUNNER_TEMP/cad-efter.json" \
-            node apps/tkl/e2e/ladda-upp.mjs
+            PROV_CAD_MATBILDER="$RUNNER_TEMP/cad-matbilder" node apps/tkl/e2e/ladda-upp.mjs
 
       - name: TKL:s skärmbilder om något gick fel
         if: failure()
@@ -939,6 +943,10 @@ jobs:
             "http://localhost:8086/api/cad/1/assemblies/$ANL" | jq -e '.checks[0].fits and .problems == [] and .modules[1].at == [1500,0]' >/dev/null
           curl -fsS -b "$PROV/kakor" "http://localhost:8086/api/cad/1/studio/assembly/$ANL" \
             | jq -e '.source.ready and (.graph.pieces | length) == 2 and (.graph.nodes | length) == 3' >/dev/null
+          # Mätbilden i TKL:s Foto (#89 del d4): modulerna är inte fotade, så båda står bland dem utan
+          # mätbild, med H0:s spårvidd.
+          curl -fsS -b "$PROV/kakor" "http://localhost:8086/api/cad/1/studio/assembly/$ANL/images" \
+            | jq -e '.images == [] and (.missing | length) == 2 and .gauge == 16.5' >/dev/null
           # CAD runs as its own user, never as root.
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac

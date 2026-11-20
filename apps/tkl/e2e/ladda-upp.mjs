@@ -14,6 +14,12 @@
 // anläggningen. Sedan ändras anläggningen i CAD, och Läs in igen visar skillnaden: ett nytt spår och
 // ett som flyttat, gula tills ägaren bekräftar dem.
 //
+// Mätbilden under i Foto (#89 del d4): samma låtsade CAD ger modulernas syntetiska mätbilder, som
+// CAD:s egen kod gör (python -m cad.matbild_example, eller mappen PROV_CAD_MATBILDER). TKL hämtar dem
+// med förslaget och har dem kvar med stationen. I Ställverket är Mätbilden under av från början;
+// provet slår på den i Foto och ser bilderna under spåren, var och en där modulen ligger, och att
+// valet står kvar när sidan läses om.
+//
 //   PROV_TKL=http://127.0.0.1:8096 PROV_LATSAS=8097 PROV_RITNING=ritning.pdf \
 //     CHROME_PATH=/usr/bin/google-chrome node apps/tkl/e2e/ladda-upp.mjs
 //
@@ -55,6 +61,21 @@ function cadGraphs() {
   }
 }
 const [BEFORE, AFTER] = cadGraphs();
+
+/** The modules' synthetic measuring images and CAD's list of them, before and after the change, as
+ * CAD's own code makes them. */
+function cadImages() {
+  let dir = process.env.PROV_CAD_MATBILDER;
+  if (!dir || !existsSync(join(dir, "bilder-fore.json"))) {
+    dir = mkdtempSync(join(tmpdir(), "cad-matbilder-"));
+    execFileSync("uv", ["run", "--locked", "python", "-m", "cad.matbild_example", dir], { cwd: ROOT, stdio: "inherit" });
+  }
+  const lists = ["bilder-fore.json", "bilder-efter.json"].map((f) => JSON.parse(readFileSync(join(dir, f), "utf8")));
+  return { dir, lists };
+}
+const IMAGES = cadImages();
+const imagesOf = () => (graph === AFTER ? IMAGES.lists[1] : IMAGES.lists[0]);
+let imagesFetched = 0;
 let graph = BEFORE;
 const stationUses = [];
 const PERSON = randomUUID();
@@ -163,6 +184,21 @@ const pretend = createServer(async (req, res) => {
       return;
     }
     const where = `/api/cad/1/studio/assembly/${graph.source.id}`;
+    if (path === `${where}/images`) {
+      reply(res, 200, imagesOf());
+      return;
+    }
+    if (path.startsWith(`${where}/images/`)) {
+      const [module, version] = path.slice(`${where}/images/`.length).split("/");
+      const file = join(IMAGES.dir, `${module}-${version}.jpg`);
+      if (!/^[0-9a-f-]{36}$/.test(module ?? "") || !/^\d+$/.test(version ?? "") || !existsSync(file)) {
+        reply(res, 404, { code: "not_found", message: "Finns inte." });
+        return;
+      }
+      imagesFetched += 1;
+      reply(res, 200, readFileSync(file), "image/jpeg");
+      return;
+    }
     if (path === "/api/cad/1/studio") reply(res, 200, { sources: [graph.source] });
     else if (path === where) reply(res, 200, graph);
     else if (path === `${where}/station` && req.method === "PUT") {
@@ -262,6 +298,7 @@ async function franCad(page) {
   await page.getByRole("button", { name: "Använd ritningen" }).click();
   await page.getByText("Används i Ställverket").waitFor();
   check(stationUses.length === 1 && stationUses[0].station_id === "upb" && stationUses[0].revision === BEFORE.source.revision, `CAD fick inte veta stationen: ${JSON.stringify(stationUses)}`);
+  await fotoMatbilden(page);
   // The assembly changes in CAD: Läs in igen shows the difference.
   graph = AFTER;
   panel = await openFromCad(page);
@@ -275,6 +312,53 @@ async function franCad(page) {
   await diff.getByText("M-003 Linje bortom · spår 1").waitFor();
   await page.getByRole("button", { name: /Bekräfta förslaget \(3\)/ }).waitFor();
   await screenshot(page, "fran-cad-skillnad");
+}
+
+// --- Mätbilden under i Foto (#89 del d4) -------------------------------------------------------
+
+async function fotoMatbilden(page) {
+  const listed = IMAGES.lists[0].images;
+  check(imagesFetched === listed.length, `TKL hämtade ${imagesFetched} mätbilder, inte ${listed.length}.`);
+  await page.goto(`${TKL}/`);
+  await page.getByRole("group", { name: "Skal" }).getByRole("button", { name: "Foto", exact: true }).click();
+  const foto = page.locator("svg.stv-panel.skal-foto");
+  await foto.waitFor();
+  const toggle = page.getByRole("button", { name: "Mätbilden under" });
+  await toggle.waitFor();
+  check((await toggle.getAttribute("aria-pressed")) === "false" && (await toggle.isEnabled()), "Mätbilden under var på från början eller gick inte att välja.");
+  check((await foto.locator("g.matbilder image").count()) === 0, "Mätbilderna syntes innan de valdes.");
+  await screenshot(page, "foto-utan-matbild");
+  await toggle.click();
+  await page.waitForFunction((n) => document.querySelectorAll("svg.skal-foto g.matbilder image").length === n, listed.length);
+  // Each image is TKL's own copy, a JPEG, and lies where the assembly put its module: its board's
+  // corners in the station's mm, the same mm as the tracks drawn over it.
+  const shown = await page.evaluate(async () => {
+    const found = [];
+    for (const g of document.querySelectorAll("svg.skal-foto g.matbilder g[data-matbild]")) {
+      const image = g.querySelector("image");
+      const answer = await fetch(image.getAttribute("href"));
+      const box = g.getBBox();
+      found.push({ key: g.getAttribute("data-matbild"), type: answer.headers.get("content-type"), size: (await answer.arrayBuffer()).byteLength, box: [box.x, box.y, box.width, box.height] });
+    }
+    return found;
+  });
+  for (const image of listed) {
+    const seen = shown.find((s) => s.key === `${image.module}:${image.version}`);
+    check(seen && seen.type === "image/jpeg" && seen.size > 1000, `Mätbilden för ${image.number} kom inte från TKL: ${JSON.stringify(seen)}`);
+    const xs = image.outline.map((p) => p[0]);
+    const ys = image.outline.map((p) => p[1]);
+    const [x, y, w, h] = seen.box;
+    const near = (a, b) => Math.abs(a - b) <= 25;
+    check(near(x, Math.min(...xs) - 20) && near(y, Math.min(...ys) - 20) && near(x + w, Math.max(...xs) + 20) && near(y + h, Math.max(...ys) + 20), `Mätbilden för ${image.number} ligger fel: ${JSON.stringify(seen.box)}.`);
+  }
+  await screenshot(page, "foto-med-matbild");
+  // The station's choice, on every screen: still on when the page is read again.
+  await page.reload();
+  await page.locator("svg.stv-panel.skal-foto g.matbilder image").first().waitFor({ state: "attached" });
+  check((await page.getByRole("button", { name: "Mätbilden under" }).getAttribute("aria-pressed")) === "true", "Valet stod inte kvar.");
+  await page.locator('svg.stv-panel.skal-foto g[data-matbild]').first().scrollIntoViewIfNeeded();
+  await screenshot(page, "foto-med-matbild-narbild");
+  console.log(`Mätbilden under i Foto: ${listed.length} mätbilder hämtade med förslaget, av från början, påslagna under spåren där modulerna ligger, och valet stod kvar.`);
 }
 
 async function main() {

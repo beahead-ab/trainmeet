@@ -532,6 +532,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/matbilden": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklImageUnder"];
+        put: operations["tklChooseImageUnder"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/matbilden/{module}/{version}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklImageUnderImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/studio/dela": {
         parameters: {
             query?: never;
@@ -9739,6 +9771,55 @@ export interface components {
          */
         "trainmeet.tkl-1.from-cad.StudioSourceKind": "assembly" | "module";
         /**
+         * TklCadImage
+         * @description A module's measuring image from TrainMeet CAD, kept with the station so that Foto shows it
+         *     without internet (#89 del d4, CAD-13, CAD-33). matrix, SVG's (a, b, c, d, e, f), takes the
+         *     image's pixels ((0, 0) its top left corner, y down) to the station's real geometry in mm,
+         *     which is the source's in CAD (contracts.cad.StudioImage.to_source); outline is the board,
+         *     which the image is clipped to.
+         */
+        "trainmeet.tkl-1.from-cad.TklCadImage": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /**
+             * Job
+             * Format: uuid
+             * @description The photo it came from: a new photo is a new image.
+             */
+            job: string;
+            /**
+             * Title
+             * @description "M-002 Linje".
+             */
+            title: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Matrix */
+            matrix: number[];
+            /** Outline */
+            outline: [
+                number,
+                number
+            ][];
+            /** Bytes */
+            bytes: number;
+            /**
+             * Url
+             * @description TKL:s egen adress till bilden, i TklImageUnder.
+             * @default null
+             */
+            url: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TklCadLink
          * @description The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
          *     single module, at a revision. registered: CAD knows the station uses it (Används i).
@@ -9766,6 +9847,22 @@ export interface components {
             modules?: {
                 [key: string]: string;
             };
+            /**
+             * Images
+             * @description The modules' measuring images for Foto, kept with the station (part d4).
+             */
+            images?: components["schemas"]["trainmeet.tkl-1.from-cad.TklCadImage"][];
+            /**
+             * Missing
+             * @description The modules without one, and why: "M-002 Linje: Modulen är inte fotad …".
+             */
+            missing?: string[];
+            /**
+             * Gauge
+             * @description The source's gauge in mm, for the rails over the images.
+             * @default null
+             */
+            gauge: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -10786,6 +10883,55 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * TklCadImage
+         * @description A module's measuring image from TrainMeet CAD, kept with the station so that Foto shows it
+         *     without internet (#89 del d4, CAD-13, CAD-33). matrix, SVG's (a, b, c, d, e, f), takes the
+         *     image's pixels ((0, 0) its top left corner, y down) to the station's real geometry in mm,
+         *     which is the source's in CAD (contracts.cad.StudioImage.to_source); outline is the board,
+         *     which the image is clipped to.
+         */
+        "trainmeet.tkl-1.cad-import.TklCadImage": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /**
+             * Job
+             * Format: uuid
+             * @description The photo it came from: a new photo is a new image.
+             */
+            job: string;
+            /**
+             * Title
+             * @description "M-002 Linje".
+             */
+            title: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Matrix */
+            matrix: number[];
+            /** Outline */
+            outline: [
+                number,
+                number
+            ][];
+            /** Bytes */
+            bytes: number;
+            /**
+             * Url
+             * @description TKL:s egen adress till bilden, i TklImageUnder.
+             * @default null
+             */
+            url: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * TklCadLink
          * @description The group of modules in TrainMeet CAD a station's track plan comes from: an assembly or a
          *     single module, at a revision. registered: CAD knows the station uses it (Används i).
@@ -10813,6 +10959,22 @@ export interface components {
             modules?: {
                 [key: string]: string;
             };
+            /**
+             * Images
+             * @description The modules' measuring images for Foto, kept with the station (part d4).
+             */
+            images?: components["schemas"]["trainmeet.tkl-1.cad-import.TklCadImage"][];
+            /**
+             * Missing
+             * @description The modules without one, and why: "M-002 Linje: Modulen är inte fotad …".
+             */
+            missing?: string[];
+            /**
+             * Gauge
+             * @description The source's gauge in mm, for the rails over the images.
+             * @default null
+             */
+            gauge: number | null;
         } & {
             [key: string]: unknown;
         };
@@ -20343,6 +20505,113 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * TklImageUnder
+         * @description Mätbilden under i Foto (#89 del d4, CAD8, CAD-33): the modules' measuring images from
+         *     TrainMeet CAD for a station that came from CAD, kept with the station, and the station's
+         *     choice to draw them under the tracks in Foto. The choice is the station's, the same on every
+         *     screen, off by default; it sends no order (STV-18). Grey with the reason when the station
+         *     has no images to show.
+         */
+        "trainmeet.tkl-1.image-under": {
+            /** Available */
+            available: boolean;
+            /**
+             * Reason
+             * @description Varför Mätbilden under är grå.
+             * @default null
+             */
+            reason: string | null;
+            /**
+             * On
+             * @description The station's choice; drawn only while available.
+             */
+            on: boolean;
+            /** Images */
+            images?: components["schemas"]["trainmeet.tkl-1.image-under.TklCadImage"][];
+            /**
+             * Missing
+             * @description Modules drawn as vectors.
+             */
+            missing?: string[];
+            /**
+             * Gauge
+             * @description The gauge in mm of the source's scale: Foto draws its rails at it over the images, which show the real ones.
+             * @default null
+             */
+            gauge: number | null;
+            /**
+             * Bytes
+             * @description What the images take with the station.
+             */
+            bytes: number;
+            /**
+             * Limit
+             * @description The most a station keeps, in bytes.
+             */
+            limit: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklCadImage
+         * @description A module's measuring image from TrainMeet CAD, kept with the station so that Foto shows it
+         *     without internet (#89 del d4, CAD-13, CAD-33). matrix, SVG's (a, b, c, d, e, f), takes the
+         *     image's pixels ((0, 0) its top left corner, y down) to the station's real geometry in mm,
+         *     which is the source's in CAD (contracts.cad.StudioImage.to_source); outline is the board,
+         *     which the image is clipped to.
+         */
+        "trainmeet.tkl-1.image-under.TklCadImage": {
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            /** Version */
+            version: number;
+            /**
+             * Job
+             * Format: uuid
+             * @description The photo it came from: a new photo is a new image.
+             */
+            job: string;
+            /**
+             * Title
+             * @description "M-002 Linje".
+             */
+            title: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Matrix */
+            matrix: number[];
+            /** Outline */
+            outline: [
+                number,
+                number
+            ][];
+            /** Bytes */
+            bytes: number;
+            /**
+             * Url
+             * @description TKL:s egen adress till bilden, i TklImageUnder.
+             * @default null
+             */
+            url: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklImageUnderChoice
+         * @description The station's choice: Mätbilden under in Foto, or not.
+         */
+        "trainmeet.tkl-1.image-under-choice": {
+            /** On */
+            on: boolean;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -21271,6 +21540,73 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["trainmeet.tkl-1.cad-import"];
+                };
+            };
+        };
+    };
+    tklImageUnder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.image-under"];
+                };
+            };
+        };
+    };
+    tklChooseImageUnder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.tkl-1.image-under-choice"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.image-under"];
+                };
+            };
+        };
+    };
+    tklImageUnderImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+                version: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The measuring image, JPEG at 1 px per mm */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
                 };
             };
         };
