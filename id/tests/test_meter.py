@@ -34,13 +34,30 @@ class PretendClaude:
     text: str = "Värnamo 07.12 avg 101"
     failing: bool = False
     calls: list[tuple[str, int]] = field(default_factory=list)
+    hard: list[bool] = field(default_factory=list)
 
     @property
     def model(self) -> str:
         return "anthropic.claude-sonnet-5-5"
 
-    def read(self, prompt: str, images: Sequence[tuple[str, str]], max_tokens: int) -> ClaudeRead:
+    @property
+    def hard_model(self) -> str:
+        return "anthropic.claude-fable-5-2"
+
+    @property
+    def hard_factor(self) -> float:
+        return 4.0
+
+    def read(
+        self,
+        prompt: str,
+        images: Sequence[tuple[str, str]],
+        max_tokens: int,
+        *,
+        hard: bool = False,
+    ) -> ClaudeRead:
         self.calls.append((prompt, len(images)))
+        self.hard.append(hard)
         if self.failing:
             raise MeterFailed("TrainMeets AI svarar inte just nu.")
         return ClaudeRead(self.text, 7000 * len(images), 3000 * len(images))
@@ -53,7 +70,13 @@ class Metered:
     app: TestClient
 
     def read(
-        self, reservation: str, images: int = 1, *, hold: bool = False, app: str = "hub"
+        self,
+        reservation: str,
+        images: int = 1,
+        *,
+        hold: bool = False,
+        app: str = "hub",
+        hard: bool = False,
     ) -> httpx.Response:
         headers = {"Authorization": f"Bearer {self.world.keycloak.app_token(app)}"}
         body: dict[str, Any] = {
@@ -63,6 +86,8 @@ class Metered:
         }
         if hold:
             body["hold"] = True
+        if hard:
+            body["hard"] = True
         answer: httpx.Response = self.app.post("/api/id/1/apps/meter", json=body, headers=headers)
         return answer
 
@@ -87,7 +112,7 @@ def metered(world: World, tmp_path: Path) -> Iterator[Metered]:
         client="id",
         secret=SECRET,
         public_url=PUBLIC,
-        apps=("catalog", "hub"),
+        apps=("catalog", "hub", "cad"),
         web_dir=tmp_path,
     )
     http = httpx.Client(transport=httpx.MockTransport(world.keycloak.handle))
@@ -119,6 +144,44 @@ def test_the_meter_reads_the_picture_and_draws_what_it_cost(metered: Metered) ->
     again = MeterAnswer.model_validate(metered.read(held, images=2).json())
     assert (again.text, again.reservation.balance.available) == (answer.text, 76)
     assert len(metered.claude.calls) == 1, "asked once"
+
+
+def test_cads_hard_question_is_read_by_the_strongest_model_at_the_same_price(
+    metered: Metered,
+) -> None:
+    """CAD18: CAD's hard follow-up question, where the code was unsure, is read by Claude Fable
+    5.2; the person pays the same 12 tokens a picture."""
+    kim = person(metered.world)
+    headers = {"Authorization": f"Bearer {metered.world.keycloak.app_token('cad')}"}
+    body = {
+        "person": kim,
+        "owner": {"kind": "person", "id": kim},
+        "amount": 12,
+        "key": "foljdfraga",
+        "what": "1 bild i CAD",
+    }
+    made = metered.app.post("/api/id/1/apps/tokens/reservations", json=body, headers=headers)
+    assert made.status_code in (200, 201), made.text
+    held = made.json()["id"]
+    read = metered.read(held, app="cad", hard=True)
+    assert read.status_code == 200, read.text
+    answer = MeterAnswer.model_validate(read.json())
+    assert (answer.cost, answer.model) == (12, "anthropic.claude-fable-5-2")
+    assert metered.claude.hard == [True]
+
+
+def test_only_cad_may_ask_the_strongest_model(metered: Metered) -> None:
+    """CAD18: only CAD's hard follow-up questions; the hub's import reads with the standard
+    model, and a hard question from it is refused before anything is read or drawn."""
+    kim = person(metered.world)
+    held = reserve(metered.world, kim, f"person:{kim}", 12, "sida-1").json()["id"]
+    refused = metered.read(held, app="hub", hard=True)
+    assert refused.status_code == 422, refused.text
+    assert "CAD:s svåra följdfrågor" in refused.json()["message"]
+    assert metered.claude.calls == []
+    read = metered.read(held, app="hub")
+    assert MeterAnswer.model_validate(read.json()).model == "anthropic.claude-sonnet-5-5"
+    assert metered.claude.hard == [False]
 
 
 def test_when_the_ai_does_not_answer_nothing_is_drawn(metered: Metered) -> None:
@@ -200,6 +263,50 @@ def test_bedrock_is_asked_in_the_eu_signed_and_with_the_picture(tmp_path: Path) 
         {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": PICTURE}},
         {"type": "text", "text": "Skriv av."},
     ]
+
+
+def test_a_hard_question_goes_to_the_strongest_model_with_room_to_think(tmp_path: Path) -> None:
+    """CAD18: Claude Fable 5.2 always thinks, and its thinking counts in max_tokens, so a short
+    answer still gets room; it reads carefully (effort high)."""
+    seen: list[httpx.Request] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "content": [{"type": "text", "text": "blå"}],
+                "stop_reason": "end_turn",
+                "usage": {"input_tokens": 1500, "output_tokens": 400},
+            },
+        )
+
+    claude = bedrock(tmp_path, handle)
+    assert claude.hard_model == "anthropic.claude-fable-5-2"
+    read = claude.read("Vilken kontur?", [("image/png", PICTURE)], 256, hard=True)
+    assert read.text == "blå"
+    body = json.loads(seen[0].content)
+    assert body["model"] == "anthropic.claude-fable-5-2"
+    assert body["output_config"] == {"effort": "high"}
+    assert body["max_tokens"] == 16_000
+    assert "thinking" not in body and "temperature" not in body
+
+
+def test_the_hard_model_and_its_price_factor_are_settings(tmp_path: Path) -> None:
+    key = tmp_path / "nyckel"
+    key.write_text("AKIAPROVET\nhemlig\n")
+    found = settings_from({"ID_METER_KEY_FILE": str(key)})
+    assert found is not None
+    assert (found.hard_model, found.hard_factor) == ("anthropic.claude-fable-5-2", 4.0)
+    other = settings_from(
+        {
+            "ID_METER_KEY_FILE": str(key),
+            "ID_METER_MODEL_HARD": "anthropic.claude-opus-5-5",
+            "ID_METER_HARD_FACTOR": "2",
+        }
+    )
+    assert other is not None
+    assert (other.hard_model, other.hard_factor) == ("anthropic.claude-opus-5-5", 2.0)
 
 
 def test_the_meter_is_on_only_with_its_key_in_the_vault(tmp_path: Path) -> None:
