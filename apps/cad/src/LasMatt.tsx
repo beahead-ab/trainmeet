@@ -279,7 +279,7 @@ export function LasMatt({ module, proposal, busy = false, error, navigate, onCha
             ) : null}
           </section>
           <p className="cad-ruta cad-infobox">
-            ⓘ DXF-filen får riktiga linjer och bågar för spårmitten, så radierna går att mäta i ett CAD-program. Exporten kommer i nästa steg.
+            ⓘ DXF-filen får riktiga linjer och bågar för spårmitten, så radierna går att mäta i ett CAD-program. DXF:en finns under Exportera när geometrin är sparad.
           </p>
         </div>
       </div>

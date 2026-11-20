@@ -917,6 +917,9 @@ jobs:
           curl -fsS -b "$PROV/kakor" http://localhost:8086/api/cad/1/modules | jq -e '.modules | length == 1' >/dev/null
           curl -fsS -b "$PROV/kakor" -H 'Content-Type: application/json' -d '{"version":1}' \
             "http://localhost:8086/api/cad/1/modules/$ID/approve" | jq -e '.status == "approved"' >/dev/null
+          # Exportera (#89 del d1): modulens DXF hämtas och börjar med DXF:s huvud.
+          curl -fsS -b "$PROV/kakor" -o "$PROV/modul.dxf" "http://localhost:8086/api/cad/1/modules/$ID/export/1/modul.dxf"
+          head -4 "$PROV/modul.dxf" | tr -d ' \r' | paste -sd, - | grep -qx '0,SECTION,2,HEADER'
           # CAD runs as its own user, never as root.
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac

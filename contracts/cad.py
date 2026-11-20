@@ -2047,6 +2047,359 @@ class DrawingReadAsk(Contract):
     consent: bool = False
 
 
+# --- Landskapet and Exportera (part d1, CAD-04, CAD-07, CAD-08, CAD-24, CAD-33) -------------
+#
+#     GET    /api/cad/1/modules/{module}/landscape?version=   Landscape
+#     POST   /api/cad/1/modules/{module}/landscape/make       LandscapeMake -> Landscape: a new
+#                                                             version with the landscape made from
+#                                                             the measuring image, or empty to
+#                                                             paint by hand without a photo
+#     POST   /api/cad/1/modules/{module}/landscape            LandscapeEdit -> Landscape, the
+#                                                             change set shown; nothing is saved
+#     POST   /api/cad/1/modules/{module}/landscape/save       LandscapeEdit -> Landscape, a new
+#                                                             version
+#     POST   /api/cad/1/modules/{module}/landscape/approve    LandscapeEdit -> Landscape: saved if
+#                                                             it changes something, and the
+#                                                             version approved
+#     GET    /api/cad/1/modules/{module}/export?version=      ModuleExport
+#     GET    /api/cad/1/modules/{module}/export/{version}/{file}
+#                                                             the file (EXPORT_FILES): modul.dxf
+#                                                             (?rails=&landscape=), fremo.svg,
+#                                                             utskrift.svg, moduldatabas.json,
+#                                                             moduldatabas.csv, mmm.csv
+#
+# Landskapet (CAD-04): the module's surfaces from the measuring image, in surface classes
+# (bildkedjan step 14). TrainMeet's own model on CAD's server makes them when there is one;
+# until then, and whenever it cannot, colour clustering of the measuring image (CAD8, CAD-24,
+# CAD-33). It is free (CAD-18). The owner paints and erases (Måla, Sudda, Fyll). The ballast under
+# the tracks comes from the track plan, never from the colours, and the tracks are always drawn
+# from the geometry. The landscape belongs to the module version (CAD-08): every save is a new
+# version, and a later version keeps the landscape until a new one is saved. It is a proposal
+# (orange) until the version is approved (CAD-17): Godkänn landskapet, or the module's Godkänn.
+#
+# Exportera (CAD-07): whoever sees the module exports it, free. A module with an approved version
+# exports that one; a draft exports with Utkast on every file.
+
+
+class Surface(StrEnum):
+    """Ytklass: what a part of the landscape is (bildkedjan step 14)."""
+
+    GRASS = "grass"
+    BALLAST = "ballast"
+    GROUND = "ground"
+    """Mark och väg."""
+    PLATFORM = "platform"
+    WATER = "water"
+    BUILDING = "building"
+    TREES = "trees"
+    """Buske och träd."""
+    PATH = "path"
+    """Stig."""
+    UNKNOWN = "unknown"
+    """Okänd yta: a colour that is none of the classes; the owner names it by painting."""
+
+
+SURFACE_NAMES: Final = {
+    Surface.GRASS: "Gräs",
+    Surface.BALLAST: "Ballast",
+    Surface.GROUND: "Mark och väg",
+    Surface.PLATFORM: "Plattform",
+    Surface.WATER: "Vatten",
+    Surface.BUILDING: "Byggnad",
+    Surface.TREES: "Buske och träd",
+    Surface.PATH: "Stig",
+    Surface.UNKNOWN: "Okänd yta",
+}
+
+SURFACE_COLOURS: Final = {
+    Surface.GRASS: "#7fa860",
+    Surface.BALLAST: "#a8a39a",
+    Surface.GROUND: "#9c8466",
+    Surface.PLATFORM: "#d6d2c8",
+    Surface.WATER: "#5b8fc7",
+    Surface.BUILDING: "#b0645a",
+    Surface.TREES: "#3f6b3a",
+    Surface.PATH: "#d2b98a",
+    Surface.UNKNOWN: "#c9b8d9",
+}
+"""The surfaces' colours in Landskapet, the print and the exports: muted, as a model's
+landscape."""
+
+
+class LandscapeMethod(StrEnum):
+    """How the landscape was made (CAD8)."""
+
+    MODEL = "model"
+    """TrainMeet's own model for the surfaces, on CAD's server. None is trained yet."""
+    COLOUR = "colour"
+    """Färgklustring of the measuring image: the fallback (CAD-24)."""
+    HAND = "hand"
+    """No photo: an empty landscape, painted by hand."""
+
+
+class LandscapeStatus(StrEnum):
+    NONE = "none"
+    """The version has no landscape yet."""
+    PROPOSAL = "proposal"
+    """Förslag (orange): the version is not approved (CAD-17)."""
+    APPROVED = "approved"
+    """Godkänt: the version that holds it is approved."""
+
+
+class SurfaceInfo(Contract):
+    """A surface class as Landskapet shows it: its name and colour."""
+
+    surface: Surface
+    name: Text
+    colour: Annotated[str, StringConstraints(pattern=r"^#[0-9a-f]{6}$")]
+
+
+class LandscapeGrid(Contract):
+    """The landscape's cells in the module's millimetres: cell (0, 0)'s corner at (x0, y0), cell
+    mm on a side. Painting changes whole cells."""
+
+    x0: float
+    y0: float
+    cell: float = Field(gt=0, le=50)
+    width: int = Field(ge=1, le=4000)
+    height: int = Field(ge=1, le=4000)
+
+
+class LandscapeArea(Contract):
+    """Yta: one connected surface as a polygon in mm, simplified, with its holes. painted: the
+    owner painted it; otherwise it is what the photo gave."""
+
+    surface: Surface
+    outline: list[Point] = Field(min_length=3)
+    holes: list[list[Point]] = Field(default_factory=list)
+    area: float = Field(ge=0, description="mm².")
+    painted: bool = False
+
+
+class SurfaceTotal(Contract):
+    """How much of the board a surface covers: the legend. The ballast counts the track bed."""
+
+    surface: Surface
+    area: float = Field(ge=0, description="mm².")
+    share: float = Field(ge=0, le=1)
+
+
+class Landscape(Contract):
+    """Landskapet of one module version: its surfaces, the ballast under the tracks from the
+    track plan, and the measuring image to paint over."""
+
+    module: UUID
+    version: int = Field(ge=1, description="The version shown.")
+    latest: int = Field(ge=1)
+    saved_in: int | None = Field(
+        default=None,
+        ge=1,
+        description="The version the landscape was saved in; an earlier "
+        "one when the version keeps it.",
+    )
+    status: LandscapeStatus
+    method: LandscapeMethod | None = None
+    made_by: Text | None = Field(default=None, description="What made it: Färgklustring 1 …")
+    grid: LandscapeGrid | None = None
+    areas: list[LandscapeArea] = Field(default_factory=list)
+    track_bed: list[list[Point]] = Field(
+        default_factory=list, description="The ballast under the tracks, from the track plan."
+    )
+    totals: list[SurfaceTotal] = Field(default_factory=list)
+    surfaces: list[SurfaceInfo] = Field(default_factory=list, description="Every class, in order.")
+    photo: PhotoLayer | None = Field(default=None, description="The measuring image under.")
+    may_edit: bool
+    changed: bool = Field(default=False, description="The operations changed something.")
+
+
+class PaintLandscape(Contract):
+    """Måla: the surface along a stroke, with a brush radius mm."""
+
+    op: Literal["paint"] = "paint"
+    surface: Surface
+    radius: float = Field(ge=1, le=500)
+    points: list[Point] = Field(min_length=1, max_length=2000)
+
+
+class EraseLandscape(Contract):
+    """Sudda: nothing along the stroke, as a shadow wrongly classed (CAD-04)."""
+
+    op: Literal["erase"] = "erase"
+    radius: float = Field(ge=1, le=500)
+    points: list[Point] = Field(min_length=1, max_length=2000)
+
+
+class FillLandscape(Contract):
+    """Fyll: the connected area under the point, of the same surface or empty, becomes the
+    surface."""
+
+    op: Literal["fill"] = "fill"
+    surface: Surface
+    at: Point
+
+
+LandscapeOp = Annotated[PaintLandscape | EraseLandscape | FillLandscape, Field(discriminator="op")]
+
+
+class LandscapeEdit(Contract):
+    """The landscape's change set on top of base, the newest version the person read, as in
+    Ritningen: replayed for every call and refused with 409 when a newer version exists."""
+
+    base: int = Field(ge=1)
+    operations: list[LandscapeOp] = Field(default_factory=list, max_length=500)
+
+
+class LandscapeMake(Contract):
+    """Gör landskapet: from the measuring image, or empty without one. Replaces the landscape."""
+
+    base: int = Field(ge=1)
+
+
+class ExportKind(StrEnum):
+    """Exportera (CAD-07)."""
+
+    FREMO = "fremo"
+    """FREMO-ritning: the module sheet with the plan, the measures and the gables."""
+    DATABASE = "database"
+    """Moduldatabasen: the module as a record (ModuleRecord), JSON or CSV."""
+    MMM = "mmm"
+    """The gables' measures and track distances as MMM gives them. The MMM forms are planned."""
+    DXF = "dxf"
+    """DXF R12 in mm with real LINE and ARC (CAD-24)."""
+    PRINT = "print"
+    """Utskrift: the module with its landscape on a page, printed by the browser."""
+
+
+EXPORT_FILES: Final = {
+    "fremo.svg": (ExportKind.FREMO, "image/svg+xml"),
+    "utskrift.svg": (ExportKind.PRINT, "image/svg+xml"),
+    "moduldatabas.json": (ExportKind.DATABASE, "application/json"),
+    "moduldatabas.csv": (ExportKind.DATABASE, "text/csv; charset=utf-8"),
+    "mmm.csv": (ExportKind.MMM, "text/csv; charset=utf-8"),
+    "modul.dxf": (ExportKind.DXF, "application/dxf"),
+}
+"""The files a module exports, by the name in the address."""
+
+RECORD_FORMAT: Final = "trainmeet.cad.moduldatabas/1"
+
+
+class ExportFile(Contract):
+    kind: ExportKind
+    name: Text = Field(description="FREMO-ritning (SVG) …")
+    file: Text = Field(description="The name it is saved as.")
+    url: str
+    media_type: str
+
+
+class ExportVersion(Contract):
+    """A version that can be exported: the approved one, and the newest draft."""
+
+    version: int = Field(ge=1)
+    status: ModuleStatus
+    label: Text
+
+
+class RecordGable(Contract):
+    end: GableEnd
+    norm: Norm | None = None
+    profile: ProfileId | None = None
+    label: Text
+    width: float = Field(gt=0, description="mm.")
+    tracks: list[float] = Field(default_factory=list, description="From Kant 1, mm.")
+
+
+class ModuleRecord(Contract):
+    """Moduldatabasen: one module as a row in a module list (format RECORD_FORMAT). The JSON is
+    this record; the CSV has the same fields in RECORD_COLUMNS' order, comma-separated, UTF-8,
+    decimal point, the gables' tracks joined with /."""
+
+    format: Literal["trainmeet.cad.moduldatabas/1"] = RECORD_FORMAT
+    id: UUID
+    number: str
+    name: Name
+    owner: Text
+    scale: Scale
+    shape: Literal["straight", "curve", "trapezoid"]
+    length: float = Field(ge=0, description="Along Kant 1; a curve: track 1's arc, mm.")
+    radius: float | None = Field(default=None, description="A curve's track 1, mm, exact.")
+    angle: float | None = Field(default=None, description="A curve's angle, degrees, exact.")
+    offset: float | None = Field(default=None, description="A trapezoid's förskjutning, mm.")
+    gables: list[RecordGable] = Field(min_length=2, max_length=2)
+    track_length: float = Field(ge=0, description="mm.")
+    switches: int = Field(ge=0)
+    crossings: int = Field(ge=0)
+    landscape: bool = Field(description="The version has a landscape.")
+    version: int = Field(ge=1)
+    status: ModuleStatus
+    approved_at: datetime | None = None
+
+
+RECORD_COLUMNS: Final = (
+    "format",
+    "id",
+    "number",
+    "name",
+    "owner",
+    "scale",
+    "shape",
+    "length",
+    "radius",
+    "angle",
+    "offset",
+    "gable_a_norm",
+    "gable_a_profile",
+    "gable_a_width",
+    "gable_a_tracks",
+    "gable_b_norm",
+    "gable_b_profile",
+    "gable_b_width",
+    "gable_b_tracks",
+    "track_length",
+    "switches",
+    "crossings",
+    "landscape",
+    "version",
+    "status",
+    "approved_at",
+)
+"""Moduldatabasen as CSV: a header row with these names, then the module's row."""
+
+
+class MmmTrack(Contract):
+    """One track in a gable, as MMM measures it: from Kant 1, the distance to the track before,
+    MMM's position for it and how far the gable lies from it."""
+
+    track: int = Field(ge=1, le=MAX_TRACKS)
+    from_kant1: float
+    spacing: float | None = Field(default=None, description="To the track before, c/c, mm.")
+    mmm: float | None = Field(default=None, description="MMM's position, mm.")
+    deviation: float | None = Field(default=None, description="from_kant1 - mmm, mm.")
+
+
+class MmmGable(Contract):
+    end: GableEnd
+    norm: Norm | None = None
+    label: Text
+    width: float = Field(gt=0)
+    tracks: list[MmmTrack] = Field(default_factory=list)
+
+
+class ModuleExport(Contract):
+    """Exportera: the version exported, the files and what they hold. draft: every file is
+    marked Utkast."""
+
+    module: UUID
+    number: str
+    name: Name
+    version: int = Field(ge=1)
+    status: ModuleStatus
+    versions: list[ExportVersion] = Field(min_length=1)
+    files: list[ExportFile]
+    record: ModuleRecord
+    mmm: list[MmmGable] = Field(min_length=2, max_length=2)
+    landscape: bool
+
+
 # --- The assembly (part d) ----------------------------------------------------------------
 
 

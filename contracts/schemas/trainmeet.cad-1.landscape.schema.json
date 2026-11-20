@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.landscape.schema.json",
+  "title": "trainmeet.cad-1.landscape",
+  "$defs": {
+    "LandscapeArea": {
+      "additionalProperties": true,
+      "description": "Yta: one connected surface as a polygon in mm, simplified, with its holes. painted: the\nowner painted it; otherwise it is what the photo gave.",
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/Surface"
+        },
+        "outline": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "minItems": 3,
+          "title": "Outline",
+          "type": "array"
+        },
+        "holes": {
+          "items": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "title": "Holes",
+          "type": "array"
+        },
+        "area": {
+          "description": "mm².",
+          "minimum": 0,
+          "title": "Area",
+          "type": "number"
+        },
+        "painted": {
+          "default": false,
+          "title": "Painted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "surface",
+        "outline",
+        "area"
+      ],
+      "title": "LandscapeArea",
+      "type": "object"
+    },
+    "LandscapeGrid": {
+      "additionalProperties": true,
+      "description": "The landscape's cells in the module's millimetres: cell (0, 0)'s corner at (x0, y0), cell\nmm on a side. Painting changes whole cells.",
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "type": "number"
+        },
+        "y0": {
+          "title": "Y0",
+          "type": "number"
+        },
+        "cell": {
+          "exclusiveMinimum": 0,
+          "maximum": 50,
+          "title": "Cell",
+          "type": "number"
+        },
+        "width": {
+          "maximum": 4000,
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "maximum": 4000,
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "cell",
+        "width",
+        "height"
+      ],
+      "title": "LandscapeGrid",
+      "type": "object"
+    },
+    "LandscapeMethod": {
+      "description": "How the landscape was made (CAD8).",
+      "enum": [
+        "model",
+        "colour",
+        "hand"
+      ],
+      "title": "LandscapeMethod",
+      "type": "string"
+    },
+    "LandscapeStatus": {
+      "enum": [
+        "none",
+        "proposal",
+        "approved"
+      ],
+      "title": "LandscapeStatus",
+      "type": "string"
+    },
+    "PhotoGrid": {
+      "additionalProperties": true,
+      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
+      "properties": {
+        "x0": {
+          "title": "X0",
+          "type": "number"
+        },
+        "y0": {
+          "title": "Y0",
+          "type": "number"
+        },
+        "ppm": {
+          "exclusiveMinimum": 0,
+          "title": "Ppm",
+          "type": "number"
+        },
+        "width": {
+          "minimum": 1,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "minimum": 1,
+          "title": "Height",
+          "type": "integer"
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 6,
+              "minItems": 6,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matrix"
+        }
+      },
+      "required": [
+        "x0",
+        "y0",
+        "ppm",
+        "width",
+        "height"
+      ],
+      "title": "PhotoGrid",
+      "type": "object"
+    },
+    "PhotoLayer": {
+      "additionalProperties": true,
+      "description": "Fotot under: the measuring image under the drawing, in the module's millimetres.",
+      "properties": {
+        "job": {
+          "format": "uuid",
+          "title": "Job",
+          "type": "string"
+        },
+        "url": {
+          "description": "The measuring image at 1 px per mm, a signed address.",
+          "title": "Url",
+          "type": "string"
+        },
+        "grid": {
+          "$ref": "#/$defs/PhotoGrid"
+        }
+      },
+      "required": [
+        "job",
+        "url",
+        "grid"
+      ],
+      "title": "PhotoLayer",
+      "type": "object"
+    },
+    "Surface": {
+      "description": "Ytklass: what a part of the landscape is (bildkedjan step 14).",
+      "enum": [
+        "grass",
+        "ballast",
+        "ground",
+        "platform",
+        "water",
+        "building",
+        "trees",
+        "path",
+        "unknown"
+      ],
+      "title": "Surface",
+      "type": "string"
+    },
+    "SurfaceInfo": {
+      "additionalProperties": true,
+      "description": "A surface class as Landskapet shows it: its name and colour.",
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/Surface"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "colour": {
+          "pattern": "^#[0-9a-f]{6}$",
+          "title": "Colour",
+          "type": "string"
+        }
+      },
+      "required": [
+        "surface",
+        "name",
+        "colour"
+      ],
+      "title": "SurfaceInfo",
+      "type": "object"
+    },
+    "SurfaceTotal": {
+      "additionalProperties": true,
+      "description": "How much of the board a surface covers: the legend. The ballast counts the track bed.",
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/Surface"
+        },
+        "area": {
+          "description": "mm².",
+          "minimum": 0,
+          "title": "Area",
+          "type": "number"
+        },
+        "share": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Share",
+          "type": "number"
+        }
+      },
+      "required": [
+        "surface",
+        "area",
+        "share"
+      ],
+      "title": "SurfaceTotal",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Landskapet of one module version: its surfaces, the ballast under the tracks from the\ntrack plan, and the measuring image to paint over.",
+  "properties": {
+    "module": {
+      "format": "uuid",
+      "title": "Module",
+      "type": "string"
+    },
+    "version": {
+      "description": "The version shown.",
+      "minimum": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "latest": {
+      "minimum": 1,
+      "title": "Latest",
+      "type": "integer"
+    },
+    "saved_in": {
+      "anyOf": [
+        {
+          "minimum": 1,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The version the landscape was saved in; an earlier one when the version keeps it.",
+      "title": "Saved In"
+    },
+    "status": {
+      "$ref": "#/$defs/LandscapeStatus"
+    },
+    "method": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LandscapeMethod"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "made_by": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "What made it: Färgklustring 1 …",
+      "title": "Made By"
+    },
+    "grid": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/LandscapeGrid"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "areas": {
+      "items": {
+        "$ref": "#/$defs/LandscapeArea"
+      },
+      "title": "Areas",
+      "type": "array"
+    },
+    "track_bed": {
+      "description": "The ballast under the tracks, from the track plan.",
+      "items": {
+        "items": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "type": "array"
+        },
+        "type": "array"
+      },
+      "title": "Track Bed",
+      "type": "array"
+    },
+    "totals": {
+      "items": {
+        "$ref": "#/$defs/SurfaceTotal"
+      },
+      "title": "Totals",
+      "type": "array"
+    },
+    "surfaces": {
+      "description": "Every class, in order.",
+      "items": {
+        "$ref": "#/$defs/SurfaceInfo"
+      },
+      "title": "Surfaces",
+      "type": "array"
+    },
+    "photo": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PhotoLayer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The measuring image under."
+    },
+    "may_edit": {
+      "title": "May Edit",
+      "type": "boolean"
+    },
+    "changed": {
+      "default": false,
+      "description": "The operations changed something.",
+      "title": "Changed",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "module",
+    "version",
+    "latest",
+    "status",
+    "may_edit"
+  ],
+  "type": "object"
+}

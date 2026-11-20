@@ -31,6 +31,7 @@ import {
   type Visibility,
 } from "./api";
 import { push, redo, startEditor, undo, type Editor } from "./editor";
+import { ExportPage } from "./Export";
 import { PhotoPage, SketchPage, UploadPage } from "./Foto";
 import type { Point } from "./geometry";
 import { LasMatt } from "./LasMatt";
@@ -117,6 +118,8 @@ export type ShellProps = {
   onApprovePhotoPlan?: () => void;
   onPhotoSettings?: (change: { keep_original?: boolean; training?: boolean }) => void;
   onRecompute?: (job: string) => void;
+  /** Landskapet saved a new version (part d1). */
+  onModuleChanged?: () => void;
 };
 
 function Place({ libraries, library, scale, onLibrary, onScale }: Pick<ShellProps, "libraries" | "library" | "scale" | "onLibrary" | "onScale">) {
@@ -313,9 +316,11 @@ function Page(props: ShellProps) {
         onUpload={props.onUpload}
         onPhotoSettings={props.onPhotoSettings}
         onRecompute={props.onRecompute}
+        onChanged={props.onModuleChanged}
       />
     );
   }
+  if (route.page === "export") return <ExportPage key={`${route.id}-${route.version ?? ""}`} id={route.id} version={route.version} navigate={navigate} />;
   if (route.page === "drawing" || route.page === "lock") {
     if (props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
     if (!props.module.may_edit) {
@@ -923,6 +928,11 @@ export function App() {
         setPhotoJob(made);
         navigate(photoPath(made.module, made.id));
       }, photoFailed);
+    },
+    onModuleChanged: () => {
+      if (!module) return;
+      api.module(module.id).then(setModule, (failure: unknown) => setError(message(failure)));
+      api.history(module.id).then(setHistory, () => undefined);
     },
     onLockChange: preview,
     onLockUse: (lock) => {
