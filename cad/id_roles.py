@@ -9,6 +9,7 @@ before, since they need no answer from ID.
     module_roles(p, m)     the roles ID gives the person on the module: editor = redigera
     switcher(person)       the app switcher's apps (ID11)
     tokens(person)         the tokens left on the person's own account (TOKEN-01)
+    call(...)              any of ID's app addresses: the meter and the reservations (part c1)
 """
 
 from __future__ import annotations
@@ -58,14 +59,26 @@ class IdRoles:
                 self._until = time.monotonic() + max(int(body.get("expires_in", 60)) - 30, 5)
             return self._token
 
-    def _get(self, path: str, params: dict[str, str]) -> object:
-        """ID's answer; a refused token is made anew once. 503 when ID does not answer."""
+    def call(
+        self,
+        method: str,
+        path: str,
+        *,
+        params: dict[str, str] | None = None,
+        body: dict[str, object] | None = None,
+        timeout: float | None = None,
+    ) -> httpx.Response:
+        """ID's answer to CAD's call, whatever it says; a refused token is made anew once.
+        Refused with 503 when ID does not answer. timeout is for a call that waits on an AI."""
         for attempt in (1, 2):
             try:
-                answer = self.http.get(
+                answer = self.http.request(
+                    method,
                     f"{self.api}/api/id/1/apps/{path}",
                     params=params,
+                    json=body,
                     headers={"Authorization": f"Bearer {self._bearer()}"},
+                    timeout=httpx.USE_CLIENT_DEFAULT if timeout is None else timeout,
                 )
             except httpx.HTTPError as error:
                 LOGGER.warning("ID:s API: %s", type(error).__name__)
@@ -74,12 +87,17 @@ class IdRoles:
                 with self._lock:
                     self._token = None
                 continue
-            if answer.status_code != 200:
-                LOGGER.warning("ID:s API svarade %s.", answer.status_code)
-                raise unavailable()
-            result: object = answer.json()
-            return result
+            return answer
         raise unavailable()
+
+    def _get(self, path: str, params: dict[str, str]) -> object:
+        """ID's answer; 503 when ID does not answer or says no."""
+        answer = self.call("GET", path, params=params)
+        if answer.status_code != 200:
+            LOGGER.warning("ID:s API svarade %s.", answer.status_code)
+            raise unavailable()
+        result: object = answer.json()
+        return result
 
     def clubs(self, person: UUID) -> list[ClubChoice]:
         body = self._get("clubs", {"person": str(person)})

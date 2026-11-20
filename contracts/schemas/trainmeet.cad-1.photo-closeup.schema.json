@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-closeup.schema.json",
+  "title": "trainmeet.cad-1.photo-closeup",
+  "additionalProperties": true,
+  "properties": {
+    "consent": {
+      "default": false,
+      "title": "Consent",
+      "type": "boolean"
+    }
+  },
+  "type": "object"
+}

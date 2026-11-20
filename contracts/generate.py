@@ -439,6 +439,14 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.lock-proposal": cad.LockProposal,
     "trainmeet.cad-1.smooth-ask": cad.SmoothAsk,
     "trainmeet.cad-1.smooth-result": cad.SmoothResult,
+    "trainmeet.cad-1.photo-consent": cad.PhotoConsent,
+    "trainmeet.cad-1.photo-start": cad.PhotoStart,
+    "trainmeet.cad-1.photo-job": cad.PhotoJob,
+    "trainmeet.cad-1.photo-read": cad.PhotoRead,
+    "trainmeet.cad-1.photo-answers": cad.PhotoAnswers,
+    "trainmeet.cad-1.photo-closeup": cad.PhotoCloseup,
+    "trainmeet.cad-1.photo-settings": cad.PhotoSettings,
+    "trainmeet.cad-1.storage-use": cad.StorageUse,
 }
 
 
@@ -2402,6 +2410,77 @@ def cad_openapi() -> str:
         created=True,
         problems=write,
     )
+    # Foto och kontroll (part c1): the photos as a form, the job, Läs av, the answers.
+    photo_problems = (401, 402, 403, 404, 409, 413, 415, 422, 429, 502, 503)
+    route(
+        "get",
+        a + "/photos/consent",
+        "cadPhotoConsent",
+        "photo-consent",
+        query=(("module", text),),
+        problems=read,
+    )
+    for path, operation, part in (
+        ("/photos", "cadUploadPhotos", "photo-start"),
+        ("/photos/{job}/questions/{key}/closeup", "cadCloseup", "photo-closeup"),
+    ):
+        route(
+            "post",
+            a + path,
+            operation,
+            "photo-job",
+            created=path == "/photos",
+            problems=photo_problems,
+        )
+        paths[a + path]["post"]["requestBody"] = {
+            "required": True,
+            "description": "The JSON in the part data, and the photos in the parts images: 1–4 "
+            "of one module, or one close-up, each at most 30 MB.",
+            "content": {
+                "multipart/form-data": {
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "data": openapi_ref(c + part),
+                            "images": {
+                                "type": "array",
+                                "items": {"type": "string", "format": "binary"},
+                                "minItems": 1,
+                                "maxItems": cad.MAX_PHOTOS,
+                            },
+                        },
+                        "required": ["data", "images"],
+                    }
+                }
+            },
+        }
+    route("get", a + "/photos/{job}", "cadPhotoJob", "photo-job", problems=read)
+    route(
+        "post",
+        a + "/photos/{job}/read",
+        "cadReadPhoto",
+        "photo-job",
+        "photo-read",
+        problems=photo_problems,
+    )
+    route(
+        "post",
+        a + "/photos/{job}/answers",
+        "cadPhotoAnswers",
+        "photo-job",
+        "photo-answers",
+        problems=write,
+    )
+    route("post", a + "/photos/{job}/recompute", "cadRecompute", "photo-job", problems=write)
+    route(
+        "put",
+        a + "/modules/{module}/photo",
+        "cadPhotoSettings",
+        "module",
+        "photo-settings",
+        problems=(*write, 413),
+    )
+    route("get", a + "/storage", "cadStorage", "storage-use", problems=(401,))
     return (
         json.dumps(
             {

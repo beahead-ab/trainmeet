@@ -9,6 +9,7 @@ The web app is built with Vite and served from CAD_WEB_DIR. Its pages are addres
 from __future__ import annotations
 
 import logging
+import threading
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -27,12 +28,14 @@ from fastapi.responses import (
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.types import ASGIApp
 
-from cad import curves, id_login, login, migrate, smoothing
+from cad import curves, id_login, login, migrate, photos_api, smoothing, store
 from cad.db import Database
 from cad.errors import Refused
 from cad.errors import login as login_first
 from cad.id_roles import IdRoles
 from cad.library import Access, Modules, Who
+from cad.meter import IdMeter
+from cad.photos import Photos
 from cad.settings import Settings, from_env
 from contracts.cad import (
     CadAccount,
@@ -68,11 +71,18 @@ from contracts.common import AppKey
 LOGGER = logging.getLogger("cad")
 API = "/api/cad/1"
 
-CONTENT_SECURITY_POLICY: Final = (
-    "default-src 'self'; img-src 'self' data: blob:; style-src 'self'; script-src 'self'; "
-    "font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; "
-    "form-action 'self'; frame-ancestors 'none'; object-src 'none'"
-)
+
+def content_security_policy(photos_origin: str | None = None) -> str:
+    """Everything from CAD itself; the photos in Object Storage from exactly its origin."""
+    images = "'self' data: blob:" + (f" {photos_origin}" if photos_origin else "")
+    return (
+        f"default-src 'self'; img-src {images}; style-src 'self'; script-src 'self'; "
+        "font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; "
+        "form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+    )
+
+
+CONTENT_SECURITY_POLICY: Final = content_security_policy()
 SECURITY_HEADERS: Final = {
     "Content-Security-Policy": CONTENT_SECURITY_POLICY,
     "X-Content-Type-Options": "nosniff",
@@ -90,14 +100,18 @@ IdLoginCookie = Annotated[str | None, Cookie(alias=id_login.COOKIE)]
 
 
 class SecurityHeaders(BaseHTTPMiddleware):
-    def __init__(self, app: ASGIApp) -> None:
+    def __init__(self, app: ASGIApp, photos_origin: str | None = None) -> None:
         super().__init__(app)
+        self.headers = {
+            **SECURITY_HEADERS,
+            "Content-Security-Policy": content_security_policy(photos_origin),
+        }
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
         response = await call_next(request)
-        for key, value in SECURITY_HEADERS.items():
+        for key, value in self.headers.items():
             response.headers.setdefault(key, value)
         if request.url.path.startswith("/api/"):
             # Answers about a person are never kept by a browser or a proxy.
@@ -129,6 +143,23 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     access = Access(roles)
     modules = Modules(db, access)
     trial_by_id = {account.id: account for account in login.TRIAL_ACCOUNTS}
+    # The module photos (part c1): CAD's own bucket, or its disk; and ID's meter for the AI.
+    s3 = settings.photos_s3
+    disk = None if s3 is not None else store.disk(settings.photos_dir)
+    photo_store: store.Store = (
+        store.S3Store(
+            s3.endpoint,
+            s3.bucket,
+            s3.region,
+            s3.access_key,
+            s3.secret_key,
+            httpx.Client(timeout=30.0),
+        )
+        if s3 is not None
+        else disk  # type: ignore[assignment]
+    )
+    photos = Photos(db, photo_store, IdMeter(roles) if roles is not None else None, modules)
+    modules.photos = photos
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -147,9 +178,17 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
             settings.build.version,
             migrate.current_version(settings.database_url),
         )
+        stop = threading.Event()
+        queue = threading.Thread(target=photos.run, args=(stop,), name="fotokon", daemon=True)
+        if settings.photo_queue:
+            queue.start()
         try:
             yield
         finally:
+            stop.set()
+            photos.wake()
+            if queue.is_alive():
+                queue.join(timeout=10)
             db.close()
 
     # The interactive API pages load scripts from another site, so they are off. The contracts
@@ -162,8 +201,9 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
         openapi_url=None,
         lifespan=lifespan,
     )
-    app.add_middleware(SecurityHeaders)
+    app.add_middleware(SecurityHeaders, photos_origin=s3.origin if s3 is not None else None)
     app.state.db = db
+    app.state.photos = photos
 
     @app.exception_handler(Refused)
     def refused(_: Request, error: Refused) -> JSONResponse:
@@ -396,6 +436,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     @app.post(API + "/profiles", status_code=201)
     def new_profile(body: NewProfile, asker: Who = Depends(who)) -> GableProfile:  # noqa: B008
         return modules.new_profile(asker, body)
+
+    app.include_router(photos_api.router(photos, who, disk))
 
     @app.api_route(
         "/api/{rest:path}",

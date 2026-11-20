@@ -12,11 +12,11 @@ from contracts.cad import Curve, CurveMeasure, EdgeSide
 
 
 def test_the_views_example_string_and_sagitta_give_radius_and_angle() -> None:
-    """Snöret 1035, pilhöjd 68: Uträknat R 2 003 mm · 29,9°, avrundat R 2000 · 30°."""
+    """Snöret 1035, pilhöjd 68: Uträknat R 2 003 mm · 29,9°, kept as computed (CAD16, CAD-35)."""
     found = geometry.from_chord(1035, 68)
     assert round(found.radius) == 2003
     assert round(found.angle, 1) == 29.9
-    assert geometry.rounded(found) == geometry.Bend(radius=2000, angle=30)
+    assert not hasattr(geometry, "rounded")
 
 
 def test_radius_and_angle_give_the_string_and_sagitta_back() -> None:
@@ -69,9 +69,13 @@ def test_kant_1_outside_turns_right_and_inside_turns_left_seen_from_gable_a() ->
     assert math.dist((0, 200), end_left) == pytest.approx(geometry.to_chord(2000, 30)[0])
 
 
-def test_a_rounded_curve_agrees_with_its_measurement_and_a_wrong_one_does_not() -> None:
+def test_a_curve_agrees_with_its_measurement_only_as_computed() -> None:
     measured = CurveMeasure(chord=1035, sagitta=68)
-    assert geometry.agrees(Curve(radius=2000, angle=30, width=500, measured=measured))
-    assert geometry.agrees(Curve(radius=2003.2, angle=29.94, width=500, measured=measured))
+    exact = geometry.from_chord(1035, 68)
+    assert geometry.agrees(
+        Curve(radius=exact.radius, angle=exact.angle, width=500, measured=measured)
+    )
+    # No rounding any more (CAD16): R 2000 · 30° is not what the string and sagitta give.
+    assert not geometry.agrees(Curve(radius=2000, angle=30, width=500, measured=measured))
     assert not geometry.agrees(Curve(radius=2500, angle=30, width=500, measured=measured))
     assert not geometry.agrees(Curve(radius=2000, angle=32, width=500, measured=measured))

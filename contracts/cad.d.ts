@@ -292,6 +292,150 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/photos/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadPhotoConsent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadUploadPhotos"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos/{job}/questions/{key}/closeup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadCloseup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos/{job}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadPhotoJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos/{job}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadReadPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos/{job}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadPhotoAnswers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/photos/{job}/recompute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadRecompute"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/modules/{module}/photo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["cadPhotoSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadStorage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -469,7 +613,7 @@ export interface components {
         };
         /**
          * CadProblem
-         * @description The answer when CAD says no: 401, 403, 404, 409, 422 or 503.
+         * @description The answer when CAD says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or 503.
          */
         "trainmeet.cad-1.problem": {
             code: components["schemas"]["trainmeet.cad-1.problem.ProblemCode"];
@@ -486,7 +630,7 @@ export interface components {
          * @description Why CAD said no. The web app has the text for each.
          * @enum {string}
          */
-        "trainmeet.cad-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "changed" | "invalid" | "unavailable";
+        "trainmeet.cad-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "changed" | "invalid" | "unavailable" | "no_tokens" | "too_many" | "reading_failed" | "bad_photo" | "storage_full" | "consent_required" | "busy";
         /**
          * Library
          * @description Ett modulbibliotek: the person's own, a club's, or everything the person sees.
@@ -938,7 +1082,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.module-list.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.module-list.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Owner
          * @description Who owns a module or an own gable profile: a person or a club in TrainMeet ID.
@@ -1161,6 +1305,23 @@ export interface components {
              * @description Att kolla in this version, answered or not.
              */
             checks?: components["schemas"]["trainmeet.cad-1.module.CheckItem"][];
+            /**
+             * @description The Foto tab (part c1).
+             * @default null
+             */
+            photo: components["schemas"]["trainmeet.cad-1.module.ModulePhoto"] | null;
+            /**
+             * Keep Original
+             * @description Spara original: the photo's original is kept (CAD4).
+             * @default false
+             */
+            keep_original: boolean;
+            /**
+             * Training At
+             * @description When the owner said yes to training TrainMeet's track model on it (CAD7, CAD-32); null: no.
+             * @default null
+             */
+            training_at: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1223,7 +1384,8 @@ export interface components {
         /**
          * CheckChoice
          * @description An answer button. closes: the answer settles the item; action: what the view does
-         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         *     instead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's
+         *     question in Osäkert parti).
          */
         "trainmeet.cad-1.module.CheckChoice": {
             /** Id */
@@ -1239,7 +1401,7 @@ export interface components {
              * Action
              * @default null
              */
-            action: ("design" | "lock") | null;
+            action: ("design" | "lock" | "photo") | null;
         } & {
             [key: string]: unknown;
         };
@@ -1386,6 +1548,17 @@ export interface components {
              * @default false
              */
             plan_approved: boolean;
+            /**
+             * Questions
+             * @description The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.
+             */
+            questions?: components["schemas"]["trainmeet.cad-1.module.CheckItem"][];
+            /**
+             * Photo
+             * @description The photo job the drawing came from (part c1).
+             * @default null
+             */
+            photo: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -1657,6 +1830,56 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ModulePhoto
+         * @description The Foto tab (part c1): the measuring image the version came from, and what is kept.
+         */
+        "trainmeet.cad-1.module.ModulePhoto": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /**
+             * Measure Url
+             * @description The measuring image, 2 px per mm, a signed address.
+             */
+            measure_url: string;
+            /**
+             * Display Url
+             * @description The measuring image, 1 px per mm.
+             */
+            display_url: string;
+            grid: components["schemas"]["trainmeet.cad-1.module.PhotoGrid"];
+            /**
+             * Chain
+             * @description The chain's version that read it.
+             */
+            chain: string;
+            /**
+             * Newer Chain
+             * @description A newer version of the chain can read it again.
+             */
+            newer_chain: boolean;
+            /**
+             * Original Until
+             * @description When the original goes, unless it is kept (CAD4).
+             * @default null
+             */
+            original_until: string | null;
+            /**
+             * Original Kept
+             * @description The original is kept: Spara original.
+             */
+            original_kept: boolean;
+            /**
+             * Taken At
+             * Format: date-time
+             */
+            taken_at: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ModuleStatus
          * @enum {string}
          */
@@ -1672,7 +1895,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.module.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.module.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Owner
          * @description Who owns a module or an own gable profile: a person or a club in TrainMeet ID.
@@ -1694,6 +1917,25 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.module.OwnerKind": "person" | "club";
+        /**
+         * PhotoGrid
+         * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
+         *     (x0, y0) mm, ppm px per mm.
+         */
+        "trainmeet.cad-1.module.PhotoGrid": {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** Ppm */
+            ppm: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -1951,7 +2193,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.new-module.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.new-module.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -2128,7 +2370,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.module-change.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.module-change.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -2245,7 +2487,7 @@ export interface components {
          * ModuleEventKind
          * @enum {string}
          */
-        "trainmeet.cad-1.module-event.ModuleEventKind": "created" | "saved" | "approved" | "visibility" | "removed";
+        "trainmeet.cad-1.module-event.ModuleEventKind": "created" | "saved" | "approved" | "visibility" | "removed" | "photo";
         /** ModuleRemoved */
         "trainmeet.cad-1.module-removed": {
             /**
@@ -2330,7 +2572,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.profile-list.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.profile-list.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /** NormInfo */
         "trainmeet.cad-1.profile-list.NormInfo": {
             norm: components["schemas"]["trainmeet.cad-1.profile-list.Norm"];
@@ -2432,7 +2674,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.gable-profile.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.gable-profile.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Owner
          * @description Who owns a module or an own gable profile: a person or a club in TrainMeet ID.
@@ -2495,7 +2737,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.new-profile.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.new-profile.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -3371,6 +3613,11 @@ export interface components {
              * @description The operations changed something.
              */
             changed: boolean;
+            /**
+             * @description Fotot under (part c1).
+             * @default null
+             */
+            photo: components["schemas"]["trainmeet.cad-1.drawing-view.PhotoLayer"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -3433,7 +3680,8 @@ export interface components {
         /**
          * CheckChoice
          * @description An answer button. closes: the answer settles the item; action: what the view does
-         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         *     instead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's
+         *     question in Osäkert parti).
          */
         "trainmeet.cad-1.drawing-view.CheckChoice": {
             /** Id */
@@ -3449,7 +3697,7 @@ export interface components {
              * Action
              * @default null
              */
-            action: ("design" | "lock") | null;
+            action: ("design" | "lock" | "photo") | null;
         } & {
             [key: string]: unknown;
         };
@@ -3611,6 +3859,17 @@ export interface components {
              * @default false
              */
             plan_approved: boolean;
+            /**
+             * Questions
+             * @description The photo chain's questions (part c1): Att kolla items of the kind question, source code or ai, kept with the version.
+             */
+            questions?: components["schemas"]["trainmeet.cad-1.drawing-view.CheckItem"][];
+            /**
+             * Photo
+             * @description The photo job the drawing came from (part c1).
+             * @default null
+             */
+            photo: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -3907,7 +4166,45 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.drawing-view.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.drawing-view.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
+        /**
+         * PhotoGrid
+         * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
+         *     (x0, y0) mm, ppm px per mm.
+         */
+        "trainmeet.cad-1.drawing-view.PhotoGrid": {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** Ppm */
+            ppm: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoLayer
+         * @description Fotot under: the measuring image under the drawing, in the module's millimetres.
+         */
+        "trainmeet.cad-1.drawing-view.PhotoLayer": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /**
+             * Url
+             * @description The measuring image at 1 px per mm, a signed address.
+             */
+            url: string;
+            grid: components["schemas"]["trainmeet.cad-1.drawing-view.PhotoGrid"];
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -4239,7 +4536,8 @@ export interface components {
         /**
          * CheckChoice
          * @description An answer button. closes: the answer settles the item; action: what the view does
-         *     instead, with no answer stored (choose a switch type, open Lås mått).
+         *     instead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's
+         *     question in Osäkert parti).
          */
         "trainmeet.cad-1.check-item.CheckChoice": {
             /** Id */
@@ -4255,7 +4553,7 @@ export interface components {
              * Action
              * @default null
              */
-            action: ("design" | "lock") | null;
+            action: ("design" | "lock" | "photo") | null;
         } & {
             [key: string]: unknown;
         };
@@ -4935,7 +5233,7 @@ export interface components {
          * @description A gable's norm: the organisation whose rules the gable follows (CAD9, CAD11, CAD12).
          * @enum {string}
          */
-        "trainmeet.cad-1.lock-proposal.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0";
+        "trainmeet.cad-1.lock-proposal.Norm": "fremo" | "mmm" | "usms" | "club" | "fremo_spur_0" | "fremo_n";
         /**
          * SmoothAsk
          * @description Utjämning of one line, to see what a level does.
@@ -5051,6 +5349,733 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.cad-1.smooth-result.Smoothing": "off" | "light" | "normal" | "strong";
+        /**
+         * PhotoConsent
+         * @description What is sent and to whom, before a photo is first sent to AI, as Catalog's (CAT-142).
+         */
+        "trainmeet.cad-1.photo-consent": {
+            /**
+             * Available
+             * @description AI can be used here: ID's meter answers.
+             */
+            available: boolean;
+            /** Given */
+            given: boolean;
+            /** Version */
+            version: string;
+            /** Sent To */
+            sent_to: string;
+            /** Text */
+            text: string;
+            /**
+             * Own Ai
+             * @default null
+             */
+            own_ai: string | null;
+            /** Price */
+            price: number;
+            /**
+             * Balance
+             * @default null
+             */
+            balance: number | null;
+            /**
+             * Payer
+             * @default null
+             */
+            payer: string | null;
+            /**
+             * Message
+             * @description Why AI cannot be used now.
+             * @default null
+             */
+            message: string | null;
+            /**
+             * May Read
+             * @description Only the owner reads with AI, and a club's administrators for its modules.
+             * @default true
+             */
+            may_read: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoStart
+         * @description The form's data part: a new module from the photo, or a photo for a module.
+         */
+        "trainmeet.cad-1.photo-start": {
+            /**
+             * Module
+             * @default null
+             */
+            module: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /** @default H0 */
+            scale: components["schemas"]["trainmeet.cad-1.photo-start.Scale"];
+            /**
+             * Kind
+             * @default straight
+             * @enum {string}
+             */
+            kind: "straight" | "trapezoid";
+            /**
+             * Width
+             * @description Gable A's width; null: the module's.
+             * @default null
+             */
+            width: number | null;
+            /**
+             * Width B
+             * @default null
+             */
+            width_b: number | null;
+            /**
+             * Length
+             * @description Null: the photo gives it.
+             * @default null
+             */
+            length: number | null;
+            /**
+             * Offset
+             * @default null
+             */
+            offset: number | null;
+            /**
+             * Keep Original
+             * @default false
+             */
+            keep_original: boolean;
+            /**
+             * Owner
+             * @default null
+             */
+            owner: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Scale
+         * @description The module's scale (CAD10, CAD12).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-start.Scale": "H0" | "N" | "0";
+        /**
+         * PhotoJob
+         * @description One run of the chain on a module's photos: its state and what it found. The same photos,
+         *     input and versions give the same job, at no cost (bildkedjan, Reproducerbarhet).
+         */
+        "trainmeet.cad-1.photo-job": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Module
+             * Format: uuid
+             */
+            module: string;
+            state: components["schemas"]["trainmeet.cad-1.photo-job.PhotoJobState"];
+            /** Progress */
+            progress: number;
+            /**
+             * Step
+             * @description What it does now, in Swedish.
+             */
+            step: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Photos
+             * @description The photos as taken in, while they are kept.
+             */
+            photos: components["schemas"]["trainmeet.cad-1.photo-job.PhotoImage"][];
+            /**
+             * @description The photos as one, for the corners.
+             * @default null
+             */
+            preview: components["schemas"]["trainmeet.cad-1.photo-job.PhotoImage"] | null;
+            /** @default null */
+            corners: components["schemas"]["trainmeet.cad-1.photo-job.PhotoCorners"] | null;
+            /** @default null */
+            quality: components["schemas"]["trainmeet.cad-1.photo-job.PhotoQuality"] | null;
+            /**
+             * Length
+             * @default null
+             */
+            length: number | null;
+            /**
+             * Length Plus Minus
+             * @default null
+             */
+            length_plus_minus: number | null;
+            /**
+             * Length Given
+             * @description The owner gave the length; false: the photo's.
+             */
+            length_given: boolean;
+            /**
+             * Offset
+             * @default null
+             */
+            offset: number | null;
+            /** @default null */
+            measure: components["schemas"]["trainmeet.cad-1.photo-job.PhotoLayer"] | null;
+            /**
+             * Tracks On Photo
+             * @description The track plan drawn on the preview, in its px.
+             */
+            tracks_on_photo?: [
+                number,
+                number
+            ][][];
+            /** Facts */
+            facts?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoFact"][];
+            /** Measures */
+            measures?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoMeasure"][];
+            /** Questions */
+            questions?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoQuestion"][];
+            /** @default null */
+            summary: components["schemas"]["trainmeet.cad-1.photo-job.PhotoSummary"] | null;
+            /** @default null */
+            sleepers: components["schemas"]["trainmeet.cad-1.photo-job.SleeperCheck"] | null;
+            /** @default null */
+            gauge: components["schemas"]["trainmeet.cad-1.photo-job.GaugeCheck"] | null;
+            price: components["schemas"]["trainmeet.cad-1.photo-job.PhotoPrice"];
+            /**
+             * Cost
+             * @description Tokens drawn for this job.
+             */
+            cost: number;
+            /**
+             * Ai
+             * @description The AI that read it, or null.
+             * @default null
+             */
+            ai: string | null;
+            /**
+             * Version
+             * @description The module version it made.
+             * @default null
+             */
+            version: number | null;
+            /** Chain */
+            chain: string;
+            /** Key */
+            key: string;
+            /**
+             * Message
+             * @description Why it stopped, in Swedish.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * CheckSource
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.CheckSource": "code" | "ai";
+        /**
+         * Deviation
+         * @description How far one line lies from another: the median and the largest distance, in mm, over
+         *     count points.
+         */
+        "trainmeet.cad-1.photo-job.Deviation": {
+            /** Median */
+            median: number;
+            /** Max */
+            max: number;
+            /** Count */
+            count: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * FactSource
+         * @description Where a fact comes from (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.FactSource": "photo" | "owner" | "norm" | "ai" | "code";
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.GableEnd": "A" | "B";
+        /**
+         * GaugeCheck
+         * @description The gauge averaged over the straight stretches, against the scale's (step 9).
+         */
+        "trainmeet.cad-1.photo-job.GaugeCheck": {
+            /**
+             * Value
+             * @default null
+             */
+            value: number | null;
+            /** Nominal */
+            nominal: number;
+            /** Places */
+            places: number;
+            /**
+             * Agrees
+             * @default null
+             */
+            agrees: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoChoice */
+        "trainmeet.cad-1.photo-job.PhotoChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /**
+             * Hint
+             * @description What it means, under the choice.
+             * @default null
+             */
+            hint: string | null;
+            /**
+             * Sketch
+             * @default null
+             */
+            sketch: ("two_switches" | "crossing" | "single_slip" | "double_slip" | "joined" | "apart") | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoCorners
+         * @description The module's corners in the preview's pixels (the photo, or the photos stitched, made
+         *     smaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to
+         *     corner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the
+         *     module lies to the right.
+         */
+        "trainmeet.cad-1.photo-job.PhotoCorners": {
+            /** Corners */
+            corners: [
+                number,
+                number
+            ][];
+            /** Kant1 */
+            kant1: number;
+            /**
+             * Found
+             * @description Code found them; false: a guess to drag into place.
+             */
+            found: boolean;
+            /**
+             * Certain
+             * @description Every side's edge fits its line within 2 px.
+             */
+            certain: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoFact
+         * @description A fact with its origin and certainty: säker, trolig, osäker or bekräftad, and its ±.
+         */
+        "trainmeet.cad-1.photo-job.PhotoFact": {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Value
+             * @default null
+             */
+            value: number | null;
+            /**
+             * Text
+             * @default null
+             */
+            text: string | null;
+            /**
+             * Plus Minus
+             * @default null
+             */
+            plus_minus: number | null;
+            source: components["schemas"]["trainmeet.cad-1.photo-job.FactSource"];
+            certainty: components["schemas"]["trainmeet.cad-1.photo-job.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoGate
+         * @description One row of the quality gate (bildkedjan step 3).
+         */
+        "trainmeet.cad-1.photo-job.PhotoGate": {
+            /**
+             * Key
+             * @enum {string}
+             */
+            key: "resolution" | "tilt" | "sharpness" | "clipped" | "corners" | "stitch";
+            level: components["schemas"]["trainmeet.cad-1.photo-job.PhotoLevel"];
+            /** Value */
+            value: number;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoGrid
+         * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
+         *     (x0, y0) mm, ppm px per mm.
+         */
+        "trainmeet.cad-1.photo-job.PhotoGrid": {
+            /** X0 */
+            x0: number;
+            /** Y0 */
+            y0: number;
+            /** Ppm */
+            ppm: number;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoImage */
+        "trainmeet.cad-1.photo-job.PhotoImage": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoJobState
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.PhotoJobState": "corners" | "queued" | "running" | "done" | "failed";
+        /**
+         * PhotoLayer
+         * @description Fotot under: the measuring image under the drawing, in the module's millimetres.
+         */
+        "trainmeet.cad-1.photo-job.PhotoLayer": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /**
+             * Url
+             * @description The measuring image at 1 px per mm, a signed address.
+             */
+            url: string;
+            grid: components["schemas"]["trainmeet.cad-1.photo-job.PhotoGrid"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoLevel
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.PhotoLevel": "ok" | "low" | "warn" | "refuse";
+        /**
+         * PhotoMeasure
+         * @description Dina mått mot fotot: the owner's measure, or the norm's, against the photo's.
+         */
+        "trainmeet.cad-1.photo-job.PhotoMeasure": {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Owner
+             * @description The owner's or the norm's; null: none.
+             * @default null
+             */
+            owner: number | null;
+            /** @default null */
+            owner_source: components["schemas"]["trainmeet.cad-1.photo-job.FactSource"] | null;
+            /** Photo */
+            photo: number;
+            /** Plus Minus */
+            plus_minus: number;
+            /** Agrees */
+            agrees: boolean;
+            /** @default null */
+            gable: components["schemas"]["trainmeet.cad-1.photo-job.GableEnd"] | null;
+            /**
+             * Track
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoPrice
+         * @description The price before start (CAD-18, CAD-29): 12 tokens per measuring image read by AI.
+         */
+        "trainmeet.cad-1.photo-job.PhotoPrice": {
+            /** Tokens */
+            tokens: number;
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "first" | "included" | "same" | "own_ai" | "no_ai";
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoQuality */
+        "trainmeet.cad-1.photo-job.PhotoQuality": {
+            /** Px Per Mm */
+            px_per_mm: number;
+            /**
+             * Tilt
+             * @description Degrees from straight down.
+             */
+            tilt: number;
+            /** Gates */
+            gates: components["schemas"]["trainmeet.cad-1.photo-job.PhotoGate"][];
+            /**
+             * Length From Photo
+             * @description False under 1 px per mm: no length from it.
+             */
+            length_from_photo: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoQuestion
+         * @description A question from the chain (bildkedjan step 15, När AI ska fråga): a fixed set of answers,
+         *     what code and AI each say, and the owner's answer. A topology question changes the track
+         *     plan; it stops Godkänn spårplanen until it is answered.
+         */
+        "trainmeet.cad-1.photo-job.PhotoQuestion": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.photo-job.PhotoQuestionKind"];
+            source: components["schemas"]["trainmeet.cad-1.photo-job.CheckSource"];
+            /** Title */
+            title: string;
+            /**
+             * Text
+             * @description What the AI or the code sees.
+             */
+            text: string;
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.photo-job.PhotoChoice"][];
+            /**
+             * Code
+             * @description The choice the code makes.
+             * @default null
+             */
+            code: string | null;
+            /**
+             * Ai
+             * @description The choice the AI makes.
+             * @default null
+             */
+            ai: string | null;
+            /**
+             * Answer
+             * @description The owner's.
+             * @default null
+             */
+            answer: string | null;
+            /**
+             * At
+             * @description The place in mm, in the module's coordinates.
+             */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Topology
+             * @description The answer changes the track plan.
+             */
+            topology: boolean;
+            /**
+             * Closeup
+             * @description Ta en närbild helps here.
+             * @default false
+             */
+            closeup: boolean;
+            /**
+             * Closeup Ai
+             * @description What the AI says from the close-up.
+             * @default null
+             */
+            closeup_ai: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoQuestionKind
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-job.PhotoQuestionKind": "connection" | "node" | "hidden" | "scale" | "gauge" | "switch_fit" | "sleepers";
+        /**
+         * PhotoSummary
+         * @description Spårplanen: what the chain read.
+         */
+        "trainmeet.cad-1.photo-job.PhotoSummary": {
+            /** Tracks A */
+            tracks_a: number;
+            /** Tracks B */
+            tracks_b: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /** Ends */
+            ends: number;
+            /** Track Length */
+            track_length: number;
+            /** @default null */
+            deviation: components["schemas"]["trainmeet.cad-1.photo-job.Deviation"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * SleeperCheck
+         * @description The sleepers' spacing on straight and slanting tracks: the same, or the straightening
+         *     is wrong (bildkedjan step 9).
+         */
+        "trainmeet.cad-1.photo-job.SleeperCheck": {
+            /**
+             * Straight
+             * @default null
+             */
+            straight: number | null;
+            /**
+             * Slanting
+             * @default null
+             */
+            slanting: number | null;
+            /**
+             * Slanting Angle
+             * @default null
+             */
+            slanting_angle: number | null;
+            /**
+             * Agree
+             * @default null
+             */
+            agree: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoRead
+         * @description Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,
+         *     with or without AI.
+         */
+        "trainmeet.cad-1.photo-read": {
+            /** Corners */
+            corners: [
+                number,
+                number
+            ][];
+            /** Kant1 */
+            kant1: number;
+            /**
+             * Ai
+             * @default true
+             */
+            ai: boolean;
+            /**
+             * Consent
+             * @default false
+             */
+            consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoAnswers */
+        "trainmeet.cad-1.photo-answers": {
+            /** Answers */
+            answers: components["schemas"]["trainmeet.cad-1.photo-answers.PhotoAnswer"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoAnswer */
+        "trainmeet.cad-1.photo-answers.PhotoAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** PhotoCloseup */
+        "trainmeet.cad-1.photo-closeup": {
+            /**
+             * Consent
+             * @default false
+             */
+            consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoSettings
+         * @description Spara original and the training opt-in (CAD4, CAD7).
+         */
+        "trainmeet.cad-1.photo-settings": {
+            /**
+             * Keep Original
+             * @default null
+             */
+            keep_original: boolean | null;
+            /**
+             * Training
+             * @default null
+             */
+            training: boolean | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * StorageUse
+         * @description CAD's own storage for module photos, 100 MB per person (CAD-19); the originals waiting
+         *     for approval do not count (CAD4).
+         */
+        "trainmeet.cad-1.storage-use": {
+            /** Used */
+            used: number;
+            /** Limit */
+            limit: number;
+            /**
+             * Waiting
+             * @description Originals kept until approval, not counted.
+             */
+            waiting: number;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -6317,6 +7342,760 @@ export interface operations {
             };
             /** @description CAD säger nej */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadPhotoConsent: {
+        parameters: {
+            query?: {
+                module?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-consent"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadUploadPhotos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The JSON in the part data, and the photos in the parts images: 1–4 of one module, or one close-up, each at most 30 MB. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data: components["schemas"]["trainmeet.cad-1.photo-start"];
+                    images: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadCloseup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+                key: string;
+            };
+            cookie?: never;
+        };
+        /** @description The JSON in the part data, and the photos in the parts images: 1–4 of one module, or one close-up, each at most 30 MB. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data: components["schemas"]["trainmeet.cad-1.photo-closeup"];
+                    images: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadPhotoJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadReadPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.photo-read"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadPhotoAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.photo-answers"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadRecompute: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadPhotoSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                module: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.photo-settings"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.module"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadStorage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.storage-use"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };

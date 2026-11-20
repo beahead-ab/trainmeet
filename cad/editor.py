@@ -31,6 +31,7 @@ import itertools
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from uuid import UUID
 
 from pydantic import ValidationError
 
@@ -46,6 +47,7 @@ from contracts.cad import (
     AnswerCheck,
     Certainty,
     CheckAnswer,
+    CheckItem,
     Cut,
     Delete,
     DrawingSource,
@@ -196,6 +198,9 @@ class Drawing:
     ids: list[IdChange] = field(default_factory=list)
     plan_approved: bool = False
     changed: bool = False
+    questions: list[CheckItem] = field(default_factory=list)
+    """The photo chain's questions, kept with the version (part c1)."""
+    photo: UUID | None = None
 
     # --- From and to the contracts -----------------------------------------------------------
 
@@ -223,6 +228,8 @@ class Drawing:
             locks=list(state.locks),
             ids=list(state.ids),
             plan_approved=state.plan_approved,
+            questions=list(state.questions),
+            photo=state.photo,
         )
         for n in built.nodes:
             made.nodes[n.id] = Node(n.id, n.type, n.at, n.gable, n.track)
@@ -314,6 +321,8 @@ class Drawing:
             locks=self.locks,
             ids=self.ids,
             plan_approved=self.plan_approved,
+            questions=self.questions,
+            photo=self.photo,
         )
 
     # --- Looking things up -------------------------------------------------------------------
@@ -609,7 +618,11 @@ class Drawing:
         self.smoothing = op.level
         for piece_id, line in list(self.lines.items()):
             piece = self.pieces.get(piece_id)
-            if piece is None or line.source != "hand":
+            if piece is None:
+                continue
+            # A line from the photo is made again too, except a switch's legs, which keep the
+            # switch's own geometry (part c1).
+            if line.source != "hand" and self.switch_of(piece_id):
                 continue
             points = list(line.points)
             points[0] = self.nodes[piece.start].at

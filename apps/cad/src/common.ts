@@ -1,13 +1,19 @@
 // Texts the views share: a module's form and measures, its status, dates and visibility.
 import type { ModuleBrief, Shape, Visibility } from "./api";
 
+/** A curve's radius and angle as computed from the string and sagitta, never rounded to round
+ * values (CAD16, CAD-35): the radius to the tenth of a mm, the angle to the hundredth of a degree. */
+export function bendText(radius: number, angle: number): string {
+  const r = radius.toLocaleString("sv-SE", { maximumFractionDigits: 1, useGrouping: false });
+  return `R ${r} · ${angle.toLocaleString("sv-SE", { maximumFractionDigits: 2 })}°`;
+}
+
 export function shapeText(shape: Shape): string {
   if (shape.kind === "straight") return `Rak · ${Math.round(shape.length)} × ${Math.round(shape.width)}`;
   if (shape.kind === "trapezoid") {
     return `Trapets · ${Math.round(shape.length)} × ${Math.round(shape.width_a)}/${Math.round(shape.width_b)}`;
   }
-  const angle = shape.angle.toLocaleString("sv-SE", { maximumFractionDigits: 1 });
-  return `Kurva · R ${Math.round(shape.radius)} · ${angle}° · bredd ${Math.round(shape.width)}`;
+  return `Kurva · ${bendText(shape.radius, shape.angle)} · bredd ${Math.round(shape.width)}`;
 }
 
 export type StatusKind = "godkand" | "matt" | "utkast";
@@ -42,6 +48,16 @@ export function dayText(iso: string): string {
   const when = new Date(iso);
   return `${when.getDate()} ${MONTHS[when.getMonth()]} ${when.getFullYear()}`;
 }
+
+/** The norms' names, as contracts/cad.py's NORM_NAMES; FREMO N in scale N (CAD14). */
+export const NORM_NAMES: Record<string, string> = {
+  fremo: "FREMO",
+  fremo_n: "FREMO N",
+  mmm: "MMM",
+  usms: "USMS",
+  club: "Klubbens egen",
+  fremo_spur_0: "FREMO Spur 0",
+};
 
 export const VISIBILITY: Record<Visibility, string> = {
   me: "Bara jag",

@@ -7,9 +7,9 @@ module meanwhile:
 - MMM: track 1 is 140 mm from Kant 1, a double track +57 mm (CAD views, Öppet; the AnyRail
   import found CDA's main tracks at 141/198 mm). Four tracks as at the reference station Gårdsjö:
   140 / 197 / 283 / 340 mm, that is 140 + 57 + 86 + 57.
-- FREMO, USMS and FREMO Spur 0: no measures in the spec yet, so Kant 1 → spår 1 and the spacing
-  are given per module.
-- N: the spec names no norm in N yet (CAD10, CAD-N), so N has only the general profiles.
+- FREMO, USMS, FREMO N and FREMO Spur 0: no measures in the spec yet, so Kant 1 → spår 1 and
+  the spacing are given per module.
+- N: FREMO N from the start (CAD14), beside the general profiles and the own ones.
 
 General profiles are shared by all, with the positions given per module ("Läge och spåravstånd
 anges per modul"). Own profiles are a person's or a club's, with every position measured; a
@@ -133,6 +133,22 @@ SEEDED: tuple[GableProfile, ...] = (
     ),
     _general(Scale.H0, 1),
     _general(Scale.H0, 2),
+    _norm(
+        "n-fremo-enkelspar",
+        "FREMO N enkelspår",
+        Scale.N,
+        Norm.FREMO_N,
+        1,
+        note=f"Mått enligt FREMO N, {NOT_READ}. Kant 1 → spår 1 per modul.",
+    ),
+    _norm(
+        "n-fremo-dubbelspar",
+        "FREMO N dubbelspår",
+        Scale.N,
+        Norm.FREMO_N,
+        2,
+        note=f"Mått enligt FREMO N, {NOT_READ}. Lägena per modul.",
+    ),
     _general(Scale.N, 1),
     _general(Scale.N, 2),
     _norm(

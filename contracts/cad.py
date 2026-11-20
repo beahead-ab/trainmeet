@@ -51,8 +51,7 @@ Rules:
 - Every save is a new version; a version is never changed (CAD-08). The newest is a draft until
   it is approved. An assembly pins the module versions it uses (CAD-21, part d).
 - The scale sits on the module and the norm on each gable (CAD9, CAD-22): H0, N and 0; in H0
-  FREMO, MMM, USMS and the club's own norm, in 0 FREMO Spur 0 (CAD12). The spec names no norm
-  in N yet, so an N gable has no norm until it does.
+  FREMO, MMM, USMS and the club's own norm, in N FREMO N (CAD14), in 0 FREMO Spur 0 (CAD12).
 - Every track piece and switch keeps its id when the module is redrawn, so that Studio keeps the
   owner's additions (CAD-20, CAD13). A piece split keeps its id on its first part, and the
   version records the split (DrawingState.ids).
@@ -187,10 +186,24 @@ class ProblemCode(StrEnum):
     """The measures do not hang together; the message says how."""
     UNAVAILABLE = "unavailable"
     """TrainMeet ID does not answer just now."""
+    NO_TOKENS = "no_tokens"
+    """The balance is not enough for a photo's AI reading (part c1)."""
+    TOO_MANY = "too_many"
+    """The day's cap in ID is reached."""
+    READING_FAILED = "reading_failed"
+    """The AI's reading failed; nothing was drawn."""
+    BAD_PHOTO = "bad_photo"
+    """The photo cannot be taken in: its format, its size or the quality gate."""
+    STORAGE_FULL = "storage_full"
+    """CAD's 100 MB for module photos are used (CAD-19)."""
+    CONSENT_REQUIRED = "consent_required"
+    """The person has not said yes to sending the photo to AI yet."""
+    BUSY = "busy"
+    """A photo is being read already."""
 
 
 class CadProblem(Contract):
-    """The answer when CAD says no: 401, 403, 404, 409, 422 or 503."""
+    """The answer when CAD says no: 401, 402, 403, 404, 409, 413, 415, 422, 429, 502 or 503."""
 
     code: ProblemCode
     message: str = Field(description="In Swedish, for the person and for logs.")
@@ -218,14 +231,16 @@ class Norm(StrEnum):
     """Klubbens egen norm: a club's own gable profiles."""
     FREMO_SPUR_0 = "fremo_spur_0"
     """FREMO Spur 0, the norm in scale 0 (CAD12)."""
+    FREMO_N = "fremo_n"
+    """FREMO N, the norm in scale N from the start (CAD14)."""
 
 
 NORMS: Final[dict[Scale, tuple[Norm, ...]]] = {
     Scale.H0: (Norm.FREMO, Norm.MMM, Norm.USMS, Norm.CLUB),
-    Scale.N: (),
+    Scale.N: (Norm.FREMO_N,),
     Scale.ZERO: (Norm.FREMO_SPUR_0,),
 }
-"""The norms per scale from the start (CAD11, CAD12). The spec names none in N yet (CAD-N)."""
+"""The norms per scale from the start (CAD11, CAD12, CAD14)."""
 
 NORM_NAMES: Final[dict[Norm, str]] = {
     Norm.FREMO: "FREMO",
@@ -233,6 +248,7 @@ NORM_NAMES: Final[dict[Norm, str]] = {
     Norm.USMS: "USMS",
     Norm.CLUB: "Klubbens egen",
     Norm.FREMO_SPUR_0: "FREMO Spur 0",
+    Norm.FREMO_N: "FREMO N",
 }
 
 
@@ -758,12 +774,13 @@ class CheckSource(StrEnum):
 
 class CheckChoice(Contract):
     """An answer button. closes: the answer settles the item; action: what the view does
-    instead, with no answer stored (choose a switch type, open Lås mått)."""
+    instead, with no answer stored (choose a switch type, open Lås mått, or answer the photo's
+    question in Osäkert parti)."""
 
     id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
     text: Text = Field(max_length=60)
     closes: bool = True
-    action: Literal["design", "lock"] | None = None
+    action: Literal["design", "lock", "photo"] | None = None
 
 
 class CheckAnswer(Contract):
@@ -842,6 +859,14 @@ class DrawingState(Contract):
     locks: list[LockedMeasure] = Field(default_factory=list)
     ids: list[IdChange] = Field(default_factory=list, description="This version's splits.")
     plan_approved: bool = Field(default=False, description="Godkänn spårplanen gave this one.")
+    questions: list[CheckItem] = Field(
+        default_factory=list,
+        description="The photo chain's questions (part c1): Att kolla items of the kind question, "
+        "source code or ai, kept with the version.",
+    )
+    photo: UUID | None = Field(
+        default=None, description="The photo job the drawing came from (part c1)."
+    )
 
 
 # The editing operations (Ritningen). A change set is a list of them, applied in order on the
@@ -1083,6 +1108,25 @@ class DrawingStats(Contract):
     deviation: Deviation | None = None
 
 
+class PhotoGrid(Contract):
+    """Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
+    (x0, y0) mm, ppm px per mm."""
+
+    x0: float
+    y0: float
+    ppm: float = Field(gt=0)
+    width: int = Field(ge=1)
+    height: int = Field(ge=1)
+
+
+class PhotoLayer(Contract):
+    """Fotot under: the measuring image under the drawing, in the module's millimetres."""
+
+    job: UUID
+    url: str = Field(description="The measuring image at 1 px per mm, a signed address.")
+    grid: PhotoGrid
+
+
 class DrawingView(Contract):
     """Ritningen: the working drawing after a change set, with what to check and the
     inspector's facts. Nothing is saved until Spara."""
@@ -1102,6 +1146,7 @@ class DrawingView(Contract):
     limits: ScaleLimits
     stats: DrawingStats
     changed: bool = Field(description="The operations changed something.")
+    photo: PhotoLayer | None = Field(default=None, description="Fotot under (part c1).")
 
 
 class LockAsk(DrawingEdit):
@@ -1210,6 +1255,22 @@ class ModuleBrief(Contract):
     changed_at: datetime
 
 
+class ModulePhoto(Contract):
+    """The Foto tab (part c1): the measuring image the version came from, and what is kept."""
+
+    job: UUID
+    measure_url: str = Field(description="The measuring image, 2 px per mm, a signed address.")
+    display_url: str = Field(description="The measuring image, 1 px per mm.")
+    grid: PhotoGrid
+    chain: Text = Field(description="The chain's version that read it.")
+    newer_chain: bool = Field(description="A newer version of the chain can read it again.")
+    original_until: datetime | None = Field(
+        default=None, description="When the original goes, unless it is kept (CAD4)."
+    )
+    original_kept: bool = Field(description="The original is kept: Spara original.")
+    taken_at: datetime
+
+
 class Module(ModuleBrief):
     """Modul: one version of it, with its page's facts (CAD-05)."""
 
@@ -1227,6 +1288,15 @@ class Module(ModuleBrief):
     drawing: DrawingState = Field(default_factory=DrawingState)
     checks: list[CheckItem] = Field(
         default_factory=list, description="Att kolla in this version, answered or not."
+    )
+    photo: ModulePhoto | None = Field(default=None, description="The Foto tab (part c1).")
+    keep_original: bool = Field(
+        default=False, description="Spara original: the photo's original is kept (CAD4)."
+    )
+    training_at: datetime | None = Field(
+        default=None,
+        description="When the owner said yes to training TrainMeet's track model on it (CAD7, "
+        "CAD-32); null: no.",
     )
 
 
@@ -1297,6 +1367,8 @@ class ModuleEventKind(StrEnum):
     APPROVED = "approved"
     VISIBILITY = "visibility"
     REMOVED = "removed"
+    PHOTO = "photo"
+    """A photo read, or its settings changed (part c1)."""
 
 
 class ModuleEvent(Contract):
@@ -1311,6 +1383,316 @@ class ModuleEvent(Contract):
 
 class ModuleRemoved(Contract):
     id: UUID
+
+
+# --- The photo chain, profile Modulfoto (part c1) ------------------------------------------
+#
+#     GET    /api/cad/1/photos/consent?module=                 PhotoConsent
+#     POST   /api/cad/1/photos                                 form: data PhotoStart, images
+#                                                              1–4 photos -> PhotoJob, 201
+#     GET    /api/cad/1/photos/{job}                           PhotoJob
+#     POST   /api/cad/1/photos/{job}/read                      PhotoRead -> PhotoJob
+#     POST   /api/cad/1/photos/{job}/answers                   PhotoAnswers -> PhotoJob
+#     POST   /api/cad/1/photos/{job}/questions/{key}/closeup   form: data PhotoCloseup, images
+#                                                              one photo -> PhotoJob
+#     POST   /api/cad/1/photos/{job}/recompute                 PhotoJob: Räkna om
+#     PUT    /api/cad/1/modules/{module}/photo                 PhotoSettings -> Module
+#     GET    /api/cad/1/storage                                StorageUse
+#
+# Code measures; AI reads only which tracks connect, with fixed answers, never millimetres
+# (CAD2). A measuring image read by AI costs 12 tokens, once, with its follow-up questions
+# (CAD3, CAD-29); the same image again costs nothing, and the account's own AI costs nothing.
+# Everything the photo gives is a proposal until the owner approves (CAD-17).
+
+MAX_PHOTOS: Final = 4
+"""Photos of one module: 2–4 for a long one (bildkedjan step 7)."""
+
+
+class PhotoJobState(StrEnum):
+    CORNERS = "corners"
+    """The photo is taken in: the owner confirms the corners and Kant 1, and starts."""
+    QUEUED = "queued"
+    RUNNING = "running"
+    DONE = "done"
+    """Read: the track plan is a new version of the module, with its questions."""
+    FAILED = "failed"
+
+
+class PhotoLevel(StrEnum):
+    OK = "ok"
+    LOW = "low"
+    """Låg upplösning: the tolerances are widened."""
+    WARN = "warn"
+    REFUSE = "refuse"
+    """A new photo is needed."""
+
+
+class PhotoGate(Contract):
+    """One row of the quality gate (bildkedjan step 3)."""
+
+    key: Literal["resolution", "tilt", "sharpness", "clipped", "corners", "stitch"]
+    level: PhotoLevel
+    value: float
+    text: Text
+
+
+class PhotoQuality(Contract):
+    px_per_mm: float = Field(ge=0)
+    tilt: float = Field(ge=0, description="Degrees from straight down.")
+    gates: list[PhotoGate]
+    length_from_photo: bool = Field(description="False under 1 px per mm: no length from it.")
+
+
+class PhotoCorners(Contract):
+    """The module's corners in the preview's pixels (the photo, or the photos stitched, made
+    smaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to
+    corner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the
+    module lies to the right."""
+
+    corners: list[Point] = Field(min_length=4, max_length=4)
+    kant1: int = Field(ge=0, le=3)
+    found: bool = Field(description="Code found them; false: a guess to drag into place.")
+    certain: bool = Field(description="Every side's edge fits its line within 2 px.")
+
+
+class FactSource(StrEnum):
+    """Where a fact comes from (bildkedjan, principle 4)."""
+
+    PHOTO = "photo"
+    OWNER = "owner"
+    NORM = "norm"
+    AI = "ai"
+    CODE = "code"
+
+
+class PhotoFact(Contract):
+    """A fact with its origin and certainty: säker, trolig, osäker or bekräftad, and its ±."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,59}$")]
+    label: Text
+    value: float | None = None
+    text: Text | None = None
+    plus_minus: float | None = Field(default=None, ge=0)
+    source: FactSource
+    certainty: Certainty
+
+
+class PhotoMeasure(Contract):
+    """Dina mått mot fotot: the owner's measure, or the norm's, against the photo's."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,59}$")]
+    label: Text
+    owner: float | None = Field(default=None, description="The owner's or the norm's; null: none.")
+    owner_source: FactSource | None = None
+    photo: float
+    plus_minus: float = Field(ge=0)
+    agrees: bool
+    gable: GableEnd | None = None
+    track: int | None = Field(default=None, ge=1, le=MAX_TRACKS)
+
+
+class PhotoChoice(Contract):
+    id: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+    text: Text = Field(max_length=60)
+    hint: Text | None = Field(default=None, description="What it means, under the choice.")
+    sketch: (
+        Literal["two_switches", "crossing", "single_slip", "double_slip", "joined", "apart"] | None
+    ) = None
+
+
+class PhotoQuestionKind(StrEnum):
+    CONNECTION = "connection"
+    """Do these two ends connect? Code and AI said differently, or there was no AI."""
+    NODE = "node"
+    """Korsning, enkel eller dubbel korsningsväxel, eller två växlar? (Osäkert parti)"""
+    HIDDEN = "hidden"
+    """Spår dolt: the track is hidden over more than 30 mm."""
+    SCALE = "scale"
+    """The owner's measure and the gauge differ more than 1 %."""
+    GAUGE = "gauge"
+    """The gauge along a stretch differs more than 5 %: something else was followed."""
+    SWITCH_FIT = "switch_fit"
+    """The switch's fit lies more than 1 mm from the photo."""
+    SLEEPERS = "sleepers"
+    """The sleepers' spacing differs on straight and slanting tracks."""
+
+
+class PhotoQuestion(Contract):
+    """A question from the chain (bildkedjan step 15, När AI ska fråga): a fixed set of answers,
+    what code and AI each say, and the owner's answer. A topology question changes the track
+    plan; it stops Godkänn spårplanen until it is answered."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,79}$")]
+    kind: PhotoQuestionKind
+    source: CheckSource
+    title: Text
+    text: Text = Field(description="What the AI or the code sees.")
+    choices: list[PhotoChoice] = Field(min_length=1)
+    code: str | None = Field(default=None, description="The choice the code makes.")
+    ai: str | None = Field(default=None, description="The choice the AI makes.")
+    answer: str | None = Field(default=None, description="The owner's.")
+    at: Point = Field(description="The place in mm, in the module's coordinates.")
+    topology: bool = Field(description="The answer changes the track plan.")
+    closeup: bool = Field(default=False, description="Ta en närbild helps here.")
+    closeup_ai: str | None = Field(default=None, description="What the AI says from the close-up.")
+
+
+class PhotoPrice(Contract):
+    """The price before start (CAD-18, CAD-29): 12 tokens per measuring image read by AI."""
+
+    tokens: int = Field(ge=0)
+    why: Literal["first", "included", "same", "own_ai", "no_ai"]
+    text: Text
+
+
+class PhotoConsent(Contract):
+    """What is sent and to whom, before a photo is first sent to AI, as Catalog's (CAT-142)."""
+
+    available: bool = Field(description="AI can be used here: ID's meter answers.")
+    given: bool
+    version: Text
+    sent_to: Text
+    text: Text
+    own_ai: Text | None = None
+    price: int = Field(ge=0)
+    balance: int | None = None
+    payer: Text | None = None
+    message: Text | None = Field(default=None, description="Why AI cannot be used now.")
+    may_read: bool = Field(
+        default=True,
+        description="Only the owner reads with AI, and a club's administrators for its modules.",
+    )
+
+
+class PhotoImage(Contract):
+    id: UUID
+    url: str
+    width: int
+    height: int
+
+
+class PhotoSummary(Contract):
+    """Spårplanen: what the chain read."""
+
+    tracks_a: int = Field(ge=0)
+    tracks_b: int = Field(ge=0)
+    switches: int = Field(ge=0)
+    crossings: int = Field(ge=0)
+    ends: int = Field(ge=0)
+    track_length: float = Field(ge=0)
+    deviation: Deviation | None = None
+
+
+class SleeperCheck(Contract):
+    """The sleepers' spacing on straight and slanting tracks: the same, or the straightening
+    is wrong (bildkedjan step 9)."""
+
+    straight: float | None = None
+    slanting: float | None = None
+    slanting_angle: float | None = None
+    agree: bool | None = None
+
+
+class GaugeCheck(Contract):
+    """The gauge averaged over the straight stretches, against the scale's (step 9)."""
+
+    value: float | None = None
+    nominal: float
+    places: int = Field(ge=0)
+    agrees: bool | None = None
+
+
+class PhotoJob(Contract):
+    """One run of the chain on a module's photos: its state and what it found. The same photos,
+    input and versions give the same job, at no cost (bildkedjan, Reproducerbarhet)."""
+
+    id: UUID
+    module: UUID
+    state: PhotoJobState
+    progress: int = Field(ge=0, le=100)
+    step: Text = Field(description="What it does now, in Swedish.")
+    created_at: datetime
+    photos: list[PhotoImage] = Field(description="The photos as taken in, while they are kept.")
+    preview: PhotoImage | None = Field(
+        default=None, description="The photos as one, for the corners."
+    )
+    corners: PhotoCorners | None = None
+    quality: PhotoQuality | None = None
+    length: float | None = None
+    length_plus_minus: float | None = None
+    length_given: bool = Field(description="The owner gave the length; false: the photo's.")
+    offset: float | None = None
+    measure: PhotoLayer | None = None
+    tracks_on_photo: list[list[Point]] = Field(
+        default_factory=list, description="The track plan drawn on the preview, in its px."
+    )
+    facts: list[PhotoFact] = Field(default_factory=list)
+    measures: list[PhotoMeasure] = Field(default_factory=list)
+    questions: list[PhotoQuestion] = Field(default_factory=list)
+    summary: PhotoSummary | None = None
+    sleepers: SleeperCheck | None = None
+    gauge: GaugeCheck | None = None
+    price: PhotoPrice
+    cost: int = Field(ge=0, description="Tokens drawn for this job.")
+    ai: Text | None = Field(default=None, description="The AI that read it, or null.")
+    version: int | None = Field(default=None, ge=1, description="The module version it made.")
+    chain: Text
+    key: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    message: Text | None = Field(default=None, description="Why it stopped, in Swedish.")
+
+
+class PhotoStart(Contract):
+    """The form's data part: a new module from the photo, or a photo for a module."""
+
+    module: UUID | None = None
+    name: Name | None = None
+    scale: Scale = Scale.H0
+    kind: Literal["straight", "trapezoid"] = "straight"
+    width: Mm | None = Field(default=None, description="Gable A's width; null: the module's.")
+    width_b: Mm | None = None
+    length: Mm | None = Field(default=None, description="Null: the photo gives it.")
+    offset: float | None = Field(default=None, ge=-20_000, le=20_000)
+    keep_original: bool = False
+    owner: UUID | None = None
+
+
+class PhotoRead(Contract):
+    """Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,
+    with or without AI."""
+
+    corners: list[Point] = Field(min_length=4, max_length=4)
+    kant1: int = Field(ge=0, le=3)
+    ai: bool = True
+    consent: bool = False
+
+
+class PhotoAnswer(Contract):
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9_.:-]{0,79}$")]
+    answer: Annotated[str, StringConstraints(pattern=r"^[a-z0-9][a-z0-9-]{0,39}$")]
+
+
+class PhotoAnswers(Contract):
+    answers: list[PhotoAnswer] = Field(min_length=1, max_length=50)
+
+
+class PhotoCloseup(Contract):
+    consent: bool = False
+
+
+class PhotoSettings(Contract):
+    """Spara original and the training opt-in (CAD4, CAD7)."""
+
+    keep_original: bool | None = None
+    training: bool | None = None
+
+
+class StorageUse(Contract):
+    """CAD's own storage for module photos, 100 MB per person (CAD-19); the originals waiting
+    for approval do not count (CAD4)."""
+
+    used: int = Field(ge=0)
+    limit: int = Field(ge=0)
+    waiting: int = Field(ge=0, description="Originals kept until approval, not counted.")
 
 
 # --- The assembly (part d) ----------------------------------------------------------------

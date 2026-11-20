@@ -25,6 +25,9 @@ apps/*/dist/
 # TrainMeet Catalog's pictures on disk, when run locally (CATALOG_PICTURES_DIR)
 .catalog/
 
+# TrainMeet CAD's module photos on disk, when run locally (CAD_PHOTOS_DIR)
+.cad-foton/
+
 # TrainMeet ID: the extension is built by id/Dockerfile
 id/email-code/target/
 

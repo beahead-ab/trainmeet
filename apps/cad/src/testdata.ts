@@ -60,6 +60,9 @@ export const STATION: Module = {
   used_in: [],
   may_edit: true,
   latest: 1,
+  photo: null,
+  keep_original: false,
+  training_at: null,
 };
 
 /** Kurva 30° · K2, the view Kurvmodul's example, approved. */
@@ -70,8 +73,9 @@ export const CURVE: Module = {
   name: "Kurva 30° · K2",
   shape: {
     kind: "curve",
-    radius: 2000,
-    angle: 30,
+    // Exactly as computed from the string and sagitta (CAD16).
+    radius: 2003.1636029411766,
+    angle: 29.943333537924747,
     width: 500,
     edge: "outer",
     sides: "bent",

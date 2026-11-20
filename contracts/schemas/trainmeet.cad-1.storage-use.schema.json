@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.storage-use.schema.json",
+  "title": "trainmeet.cad-1.storage-use",
+  "additionalProperties": true,
+  "description": "CAD's own storage for module photos, 100 MB per person (CAD-19); the originals waiting\nfor approval do not count (CAD4).",
+  "properties": {
+    "used": {
+      "minimum": 0,
+      "title": "Used",
+      "type": "integer"
+    },
+    "limit": {
+      "minimum": 0,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "waiting": {
+      "description": "Originals kept until approval, not counted.",
+      "minimum": 0,
+      "title": "Waiting",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "used",
+    "limit",
+    "waiting"
+  ],
+  "type": "object"
+}

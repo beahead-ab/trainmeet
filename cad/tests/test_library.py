@@ -53,7 +53,8 @@ def test_a_straight_module_from_measures_gets_its_number_gables_and_track_graph(
 
 def test_a_curve_from_string_and_sagitta(world: World) -> None:
     made = make(world, curve())
-    assert made["shape"]["radius"] == 2000 and made["shape"]["angle"] == 30
+    # As computed from the string 1035 and the sagitta 68, without rounding (CAD16, CAD-35).
+    assert round(made["shape"]["radius"], 1) == 2003.2 and round(made["shape"]["angle"], 2) == 29.94
     assert [p["segments"][0]["kind"] for p in made["graph"]["pieces"]] == ["arc", "arc"]
     assert [g["label"] for g in made["gables"]] == ["Dubbelspår", "Dubbelspår"]
 
@@ -282,7 +283,11 @@ def test_the_norms_per_scale_and_their_profiles(world: World) -> None:
     zero = client.get(f"{API}/profiles", params={"scale": "0"}).json()
     assert [n["name"] for n in zero["norms"]] == ["FREMO Spur 0"]
     n = client.get(f"{API}/profiles", params={"scale": "N"}).json()
-    assert n["norms"] == [] and {p["kind"] for p in n["profiles"]} == {"general"}
+    # FREMO N from the start (CAD14), its measures read in before the launch.
+    assert [x["name"] for x in n["norms"]] == ["FREMO N"]
+    assert {p["kind"] for p in n["profiles"]} == {"general", "norm"}
+    fremo_n = next(p for p in n["profiles"] if p["norm"] == "fremo_n")
+    assert not fremo_n["read"] and "läses in före lanseringen" in fremo_n["note"]
 
 
 def test_profiles_count_the_gables_that_use_them(world: World) -> None:

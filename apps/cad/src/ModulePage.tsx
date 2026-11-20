@@ -1,9 +1,10 @@
 // Modulens sida (CAD-05): Översikt, Ritning, Foto, Landskap and Historik, with the gables, who
 // sees the module, where it is used, and Godkänn. As the view Modul-klar.
 import { linkClick, type Navigate } from "@trainmeet/design";
-import type { ClubChoice, Module, ModuleEvent, Visibility } from "./api";
-import { dayText, stampText, status, VISIBILITY } from "./common";
+import type { ClubChoice, Module, ModuleEvent, PhotoConsent, PhotoStart, StorageUse, Visibility } from "./api";
+import { bendText, dayText, NORM_NAMES, stampText, status, VISIBILITY } from "./common";
 import { ModuleDrawing, ProfileBar } from "./Drawing";
+import { PhotoTab } from "./Foto";
 import { metres } from "./geometry";
 import { drawingPath, editPath, modulePath, PATHS, type Tab } from "./routes";
 
@@ -25,6 +26,14 @@ type Props = {
   onVisibility?: (visibility: Visibility, club: string | null) => void;
   onRemove?: () => void;
   error?: string | null;
+  /** The Foto tab (part c1). */
+  consent?: PhotoConsent | null;
+  storage?: StorageUse | null;
+  busy?: boolean;
+  now?: Date;
+  onUpload?: (start: PhotoStart, files: File[]) => void;
+  onPhotoSettings?: (change: { keep_original?: boolean; training?: boolean }) => void;
+  onRecompute?: (job: string) => void;
 };
 
 function Facts({ module }: { module: Module }) {
@@ -35,7 +44,7 @@ function Facts({ module }: { module: Module }) {
       ? `${Math.round(shape.length)} × ${Math.round(shape.width)} mm`
       : shape.kind === "trapezoid"
         ? `${Math.round(shape.length)} × ${Math.round(shape.width_a)}/${Math.round(shape.width_b)} mm`
-        : `R ${Math.round(shape.radius)} · ${shape.angle.toLocaleString("sv-SE")}° · bredd ${Math.round(shape.width)} mm`;
+        : `${bendText(shape.radius, shape.angle)} · bredd ${Math.round(shape.width)} mm`;
   const width = shape.kind === "trapezoid" ? Math.max(shape.width_a, shape.width_b) : shape.width;
   return (
     <div className="cad-kort cad-fakta">
@@ -45,7 +54,15 @@ function Facts({ module }: { module: Module }) {
         <dd className="tm-mono">{size}</dd>
         <dt>Längd</dt>
         <dd>
-          ur måtten <span className="cad-status matt">inget foto</span>
+          {module.photo ? (
+            <>
+              ur fotot <span className="cad-tagg forslag">mätbild</span>
+            </>
+          ) : (
+            <>
+              ur måtten <span className="cad-status matt">inget foto</span>
+            </>
+          )}
         </dd>
         <dt>Skala</dt>
         <dd>{module.scale}</dd>
@@ -70,13 +87,13 @@ function Facts({ module }: { module: Module }) {
 
 function sizeText(module: Module): string {
   const shape = module.shape;
-  if (shape.kind === "curve") return `R ${Math.round(shape.radius)} · ${shape.angle.toLocaleString("sv-SE")}°`;
+  if (shape.kind === "curve") return bendText(shape.radius, shape.angle);
   if (shape.kind === "trapezoid") return `${Math.round(shape.length)} × ${Math.round(shape.width_a)}/${Math.round(shape.width_b)}`;
   return `${Math.round(shape.length)} × ${Math.round(shape.width)}`;
 }
 
 function normName(norm: string): string {
-  return { fremo: "FREMO", mmm: "MMM", usms: "USMS", club: "Klubbens egen norm", fremo_spur_0: "FREMO Spur 0" }[norm] ?? norm;
+  return NORM_NAMES[norm] ?? norm;
 }
 
 function Who({ module, clubs, onVisibility }: { module: Module; clubs: ClubChoice[]; onVisibility?: Props["onVisibility"] }) {
@@ -175,7 +192,8 @@ function History({ module, history, navigate }: { module: Module; history: Modul
   );
 }
 
-export function ModulePage({ module, history, tab, clubs, navigate, onApprove, onVisibility, onRemove, error }: Props) {
+export function ModulePage(props: Props) {
+  const { module, history, tab, clubs, navigate, onApprove, onVisibility, onRemove, error } = props;
   const s = status(module);
   const old = module.version !== module.latest;
   const tracks: [number[], number[]] = [module.gables[0]?.tracks ?? [], module.gables[1]?.tracks ?? []];
@@ -294,14 +312,23 @@ export function ModulePage({ module, history, tab, clubs, navigate, onApprove, o
           </p>
         </div>
       ) : null}
-      {tab === "foto" || tab === "landskap" ? (
+      {tab === "foto" ? (
+        <PhotoTab
+          module={module}
+          consent={props.consent ?? null}
+          storage={props.storage}
+          busy={props.busy}
+          navigate={navigate}
+          now={props.now}
+          onUpload={props.onUpload}
+          onPhotoSettings={props.onPhotoSettings}
+          onRecompute={props.onRecompute}
+        />
+      ) : null}
+      {tab === "landskap" ? (
         <div className="cad-kort cad-kommer">
-          <h2>{tab === "foto" ? "Foto och kontroll" : "Landskapet"}</h2>
-          <p>
-            {tab === "foto"
-              ? "Fota modulen ovanifrån så ritar AI:n spåren och jämför dina mått med fotot. Kommer med foto och kontroll."
-              : "Ytorna ur fotot, med verktyg för att måla och sudda skuggor. Kommer med landskapet."}
-          </p>
+          <h2>Landskapet</h2>
+          <p>Ytorna ur fotot, med verktyg för att måla och sudda skuggor. Kommer med landskapet.</p>
         </div>
       ) : null}
       {tab === "historik" ? <History module={module} history={history} navigate={navigate} /> : null}

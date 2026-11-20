@@ -31,7 +31,9 @@ from fastapi.testclient import TestClient
 from psycopg import conninfo
 
 from cad.app import create_app
+from cad.geometry import from_chord
 from cad.login import TRIAL_ACCOUNTS
+from cad.prov_webblasare import PretendMeter
 from cad.settings import IdSettings, Settings
 from contracts.cad import CadVersion
 
@@ -72,8 +74,9 @@ def new_key() -> rsa.RSAPrivateKey:
 
 
 @dataclass
-class PretendId:
-    """Just enough of TrainMeet ID for CAD."""
+class PretendId(PretendMeter):
+    """Just enough of TrainMeet ID for CAD; its meter is the browser test's (balance, own_ai,
+    reservations, reads, and answer: what the AI says, a callable of the prompt)."""
 
     key: rsa.RSAPrivateKey = field(default_factory=new_key)
     kid: str = "nyckel-1"
@@ -124,6 +127,10 @@ class PretendId:
             assert request.headers.get("authorization") == "Bearer app-token"
             what = path.removeprefix("/api/id/1/apps/")
             self.asked.append(what)
+            if what.startswith(("tokens/reservations", "meter")) or (
+                what == "tokens" and request.url.params.get("owner")
+            ):
+                return self.tokens_answer(request, what)
             person = UUID(request.url.params["person"])
             if what == "clubs":
                 return httpx.Response(200, json=self.clubs.get(person, []))
@@ -145,6 +152,10 @@ class PretendId:
                 return httpx.Response(200, json={"available": 86})
         return httpx.Response(404)
 
+    def tokens_answer(self, request: httpx.Request, what: str) -> httpx.Response:
+        """The balance, the reservations and the meter with hold (contracts/tokens.py)."""
+        return self.meter_answer(request, what)
+
 
 def settings_for(url: str, web_dir: Path, *, trial: bool = True) -> Settings:
     return Settings(
@@ -161,6 +172,8 @@ def settings_for(url: str, web_dir: Path, *, trial: bool = True) -> Settings:
             api=ID_API,
         ),
         build=CadVersion(version="0.1.0", commit="abcdef1234"),
+        photos_dir=web_dir / "foton",
+        photo_queue=False,
     )
 
 
@@ -231,15 +244,16 @@ def straight(
 
 
 def curve(name: str = "Kurva 30° · K2", **extra: Any) -> dict[str, Any]:
-    """The view Kurvmodul's example: string 1035 and sagitta 68 give R 2003 · 29,9°, rounded to
-    R 2000 · 30°; double track 200 + 50 from Kant 1, the outer edge."""
+    """The view Kurvmodul's example: string 1035 and sagitta 68 give R 2 003 mm · 29,9°, kept as
+    computed (CAD16); double track 200 + 50 from Kant 1, the outer edge."""
+    bend = from_chord(1035, 68)
     return {
         "name": name,
         "scale": "H0",
         "shape": {
             "kind": "curve",
-            "radius": 2000,
-            "angle": 30,
+            "radius": bend.radius,
+            "angle": bend.angle,
             "width": 500,
             "edge": "outer",
             "sides": "bent",

@@ -5,6 +5,7 @@
 import { linkClick, type Navigate } from "@trainmeet/design";
 import { useEffect, useState } from "react";
 import type { LockMeasures, LockProposal, LockRadii, Module, Segment } from "./api";
+import { bendText, NORM_NAMES } from "./common";
 import { f, kantOne, outline, pathOf, poly, turnDegrees, turner } from "./Drawing";
 import { gableLine, mmText, onGable, type Point } from "./geometry";
 import { drawingPath, modulePath, PATHS } from "./routes";
@@ -22,12 +23,12 @@ type Props = {
 
 function sizeText(module: Module): string {
   const shape = module.shape;
-  if (shape.kind === "curve") return `R ${Math.round(shape.radius)} · ${shape.angle.toLocaleString("sv-SE")}°`;
+  if (shape.kind === "curve") return bendText(shape.radius, shape.angle);
   if (shape.kind === "trapezoid") return `${Math.round(shape.length)} × ${Math.round(shape.width_a)}/${Math.round(shape.width_b)}`;
   return `${Math.round(shape.length)} × ${Math.round(shape.width)}`;
 }
 
-const NORMS: Record<string, string> = { fremo: "FREMO", mmm: "MMM", usms: "USMS", club: "Klubbens egen", fremo_spur_0: "FREMO Spur 0" };
+
 
 function mm(value: number): string {
   return Math.abs(value - Math.round(value)) < 0.05 ? mmText(value) : value.toLocaleString("sv-SE", { maximumFractionDigits: 1 });
@@ -168,7 +169,7 @@ export function LasMatt({ module, proposal, busy = false, error, navigate, onCha
       <div className="cad-rubrikrad">
         <h1 id="rubrik">Lås ett mått, räkna om kurvan</h1>
         <span className="cad-pill tm-mono">{sizeText(module)}</span>
-        {norm ? <span className="cad-bricka">{NORMS[norm] ?? norm}</span> : null}
+        {norm ? <span className="cad-bricka">{NORM_NAMES[norm] ?? norm}</span> : null}
         <span className="cad-fyll" />
         <a className="tm-knapp" href={back} onClick={linkClick(navigate, back)}>
           Behåll linjen

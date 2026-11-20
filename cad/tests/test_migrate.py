@@ -44,6 +44,10 @@ def test_migrate_runs_each_once_and_check_sees_nothing_missing(database_url: str
         "module_version",
         "module_event",
         "gable_profile",
+        "photo_job",
+        "photo_file",
+        "photo_transcript",
+        "privacy_event",
     } <= tables
 
 

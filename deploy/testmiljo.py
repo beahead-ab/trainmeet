@@ -28,6 +28,9 @@ Valfritt:
 - Catalogs bilder (#51, C35): en egen hink i Object Storage och en egen IAM-app med en nyckel
   som bara når Object Storage i det här projektet. Nyckeln sparas i Secret Manager och läggs i
   catalog-vault på servern. Utan rätten att skapa IAM-appar ligger bilderna på serverns disk.
+- CAD:s modulfoton (#89 del c1, CAD-19): likadant, en egen hink, aldrig Catalogs, och en egen
+  IAM-app med en egen nyckel. Nyckeln följer med i cad.env, och up.sh lägger den i cad-vault på
+  servern, aldrig i .env. Utan hinken ligger fotona på serverns disk, i cad-photos.
 
 Resultatet (GITHUB_OUTPUT): ip, user, key_file, known_hosts, catalog_env, id_env, cad_env,
 created, och pictures_key när hinken finns.
@@ -87,6 +90,10 @@ ID_API_SECRET_NAME = "trainmeet-testmiljo-id-api"
 ID_HUB_SECRET_NAME = "trainmeet-testmiljo-id-hub"
 CAD_SECRET_NAME = "trainmeet-testmiljo-cad"
 ID_CAD_SECRET_NAME = "trainmeet-testmiljo-id-cad"
+# CAD:s modulfoton (#89 del c1, CAD-19): a bucket of their own, as Catalog's pictures, never
+# Catalog's, with a key of their own that only gives Object Storage in this project.
+CAD_PHOTOS_NAME = "trainmeet-testmiljo-cad-foton"
+CAD_PHOTOS_SECRET_NAME = "trainmeet-testmiljo-cad-foton-nyckel"
 DEFAULT_TYPE = "DEV1-S"
 IMAGE_LABEL = "ubuntu_noble"
 DEPLOY_USER = "deploy"
@@ -620,10 +627,22 @@ def write_catalog_env(catalog: CatalogSecrets, bucket: str | None = None) -> Pat
     return write_private("testmiljo_catalog.env", text)
 
 
-def write_cad_env(cad: CadSecrets, id_cad: IdCadSecrets) -> Path:
+def write_cad_env(
+    cad: CadSecrets, id_cad: IdCadSecrets, photos: tuple[str, PictureKey] | None = None
+) -> Path:
     """CAD's secrets as a private file, for the deploy to put on the server (#89): its
-    database and backups, and the secret it logs in to ID with, which id.env also has."""
-    return write_private("testmiljo_cad.env", cad.env_file() + id_cad.env_file())
+    database and backups, and the secret it logs in to ID with, which id.env also has. With
+    the photos' bucket (#89 del c1), its name and its key: up.sh puts the key in cad-vault,
+    which only the deploy user reads, and keeps it out of .env."""
+    text = cad.env_file() + id_cad.env_file()
+    if photos is not None:
+        bucket, key = photos
+        text += (
+            f"CAD_PHOTOS_S3_BUCKET={bucket}\n"
+            f"CAD_PHOTOS_S3_ACCESS_KEY={key.access_key}\n"
+            f"CAD_PHOTOS_S3_SECRET_KEY={key.secret_key}\n"
+        )
+    return write_private("testmiljo_cad.env", text)
 
 
 # --- Catalogs bilder (#51) --------------------------------------------------------------
@@ -658,27 +677,39 @@ def bucket_name(project_id: str) -> str:
     return f"trainmeet-test-bilder-{project_id.split('-')[0].lower()}"
 
 
+def cad_bucket_name(project_id: str) -> str:
+    """CAD's own bucket for the module photos, beside Catalog's and never the same (CAD-19)."""
+    return f"trainmeet-test-cad-foton-{project_id.split('-')[0].lower()}"
+
+
 def ensure_picture_key(
-    iam: IamV1Alpha1API, secrets: SecretV1Beta1API, project_id: str, organization_id: str
+    iam: IamV1Alpha1API,
+    secrets: SecretV1Beta1API,
+    project_id: str,
+    organization_id: str,
+    name: str = PICTURES_NAME,
+    secret_name: str = PICTURES_SECRET_NAME,
+    what: str = "Catalogs bilder",
 ) -> PictureKey:
     """An IAM application with a policy for Object Storage in this project only, and its key
-    in Secret Manager. Made the first time, then read back."""
-    found = iam.list_applications_all(organization_id=organization_id, name=PICTURES_NAME)
-    application = next((a for a in found if a.name == PICTURES_NAME), None)
+    in Secret Manager. Made the first time, then read back. Catalog's pictures and CAD's
+    photos have one each."""
+    found = iam.list_applications_all(organization_id=organization_id, name=name)
+    application = next((a for a in found if a.name == name), None)
     if application is None:
         application = iam.create_application(
-            name=PICTURES_NAME,
-            description="Catalogs bilder i testmiljön. Skapas av deploy/testmiljo.py.",
+            name=name,
+            description=f"{what} i testmiljön. Skapas av deploy/testmiljo.py.",
             organization_id=organization_id,
             tags=[TAG],
         )
-        print("Catalogs bilder fick en egen IAM-app.")
+        print(f"{what} fick en egen IAM-app.")
     policies = iam.list_policies_all(
         organization_id=organization_id, application_ids=[application.id]
     )
-    if not any(policy.name == PICTURES_NAME for policy in policies):
+    if not any(policy.name == name for policy in policies):
         iam.create_policy(
-            name=PICTURES_NAME,
+            name=name,
             description="Bara Object Storage, bara i testmiljöns projekt.",
             organization_id=organization_id,
             application_id=application.id,
@@ -695,22 +726,22 @@ def ensure_picture_key(
     def new() -> str:
         made = iam.create_api_key(
             application_id=application.id,
-            description="Catalogs bilder i testmiljön.",
+            description=f"{what} i testmiljön.",
             default_project_id=project_id,
         )
         if not made.secret_key:
-            raise PicturesError("Scaleway gav ingen hemlig nyckel till Catalogs bilder.")
+            raise PicturesError(f"Scaleway gav ingen hemlig nyckel till {what}.")
         return PictureKey(access_key=made.access_key, secret_key=made.secret_key).to_json()
 
     text, created = ensure_secret(
         secrets,
         project_id,
-        PICTURES_SECRET_NAME,
-        "Nyckeln till Catalogs bilder i testmiljön. Skapas av deploy/testmiljo.py.",
+        secret_name,
+        f"Nyckeln till {what} i testmiljön. Skapas av deploy/testmiljo.py.",
         new,
     )
     if created:
-        print("Catalogs bilder fick en egen nyckel, sparad i Secret Manager.")
+        print(f"{what} fick en egen nyckel, sparad i Secret Manager.")
     return PictureKey.from_json(text)
 
 
@@ -742,6 +773,7 @@ def ensure_bucket(
     bucket: str,
     send: Send = s3_send,
     wait: Callable[[float], None] = time.sleep,
+    what: str = "Catalogs bilder",
 ) -> None:
     """The bucket, private as Object Storage makes it. A new policy can take a moment to
     reach Object Storage, so a refusal is tried again a few times."""
@@ -754,12 +786,12 @@ def ensure_bucket(
         if status == 404:
             status = send("PUT", url, key)
             if status == 200:
-                print("Catalogs hink för bilderna skapad.")
+                print(f"Hinken för {what} skapad.")
                 return
         if status not in (401, 403, 409):
             break
         wait(5.0 * (attempt + 1))
-    raise PicturesError(f"Hinken för Catalogs bilder gick inte att nå (HTTP {status}).")
+    raise PicturesError(f"Hinken för {what} gick inte att nå (HTTP {status}).")
 
 
 def ensure_pictures(
@@ -768,23 +800,50 @@ def ensure_pictures(
     project_id: str,
     organization_id: str,
     send: Send = s3_send,
+    *,
+    name: str = PICTURES_NAME,
+    secret_name: str = PICTURES_SECRET_NAME,
+    bucket: str | None = None,
+    what: str = "Catalogs bilder",
 ) -> tuple[str, PictureKey] | None:
     """The bucket and its key, or None: then the pictures lie on the server's disk, and the
     deploy goes on. The reason is said, never a key."""
     try:
-        key = ensure_picture_key(iam, secrets, project_id, organization_id)
-        bucket = bucket_name(project_id)
-        ensure_bucket(key, bucket, send)
+        key = ensure_picture_key(iam, secrets, project_id, organization_id, name, secret_name, what)
+        bucket = bucket or bucket_name(project_id)
+        ensure_bucket(key, bucket, send, what=what)
     except ScalewayException as error:
         print(
-            "::notice::Catalogs bilder ligger på serverns disk: Scaleway nekade IAM-appen "
+            f"::notice::{what} ligger på serverns disk: Scaleway nekade IAM-appen "
             f"(HTTP {error.status_code}). Nyckeln behöver rätten att skapa IAM-appar."
         )
         return None
     except PicturesError as error:
-        print(f"::notice::Catalogs bilder ligger på serverns disk: {error}")
+        print(f"::notice::{what} ligger på serverns disk: {error}")
         return None
     return bucket, key
+
+
+def ensure_cad_photos(
+    iam: IamV1Alpha1API,
+    secrets: SecretV1Beta1API,
+    project_id: str,
+    organization_id: str,
+    send: Send = s3_send,
+) -> tuple[str, PictureKey] | None:
+    """CAD's own bucket for the module photos and its own key (#89 del c1), exactly as
+    Catalog's pictures get theirs; without it the photos lie on the server's disk."""
+    return ensure_pictures(
+        iam,
+        secrets,
+        project_id,
+        organization_id,
+        send,
+        name=CAD_PHOTOS_NAME,
+        secret_name=CAD_PHOTOS_SECRET_NAME,
+        bucket=cad_bucket_name(project_id),
+        what="CAD:s modulfoton",
+    )
 
 
 def ensure_id_secrets(secrets: SecretV1Beta1API, project_id: str) -> IdSecrets:
@@ -921,6 +980,9 @@ def main(argv: list[str]) -> int:
         pictures = ensure_pictures(
             IamV1Alpha1API(client), secrets, project_id, env("SCW_DEFAULT_ORGANIZATION_ID")
         )
+        cad_photos = ensure_cad_photos(
+            IamV1Alpha1API(client), secrets, project_id, env("SCW_DEFAULT_ORGANIZATION_ID")
+        )
         security_group_id = ensure_security_group(instance, project_id)
         ip = ensure_ip(instance, project_id)
         _, created = ensure_server(
@@ -957,7 +1019,8 @@ def main(argv: list[str]) -> int:
         + f"TEM_PROJECT_ID={project_id}\n"
     )
     output("id_env", str(write_private("testmiljo_id.env", id_env)))
-    output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets)))
+    # CAD's photos' key travels in cad.env; up.sh moves it to cad-vault (#89 del c1).
+    output("cad_env", str(write_cad_env(cad_secrets, id_cad_secrets, cad_photos)))
     output("created", "true" if created else "false")
     return 0
 

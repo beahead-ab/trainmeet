@@ -10,10 +10,8 @@ export type Line = { kind: "line"; start: Point; end: Point };
 export type Arc = { kind: "arc"; start: Point; end: Point; center: Point; radius: number; clockwise: boolean };
 export type Seg = Line | Arc;
 
-export const RADIUS_STEP = 10;
-export const ANGLE_STEP = 0.5;
-
-/** Track 1's radius and angle from the string (chord) and its sagitta: R = (c² + 4s²) / 8s. */
+/** Track 1's radius and angle from the string (chord) and its sagitta: R = (c² + 4s²) / 8s, kept
+ * exactly as computed (CAD16, CAD-35). */
 export function fromChord(chord: number, sagitta: number): Bend | null {
   if (!(chord > 0) || !(sagitta > 0) || sagitta >= chord / 2) return null;
   const radius = (chord * chord + 4 * sagitta * sagitta) / (8 * sagitta);
@@ -25,14 +23,6 @@ export function fromChord(chord: number, sagitta: number): Bend | null {
 export function toChord(radius: number, angle: number): { chord: number; sagitta: number } {
   const half = ((angle * Math.PI) / 180) / 2;
   return { chord: 2 * radius * Math.sin(half), sagitta: radius * (1 - Math.cos(half)) };
-}
-
-/** The nearest round values: R to 10 mm and the angle to half a degree. */
-export function rounded(bend: Bend): Bend {
-  return {
-    radius: Math.round(bend.radius / RADIUS_STEP) * RADIUS_STEP,
-    angle: Math.round(bend.angle / ANGLE_STEP) * ANGLE_STEP,
-  };
 }
 
 export function arcLength(radius: number, angle: number): number {

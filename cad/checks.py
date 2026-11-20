@@ -78,6 +78,8 @@ def _all(drawing: Drawing) -> Iterator[CheckItem]:
     yield from _switches(drawing)
     yield from _curvature(drawing)
     yield from _gables(drawing)
+    # The photo chain's questions, kept with the version (part c1).
+    yield from drawing.questions
 
 
 def _p(p: Point) -> Point:

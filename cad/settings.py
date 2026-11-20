@@ -17,7 +17,19 @@ CAD_ID_SECRET      The client's secret. Required with the issuer. Never written 
 CAD_PUBLIC_URL     CAD's own address, for ID to send the browser back to.
 CAD_ID_WEB         ID's web app, for Hjälp och fel and Tokens. Default: the issuer's address.
 CAD_ID_API         ID's own API, which CAD asks about the clubs and the roles at every call
-                   (#67, KONTO-34), e.g. http://id-api:8080. Without it CAD knows no clubs.
+                   (#67, KONTO-34), e.g. http://id-api:8080. Without it CAD knows no clubs,
+                   no tokens and no AI.
+CAD_PHOTOS_S3_ENDPOINT
+                   The module photos' Object Storage (CAD-19), S3 compatible, for example
+                   https://s3.nl-ams.scw.cloud. Without it the photos lie on CAD's disk.
+CAD_PHOTOS_S3_BUCKET
+                   CAD's own bucket, private. Required with the endpoint.
+CAD_PHOTOS_S3_REGION
+                   The bucket's region, for the signatures. Default fr-par.
+CAD_PHOTOS_S3_KEY_FILE
+                   A file with the access key on its first line and the secret on its second.
+                   Required with the endpoint. Never written to the log.
+CAD_PHOTOS_DIR     The photos on disk when there is no bucket. Default: next to the repo.
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                    Which change is running, set when the image is built.
 """
@@ -32,11 +44,15 @@ from datetime import datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Literal
+from urllib.parse import urlsplit
 
 from contracts.cad import CadVersion
 
 REPO = Path(__file__).resolve().parents[1]
 DEFAULT_WEB_DIR = REPO / "apps" / "cad" / "dist"
+DEFAULT_PHOTOS_DIR = REPO / ".cad-foton"
+_BUCKET = re.compile(r"[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]")
+_REGION = re.compile(r"[a-z]{2}(-[a-z0-9]+)+")
 _COMMIT = re.compile(r"[0-9a-f]{7,40}")
 
 
@@ -74,6 +90,23 @@ class IdSettings:
 
 
 @dataclass(frozen=True)
+class S3Settings:
+    """CAD's own bucket for the module photos (CAD-19), as Catalog's for its pictures."""
+
+    endpoint: str
+    bucket: str
+    region: str = "fr-par"
+    access_key: str = field(default="", repr=False)
+    secret_key: str = field(default="", repr=False)
+
+    @property
+    def origin(self) -> str:
+        """Where the browser fetches the photos: the endpoint's scheme, host and port."""
+        parts = urlsplit(self.endpoint)
+        return f"{parts.scheme}://{parts.netloc}"
+
+
+@dataclass(frozen=True)
 class Settings:
     database_url: str = field(repr=False)
     migrate: Literal["check", "auto"] = "check"
@@ -81,6 +114,10 @@ class Settings:
     web_dir: Path = DEFAULT_WEB_DIR
     id: IdSettings | None = None
     build: CadVersion = field(default_factory=lambda: CadVersion(version="0.0.0"))
+    photos_s3: S3Settings | None = None
+    photos_dir: Path = DEFAULT_PHOTOS_DIR
+    photo_queue: bool = True
+    """The photo queue runs in the app; the tests run it by hand."""
 
 
 def _switch(source: Mapping[str, str], name: str) -> bool:
@@ -152,6 +189,36 @@ def build_from_env(source: Mapping[str, str]) -> CadVersion:
     )
 
 
+def s3_from_env(source: Mapping[str, str]) -> S3Settings | None:
+    """CAD's bucket, when its endpoint is set. The keys are read from their file here, and an
+    error names the setting, never the file's content."""
+    endpoint = _address(source, "CAD_PHOTOS_S3_ENDPOINT")
+    if endpoint is None:
+        return None
+    if urlsplit(endpoint).path not in ("", "/"):
+        raise SettingsError("CAD_PHOTOS_S3_ENDPOINT ska vara bara en adress, utan sökväg.")
+    bucket = source.get("CAD_PHOTOS_S3_BUCKET", "").strip()
+    if not _BUCKET.fullmatch(bucket):
+        raise SettingsError("CAD_PHOTOS_S3_BUCKET saknas eller är inte ett hinknamn.")
+    region = source.get("CAD_PHOTOS_S3_REGION", "").strip() or "fr-par"
+    if not _REGION.fullmatch(region):
+        raise SettingsError("CAD_PHOTOS_S3_REGION är inte en region, till exempel fr-par.")
+    key_file = source.get("CAD_PHOTOS_S3_KEY_FILE", "").strip()
+    if not key_file:
+        raise SettingsError("CAD_PHOTOS_S3_KEY_FILE saknas.")
+    try:
+        lines = Path(key_file).read_text(encoding="utf-8").split()
+    except (OSError, UnicodeDecodeError) as error:
+        raise SettingsError("CAD_PHOTOS_S3_KEY_FILE går inte att läsa.") from error
+    if len(lines) < 2:
+        raise SettingsError(
+            "CAD_PHOTOS_S3_KEY_FILE ska ha nyckeln på första raden och hemligheten på andra."
+        )
+    return S3Settings(
+        endpoint=endpoint, bucket=bucket, region=region, access_key=lines[0], secret_key=lines[1]
+    )
+
+
 def from_env(env: Mapping[str, str] | None = None) -> Settings:
     source = os.environ if env is None else env
     database_url = source.get("CAD_DATABASE_URL", "").strip()
@@ -168,4 +235,8 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         web_dir=Path(web_dir) if web_dir else DEFAULT_WEB_DIR,
         id=id_from_env(source),
         build=build_from_env(source),
+        photos_s3=s3_from_env(source),
+        photos_dir=Path(photos)
+        if (photos := source.get("CAD_PHOTOS_DIR", "").strip())
+        else DEFAULT_PHOTOS_DIR,
     )

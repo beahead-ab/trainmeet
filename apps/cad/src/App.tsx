@@ -21,12 +21,18 @@ import {
   type ModuleList,
   type NewModule,
   type NewProfile,
+  type PhotoConsent,
+  type PhotoJob,
+  type PhotoStart,
   type ProfileList,
   type Scale,
   type Session,
+  type StorageUse,
   type Visibility,
 } from "./api";
 import { push, redo, startEditor, undo, type Editor } from "./editor";
+import { PhotoPage, UploadPage } from "./Foto";
+import type { Point } from "./geometry";
 import { LasMatt } from "./LasMatt";
 import { LibraryPage } from "./Library";
 import { ModuleForm, type Owner } from "./ModuleForm";
@@ -34,7 +40,7 @@ import { ModulePage } from "./ModulePage";
 import { NewModulePage } from "./NewModule";
 import { ProfilesPage } from "./Profiles";
 import { Ritningen } from "./Ritningen";
-import { drawingPath, modulePath, PATHS, routeFor, tabOf, type Route } from "./routes";
+import { drawingPath, modulePath, PATHS, photoPath, routeFor, tabOf, type Route } from "./routes";
 
 const PRODUCTS: Record<AppKey, string> = { hub: "HUB", tkl: "TKL", cad: "CAD", catalog: "CATALOG", driver: "LOKFÖRAREN", id: "ID" };
 
@@ -98,6 +104,18 @@ export type ShellProps = {
   onReloadDrawing?: () => void;
   onLockChange?: (lock: LockMeasures) => void;
   onLockUse?: (lock: LockMeasures) => void;
+  /** Foto och kontroll (part c1): the job, the price and what is sent, and the storage. */
+  photoJob?: PhotoJob | null;
+  consent?: PhotoConsent | null;
+  storage?: StorageUse | null;
+  onUpload?: (start: PhotoStart, files: File[]) => void;
+  onRead?: (corners: Point[], kant1: number, ai: boolean, consent: boolean) => void;
+  onAnswer?: (key: string, answer: string) => void;
+  onCloseup?: (key: string, file: File, consent: boolean) => void;
+  onUseMeasure?: (measure: { gable?: "A" | "B"; track?: number; length?: number; width?: number }) => void;
+  onApprovePhotoPlan?: () => void;
+  onPhotoSettings?: (change: { keep_original?: boolean; training?: boolean }) => void;
+  onRecompute?: (job: string) => void;
 };
 
 function Place({ libraries, library, scale, onLibrary, onScale }: Pick<ShellProps, "libraries" | "library" | "scale" | "onLibrary" | "onScale">) {
@@ -205,6 +223,39 @@ function Page(props: ShellProps) {
     return props.list ? <LibraryPage list={props.list} navigate={navigate} onSearch={props.onSearch} now={props.now} /> : <p className="cad-sida">Hämtar modulerna …</p>;
   }
   if (route.page === "new") return <NewModulePage tokens={session.tokens} navigate={navigate} />;
+  if (route.page === "upload") {
+    return (
+      <UploadPage
+        scale={props.scale ?? "H0"}
+        consent={props.consent ?? null}
+        storage={props.storage}
+        busy={props.busy}
+        error={props.error}
+        navigate={navigate}
+        onUpload={props.onUpload}
+      />
+    );
+  }
+  if (route.page === "photo") {
+    if (props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
+    return (
+      <PhotoPage
+        module={props.module}
+        job={props.photoJob?.id === route.job ? props.photoJob : null}
+        view={route.view}
+        question={route.question}
+        consent={props.consent ?? null}
+        busy={props.busy}
+        error={props.error}
+        navigate={navigate}
+        onRead={props.onRead}
+        onAnswer={props.onAnswer}
+        onCloseup={props.onCloseup}
+        onUseMeasure={props.onUseMeasure}
+        onApprovePlan={props.onApprovePhotoPlan}
+      />
+    );
+  }
   if (route.page === "form") {
     if (route.id && props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
     if (!props.profiles) return <p className="cad-sida">Hämtar gavelprofilerna …</p>;
@@ -240,6 +291,13 @@ function Page(props: ShellProps) {
         onVisibility={props.onVisibility}
         onRemove={props.onRemove}
         error={props.error}
+        consent={props.consent}
+        storage={props.storage}
+        busy={props.busy}
+        now={props.now}
+        onUpload={props.onUpload}
+        onPhotoSettings={props.onPhotoSettings}
+        onRecompute={props.onRecompute}
       />
     );
   }
@@ -418,6 +476,11 @@ export function App() {
   const [proposal, setProposal] = useState<LockProposal | null>(null);
   const [busy, setBusy] = useState(false);
   const [stale, setStale] = useState(false);
+  const [photoJob, setPhotoJob] = useState<PhotoJob | null>(null);
+  const [consent, setConsent] = useState<PhotoConsent | null>(null);
+  const [storage, setStorage] = useState<StorageUse | null>(null);
+  /** Follows the job again after Läs av, which keeps its id. */
+  const [follows, setFollows] = useState(0);
   const query = useRef("");
 
   const navigate = useCallback((href: string) => {
@@ -478,7 +541,8 @@ export function App() {
     if (route.page === "profiles" || route.page === "form") api.profiles(scale).then(setProfiles, (failure: unknown) => setError(message(failure)));
   }, [account, route, scale]);
 
-  const moduleId = route.page === "module" || route.page === "form" || route.page === "drawing" || route.page === "lock" ? (route.id ?? null) : null;
+  const moduleId =
+    route.page === "module" || route.page === "form" || route.page === "drawing" || route.page === "lock" || route.page === "photo" ? (route.id ?? null) : null;
   const moduleVersion = route.page === "module" ? route.version : undefined;
   useEffect(() => {
     if (!account || !moduleId) return;
@@ -494,6 +558,46 @@ export function App() {
     api.history(moduleId).then(setHistory, () => setHistory([]));
     // The route object changes on every navigation; the id and version are what matter.
   }, [account, moduleId, moduleVersion]);
+
+  // Foto och kontroll: the job, followed while it waits or runs; the module again when it is read.
+  const jobId = route.page === "photo" ? route.job : null;
+  useEffect(() => {
+    if (!account || !jobId) return;
+    let stop = false;
+    let timer = 0;
+    let before: string | null = null;
+    const follow = () => {
+      api.photoJob(jobId).then(
+        (found) => {
+          if (stop) return;
+          setPhotoJob(found);
+          if (before && before !== found.state && found.state === "done") {
+            api.module(found.module).then(setModule, () => undefined);
+            api.history(found.module).then(setHistory, () => undefined);
+            // The balance in the header, after the tokens for the measuring image.
+            api.session().then(setSession, () => undefined);
+          }
+          before = found.state;
+          if (found.state === "queued" || found.state === "running") timer = window.setTimeout(follow, 1500);
+        },
+        (failure: unknown) => !stop && setError(message(failure)),
+      );
+    };
+    follow();
+    return () => {
+      stop = true;
+      window.clearTimeout(timer);
+    };
+  }, [account, jobId, follows]);
+
+  // The price and what is sent to AI, and the storage, where a photo can be taken in or read.
+  const photoModule = route.page === "photo" || (route.page === "module" && route.tab === "foto") ? route.id : null;
+  const wantsPhoto = route.page === "upload" || photoModule !== null;
+  useEffect(() => {
+    if (!account || !wantsPhoto) return;
+    api.photoConsent(photoModule ?? undefined).then(setConsent, () => setConsent(null));
+    api.storage().then(setStorage, () => setStorage(null));
+  }, [account, wantsPhoto, photoModule]);
 
   // Ritningen: a change set on the newest version, kept while one goes to Lås mått and back.
   const drawingModule = (route.page === "drawing" || route.page === "lock") && module?.id === route.id && module.may_edit ? module : null;
@@ -574,6 +678,10 @@ export function App() {
     else setError(message(failure));
   };
 
+  const photoFailed = (failure: unknown) => {
+    setBusy(false);
+    setError(message(failure));
+  };
   const props: ShellProps = {
     route,
     host: window.location.host,
@@ -689,6 +797,104 @@ export function App() {
         setError(null);
         api.drawing(found.id, { base: found.latest, operations: [] }).then(setDrawing, (failure: unknown) => setError(message(failure)));
       }, failed);
+    },
+    photoJob,
+    consent,
+    storage,
+    onUpload: (start, files) => {
+      setBusy(true);
+      setError(null);
+      api.uploadPhotos(start, files).then((job) => {
+        setBusy(false);
+        setPhotoJob(job);
+        navigate(photoPath(job.module, job.id));
+      }, photoFailed);
+    },
+    onRead: (corners, kant1, ai, agreed) => {
+      if (!photoJob) return;
+      setBusy(true);
+      setError(null);
+      api.readPhoto(photoJob.id, { corners, kant1, ai, consent: agreed }).then((job) => {
+        setBusy(false);
+        setPhotoJob(job);
+        setFollows((n) => n + 1);
+        if (agreed) setConsent((known) => (known ? { ...known, given: true } : known));
+        if (job.id !== photoJob.id || job.state === "done") {
+          api.module(job.module).then(setModule, () => undefined);
+          navigate(photoPath(job.module, job.id));
+        }
+      }, photoFailed);
+    },
+    onAnswer: (key, answer) => {
+      if (!photoJob) return;
+      setBusy(true);
+      api.answerPhoto(photoJob.id, key, answer).then((job) => {
+        setBusy(false);
+        setPhotoJob(job);
+        api.module(job.module).then(setModule, () => undefined);
+        api.history(job.module).then(setHistory, () => undefined);
+        if (route.page === "photo" && route.view === "osakert") {
+          const next = (job.questions ?? []).find((q) => q.topology && !q.answer);
+          navigate(next ? photoPath(job.module, job.id, "osakert", next.key) : photoPath(job.module, job.id));
+        }
+      }, photoFailed);
+    },
+    onCloseup: (key, file, agreed) => {
+      if (!photoJob) return;
+      setBusy(true);
+      api.closeup(photoJob.id, key, file, agreed).then((job) => {
+        setBusy(false);
+        setPhotoJob(job);
+      }, photoFailed);
+    },
+    onUseMeasure: (measure) => {
+      if (!module || module.shape.kind === "curve") return;
+      const shape = { ...module.shape };
+      if (measure.length != null) shape.length = Math.round(measure.length * 2) / 2;
+      if (measure.width != null) {
+        if (shape.kind === "straight") shape.width = measure.width;
+        else shape.width_a = measure.width;
+      }
+      const gables = module.gables.map((g) => {
+        const value = measure.gable === g.end && measure.track ? (photoJob?.measures ?? []).find((m) => m.gable === g.end && m.track === measure.track)?.photo : undefined;
+        const tracks = g.tracks.map((t, i) => (value != null && i === (measure.track ?? 0) - 1 ? Math.round(value * 2) / 2 : t));
+        // A gable whose track is moved is no longer the profile's.
+        return { end: g.end, norm: g.norm ?? null, profile: value != null ? null : (g.profile ?? null), tracks };
+      });
+      setBusy(true);
+      api.save(module.id, { base: module.latest, name: module.name, scale: module.scale, shape, gables }).then((saved) => {
+        setBusy(false);
+        setModule(saved);
+        api.history(saved.id).then(setHistory, () => undefined);
+      }, photoFailed);
+    },
+    onApprovePhotoPlan: () => {
+      if (!module) return;
+      setBusy(true);
+      api.approvePlan(module.id, { base: module.latest, operations: [] }).then((saved) => {
+        setBusy(false);
+        setModule(saved);
+        api.history(saved.id).then(setHistory, () => undefined);
+        navigate(modulePath(saved.id));
+      }, photoFailed);
+    },
+    onPhotoSettings: (change) => {
+      if (!module) return;
+      setBusy(true);
+      api.photoSettings(module.id, { keep_original: change.keep_original ?? null, training: change.training ?? null }).then((saved) => {
+        setBusy(false);
+        setModule(saved);
+        api.history(saved.id).then(setHistory, () => undefined);
+        api.storage().then(setStorage, () => undefined);
+      }, photoFailed);
+    },
+    onRecompute: (job) => {
+      setBusy(true);
+      api.recompute(job).then((made) => {
+        setBusy(false);
+        setPhotoJob(made);
+        navigate(photoPath(made.module, made.id));
+      }, photoFailed);
     },
     onLockChange: preview,
     onLockUse: (lock) => {

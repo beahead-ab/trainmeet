@@ -52,11 +52,13 @@ describe("Modulens sida", () => {
     expect(html).not.toContain(">Godkänn</button>");
   });
 
-  it("draws the module read-only under Ritning, and says Foto and Landskap come later", () => {
+  it("draws the module read-only under Ritning, offers the photo under Foto, and says Landskap comes later", () => {
     const drawing = page({ tab: "ritning" });
     expect(drawing).toContain("Spårgrafen ur måtten · 2 spårbitar · 4 noder");
     expect(drawing).toContain('aria-label="Kurva 30° · K2 ovanifrån"');
-    expect(page({ tab: "foto" })).toContain("Kommer med foto och kontroll.");
+    expect(page({ tab: "foto" })).toContain("Foto och kontroll tar raka moduler och trapetser än; kurvmoduler kommer.");
+    expect(page({ module: STATION, tab: "foto" })).toContain("Modulen är inte fotad än");
+    expect(page({ module: STATION, tab: "foto" })).toContain("Ladda upp ett foto av modulen");
     expect(page({ tab: "landskap" })).toContain("Kommer med landskapet.");
     expect(page({ module: STATION, tab: "ritning" })).toContain("Spåren mellan gavlarna är okända tills modulen är fotad");
   });

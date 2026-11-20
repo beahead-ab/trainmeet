@@ -60,21 +60,29 @@ describe("Kurvmodul", () => {
     for (const text of ["Modulkroppen", "Ytterkanten", "Innerkanten", "Böjda", "Raka"]) expect(html).toContain(text);
   });
 
-  it("gives radius and angle from the string and sagitta, rounded, with the table", () => {
+  it("gives radius and angle from the string and sagitta exactly as computed, with the table (CAD16)", () => {
     const html = renderToStaticMarkup(<ModuleForm kind="curve" scale="H0" profiles={PROFILES} module={CURVE} />);
-    expect(html).toContain(`Uträknat: R 2${NBSP}003 mm · 29,9°`);
-    expect(html).toContain("✓ R 2000 · 30°");
-    expect(html).toContain("Ångra avrundning");
-    expect(html).toContain("12 sådana moduler blir en hel cirkel");
+    expect(html).toContain("Uträknat: R 2 003,2 mm · 29,94°");
+    expect(html).toContain("utan avrundning");
+    expect(html).not.toContain("Ångra avrundning");
+    expect(html).not.toContain("Avrunda till");
+    // 360 / 29,94° is no whole number of modules.
+    expect(html).not.toContain("sådana moduler blir en hel cirkel");
     expect(html).toContain("högerkurva sedd från gavel A");
     for (const row of [
-      `<th scope="row">Spår 1</th><td>2${NBSP}000 mm</td><td>1${NBSP}047 mm</td><td>1${NBSP}035 mm</td>`,
-      `<th scope="row">Spår 2</th><td>1${NBSP}950 mm</td><td>1${NBSP}021 mm</td><td>1${NBSP}009 mm</td>`,
-      `<th scope="row">Kant 1 · ytterkanten</th><td>2${NBSP}200 mm</td><td>1${NBSP}152 mm</td><td>1${NBSP}139 mm</td>`,
-      `<th scope="row">Innerkanten</th><td>1${NBSP}700 mm</td><td>890 mm</td><td>880 mm</td>`,
+      `<th scope="row">Spår 1</th><td>2${NBSP}003 mm</td><td>1${NBSP}047 mm</td><td>1${NBSP}035 mm</td>`,
+      `<th scope="row">Spår 2</th><td>1${NBSP}953 mm</td><td>1${NBSP}021 mm</td><td>1${NBSP}009 mm</td>`,
+      `<th scope="row">Kant 1 · ytterkanten</th><td>2${NBSP}203 mm</td><td>1${NBSP}151 mm</td><td>1${NBSP}138 mm</td>`,
+      `<th scope="row">Innerkanten</th><td>1${NBSP}703 mm</td><td>890 mm</td><td>880 mm</td>`,
     ]) {
       expect(html).toContain(row);
     }
-    expect(html).toMatch(/<path class="cad-spar" d="M[^"]*A2000 2000 0 0 1/);
+    expect(html).toMatch(/<path class="cad-spar" d="M[^"]*A2003.2 2003.2 0 0 1/);
+  });
+
+  it("says when a curve makes a whole circle, from the radius and angle", () => {
+    const shape = { ...CURVE.shape, radius: 2000, angle: 30, measured: null } as typeof CURVE.shape;
+    const html = renderToStaticMarkup(<ModuleForm kind="curve" scale="H0" profiles={PROFILES} module={{ ...CURVE, shape }} />);
+    expect(html).toContain("12 sådana moduler blir en hel cirkel");
   });
 });

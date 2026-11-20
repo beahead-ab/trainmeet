@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-consent.schema.json",
+  "title": "trainmeet.cad-1.photo-consent",
+  "additionalProperties": true,
+  "description": "What is sent and to whom, before a photo is first sent to AI, as Catalog's (CAT-142).",
+  "properties": {
+    "available": {
+      "description": "AI can be used here: ID's meter answers.",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "given": {
+      "title": "Given",
+      "type": "boolean"
+    },
+    "version": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Version",
+      "type": "string"
+    },
+    "sent_to": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Sent To",
+      "type": "string"
+    },
+    "text": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "own_ai": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Own Ai"
+    },
+    "price": {
+      "minimum": 0,
+      "title": "Price",
+      "type": "integer"
+    },
+    "balance": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Balance"
+    },
+    "payer": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Payer"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Why AI cannot be used now.",
+      "title": "Message"
+    },
+    "may_read": {
+      "default": true,
+      "description": "Only the owner reads with AI, and a club's administrators for its modules.",
+      "title": "May Read",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "available",
+    "given",
+    "version",
+    "sent_to",
+    "text",
+    "price"
+  ],
+  "type": "object"
+}

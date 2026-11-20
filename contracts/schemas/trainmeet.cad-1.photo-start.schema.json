@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-start.schema.json",
+  "title": "trainmeet.cad-1.photo-start",
+  "$defs": {
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "The form's data part: a new module from the photo, or a photo for a module.",
+  "properties": {
+    "module": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Module"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale",
+      "default": "H0"
+    },
+    "kind": {
+      "default": "straight",
+      "enum": [
+        "straight",
+        "trapezoid"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "width": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Gable A's width; null: the module's.",
+      "title": "Width"
+    },
+    "width_b": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Width B"
+    },
+    "length": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Null: the photo gives it.",
+      "title": "Length"
+    },
+    "offset": {
+      "anyOf": [
+        {
+          "maximum": 20000,
+          "minimum": -20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Offset"
+    },
+    "keep_original": {
+      "default": false,
+      "title": "Keep Original",
+      "type": "boolean"
+    },
+    "owner": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Owner"
+    }
+  },
+  "type": "object"
+}
