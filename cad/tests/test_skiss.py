@@ -1,0 +1,262 @@
+"""Profile Skiss (#89 del c2): a hand-drawn track plan read into a module.
+
+In CI only synthetic sketches (cad/bildkedjan/syntetisk.py): two module frames on a sheet, thick
+black tracks, coloured pencil, pencil text in Norwegian and leader lines across the tracks,
+scanned or photographed on a table.
+
+The reference stations' hand-drawn sketches are not in the repository yet (CAD17 covers the
+photos, not the sketches): test_the_reference_sketches reads them where they lie, the folder in
+CAD_REFERENSSKISSER or the specification's checkout beside this one, and is skipped when they
+are not there. Its cases are in referensskisser/<station>/fall.json; when the sketches may be
+committed, they are put beside it and the test reads them from there.
+"""
+
+from __future__ import annotations
+
+import json
+import math
+import os
+from functools import cache
+from pathlib import Path
+from typing import Any
+from uuid import UUID
+
+import numpy as np
+import pytest
+
+from cad.bildkedjan import chain, intake, skiss, syntetisk
+from cad.editor import Drawing
+from cad.tests.conftest import API, A, World
+from contracts.cad import DrawingState, Gable, GableEnd, GraphSource, Scale, Straight, TrackGraph
+
+PHOTOS = f"{API}/photos"
+REFERENCE = Path(__file__).parent / "referensskisser"
+SWITCH_MM = 30.0
+"""A switch's points from a sketch: the ink parts well behind them, so they are estimated (the
+document asks ± 20 mm of a sketch; the synthetic sketches get within 30)."""
+
+
+@cache
+def sketch(photographed: bool) -> syntetisk.Sketch:
+    return syntetisk.sketch(photographed=photographed)
+
+
+@cache
+def read_first(photographed: bool) -> tuple[skiss.Sheet, skiss.Sketched]:
+    """The sketch taken in and straightened, and its left frame read as a 1500 × 600 module
+    with Kant 1 its upper side and gable A its left."""
+    drawn = sketch(photographed)
+    sheet = skiss.prepare(intake.take(drawn.jpeg).pixels)
+    assert len(sheet.frames) == 2, len(sheet.frames)
+    left = min(sheet.frames, key=lambda q: float(q[:, 0].min()))
+    corners = chain.ordered(left, 0, 3)
+    return sheet, skiss.read(sheet.pixels, sheet.paper, corners, 1500.0, 600.0, 600.0)
+
+
+def _nearest(found: list[tuple[float, float]], truth: list[tuple[float, float]]) -> list[float]:
+    return [min(math.dist(t, f) for f in found) for t in truth]
+
+
+@pytest.mark.parametrize("photographed", [False, True], ids=["skannad", "fotograferad"])
+def test_a_sketch_gives_its_switches_crossings_and_gables(photographed: bool) -> None:
+    drawn = sketch(photographed)
+    sheet, found = read_first(photographed)
+    nodes = list(found.graph.nodes.values())
+    kinds = {kind: sum(n.kind == kind for n in nodes) for kind in {n.kind for n in nodes}}
+    # Text, leader lines across the tracks, the frames and the coloured pencil are not tracks:
+    # 3 switches, 2 crossings, the siding's end and the diagonal's two, 2 tracks at each gable.
+    assert kinds == {"switch": 3, "crossing": 2, "end": 3, "gable": 4}, kinds
+    assert skiss.counts(found) == (3, 2)
+    switches_at = [n.at for n in nodes if n.kind == "switch"]
+    crossings_at = [n.at for n in nodes if n.kind == "crossing"]
+    assert max(_nearest(switches_at, drawn.switches)) <= SWITCH_MM
+    assert max(_nearest(crossings_at, drawn.crossings)) <= skiss.SKETCH_MM
+    for n in nodes:
+        if n.kind == "gable":
+            truth = drawn.gables_a if n.gable == "A" else drawn.gables_b
+            assert min(abs(n.at[1] - t) for t in truth) <= skiss.SKETCH_MM, n
+    # Two tracks crossing are one node with 4 ends that the ink merged: code cannot tell a
+    # crossing from two switches, so they are asked.
+    assert sorted(found.uncertain) == ["X1", "X2"]
+    del sheet
+
+
+def test_the_sketch_becomes_a_proposal_drawn_in_the_module() -> None:
+    drawn = sketch(False)
+    _, found = read_first(False)
+    gables = [
+        Gable(end=GableEnd.A, tracks=drawn.gables_a),
+        Gable(end=GableEnd.B, tracks=drawn.gables_b),
+    ]
+    target = Drawing.of(
+        Scale.H0, Straight(length=1500, width=600), gables, TrackGraph(), DrawingState()
+    )
+    built, deviation = skiss.drawing(found, target, {})
+    graph = built.graph()
+    assert len(graph.switches) == 3
+    assert sum(1 for n in graph.nodes if n.type.value == "crossing") == 2
+    # Everything from the sketch is a proposal from it until the owner approves (CAD-17).
+    assert graph.pieces and all(
+        p.origin is not None
+        and p.origin.source == GraphSource.SKETCH
+        and p.origin.certainty.value != "confirmed"
+        for p in graph.pieces
+    )
+    # Redrawn as straights and arcs that follow the sketch within its ± 20 mm.
+    assert deviation and float(np.median(deviation)) <= 3.0
+    assert max(deviation) <= skiss.SKETCH_MM
+
+
+# --- Från skiss through the service -----------------------------------------------------------
+
+
+def upload_sketch(world: World, person: UUID, data: bytes) -> dict[str, Any]:
+    start = {
+        "profile": "skiss",
+        "name": "Skissmodul",
+        "scale": "H0",
+        "kind": "straight",
+        "width": 600,
+        "length": 1500,
+    }
+    files: list[tuple[str, Any]] = [
+        ("data", (None, json.dumps(start), "application/json")),
+        ("images", ("skiss.jpg", data, "image/jpeg")),
+    ]
+    answer = world.as_(person).post(PHOTOS, files=files)
+    assert answer.status_code == 201, answer.text
+    found: dict[str, Any] = answer.json()
+    return found
+
+
+def test_fran_skiss_reads_a_frame_with_ai_only_where_code_cannot_decide(world: World) -> None:
+    """The sketch is taken in, its frames found; the owner picks the frame that is the module,
+    and Kant 1 and gable A. The AI is asked only about the two merged nodes, at the photo's
+    price, 12 tokens; the module gets a track plan whose source is the sketch."""
+    world.id.answer = lambda prompt: json.dumps(
+        {"forbindelser": [], "noder": {"X1": "korsning", "X2": "korsning"}, "osakert": ""}
+    )
+    job = upload_sketch(world, A.id, sketch(False).jpeg)
+    assert job["profile"] == "skiss" and job["state"] == "corners"
+    assert len(job["frames"]) == 2
+    left = min(range(2), key=lambda i: min(x for x, _ in job["frames"][i]["corners"]))
+    frame = job["frames"][left]
+    # Kant 1 is the frame's upper side, gable A the side before it: as drawn.
+    start = world.id.balance
+    body = {
+        "corners": frame["corners"],
+        "kant1": frame["kant1"],
+        "frame": left,
+        "ai": True,
+        "consent": True,
+    }
+    answer = world.as_(A.id).post(f"{PHOTOS}/{job['id']}/read", json=body)
+    assert answer.status_code == 200, answer.text
+    world.app.state.photos.work()
+    done = world.as_(A.id).get(f"{PHOTOS}/{job['id']}").json()
+    assert done["state"] == "done", done["message"]
+    assert done["cost"] == 12 and world.id.balance == start - 12
+    assert world.id.reads == 1
+    assert done["frame"] == left
+    facts = {f["key"]: f for f in done["facts"]}
+    assert facts["vaxlar"]["value"] == 3 and facts["vaxlar"]["source"] == "sketch"
+    assert facts["korsningar"]["value"] == 2
+    assert all(
+        f["source"] == "sketch" for k, f in facts.items() if k.startswith(("gavel.", "vaxl"))
+    )
+    module = world.as_(A.id).get(f"{API}/modules/{job['module']}").json()
+    assert module["drawing"]["source"] == "sketch"
+    pieces = module["graph"]["pieces"]
+    assert pieces and all(
+        p["origin"]["source"] == "sketch" and p["origin"]["certainty"] != "confirmed"
+        for p in pieces
+    )
+    assert module["shape"] == {"kind": "straight", "length": 1500.0, "width": 600.0}
+
+
+def test_fran_skiss_needs_the_modules_measures(world: World) -> None:
+    files: list[tuple[str, Any]] = [
+        (
+            "data",
+            (
+                None,
+                json.dumps({"profile": "skiss", "kind": "straight", "width": 600}),
+                "application/json",
+            ),
+        ),
+        ("images", ("skiss.jpg", sketch(False).jpeg, "image/jpeg")),
+    ]
+    answer = world.as_(A.id).post(PHOTOS, files=files)
+    assert answer.status_code == 422
+    assert "ramen ger skissen dess skala" in answer.text
+
+
+# --- The reference stations' sketches, where they lie (local) ---------------------------------
+
+
+def _sketch_folders() -> list[Path]:
+    """Where a station's sketches are looked for: beside its fall.json first, then in the
+    folder CAD_REFERENSSKISSER names, then in the specification's checkout beside this one."""
+    found = []
+    given = os.environ.get("CAD_REFERENSSKISSER")
+    if given:
+        found.append(Path(given))
+    found.append(Path(__file__).resolve().parents[3] / "trainmeet-spec" / "ref")
+    return found
+
+
+def _reference_cases() -> list[tuple[Path, dict[str, Any]]]:
+    cases = []
+    for described in sorted(REFERENCE.glob("*/fall.json")):
+        station = described.parent
+        data = json.loads(described.read_text(encoding="utf-8"))
+        cases.append((station, data))
+    return cases
+
+
+def _image(station: Path, data: dict[str, Any], name: str) -> Path | None:
+    here = station / name
+    if here.exists():
+        return here
+    for folder in _sketch_folders():
+        there = folder / station.name / str(data["mapp"]) / name
+        if there.exists():
+            return there
+    return None
+
+
+@pytest.mark.parametrize(
+    ("station", "data"), _reference_cases(), ids=[s.name for s, _ in _reference_cases()]
+)
+def test_the_reference_sketches(station: Path, data: dict[str, Any]) -> None:
+    """Every module frame on the station's sketches read: the switches and crossings in all,
+    as fall.json gives them, and at least as many as before."""
+    images = {s["skiss"]: _image(station, data, s["skiss"]) for s in data["skisser"]}
+    if any(path is None for path in images.values()):
+        pytest.skip("Referensskisserna finns inte här (de ligger inte i repot än).")
+    switches = crossings = 0
+    for described in data["skisser"]:
+        path = images[described["skiss"]]
+        assert path is not None
+        sheet = skiss.prepare(intake.take(path.read_bytes()).pixels)
+        for module in described["moduler"]:
+            if "horn" in module:
+                corners = np.array(module["horn"], np.float64)
+            else:
+                near = np.array(module["ram_nara"], np.float64)
+                corners = min(sheet.frames, key=lambda q: float(np.linalg.norm(q.mean(0) - near)))
+                assert float(np.linalg.norm(corners.mean(0) - near)) <= 60, module["modul"]
+            found = skiss.read(
+                sheet.pixels,
+                sheet.paper,
+                chain.ordered(corners, 0, 3),
+                float(module["langd"]),
+                float(module["bredd"]),
+                float(module["bredd"]),
+            )
+            s, c = skiss.counts(found)
+            assert s >= int(module["minst_vaxlar"]), (module["modul"], s)
+            switches += s
+            crossings += c
+    assert switches >= int(data["minst_vaxlar"]), switches
+    assert crossings == int(data["korsningar"]), crossings

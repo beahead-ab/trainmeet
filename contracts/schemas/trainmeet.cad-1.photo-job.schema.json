@@ -57,7 +57,8 @@
         "owner",
         "norm",
         "ai",
-        "code"
+        "code",
+        "sketch"
       ],
       "title": "FactSource",
       "type": "string"
@@ -174,7 +175,7 @@
     },
     "PhotoCorners": {
       "additionalProperties": true,
-      "description": "The module's corners in the preview's pixels (the photo, or the photos stitched, made\nsmaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to\ncorner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the\nmodule lies to the right.",
+      "description": "The module's corners in the preview's pixels (the photo, or the photos stitched, made\nsmaller), clockwise as seen, the side that is Kant 1 and the side that is gable A: side i\nruns from corner i to corner i + 1. Gable A is one of the two sides beside Kant 1: the one\nbefore it is the module as CAD draws it seen from above (from gable A along Kant 1 the\nmodule lies to the right); the one after it is the module mirrored (part c2).",
       "properties": {
         "corners": {
           "items": {
@@ -201,6 +202,21 @@
           "title": "Kant1",
           "type": "integer"
         },
+        "gable_a": {
+          "anyOf": [
+            {
+              "maximum": 3,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Null: the side before Kant 1 (part c1).",
+          "title": "Gable A"
+        },
         "found": {
           "description": "Code found them; false: a guess to drag into place.",
           "title": "Found",
@@ -210,6 +226,27 @@
           "description": "Every side's edge fits its line within 2 px.",
           "title": "Certain",
           "type": "boolean"
+        },
+        "derived": {
+          "default": false,
+          "description": "Kant 1 and gable A derived from the gables' tracks and the module's known gables (an asymmetric profile), shown for the owner to confirm.",
+          "title": "Derived",
+          "type": "boolean"
+        },
+        "why": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why they were derived, or why the owner must tap them.",
+          "title": "Why"
         }
       },
       "required": [
@@ -291,6 +328,43 @@
       "title": "PhotoFact",
       "type": "object"
     },
+    "PhotoFrame": {
+      "additionalProperties": true,
+      "description": "A module's frame on a sketch (profile Skiss): its four corners in the preview's pixels,\nclockwise, and the long side the chain takes as Kant 1.",
+      "properties": {
+        "corners": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Corners",
+          "type": "array"
+        },
+        "kant1": {
+          "maximum": 3,
+          "minimum": 0,
+          "title": "Kant1",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "corners",
+        "kant1"
+      ],
+      "title": "PhotoFrame",
+      "type": "object"
+    },
     "PhotoGate": {
       "additionalProperties": true,
       "description": "One row of the quality gate (bildkedjan step 3).",
@@ -302,7 +376,8 @@
             "sharpness",
             "clipped",
             "corners",
-            "stitch"
+            "stitch",
+            "curve"
           ],
           "title": "Key",
           "type": "string"
@@ -332,7 +407,7 @@
     },
     "PhotoGrid": {
       "additionalProperties": true,
-      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
       "properties": {
         "x0": {
           "title": "X0",
@@ -356,6 +431,23 @@
           "minimum": 1,
           "title": "Height",
           "type": "integer"
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 6,
+              "minItems": 6,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matrix"
         }
       },
       "required": [
@@ -740,7 +832,9 @@
         "scale",
         "gauge",
         "switch_fit",
-        "sleepers"
+        "sleepers",
+        "curve",
+        "orientation"
       ],
       "title": "PhotoQuestionKind",
       "type": "string"
@@ -872,6 +966,16 @@
       "title": "Module",
       "type": "string"
     },
+    "profile": {
+      "default": "modulfoto",
+      "description": "A photo of the module, or a sketch (part c2).",
+      "enum": [
+        "modulfoto",
+        "skiss"
+      ],
+      "title": "Profile",
+      "type": "string"
+    },
     "state": {
       "$ref": "#/$defs/PhotoJobState"
     },
@@ -923,6 +1027,28 @@
         }
       ],
       "default": null
+    },
+    "frames": {
+      "description": "A sketch's module frames; corners is the chosen one.",
+      "items": {
+        "$ref": "#/$defs/PhotoFrame"
+      },
+      "title": "Frames",
+      "type": "array"
+    },
+    "frame": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The sketch's frame read.",
+      "title": "Frame"
     },
     "quality": {
       "anyOf": [

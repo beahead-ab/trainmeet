@@ -31,9 +31,9 @@ import numpy as np
 from numpy.typing import NDArray
 
 from cad import curves, switches
+from cad.bildkedjan import arcs, measures, network, paths, rectify, stitch, trackmap
 from cad.bildkedjan import camera as cam
 from cad.bildkedjan import corners as corners_
-from cad.bildkedjan import measures, network, paths, rectify, stitch, trackmap
 from cad.bildkedjan.build import Built, build
 from cad.bildkedjan.camera import Array, Camera
 from cad.bildkedjan.intake import Intake
@@ -47,7 +47,7 @@ def _array(values: Array) -> list[list[float]]:
     return [[round(float(v), 4) for v in row] for row in np.atleast_2d(values)]
 
 
-CHAIN_VERSION = "1.0.0"
+CHAIN_VERSION = "2.0.0"
 """The measuring code's version: part of every job's key (bildkedjan, Jobbet är nyckeln)."""
 PROFILE = "modulfoto"
 RAIL_HEIGHT = {Scale.H0: 7.0, Scale.N: 4.0, Scale.ZERO: 14.0}
@@ -102,8 +102,9 @@ class Prepared:
         return corners_.through_lens(self.found, centre, focal, self.lens)
 
 
-def prepare(intakes: list[Intake]) -> Prepared:
-    """The photos as one, and the module's corners in it, if code finds them."""
+def prepare(intakes: list[Intake], curve: bool = False) -> Prepared:
+    """The photos as one, and the module's corners in it, if code finds them; a curve module's
+    long sides as arcs (curve)."""
     steady()
     first = intakes[0]
     if len(intakes) == 1:
@@ -113,21 +114,33 @@ def prepare(intakes: list[Intake]) -> Prepared:
     else:
         mosaic = stitch.stitch([i.pixels for i in intakes])
         pixels, origin = mosaic.pixels, mosaic.origin
-    found = corners_.find(pixels)
+    found = corners_.find(pixels, curve)
     size = (first.width, first.height)
     lens = 0.0
     if found is not None and len(intakes) == 1:
+        # A curve module's long sides are arcs: the lens makes them circles, the others lines.
         lens = cam.lens(
-            found.sides, found.corners, size, cam.focal_from_35mm(size, first.focal_35mm)
+            found.sides,
+            found.corners,
+            size,
+            cam.focal_from_35mm(size, first.focal_35mm),
+            found.bent,
         )
     return Prepared(pixels, first.focal_35mm, size, origin, found, len(intakes), mosaic, lens)
 
 
-def ordered(corners: Array, kant1: int) -> Array:
+def ordered(corners: Array, kant1: int, gable_a: int | None = None) -> Array:
     """The corners as the module's: A at Kant 1, B at Kant 1, B far, A far, from four clockwise
-    corners and the side (i from corner i to i + 1) that is Kant 1."""
+    corners, the side (i from corner i to i + 1) that is Kant 1 and the side that is gable A,
+    one of the two beside Kant 1. Gable A before Kant 1 (side kant1 - 1) is the module seen from
+    above, lying to the right of Kant 1 from gable A, as CAD draws it; gable A after Kant 1 is
+    the module mirrored, as some stations measure theirs (bildkedjan step 4, Kant 1 och gavel A)."""
     clockwise = corners_.clockwise(np.asarray(corners, np.float64))
-    return np.array([clockwise[(kant1 + k) % 4] for k in range(4)])
+    if gable_a is None or gable_a == (kant1 + 3) % 4:
+        return np.array([clockwise[(kant1 + k) % 4] for k in range(4)])
+    if gable_a != (kant1 + 1) % 4:
+        raise ValueError("Gavel A ligger bredvid Kant 1.")
+    return np.array([clockwise[(kant1 + k) % 4] for k in (1, 0, 3, 2)])
 
 
 def default_kant1(corners: Array) -> int:
@@ -138,13 +151,20 @@ def default_kant1(corners: Array) -> int:
     return max(long_sides, key=lambda i: c[i][1] + c[(i + 1) % 4][1])
 
 
+def default_gable_a(kant1: int) -> int:
+    """Gable A as CAD draws a module: the side before Kant 1, clockwise."""
+    return (kant1 + 3) % 4
+
+
 # --- 2. Measure -----------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class Setup:
     """What the owner gives: the scale, the form and the known measures, the corners (None:
-    the ones code found) and which side is Kant 1."""
+    the ones code found), which side is Kant 1 and which gable A. A curve module comes with
+    Kant 1's radius and the angle, from the owner's chord and sagitta (CAD16: exactly, without
+    rounding), which edge Kant 1 is and whether the box's long sides are bent."""
 
     scale: Scale
     kind: str
@@ -155,6 +175,34 @@ class Setup:
     corners: tuple[tuple[float, float], ...] | None = None
     kant1: int = 0
     rail_height: float | None = None
+    gable_a: int | None = None
+    radius: float | None = None
+    """A curve's Kant 1 radius, mm."""
+    angle: float | None = None
+    edge: str = "outer"
+    sides: str = "bent"
+
+    @property
+    def gable(self) -> int:
+        return default_gable_a(self.kant1) if self.gable_a is None else self.gable_a
+
+    @property
+    def mirrored(self) -> bool:
+        """Gable A after Kant 1: the module lies to the left of Kant 1 from gable A."""
+        return self.gable != default_gable_a(self.kant1)
+
+    def shape(self, length: float | None = None) -> cam.Shape:
+        return cam.Shape(
+            self.kind,
+            self.width_a,
+            self.width_b,
+            self.length if length is None else length,
+            self.offset,
+            self.radius,
+            self.angle,
+            self.edge,
+            self.sides,
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -167,7 +215,31 @@ class Setup:
             "corners": [list(c) for c in self.corners] if self.corners else None,
             "kant1": self.kant1,
             "rail_height": self.rail_height,
+            "gable_a": self.gable,
+            "radius": self.radius,
+            "angle": self.angle,
+            "edge": self.edge,
+            "sides": self.sides,
         }
+
+    @classmethod
+    def of(cls, data: dict[str, Any]) -> Setup:
+        return cls(
+            scale=Scale(data["scale"]),
+            kind=data["kind"],
+            width_a=float(data["width_a"]),
+            width_b=float(data["width_b"]),
+            length=data["length"],
+            offset=data["offset"],
+            corners=tuple(tuple(c) for c in data["corners"]) if data["corners"] else None,
+            kant1=int(data["kant1"]),
+            rail_height=data.get("rail_height"),
+            gable_a=data.get("gable_a"),
+            radius=data.get("radius"),
+            angle=data.get("angle"),
+            edge=data.get("edge", "outer"),
+            sides=data.get("sides", "bent"),
+        )
 
 
 @dataclass
@@ -196,12 +268,23 @@ class Measured:
     """The photo's own length, also when the owner gave one: to compare them."""
     image: NDArray[Any] | None = field(default=None, repr=False)
     """The measuring image, MEASURE_PPM px per mm, in the rails' plane."""
+    edges: arcs.Edges | None = None
+    """A curve's long sides against their arcs (bildkedjan step 6, Kurvmodul)."""
+
+    @property
+    def shape(self) -> cam.Shape:
+        return self.setup.shape(self.length)
 
     @property
     def outline(self) -> Array:
-        return cam.Shape(
-            self.setup.kind, self.setup.width_a, self.setup.width_b, None, None
-        ).corners(self.length, self.offset)
+        """The board's outline in mm: four corners, or a curve's arcs."""
+        return self.shape.outline(self.length, self.offset)
+
+    def strips(self) -> list[trackmap.GableStrip]:
+        return strips_of(self.shape, self.length, self.offset)
+
+    def strip(self, gable: str) -> trackmap.GableStrip:
+        return self.strips()[0 if gable == "A" else 1]
 
     def code_pairs(self) -> set[tuple[str, str]]:
         return {p.pair for p in self.paths if p.status == "track"}
@@ -215,22 +298,109 @@ class Stop(Exception):
     """The chain cannot go on with this photo: a gate refused it. The message says why."""
 
 
+def strips_of(shape: cam.Shape, length: float, offset: float) -> list[trackmap.GableStrip]:
+    """Gable A and gable B as lines in the module, seen from inside it."""
+    c = shape.corners(length, offset)
+
+    def unit(v: Array) -> tuple[float, float]:
+        n = float(np.linalg.norm(v)) or 1.0
+        return (float(v[0] / n), float(v[1] / n))
+
+    if shape.curved:
+        assert shape.angle is not None
+        inward_a = unit(shape.point(0.0, 0.01) - shape.point(0.0, 0.0))
+        inward_b = unit(shape.point(0.0, shape.angle - 0.01) - shape.point(0.0, shape.angle))
+    else:
+        inward_a, inward_b = (1.0, 0.0), (-1.0, 0.0)
+    return [
+        trackmap.GableStrip(
+            (float(c[0][0]), float(c[0][1])), unit(c[3] - c[0]), inward_a, shape.width_a
+        ),
+        trackmap.GableStrip(
+            (float(c[1][0]), float(c[1][1])), unit(c[2] - c[1]), inward_b, shape.width_b
+        ),
+    ]
+
+
+def along_gable(strip: trackmap.GableStrip, point: tuple[float, float]) -> float:
+    """How far along its gable from Kant 1 a point lies, mm."""
+    return (point[0] - strip.corner[0]) * strip.along[0] + (
+        point[1] - strip.corner[1]
+    ) * strip.along[1]
+
+
 def _gable_terminals(
-    tracks: trackmap.TrackMap, setup: Setup, length: float, offset: float, gauge: float
+    tracks: trackmap.TrackMap, strips: list[trackmap.GableStrip], gauge: float
 ) -> list[Terminal]:
     found: list[Terminal] = []
-    for end, x, inward, base, width in (
-        ("A", 0.0, 1.0, 0.0, setup.width_a),
-        ("B", length, -1.0, offset, setup.width_b),
-    ):
-        peaks = trackmap.strip_peaks(tracks, x, inward, (base + 2, base + width - 2), gauge)
-        for n, y in enumerate(peaks, start=1):
-            found.append(Terminal(f"{end}{n}", "gable", (x, y), end, n))
+    for end, strip in zip(("A", "B"), strips, strict=True):
+        peaks = trackmap.strip_peaks(tracks, strip, gauge)
+        for n, v in enumerate(peaks, start=1):
+            at = strip.points(np.array([v]), 0.0)[0]
+            found.append(Terminal(f"{end}{n}", "gable", (float(at[0]), float(at[1])), end, n))
     return found
 
 
+LEARN_DEPTH = 20.0
+"""How far inside its gable a track's own cross section is learned, mm."""
+MAP_FLOOR = 0.05
+LIFT_PERCENTILE = 25.0
+"""The map is lifted so that the weaker of the tracks it was learned from are clear too."""
+
+"""The map's background is at least this, when one map is chosen over another by how clearly
+its tracks stand out."""
+
+
+def _learned(
+    terminals: list[Terminal],
+    tracks: trackmap.TrackMap,
+    strips: list[trackmap.GableStrip],
+    gray: NDArray[Any],
+    grid: Grid,
+    profile: trackmap.Profile,
+) -> tuple[trackmap.Profile | None, Array]:
+    """The photo's own cross section at the gables' tracks, and the tracks' middles there."""
+    points, heads = [], []
+    for t in terminals:
+        if t.kind != "gable":
+            continue
+        strip = strips[0 if t.gable == "A" else 1]
+        q = np.array(
+            [[t.at[0] + strip.inward[0] * LEARN_DEPTH, t.at[1] + strip.inward[1] * LEARN_DEPTH]]
+        )
+        _, d = tracks.at(q)
+        r = trackmap.refine(gray, grid, q, d, profile)
+        points.append(q[0] + r.shift[0] * trackmap.across(float(d[0])))
+        heads.append(float(d[0]))
+    if not points:
+        return None, np.zeros((0, 2))
+    middles = np.array(points)
+    learned = trackmap.learn(gray, grid, middles, np.array(heads), profile.half, profile.rail)
+    return learned, middles
+
+
 def measure(prepared: Prepared, setup: Setup) -> Measured:
-    """The camera, the quality, the measuring image, the track map and the code's paths."""
+    """The camera, the quality, the measuring image, the track map and the code's paths.
+
+    A mirrored module (gable A after Kant 1) is measured as CAD draws it, with the ends
+    swapped, and turned into the owner's frame afterwards (orient.reorient): the paths are
+    traced from the same end whichever way the owner names the gables, so the same photo gives
+    the same tracks and switches whichever gable is A."""
+    if setup.mirrored:
+        from cad.bildkedjan import orient
+
+        plain = replace(
+            setup,
+            gable_a=default_gable_a(setup.kant1),
+            width_a=setup.width_b,
+            width_b=setup.width_a,
+            offset=-setup.offset if setup.offset is not None else None,
+        )
+        return orient.reorient(_measure(prepared, plain), setup.kant1, setup.gable).measured
+    return _measure(prepared, setup)
+
+
+def _measure(prepared: Prepared, setup: Setup) -> Measured:
     steady()
     pixels = prepared.pixels
     size = prepared.size
@@ -241,7 +411,7 @@ def measure(prepared: Prepared, setup: Setup) -> Measured:
         given = np.array(setup.corners, np.float64)
         sigma = CORNER_SIGMA_OWNER
         k = prepared.lens
-        corners = ordered(given, setup.kant1)
+        corners = ordered(given, setup.kant1, setup.gable)
     else:
         if prepared.found is None:
             raise Stop("Modulens hörn hittades inte. Dra hörnen till rätt plats i fotot.")
@@ -252,17 +422,19 @@ def measure(prepared: Prepared, setup: Setup) -> Measured:
         # A corner is where two fitted sides cross: much surer than a single edge point.
         counts = [max(1, len(side)) for side in found.sides] or [1]
         sigma = max(0.3, float(np.mean(found.residuals)) / math.sqrt(min(counts) / 4))
-        corners = ordered(through, setup.kant1)
-    shape = cam.Shape(setup.kind, setup.width_a, setup.width_b, setup.length, setup.offset)
+        corners = ordered(through, setup.kant1, setup.gable)
+    shape = setup.shape()
     local = corners - centre_shift
     camera, length, offset = cam.solve(local, shape, size, focal, k)
     photo_length = length
-    if setup.length is not None:
+    if setup.length is not None and not shape.curved:
         free = cam.Shape(setup.kind, setup.width_a, setup.width_b, None, setup.offset)
         _, photo_length, _ = cam.solve(local, free, size, focal, k)
     camera = _shifted(camera, centre_shift)
-    outline = shape.corners(length, offset)
-    quality = measures.quality(pixels, corners, camera, outline)
+    shape = setup.shape(length)
+    outline = shape.outline(length, offset)
+    seen = camera.to_image(outline)
+    quality = measures.quality(pixels, seen, camera, outline)
     if quality.refused:
         raise Stop(quality.refused[0].text)
     rail = setup.rail_height if setup.rail_height is not None else RAIL_HEIGHT[setup.scale]
@@ -290,33 +462,63 @@ def measure(prepared: Prepared, setup: Setup) -> Measured:
     gauge = switches.GAUGE[setup.scale]
     head = RAIL_HEAD[setup.scale]
     generic = trackmap.generic_profile(gauge, head)
+    strips = strips_of(shape, length, offset)
+    # The photo's own track (bildkedjan step 10). The generic profile finds the gables' tracks
+    # in a photo like the photo test's; their own cross section is then the profile the map is
+    # made with, so the map sees this photo's tracks, at low resolution too. A photo whose
+    # tracks look nothing like the generic profile (dark sleepers on cork) gets its profile
+    # from the gables' strips instead.
     tracks = trackmap.track_map(gray1, small, inside1, generic, quiet)
-    terminals = _gable_terminals(tracks, setup, length, offset, gauge)
-    # The photo's own cross section, learned at the gables' tracks.
-    profile = generic
-    if terminals:
-        points, heads = [], []
-        for t in terminals:
-            inward = 1.0 if t.gable == "A" else -1.0
-            q = np.array([[t.at[0] + inward * 20, t.at[1]]])
-            _, d = tracks.at(q)
-            r = trackmap.refine(gray2, grid, q, d, generic)
-            points.append(q[0] + r.shift[0] * trackmap.across(float(d[0])))
-            heads.append(float(d[0]))
-        learned = trackmap.learn(
-            gray2, grid, np.array(points), np.array(heads), generic.half, generic.rail
+    found_first = _gable_terminals(tracks, strips, gauge)
+    known, known_middles = _learned(found_first, tracks, strips, gray2, grid, generic)
+    boot = trackmap.bootstrap(gray2, grid, strips, gauge, head)
+    options: list[tuple[trackmap.Profile, Array]] = []
+    if known is not None:
+        options.append((known, known_middles))
+    if boot is not None:
+        boot_middles = np.array(
+            [strips[i].points(np.array([v]), LEARN_DEPTH)[0] for i, v in boot.centres]
         )
-        profile = learned or generic
+        options.append((boot.profile, boot_middles))
+    best: tuple[float, trackmap.TrackMap, trackmap.Profile] | None = None
+    for option, middles in options:
+        candidate = trackmap.track_map(
+            gray1, small, inside1, option, quiet, trackmap.rail_kind(option)
+        )
+        level = trackmap.level_at(candidate, middles)
+        background = float(np.percentile(candidate.score[inside1], 90)) if inside1.any() else 1.0
+        # How clearly the tracks the profile was learned from stand out, and how many of them:
+        # a profile that matches the grass finds few tracks, and weakly.
+        clear = level / max(background, MAP_FLOOR) * math.sqrt(len(middles))
+        if best is None or clear > best[0]:
+            weak = trackmap.level_at(candidate, middles, LIFT_PERCENTILE)
+            best = (clear, trackmap.lifted(candidate, weak), option)
+    first = generic
+    if best is not None:
+        _, tracks, first = best
+    terminals = _gable_terminals(tracks, strips, gauge)
+    # The photo's own cross section, learned again at the gables' tracks, for the middles.
+    profile = first
+    if terminals:
+        learned, _ = _learned(terminals, tracks, strips, gray2, grid, first)
+        profile = learned or first
     for i, (x, y, out) in enumerate(paths.ends(tracks, outline, gauge), start=1):
         terminals.append(Terminal(f"E{i}", "end", (x, y), out=out))
-    y_lo = float(outline[:, 1].min())
-    y_hi = float(outline[:, 1].max())
-    cols = paths.columns(tracks, (0.0, length), (y_lo, y_hi))
+    cols = paths.columns(
+        tracks,
+        (float(outline[:, 0].min()), float(outline[:, 0].max())),
+        (float(outline[:, 1].min()), float(outline[:, 1].max())),
+    )
     min_radius = switches.limits(setup.scale).switch_min_radius
-    found_paths = paths.connect(cols, terminals, min_radius)
+    found_paths = paths.connect(cols, terminals, min_radius, looser=quality.widen)
+    paths.overlaps(found_paths, gauge, min_radius)
+    terminals, found_paths = _kept(terminals, found_paths)
     for p in found_paths:
-        p.ys = trackmap.refine_path(gray2, grid, p.xs, p.ys, profile)
-    terminals = _measured_gables(terminals, found_paths, length)
+        # Only what can be drawn without an answer is made exact; a path that is no track is
+        # drawn only if the owner says so, as it was found.
+        if p.status != "none":
+            p.ys = trackmap.refine_path(gray2, grid, p.xs, p.ys, profile)
+    terminals = _measured_gables(terminals, found_paths, strips)
     stitch_mm = None
     if prepared.mosaic is not None:
         stitch_mm = stitch.residual_mm(prepared.mosaic, np.linalg.inv(camera.plane_at(rail)))
@@ -339,6 +541,20 @@ def measure(prepared: Prepared, setup: Setup) -> Measured:
                 ),
             ],
         )
+    edges = None
+    if shape.curved and shape.sides == "bent":
+        # The edges are the frame's: looked for in the frame's own plane, not the rails'.
+        frame_grid = rectify.grid_for(outline, arcs.CHECK_PPM)
+        frame_image = rectify.rectify(pixels, camera, frame_grid, 0.0)
+        edges = arcs.check(frame_image, frame_grid, shape)
+        if not edges.round:
+            quality = replace(
+                quality,
+                gates=[
+                    *quality.gates,
+                    measures.Gate("curve", edges.deviation, "warn", edges.text()),
+                ],
+            )
     return Measured(
         setup=setup,
         camera=camera,
@@ -355,9 +571,33 @@ def measure(prepared: Prepared, setup: Setup) -> Measured:
         size=size,
         shift=(float(centre_shift[0]), float(centre_shift[1])),
         stitch_mm=stitch_mm,
-        photo_length=photo_length,
+        photo_length=None if shape.curved else photo_length,
         image=light.image,
+        edges=edges,
     )
+
+
+def _kept(terminals: list[Terminal], found: list[Path]) -> tuple[list[Terminal], list[Path]]:
+    """The gables' tracks that a track (or a hidden part) leaves from, numbered again from
+    Kant 1: a peak in the strip that leads nowhere was something else (a platform's edge, a
+    shadow). The paths are renamed with them."""
+    used = {t for p in found if p.status != "none" for t in (p.a, p.b)}
+    rename: dict[str, str] = {}
+    kept: list[Terminal] = []
+    for end in ("A", "B"):
+        own = [t for t in terminals if t.kind == "gable" and t.gable == end and t.id in used]
+        for n, t in enumerate(sorted(own, key=lambda t: t.track or 0), start=1):
+            rename[t.id] = f"{end}{n}"
+            kept.append(Terminal(f"{end}{n}", t.kind, t.at, t.gable, n, t.out))
+    kept.extend(t for t in terminals if t.kind != "gable")
+    renamed: list[Path] = []
+    gable_ids = {t.id for t in terminals if t.kind == "gable"}
+    for p in found:
+        if (p.a in gable_ids and p.a not in rename) or (p.b in gable_ids and p.b not in rename):
+            continue
+        p.a, p.b = rename.get(p.a, p.a), rename.get(p.b, p.b)
+        renamed.append(p)
+    return kept, renamed
 
 
 def _shifted(camera: Camera, shift: Array) -> Camera:
@@ -377,7 +617,9 @@ def _shifted(camera: Camera, shift: Array) -> Camera:
     )
 
 
-def _measured_gables(terminals: list[Terminal], found: list[Path], length: float) -> list[Terminal]:
+def _measured_gables(
+    terminals: list[Terminal], found: list[Path], strips: list[trackmap.GableStrip]
+) -> list[Terminal]:
     """Each gable's track where its path, fitted as a straight line over GABLE_FIT_MM, meets
     the gable: the position from Kant 1 to a fraction of a millimetre (bildkedjan step 13)."""
     measured: list[Terminal] = []
@@ -385,33 +627,37 @@ def _measured_gables(terminals: list[Terminal], found: list[Path], length: float
         if t.kind != "gable":
             measured.append(t)
             continue
+        strip = strips[0 if t.gable == "A" else 1]
         own = [p for p in found if t.id in (p.a, p.b) and p.status == "track"]
-        if not own:
-            measured.append(t)
-            continue
-        x_gable = 0.0 if t.gable == "A" else length
-        ys: list[float] = []
+        corner = np.array(strip.corner)
+        along = np.array(strip.along)
+        inward = np.array(strip.inward)
+        vs: list[float] = []
         for p in own:
-            if t.gable == "A":
-                sel = (p.xs >= x_gable + GABLE_FIT_MM[0]) & (p.xs <= x_gable + GABLE_FIT_MM[1])
-            else:
-                sel = (p.xs <= x_gable - GABLE_FIT_MM[0]) & (p.xs >= x_gable - GABLE_FIT_MM[1])
+            pts = p.points() - corner
+            depth = pts @ inward
+            v = pts @ along
+            sel = (depth >= GABLE_FIT_MM[0]) & (depth <= GABLE_FIT_MM[1])
             if sel.sum() >= 10:
-                slope, intercept = np.polyfit(p.xs[sel], p.ys[sel], 1)
-                ys.append(float(slope * x_gable + intercept))
-        y = float(np.median(ys)) if ys else t.at[1]
-        measured.append(Terminal(t.id, t.kind, (x_gable, y), t.gable, t.track, t.out))
+                _, intercept = np.polyfit(depth[sel], v[sel], 1)
+                vs.append(float(intercept))
+        v0 = float(np.median(vs)) if vs else along_gable(strip, t.at)
+        at = corner + along * v0
+        measured.append(
+            Terminal(t.id, t.kind, (float(at[0]), float(at[1])), t.gable, t.track, t.out)
+        )
     for p in found:
         for side, tid in (("a", p.a), ("b", p.b)):
             t = next(x for x in measured if x.id == tid)
             if t.kind != "gable":
                 continue
+            strip = strips[0 if t.gable == "A" else 1]
+            depth = (p.points() - np.array(strip.corner)) @ np.array(strip.inward)
+            keep = depth > 0.5
             if side == "a":
-                keep = p.xs > t.at[0]
                 p.xs = np.concatenate([[t.at[0]], p.xs[keep]])
                 p.ys = np.concatenate([[t.at[1]], p.ys[keep]])
             else:
-                keep = p.xs < t.at[0]
                 p.xs = np.concatenate([p.xs[keep], [t.at[0]]])
                 p.ys = np.concatenate([p.ys[keep], [t.at[1]]])
     return measured
@@ -453,7 +699,15 @@ def assemble(
         for t in terminals
         if t.kind == "gable" and t.gable is not None
     }
-    built = build(drawing, net, chosen, certainty or {}, gable_tracks)
+    built = build(
+        drawing,
+        net,
+        chosen,
+        certainty or {},
+        gable_tracks,
+        measured.quality.widen,
+        measured.shape.curved,
+    )
     gray = measured.gray()
     runs: list[curves.Line] = []
     for piece in built.drawing.pieces.values():
@@ -463,9 +717,10 @@ def assemble(
     )
     found_sleepers = measures.sleepers(gray, measured.grid, runs, gauge_mm)
     positions: dict[str, float] = {}
+    strips = measured.strips()
     for t in measured.terminals:
         if t.kind == "gable":
-            positions[t.id] = t.at[1] - (measured.offset if t.gable == "B" else 0.0)
+            positions[t.id] = along_gable(strips[0 if t.gable == "A" else 1], t.at)
     switch_at = {
         sw.number or sw.id: built.drawing.nodes[sw.node].at
         for sw in built.drawing.switches.values()
@@ -477,7 +732,7 @@ def assemble(
     points_px = (
         measured.camera.to_image(points_mm, measured.rail_height) if len(points_mm) else points_mm
     )
-    shape = cam.Shape(setup.kind, setup.width_a, setup.width_b, setup.length, setup.offset)
+    shape = setup.shape()
     shift = np.array(measured.shift)
     monte = measures.Monte(
         corners=measured.corners - shift,
@@ -588,22 +843,12 @@ def to_json(measured: Measured) -> dict[str, Any]:
         "shift": list(measured.shift),
         "stitch_mm": measured.stitch_mm,
         "photo_length": measured.photo_length,
+        "edges": measured.edges.as_json() if measured.edges is not None else None,
     }
 
 
 def from_json(data: dict[str, Any], image: NDArray[Any] | None) -> Measured:
-    s = data["setup"]
-    setup = Setup(
-        scale=Scale(s["scale"]),
-        kind=s["kind"],
-        width_a=float(s["width_a"]),
-        width_b=float(s["width_b"]),
-        length=s["length"],
-        offset=s["offset"],
-        corners=tuple(tuple(c) for c in s["corners"]) if s["corners"] else None,
-        kant1=int(s["kant1"]),
-        rail_height=s["rail_height"],
-    )
+    setup = Setup.of(data["setup"])
     c = data["camera"]
     camera = Camera(
         plane=np.array(c["plane"], np.float64),
@@ -675,4 +920,5 @@ def from_json(data: dict[str, Any], image: NDArray[Any] | None) -> Measured:
         stitch_mm=data["stitch_mm"],
         photo_length=data["photo_length"],
         image=image,
+        edges=arcs.Edges.of(data["edges"]) if data.get("edges") else None,
     )

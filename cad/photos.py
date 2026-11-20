@@ -52,8 +52,8 @@ from psycopg import Connection
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
-from cad import curves, graph
-from cad.bildkedjan import chain, intake, questions, result
+from cad import curves, geometry, graph, sketches
+from cad.bildkedjan import chain, intake, orient, questions, result
 from cad.bildkedjan.camera import Shape, focal_from_35mm, solve
 from cad.bildkedjan.corners import clockwise
 from cad.bildkedjan.rectify import DISPLAY_PPM, MEASURE_PPM
@@ -65,6 +65,8 @@ from cad.library import SHAPE, Modules, Right, Who
 from cad.meter import Meter, failed, no_tokens
 from cad.store import Store, StoreFailed, new_key
 from contracts.cad import (
+    Curve,
+    CurveMeasure,
     Deviation,
     DrawingSource,
     DrawingState,
@@ -80,6 +82,7 @@ from contracts.cad import (
     PhotoConsent,
     PhotoCorners,
     PhotoFact,
+    PhotoFrame,
     PhotoGate,
     PhotoGrid,
     PhotoImage,
@@ -88,6 +91,7 @@ from contracts.cad import (
     PhotoLayer,
     PhotoLevel,
     PhotoMeasure,
+    PhotoOrientation,
     PhotoPrice,
     PhotoQuality,
     PhotoQuestion,
@@ -142,6 +146,17 @@ STEPS: Final = {
     "assemble": (80, "Ritar spårplanen"),
     "done": (100, "Klart"),
 }
+
+
+_ASK = "Tryck på den långsida som är Kant 1 och på gavel A."
+_SYMMETRIC = (
+    "Gavlarnas spår ser likadana ut från båda hållen, så fotot kan inte visa vilken sida som är "
+    "Kant 1. Tryck på Kant 1 och på gavel A."
+)
+_DERIVED = (
+    "Kant 1 och gavel A är härledda ur spåren vid gavlarna och modulens gavelmått. Stämmer det? "
+    "Annars trycker du på rätt sida."
+)
 
 
 def _now() -> datetime:
@@ -205,6 +220,21 @@ def job_key(checksums: Sequence[str], setup: dict[str, Any], ai: bool) -> str:
         "question": questions.QUESTION_VERSION,
     }
     return hashlib.sha256(json.dumps(data, sort_keys=True).encode()).hexdigest()
+
+
+@dataclass
+class Framed:
+    """The measured module in the frame the owner has now chosen (Kant 1 and gable A), with
+    the names of its ends and enlarged parts mapped from the frame it was read in."""
+
+    measured: chain.Measured
+    crossings: dict[str, tuple[float, float]]
+    labels: dict[str, str]
+    nodes: dict[str, str]
+    stored: Any
+    """The stored measuring image's grid: the frame it was read in."""
+    matrix: list[float] | None
+    """SVG's matrix from the frame read in to the frame now, or None when they are one."""
 
 
 @dataclass
@@ -414,6 +444,8 @@ class Photos:
 
     def start(self, who: Who, start: PhotoStart, photos: list[bytes]) -> PhotoJob:
         """The photos taken in, the corners found, and the job waiting for the owner."""
+        if start.profile == "skiss":
+            return self._start_sketch(who, start, photos)
         if not 1 <= len(photos) <= 4:
             raise _bad("Välj 1–4 foton av samma modul.")
         taken: list[intake.Intake] = []
@@ -423,18 +455,13 @@ class Photos:
             except intake.Refused as refused:
                 raise _bad(refused.message, refused.status) from refused
         chain.steady()
+        curve = start.kind == "curve" if start.module is None else self._is_curve(who, start.module)
         try:
-            prepared = chain.prepare(taken)
+            prepared = chain.prepare(taken, curve)
         except StitchError as error:
             raise _bad(str(error)) from error
         module = self._new_module(who, start, prepared) if start.module is None else start.module
         row, _ = self._module_row(who, module, Right.EDIT)
-        shape = SHAPE.validate_python(row["shape"])
-        kind = "trapezoid" if isinstance(shape, Trapezoid) else "straight"
-        if kind == "straight" and not isinstance(shape, Straight):
-            raise invalid(
-                "Foto och kontroll tar raka moduler och trapetser än; kurvmoduler kommer."
-            )
         found = prepared.found
         suggested = prepared.corners
         corners = (
@@ -443,6 +470,17 @@ class Photos:
             else _guess(prepared.pixels.shape[1], prepared.pixels.shape[0])
         )
         kant1 = chain.default_kant1(corners)
+        gable_a = chain.default_gable_a(kant1)
+        start_info = {**start.model_dump(mode="json"), "new_module": start.module is None}
+        derived, why = False, _ASK
+        known = [Gable.model_validate(g) for g in row["gables"]]
+        if found is not None and any(g.tracks for g in known):
+            way = self._derived(start_info, row, prepared, corners, kant1, gable_a, known)
+            if way is None:
+                why = _SYMMETRIC
+            else:
+                kant1, gable_a = orient.sides_for(kant1, gable_a, way)
+                derived, why = True, _DERIVED
         job = uuid.uuid4()
         checksums = [t.clean_sha256 for t in taken]
         info = {
@@ -462,8 +500,11 @@ class Photos:
         corners_out = PhotoCorners(
             corners=[(round(float(x), 1), round(float(y), 1)) for x, y in corners],
             kant1=kant1,
+            gable_a=gable_a,
             found=found is not None,
             certain=bool(found.certain) if found is not None else False,
+            derived=derived,
+            why=why,
         )
         with self.db.transaction() as conn:
             conn.execute(
@@ -515,17 +556,190 @@ class Photos:
             )
         return self.job(who, job)
 
+    def _start_sketch(self, who: Who, start: PhotoStart, photos: list[bytes]) -> PhotoJob:
+        """Från skiss: the sketch taken in, its sheet straightened and its frames found."""
+        if len(photos) != 1:
+            raise _bad("Välj en skiss.")
+        if start.kind == "curve":
+            raise invalid("Från skiss tar raka moduler och trapetser.")
+        try:
+            taken, sheet = sketches.sheet_of(photos[0])
+        except intake.Refused as refused:
+            raise _bad(refused.message, refused.status) from refused
+        if start.module is None:
+            if start.width is None or start.length is None:
+                raise invalid("Fyll i modulens längd och bredd: ramen ger skissen dess skala.")
+            new = NewModule(
+                name=start.name or f"Modul {round(start.length)} × {round(start.width)}",
+                scale=start.scale,
+                shape=Trapezoid(
+                    length=start.length,
+                    width_a=start.width,
+                    width_b=start.width_b or start.width,
+                    offset=start.offset or 0.0,
+                )
+                if start.kind == "trapezoid"
+                else Straight(length=start.length, width=start.width),
+                gables=[Gable(end=GableEnd.A, tracks=[]), Gable(end=GableEnd.B, tracks=[])],
+                owner=start.owner,
+                visibility=Visibility.ME,
+            )
+            module = self.modules.create(who, new, made_from="Modulen skapad ur en skiss").id
+        else:
+            module = start.module
+        row, _ = self._module_row(who, module, Right.EDIT)
+        corners, frames = sketches.frame_corners(sheet)
+        kant1 = sketches.top_kant1(corners)
+        preview, factor = _preview(sheet.pixels)
+        job = uuid.uuid4()
+        info = {
+            **start.model_dump(mode="json"),
+            "module": str(module),
+            "checksums": [taken.clean_sha256],
+            "focal_35mm": None,
+            "size": [sheet.pixels.shape[1], sheet.pixels.shape[0]],
+            "new_module": start.module is None,
+            "length": start.length,
+        }
+        keep = bool(row.get("keep_original") or start.keep_original)
+        until = None if keep else _now() + timedelta(days=ORIGINAL_DAYS)
+
+        def on_preview(q: np.ndarray[Any, Any]) -> list[tuple[float, float]]:
+            return [(round(float(x), 1), round(float(y), 1)) for x, y in clockwise(q) * factor]
+
+        corners_out = PhotoCorners(
+            corners=on_preview(corners),
+            kant1=kant1,
+            gable_a=chain.default_gable_a(kant1),
+            found=bool(frames),
+            certain=bool(frames),
+            why="Välj ramen som är modulen och tryck på Kant 1 och gavel A.",
+        )
+        framed = [{"corners": on_preview(q), "kant1": sketches.top_kant1(q)} for q in frames]
+        with self.db.transaction() as conn:
+            conn.execute(
+                "INSERT INTO photo_job (id, module_id, owner_kind, owner_id, person_id, "
+                "person_name, key, state, start, chain, result) VALUES (%s, %s, %s, %s, %s, %s, "
+                "%s, 'corners', %s, %s, %s)",
+                (
+                    job,
+                    module,
+                    row["owner_kind"],
+                    row["owner_id"],
+                    who.person,
+                    who.name,
+                    "0" * 64,
+                    Jsonb(info),
+                    chain.CHAIN_VERSION,
+                    Jsonb(
+                        {
+                            "corners": corners_out.model_dump(mode="json"),
+                            "sheet_frames": framed,
+                        }
+                    ),
+                ),
+            )
+            self._put(
+                conn,
+                job,
+                row["owner_id"],
+                "original",
+                intake.jpeg(taken.pixels),
+                counted=keep,
+                until=until,
+                size=(taken.width, taken.height),
+                sha=taken.clean_sha256,
+            )
+            self._put(
+                conn,
+                job,
+                row["owner_id"],
+                "preview",
+                _jpeg(preview, 88),
+                counted=False,
+                until=until or _now() + timedelta(days=ORIGINAL_DAYS),
+                size=(preview.shape[1], preview.shape[0]),
+            )
+            conn.execute(
+                "UPDATE photo_job SET result = result || %s WHERE id = %s",
+                (Jsonb({"preview_factor": factor, "mosaic": False}), job),
+            )
+        return self.job(who, job)
+
+    def _is_curve(self, who: Who, module: UUID) -> bool:
+        row, _ = self._module_row(who, module, Right.EDIT)
+        return bool(SHAPE.validate_python(row["shape"]).kind == "curve")
+
+    def _derived(
+        self,
+        start: dict[str, Any],
+        row: dict[str, Any],
+        prepared: chain.Prepared,
+        corners: np.ndarray[Any, Any],
+        kant1: int,
+        gable_a: int,
+        known: list[Gable],
+    ) -> orient.Way | None:
+        """Kant 1 and gable A from the gables' tracks at a glance, when the module's known
+        gables are not the same from the other side or end (bildkedjan step 13)."""
+        try:
+            setup = self._setup(start, row, corners, kant1, gable_a)
+            seen = orient.peek(prepared, setup)
+        except (Refused, ValueError, np.linalg.LinAlgError):
+            return None
+        if seen is None:
+            return None
+        found_a, found_b = seen
+        derived = orient.derive(
+            found_a,
+            found_b,
+            setup.width_a,
+            setup.width_b,
+            list(known[0].tracks),
+            list(known[1].tracks) if len(known) > 1 else [],
+        )
+        return derived.way if derived.decided else None
+
     def _new_module(self, who: Who, start: PhotoStart, prepared: chain.Prepared) -> UUID:
         """A new module from the photo, with the measures given; the length from the photo
         when it was not, until the owner says otherwise (Längden ur fotot)."""
         if start.width is None:
             raise invalid("Fyll i modulens bredd: den ger fotot dess skala.")
         width_b = start.width_b or start.width
+        shape: Straight | Trapezoid | Curve
+        if start.kind == "curve":
+            if start.chord is None or start.sagitta is None or start.track1 is None:
+                raise invalid(
+                    "Fyll i kordan och pilhöjden på spår 1, och spår 1 från Kant 1: de ger "
+                    "kurvan och fotots skala."
+                )
+            try:
+                bend = geometry.from_chord(start.chord, start.sagitta)
+            except ValueError as error:
+                raise invalid(str(error)) from error
+            shape = Curve(
+                radius=bend.radius,
+                angle=bend.angle,
+                width=start.width,
+                edge=start.edge,
+                measured=CurveMeasure(chord=start.chord, sagitta=start.sagitta),
+            )
+            new = NewModule(
+                name=start.name or f"Kurva R {round(bend.radius)}",
+                scale=start.scale,
+                shape=shape,
+                gables=[
+                    Gable(end=GableEnd.A, tracks=[start.track1]),
+                    Gable(end=GableEnd.B, tracks=[start.track1]),
+                ],
+                owner=start.owner,
+                visibility=Visibility.ME,
+            )
+            return self.modules.create(who, new, made_from="Modulen skapad ur ett foto").id
         length = start.length
         offset = start.offset or 0.0
         if length is None:
             length = _rough_length(start, prepared)
-        shape: Straight | Trapezoid
         if start.kind == "trapezoid":
             shape = Trapezoid(length=length, width_a=start.width, width_b=width_b, offset=offset)
         else:
@@ -592,12 +806,14 @@ class Photos:
                     ppm=DISPLAY_PPM,
                     width=display["width"] or 1,
                     height=display["height"] or 1,
+                    matrix=found.get("frame"),
                 ),
             )
         price = self._price(row, who)
         return PhotoJob(
             id=row["id"],
             module=row["module_id"],
+            profile=start.get("profile", "modulfoto"),
             state=PhotoJobState(row["state"]),
             progress=row["progress"],
             step=row["step"]
@@ -606,6 +822,8 @@ class Photos:
             photos=photos,
             preview=preview,
             corners=_on_preview(found),
+            frames=[PhotoFrame.model_validate(f) for f in found.get("sheet_frames", [])],
+            frame=found.get("frame_index"),
             quality=PhotoQuality.model_validate(found["quality"]) if found.get("quality") else None,
             length=found.get("length"),
             length_plus_minus=found.get("length_plus_minus"),
@@ -674,7 +892,12 @@ class Photos:
         start = row["start"]
         factor = float((row["result"] or {}).get("preview_factor", 1.0))
         corners = clockwise(np.array(ask.corners, np.float64) / factor)
-        setup = self._setup(start, module_row, corners, ask.kant1)
+        if start.get("profile") == "skiss":
+            start = {**start, "length": 1.0}
+        gable_a = ask.gable_a if ask.gable_a is not None else chain.default_gable_a(ask.kant1)
+        if gable_a not in ((ask.kant1 + 1) % 4, (ask.kant1 + 3) % 4):
+            raise invalid("Gavel A är en av de två gavlarna bredvid Kant 1.")
+        setup = self._setup(start, module_row, corners, ask.kant1, gable_a)
         key = job_key(start["checksums"], setup.as_dict(), ask.ai)
         with self.db.transaction() as conn:
             if ask.ai and ask.consent:
@@ -710,9 +933,11 @@ class Photos:
                                     (round(float(x), 1), round(float(y), 1)) for x, y in corners
                                 ],
                                 kant1=ask.kant1,
+                                gable_a=gable_a,
                                 found=True,
                                 certain=True,
-                            ).model_dump(mode="json")
+                            ).model_dump(mode="json"),
+                            "frame_index": ask.frame,
                         }
                     ),
                     job,
@@ -727,35 +952,57 @@ class Photos:
         module_row: dict[str, Any],
         corners: np.ndarray[Any, Any],
         kant1: int,
+        gable_a: int | None = None,
     ) -> chain.Setup:
         """The chain's input from the module's measures and what the photo was sent with."""
         shape = SHAPE.validate_python(module_row["shape"])
         new = bool(start.get("new_module"))
         length_given = start.get("length") is not None or not new
+        at = tuple((round(float(x), 1), round(float(y), 1)) for x, y in corners)
+        scale = Scale(module_row["scale"])
         if isinstance(shape, Trapezoid):
             offset_given = start.get("offset") is not None or not new
             return chain.Setup(
-                scale=Scale(module_row["scale"]),
+                scale=scale,
                 kind="trapezoid",
                 width_a=shape.width_a,
                 width_b=shape.width_b,
                 length=shape.length if length_given else None,
                 offset=shape.offset if offset_given else None,
-                corners=tuple((round(float(x), 1), round(float(y), 1)) for x, y in corners),
+                corners=at,
                 kant1=kant1,
+                gable_a=gable_a,
             )
-        if not isinstance(shape, Straight):
-            raise invalid(
-                "Foto och kontroll tar raka moduler och trapetser än; kurvmoduler kommer."
+        if isinstance(shape, Curve):
+            gables = [Gable.model_validate(g) for g in module_row["gables"]]
+            track1 = geometry.track1_of(gables[0].tracks) if gables else 0.0
+            if not track1 and start.get("track1"):
+                track1 = float(start["track1"])
+            edge = geometry.edge_radius(shape, track1)
+            return chain.Setup(
+                scale=scale,
+                kind="curve",
+                width_a=shape.width,
+                width_b=shape.width,
+                length=edge * math.radians(shape.angle),
+                corners=at,
+                kant1=kant1,
+                gable_a=gable_a,
+                radius=edge,
+                angle=shape.angle,
+                edge=shape.edge.value,
+                sides=shape.sides.value,
             )
+        assert isinstance(shape, Straight)
         return chain.Setup(
-            scale=Scale(module_row["scale"]),
+            scale=scale,
             kind="straight",
             width_a=shape.width,
             width_b=shape.width,
             length=shape.length if length_given else None,
-            corners=tuple((round(float(x), 1), round(float(y), 1)) for x, y in corners),
+            corners=at,
             kant1=kant1,
+            gable_a=gable_a,
         )
 
     # --- 3. The queue ---------------------------------------------------------------------------
@@ -847,28 +1094,19 @@ class Photos:
         return [intake.take(self.store.get(f["key"])) for f in originals]
 
     def _run(self, job: dict[str, Any]) -> None:
+        if job["start"].get("profile") == "skiss":
+            sketches.run(self, job)
+            return
         job_id = job["id"]
         start = job["start"]
         setup_data = dict(job["setup"])
         use_ai = bool(setup_data.pop("ai", False))
         self._step(job_id, "prepare")
         taken = self._originals(job_id)
-        prepared = chain.prepare(taken)
+        prepared = chain.prepare(taken, setup_data.get("kind") == "curve")
         if start.get("focal_35mm") and prepared.focal_35mm is None:
             prepared.focal_35mm = float(start["focal_35mm"])
-        setup = chain.Setup(
-            scale=Scale(setup_data["scale"]),
-            kind=setup_data["kind"],
-            width_a=float(setup_data["width_a"]),
-            width_b=float(setup_data["width_b"]),
-            length=setup_data["length"],
-            offset=setup_data["offset"],
-            corners=tuple(tuple(c) for c in setup_data["corners"])
-            if setup_data["corners"]
-            else None,
-            kant1=int(setup_data["kant1"]),
-            rail_height=setup_data.get("rail_height"),
-        )
+        setup = chain.Setup.of(setup_data)
         self._step(job_id, "measure")
         measured = chain.measure(prepared, setup)
         assert measured.image is not None
@@ -939,10 +1177,20 @@ class Photos:
         """Which tracks connect, from one picture: a stored transcript for the same picture and
         question, or the meter, reserved before and drawn or given back after."""
         assert measured.image is not None
+        return self._ask(job, measured.image, measured.grid, measured.terminals, crossings)
+
+    def _ask(
+        self,
+        job: dict[str, Any],
+        image: np.ndarray[Any, Any],
+        grid: Any,
+        terminals: list[Any],
+        crossings: dict[str, tuple[float, float]],
+    ) -> questions.AiReading:
         meter = self.meter
         if meter is None:
             raise Refused(503, ProblemCode.UNAVAILABLE, "AI-avläsningen kräver TrainMeet ID.")
-        sheet = questions.sheet(measured.image, measured.grid, measured.terminals, crossings)
+        sheet = questions.sheet(image, grid, terminals, crossings)
         labels, nodes = sheet.labels, sorted(sheet.nodes)
         with self.db.transaction() as conn:
             kept = conn.execute(
@@ -968,7 +1216,8 @@ class Photos:
         balance = meter.balance(job["person_id"], payer)
         with self.db.transaction() as conn:
             paid = bool(self._row(conn, job["id"])["paid"])
-        needed = 0 if balance.own_ai else TOKENS_PER_PAGE
+        # A job already paid for (read again in another frame) asks again at no cost (CAD3).
+        needed = 0 if balance.own_ai or paid else TOKENS_PER_PAGE
         if needed > balance.available:
             raise no_tokens(needed, balance.available)
         reservation: TokenReservation | None = None
@@ -1071,6 +1320,17 @@ class Photos:
                 dict(ai_json["nodes"]),
                 str(ai_json.get("note", "")),
             )
+        with self.db.transaction() as conn:
+            fresh = self._row(conn, job_id)
+        # Kant 1 and gable A as the owner has them now: the measured module moved there, the
+        # AI's answer and the owner's answers named as the new frame names them (part c2).
+        framed = self._framed(fresh, measured, crossings)
+        measured = framed.measured
+        crossings = framed.crossings
+        reading = result.relabel_reading(reading, framed.labels, framed.nodes)
+        answers = {
+            result.relabel_key(k, framed.labels, framed.nodes): v for k, v in answers.items()
+        }
         decision = result.decide(measured, reading, answers, crossings)
         with self.db.transaction() as conn:
             job = self._row(conn, job_id)
@@ -1089,9 +1349,12 @@ class Photos:
         old_graph = TrackGraph.model_validate(before["graph"])
         new_shape = _shape_for(shape, measured, start)
         terminals = [t for t in measured.terminals if t.kind == "gable"]
-        if start.get("new_module") and not any(g.tracks for g in gables):
+        if start.get("new_module") and (
+            not any(g.tracks for g in gables)
+            or (isinstance(shape, Curve) and all(len(g.tracks) <= 1 for g in gables))
+        ):
             # A module from the photo: the gables' tracks where the photo has them, to lock.
-            gables = _photo_gables(terminals, measured)
+            gables = _photo_gables(terminals, measured) if terminals else gables
         drawing = Drawing.of(
             Scale(before["scale"]),
             new_shape,
@@ -1136,14 +1399,10 @@ class Photos:
                 max=round(float(max(dev)), 2),
                 count=len(dev),
             )
+        stored = framed.stored
         found = {
-            "grid": [
-                measured.grid.x0,
-                measured.grid.y0,
-                MEASURE_PPM,
-                measured.grid.width,
-                measured.grid.height,
-            ],
+            "grid": [stored.x0, stored.y0, MEASURE_PPM, stored.width, stored.height],
+            "frame": framed.matrix,
             "quality": _quality(measured).model_dump(mode="json"),
             "length": round(photo_length, 1) if photo_length is not None else None,
             "length_plus_minus": length_pm,
@@ -1203,6 +1462,112 @@ class Photos:
                 (Jsonb(found), version, message, job_id),
             )
 
+    def _framed(
+        self,
+        row: dict[str, Any],
+        measured: chain.Measured,
+        crossings: dict[str, tuple[float, float]],
+    ) -> Framed:
+        corners = (row["result"] or {}).get("corners") or {}
+        kant1 = int(corners.get("kant1", measured.setup.kant1))
+        gable_a = corners.get("gable_a")
+        gable_a = int(gable_a) if gable_a is not None else chain.default_gable_a(kant1)
+        moved = orient.reorient(measured, kant1, gable_a)
+        if moved.measured is measured:
+            return Framed(measured, crossings, moved.labels, {}, measured.grid, None)
+        now = moved.measured
+        found = questions.crossing_points(now.paths, now.code_pairs())
+        nodes: dict[str, str] = {}
+        for name, at in crossings.items():
+            there = moved.frame.point(at)
+            near = min(found.items(), key=lambda kv: math.dist(kv[1], there), default=None)
+            if near is not None and math.dist(near[1], there) <= 60:
+                nodes[name] = near[0]
+        t = moved.frame.turn
+        matrix = [
+            float(t[0, 0]),
+            float(t[1, 0]),
+            float(t[0, 1]),
+            float(t[1, 1]),
+            float(moved.frame.shift[0]),
+            float(moved.frame.shift[1]),
+        ]
+        return Framed(now, found, moved.labels, nodes, measured.grid, [round(v, 6) for v in matrix])
+
+    def orientation(self, who: Who, job: UUID, ask: PhotoOrientation) -> PhotoJob:
+        """Another Kant 1 or gable A for a photo already read (part c2): the measuring moved to
+        the new frame, at no cost and without reading the photo again. A trapezoid, or a curve
+        whose Kant 1 changes side, has another outline in the new frame: its photo is measured
+        again from the original, still at no cost."""
+        with self.db.transaction() as conn:
+            row = self._row(conn, job)
+        module_row, _ = self._module_row(who, row["module_id"], Right.EDIT)
+        if row["state"] != "done":
+            raise invalid("Fotot är inte läst än.")
+        if ask.gable_a not in ((ask.kant1 + 1) % 4, (ask.kant1 + 3) % 4):
+            raise invalid("Gavel A är en av de två gavlarna bredvid Kant 1.")
+        if row["start"].get("profile") == "skiss":
+            corners = PhotoCorners.model_validate((row["result"] or {}).get("corners"))
+            factor = float((row["result"] or {}).get("preview_factor", 1.0))
+            return self.read(
+                who,
+                job,
+                PhotoRead(
+                    corners=[(x * factor, y * factor) for x, y in corners.corners],
+                    kant1=ask.kant1,
+                    gable_a=ask.gable_a,
+                    ai=bool((row["setup"] or {}).get("ai")),
+                    consent=False,
+                ),
+            )
+        measured = self._measured(row)
+        setup = measured.setup
+        old_corners = chain.ordered(measured.corners, setup.kant1, setup.gable)
+        new_corners = chain.ordered(measured.corners, ask.kant1, ask.gable_a)
+        same_side = {tuple(old_corners[0]), tuple(old_corners[1])} == {
+            tuple(new_corners[0]),
+            tuple(new_corners[1]),
+        } or {tuple(old_corners[0]), tuple(old_corners[1])} == {
+            tuple(new_corners[2]),
+            tuple(new_corners[3]),
+        }
+        exact = setup.kind == "straight" or (
+            setup.kind == "curve"
+            and same_side
+            and (
+                {tuple(old_corners[0]), tuple(old_corners[1])}
+                == {tuple(new_corners[0]), tuple(new_corners[1])}
+            )
+        )
+        corners = PhotoCorners.model_validate((row["result"] or {}).get("corners"))
+        if not exact:
+            factor = float((row["result"] or {}).get("preview_factor", 1.0))
+            return self.read(
+                who,
+                job,
+                PhotoRead(
+                    corners=[(x * factor, y * factor) for x, y in corners.corners],
+                    kant1=ask.kant1,
+                    gable_a=ask.gable_a,
+                    ai=bool((row["setup"] or {}).get("ai")),
+                    consent=False,
+                ),
+            )
+        del module_row
+        corners = corners.model_copy(update={"kant1": ask.kant1, "gable_a": ask.gable_a})
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE photo_job SET result = result || %s, person_id = %s, person_name = %s "
+                "WHERE id = %s",
+                (Jsonb({"corners": corners.model_dump(mode="json")}), who.person, who.name, job),
+            )
+            fresh = self._row(conn, job)
+        crossings = questions.crossing_points(measured.paths, measured.code_pairs())
+        answers = dict(fresh["answers"] or {})
+        answers.pop(result.ORIENTATION_KEY, None)
+        self._assemble(job, measured, None, answers, crossings, fresh["message"], fresh["ai"])
+        return self.job(who, job)
+
     def _on_photo(
         self, job: UUID, built: Drawing, measured: chain.Measured
     ) -> list[list[list[float]]]:
@@ -1228,31 +1593,79 @@ class Photos:
         return chain.from_json(job["measured"], _decode(self.store.get(measure["key"])))
 
     def answer(self, who: Who, job: UUID, answers: PhotoAnswers) -> PhotoJob:
-        """The owner's answers to the questions: a new version from what was measured."""
+        """The owner's answers to the questions: a new version from what was measured. The
+        answers are kept as the frame the photo was read in names them, so that another Kant 1
+        or gable A keeps them."""
         with self.db.transaction() as conn:
             row = self._row(conn, job)
         self._module_row(who, row["module_id"], Right.EDIT)
         if row["state"] != "done":
             raise invalid("Fotot är inte läst än.")
         asked = {q["key"]: q for q in (row["result"] or {}).get("questions", [])}
-        merged = dict(row["answers"] or {})
         for given in answers.answers:
             question = asked.get(given.key)
             if question is None:
                 raise invalid("Frågan finns inte längre.")
             if given.answer not in {c["id"] for c in question["choices"]}:
                 raise invalid("Svaret finns inte.")
-            merged[given.key] = given.answer
+        if row["start"].get("profile") == "skiss":
+            merged = {**(row["answers"] or {}), **{a.key: a.answer for a in answers.answers}}
+            with self.db.transaction() as conn:
+                conn.execute(
+                    "UPDATE photo_job SET answers = %s, person_id = %s, person_name = %s "
+                    "WHERE id = %s",
+                    (Jsonb(merged), who.person, who.name, job),
+                )
+            sketched, corners = sketches.stored(self, row)
+            sketches.assemble(self, job, sketched, corners, None, merged, row["message"])
+            return self.job(who, job)
+        measured = self._measured(row)
+        crossings = questions.crossing_points(measured.paths, measured.code_pairs())
+        framed = self._framed(row, measured, crossings)
+        labels_back = {v: k for k, v in framed.labels.items()}
+        nodes_back = {v: k for k, v in framed.nodes.items()}
+        merged = dict(row["answers"] or {})
+        turn: orient.Way | None = None
+        for given in answers.answers:
+            if given.key == result.ORIENTATION_KEY and given.answer == "vand":
+                turn = result.orientation_from_gables(
+                    framed.measured,
+                    [Gable.model_validate(g) for g in self._gables_now(row["module_id"])],
+                )
+                continue
+            if given.key == "kurva" and given.answer == "horn":
+                # Back to the corners: the owner drags them and reads again, at no cost.
+                with self.db.transaction() as conn:
+                    conn.execute(
+                        "UPDATE photo_job SET state = 'corners', step = %s WHERE id = %s",
+                        ("Dra hörnen rätt och läs av igen", job),
+                    )
+                return self.job(who, job)
+            merged[result.relabel_key(given.key, labels_back, nodes_back)] = given.answer
         with self.db.transaction() as conn:
             conn.execute(
                 "UPDATE photo_job SET answers = %s, person_id = %s, person_name = %s WHERE id = %s",
                 (Jsonb(merged), who.person, who.name, job),
             )
             fresh = self._row(conn, job)
-        measured = self._measured(fresh)
-        crossings = questions.crossing_points(measured.paths, measured.code_pairs())
+        if turn is not None:
+            now = PhotoCorners.model_validate((fresh["result"] or {}).get("corners"))
+            kant1 = now.kant1
+            gable_a = now.gable_a if now.gable_a is not None else chain.default_gable_a(kant1)
+            kant1, gable_a = orient.sides_for(kant1, gable_a, turn)
+            return self.orientation(who, job, PhotoOrientation(kant1=kant1, gable_a=gable_a))
         self._assemble(job, measured, None, merged, crossings, row["message"], fresh["ai"])
         return self.job(who, job)
+
+    def _gables_now(self, module: UUID) -> list[dict[str, Any]]:
+        with self.db.transaction() as conn:
+            latest = conn.execute(
+                "SELECT latest FROM module WHERE id = %s AND removed_at IS NULL", (module,)
+            ).fetchone()
+            if latest is None:
+                raise not_found()
+            found = self.modules._row(conn, module, int(latest["latest"]))
+        return list(found["gables"])
 
     def closeup(self, who: Who, job: UUID, key: str, photo: bytes, consent: bool) -> PhotoJob:
         """Ta en närbild: the part photographed again, and the AI asked about it alone; a new
@@ -1495,6 +1908,7 @@ class Photos:
                 ppm=DISPLAY_PPM,
                 width=display["width"] or 1,
                 height=display["height"] or 1,
+                matrix=found.get("frame"),
             ),
             chain=row["chain"],
             newer_chain=row["chain"] != chain.CHAIN_VERSION,
@@ -1602,7 +2016,7 @@ def _shape_for(
 ) -> Any:
     """The module's measures after the photo: a new module's length (and offset) from the photo
     when the owner gave none."""
-    if not start.get("new_module"):
+    if not start.get("new_module") or isinstance(shape, Curve):
         return shape
     length = shape.length
     if (
@@ -1620,8 +2034,9 @@ def _shape_for(
 def _photo_gables(terminals: list[Any], measured: chain.Measured) -> list[Gable]:
     """A new module's gables as the photo has them: each track from Kant 1, to the half mm."""
     tracks: dict[str, list[float]] = {"A": [], "B": []}
+    strips = measured.strips()
     for t in sorted(terminals, key=lambda t: (t.gable, t.track)):
-        y = t.at[1] - (measured.offset if t.gable == "B" else 0.0)
+        y = chain.along_gable(strips[0 if t.gable == "A" else 1], t.at)
         tracks[t.gable].append(round(y * 2) / 2)
     return [Gable(end=GableEnd.A, tracks=tracks["A"]), Gable(end=GableEnd.B, tracks=tracks["B"])]
 

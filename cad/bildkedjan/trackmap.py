@@ -136,10 +136,10 @@ def _shift_y(image: Floats, by: float) -> Floats:
 
 def _scores_along_x(
     image: Floats, profile: Floats, length: int, rail: float
-) -> tuple[Floats, Floats]:
+) -> tuple[Floats, Floats, Floats]:
     """For a track along x: the NCC of the profile across y, the same along length px of x,
-    times how clearly both rails are there, rail px above and below; for dark rails and for
-    light ones. One rail and the edge of the ballast match the profile half as well, a rail's
+    and how clearly both rails are there, rail px above and below, as dark rails and as light
+    ones. One rail and the edge of the ballast match the profile half as well, a rail's
     distance beside the middle: the two-rail factor tells them apart."""
     width = len(profile)
     along = cv2.blur(image, (length, 1))
@@ -161,7 +161,7 @@ def _scores_along_x(
     light = np.clip(
         np.minimum(_shift_y(bump, rail), _shift_y(bump, -rail)) / (RAIL_CLEAR * spread), 0, 1
     )
-    return (ncc * dark).astype(np.float32), (-ncc * light).astype(np.float32)
+    return ncc.astype(np.float32), dark.astype(np.float32), light.astype(np.float32)
 
 
 RAIL_CLEAR = 0.25
@@ -173,10 +173,20 @@ QUIET = 0.6
 
 
 def track_map(
-    gray: Floats, grid: Grid, inside: Mask, profile: Profile, quiet: Mask | None = None
+    gray: Floats,
+    grid: Grid,
+    inside: Mask,
+    profile: Profile,
+    quiet: Mask | None = None,
+    rails: str | None = "auto",
 ) -> TrackMap:
     """The map from the measuring image's grey at MAP_PPM. Where quiet is set (a shadow's edge,
-    a reflection) the map counts for less."""
+    a reflection) the map counts for less.
+
+    rails says what the rails look like: "dark" or "light" against what lies beside them, as
+    the photo's own profile shows; None when they cannot be told at this resolution (only the
+    profile counts then); "auto" for the generic profile, whose dark rails may be light in the
+    photo: both are tried and the clearer kept, as in del c1."""
     h, w = gray.shape
     p = profile.at(grid.ppm)
     length = max(3, round(TEMPLATE_LENGTH * grid.ppm))
@@ -197,25 +207,245 @@ def track_map(
         turned = cv2.warpAffine(
             gray, turn, (diagonal, diagonal), flags=cv2.INTER_LINEAR, borderValue=fill
         )
-        dark, light = _scores_along_x(turned, p, length, rail)
+        ncc, dark, light = _scores_along_x(turned, p, length, rail)
+        if rails == "auto":
+            first, second = ncc * dark, -ncc * light
+        elif rails == "dark":
+            first, second = ncc * dark, None
+        elif rails == "light":
+            first, second = ncc * light, None
+        else:
+            first, second = ncc, None
         back = cv2.invertAffineTransform(turn)
-        for found, at, score in (
-            (best, best_at, cv2.warpAffine(dark, back, (w, h), flags=cv2.INTER_LINEAR)),
-            (worst, worst_at, cv2.warpAffine(light, back, (w, h), flags=cv2.INTER_LINEAR)),
-        ):
+        pairs = [(best, best_at, first)] + (
+            [(worst, worst_at, second)] if second is not None else []
+        )
+        for found, at, turned_score in pairs:
+            score = cv2.warpAffine(turned_score, back, (w, h), flags=cv2.INTER_LINEAR)
             better = score > found
             found[better] = score[better]
             at[better] = k
-    # The rails' polarity is the photo's own: darker or lighter than the sleepers.
-    positive = float(np.percentile(best[inside], 99.5)) if inside.any() else 0.0
-    negative = float(np.percentile(worst[inside], 99.5)) if inside.any() else 0.0
-    if negative > positive * 1.15:
-        best, best_at = worst, worst_at
+    if rails == "auto":
+        # The rails' polarity is the photo's own: darker or lighter than the sleepers.
+        positive = float(np.percentile(best[inside], 99.5)) if inside.any() else 0.0
+        negative = float(np.percentile(worst[inside], 99.5)) if inside.any() else 0.0
+        if negative > positive * 1.15:
+            best, best_at = worst, worst_at
     score = np.where(inside, np.clip(best, 0, 1), 0).astype(np.float32)
     if quiet is not None:
         score = np.where(quiet, score * QUIET, score).astype(np.float32)
     direction = (best_at.astype(np.float32) * (math.pi / ANGLES)).astype(np.float32)
     return TrackMap(score, direction, grid)
+
+
+def lifted(tracks: TrackMap, level: float) -> TrackMap:
+    """The map scaled so that a track's middle, where the map is level, scores ON_TRACK: at low
+    resolution and in a photo whose tracks look little like the profile the map is weak all
+    over, and the paths' limits are set for a clear map. Never more than MAX_LIFT."""
+    if level <= 0 or level >= ON_TRACK:
+        return tracks
+    gain = min(MAX_LIFT, ON_TRACK / level)
+    return TrackMap(
+        np.clip(tracks.score * gain, 0, 1).astype(np.float32), tracks.direction, tracks.grid
+    )
+
+
+ON_TRACK = 0.7
+"""What a track's middle scores in a clear map (the synthetic photos give 0,7–0,9)."""
+MAX_LIFT = 2.5
+
+
+# --- The photo's own track, from the gables -----------------------------------------------------
+
+
+@dataclass(frozen=True)
+class GableStrip:
+    """A gable seen from inside the module: its corner at Kant 1, the unit vector along it away
+    from Kant 1, the unit vector into the module, and its width, all in mm."""
+
+    corner: tuple[float, float]
+    along: tuple[float, float]
+    inward: tuple[float, float]
+    width: float
+
+    def points(self, vs: Array, t: float) -> Array:
+        c, a, i = np.array(self.corner), np.array(self.along), np.array(self.inward)
+        found: Array = c[None, :] + vs[:, None] * a[None, :] + t * i[None, :]
+        return found
+
+    @property
+    def heading(self) -> float:
+        """The heading of a track that crosses the gable square, into the module."""
+        return math.atan2(self.inward[1], self.inward[0])
+
+
+STRIP_NEAR, STRIP_FAR = 6.0, 40.0
+"""The strip inside a gable whose average across the gable shows its tracks, mm."""
+BOOT_SCORE = 0.45
+"""A track's middle in the strip matches its family's profile at least this well (NCC)."""
+BOOT_SHARE = 0.03
+FAMILIES: tuple[tuple[float, float], ...] = (
+    (0.3, -1.0),
+    (0.0, -1.0),
+    (-0.3, -1.0),
+    (0.3, 1.0),
+    (0.0, 1.0),
+    (-0.3, 1.0),
+)
+"""The kinds of track a photo can show, as (sleeper band, rails) in the profile: light, plain or
+dark sleepers between dark or light rails. The reference photos have both: light sleepers with
+dark rails, and dark sleepers with rails darker still on cork."""
+RAIL_CONTRAST = 0.06
+"""The rails count as dark or light when they differ this much, as a share of the profile's
+range, from what lies 2 mm beside them."""
+
+
+def strip_section(gray: Floats, grid: Grid, strip: GableStrip) -> tuple[Array, Array]:
+    """The gable strip's grey across the gable, every STEP mm, averaged over the strip's depth:
+    a cross section of every track that crosses the gable."""
+    vs = np.arange(2.0, strip.width - 2.0, STEP)
+    ts = np.arange(STRIP_NEAR, STRIP_FAR, 0.5)
+    every = np.concatenate([strip.points(vs, float(t)) for t in ts])
+    px = grid.to_px(every)
+    border = float(gray[::16, ::16].mean())
+    values = sample(gray, px[:, 0], px[:, 1], border=border).reshape(len(ts), len(vs))
+    return vs, values.mean(axis=0)
+
+
+def _ncc_1d(signal: Array, template: Array) -> Array:
+    n = len(template)
+    if len(signal) < n:
+        return np.zeros(0)
+    windows = np.lib.stride_tricks.sliding_window_view(signal, n)
+    centred = windows - windows.mean(axis=1, keepdims=True)
+    t = template - template.mean()
+    norms = np.sqrt((centred * centred).sum(axis=1)) * float(np.sqrt((t * t).sum()))
+    found: Array = (centred @ t) / np.maximum(norms, 1e-6)
+    return found
+
+
+def family_profile(gauge: float, head: float, band: float, rails: float) -> Profile:
+    half = 1.25 * gauge
+    us = np.arange(-half, half + STEP / 2, STEP)
+    rail = (gauge + head) / 2
+    values = np.zeros_like(us)
+    values[np.abs(us) < 0.85 * gauge] = band
+    values[np.abs(np.abs(us) - rail) <= head / 2 + STEP / 2] = rails
+    return Profile(values.astype(np.float32), half, rail=rail)
+
+
+@dataclass(frozen=True)
+class Boot:
+    """The photo's own track, learned at its gables before the map is made."""
+
+    profile: Profile
+    centres: list[tuple[int, float]]
+    """Each track's middle found in a gable strip: the strip's index and the mm along it."""
+    rails: str | None
+    """dark, light or None: how the rails stand out, for the map's two-rail factor."""
+
+
+def _peaks(scores: Array, vs: Array, offset: float, gauge: float) -> list[tuple[float, float]]:
+    """The NCC's peaks over BOOT_SCORE, at least 1,5 gauges apart: (mm along, score)."""
+    chosen: list[tuple[float, float]] = []
+    for i in np.argsort(-scores):
+        if scores[i] < BOOT_SCORE:
+            break
+        if not 0 < i < len(scores) - 1 or scores[i] < scores[i - 1] or scores[i] < scores[i + 1]:
+            continue
+        v = float(vs[0] + i * STEP + offset)
+        if all(abs(v - other) >= 1.5 * gauge for other, _ in chosen):
+            chosen.append((v, float(scores[i])))
+    return chosen
+
+
+def bootstrap(
+    gray: Floats,
+    grid: Grid,
+    strips: list[GableStrip],
+    gauge: float,
+    head: float,
+    known: list[Profile] | None = None,
+) -> Boot | None:
+    """The track's cross section as this photo shows it (bildkedjan step 10, the photo's own
+    profile): the gables' strips are matched against each family of profile (and the profiles
+    already known), the one that matches best at its best places (the top BOOT_SHARE) gives the
+    tracks' middles, and their average cross section is the profile. None when no strip shows a
+    track."""
+    sections = [strip_section(gray, grid, s) for s in strips]
+    best: tuple[float, Profile] | None = None
+    candidates = [family_profile(gauge, head, band, rails) for band, rails in FAMILIES]
+    for candidate in [*candidates, *(known or [])]:
+        template = candidate.at(1 / STEP)
+        total = 0.0
+        for _, values in sections:
+            scores = _ncc_1d(values, template)
+            if len(scores):
+                count = max(1, int(len(scores) * BOOT_SHARE))
+                total += float(np.sort(scores)[-count:].mean())
+        if best is None or total > best[0]:
+            best = (total, candidate)
+    if best is None or best[0] <= 0:
+        return None
+    family = best[1]
+    template = family.at(1 / STEP)
+    offset = (len(template) - 1) / 2 * STEP
+    centres: list[tuple[int, float]] = []
+    for index, (vs, values) in enumerate(sections):
+        peaks = _peaks(_ncc_1d(values, template), vs, offset, gauge)
+        centres.extend((index, v) for v, _ in sorted(peaks))
+    if not centres:
+        return None
+    depth = (STRIP_NEAR + STRIP_FAR) / 2
+    points = np.array([strips[i].points(np.array([v]), depth)[0] for i, v in centres])
+    headings = np.array([strips[i].heading for i, _ in centres])
+    half = 1.25 * gauge
+    found = cross_sections(gray, grid, points, headings, half)
+    # Symmetric, as a track is, and robust: sections far from the median are another thing.
+    found = (found + found[:, ::-1]) / 2
+    median = np.median(found, axis=0)
+    centred = found - found.mean(axis=1, keepdims=True)
+    m = median - median.mean()
+    agree = (centred @ m) / np.maximum(
+        np.sqrt((centred * centred).sum(axis=1)) * float(np.sqrt((m * m).sum())), 1e-6
+    )
+    keep = agree >= 0.5
+    if keep.sum() < max(1, len(found) // 3):
+        keep = agree >= float(np.median(agree))
+    mean = found[keep].mean(axis=0)
+    rail = family.rail
+    profile = Profile(mean.astype(np.float32), half, rail=rail, learned=True)
+    return Boot(profile, [c for c, k in zip(centres, keep, strict=True) if k], rail_kind(profile))
+
+
+def rail_kind(profile: Profile) -> str | None:
+    """dark, light or None: the rails against what lies 2 mm beside them in the profile."""
+    us = np.linspace(-profile.half, profile.half, len(profile.values))
+
+    def at(u: float) -> float:
+        return float(np.interp(u, us, profile.values))
+
+    r = profile.rail
+    rail = (at(-r) + at(r)) / 2
+    beside = (at(-r - 2) + at(-r + 2) + at(r - 2) + at(r + 2)) / 4
+    spread = float(profile.values.max() - profile.values.min()) or 1.0
+    if rail < beside - RAIL_CONTRAST * spread:
+        return "dark"
+    if rail > beside + RAIL_CONTRAST * spread:
+        return "light"
+    return None
+
+
+def level_at(tracks: TrackMap, points: Array, percentile: float = 50.0) -> float:
+    """The map's median (or another percentile) at the given track middles, the best within
+    2 mm across: how strongly the map sees this photo's tracks."""
+    if not len(points):
+        return 0.0
+    found = []
+    for dy in np.arange(-2.0, 2.01, 0.5):
+        score, _ = tracks.at(points + np.array([0.0, dy]))
+        found.append(score)
+    return float(np.percentile(np.max(np.stack(found), axis=0), percentile))
 
 
 # --- The centre to a fraction of a millimetre -------------------------------------------------
@@ -302,16 +532,13 @@ def across(heading: float) -> Array:
     return np.array([-math.sin(heading), math.cos(heading)])
 
 
-def strip_peaks(
-    tracks: TrackMap, line_x: float, inward: float, y_range: tuple[float, float], gauge: float
-) -> list[float]:
-    """The tracks' positions across a gable, from the map in the strip just inside it: y in mm
-    where the map, averaged along its own direction over the strip, has its peaks over
-    TRACK_SCORE, at least 1,5 gauges apart."""
+def strip_peaks(tracks: TrackMap, strip: GableStrip, gauge: float) -> list[float]:
+    """The tracks' positions across a gable, from the map in the strip just inside it: mm along
+    the gable from Kant 1 where the map, averaged along its own direction over the strip, has
+    its peaks over TRACK_SCORE, at least 1,5 gauges apart."""
     lo, hi = GABLE_STRIP
-    middle = line_x + inward * (lo + hi) / 2
-    ys = np.arange(y_range[0], y_range[1], 0.5)
-    centres = np.stack([np.full(len(ys), middle), ys], axis=1)
+    vs = np.arange(2.0, strip.width - 2.0, 0.5)
+    centres = strip.points(vs, (lo + hi) / 2)
     _, theta = tracks.at(centres)
     ts = np.arange(-(hi - lo) / 2, (hi - lo) / 2 + 0.5, 1.0)
     points = (
@@ -319,7 +546,7 @@ def strip_peaks(
         + ts[None, :, None] * np.stack([np.cos(theta), np.sin(theta)], axis=1)[:, None, :]
     ).reshape(-1, 2)
     score, _ = tracks.at(points)
-    profile = score.reshape(len(ys), len(ts)).mean(axis=1)
+    profile = score.reshape(len(vs), len(ts)).mean(axis=1)
     found: list[float] = []
     for i in np.argsort(-profile):
         if profile[i] < TRACK_SCORE:
@@ -328,9 +555,9 @@ def strip_peaks(
             continue
         if profile[i] < profile[i - 1] or profile[i] < profile[i + 1]:
             continue
-        y = float(ys[i])
-        if all(abs(y - other) >= 1.5 * gauge for other in found):
-            found.append(y)
+        v = float(vs[i])
+        if all(abs(v - other) >= 1.5 * gauge for other in found):
+            found.append(v)
     return sorted(found)
 
 

@@ -292,7 +292,7 @@ export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, 
                 <g key={layer}>
                   {(graph.pieces ?? []).map((piece) => {
                     const shift = dragShift && drag?.kind === "piece" && drag.id === piece.id ? dragShift : null;
-                    const proposal = piece.origin?.source === "photo" && piece.origin.certainty !== "confirmed";
+                    const proposal = (piece.origin?.source === "photo" || piece.origin?.source === "sketch") && piece.origin.certainty !== "confirmed";
                     return (
                       <g key={piece.id} data-piece={layer === "cad-spar" ? piece.id : undefined} className={selectedPieces.has(piece.id) ? "cad-vald" : undefined} transform={shift ? `translate(${f(shift[0])} ${f(shift[1])})` : undefined}>
                         {segsOf(graph, piece.id).map((seg, i) => (
@@ -358,7 +358,7 @@ export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, 
                 const at = drag?.kind === "switch" && drag.info.id === info.id ? drag.to : info.at;
                 const chosen = selected?.kind === "switch" && selected.id === info.id;
                 return (
-                  <g key={info.id} className={`cad-vaxelmarkor${chosen ? " vald" : ""}${info.origin?.source === "photo" && info.origin.certainty !== "confirmed" ? " forslag" : ""}`} data-switch={info.id}>
+                  <g key={info.id} className={`cad-vaxelmarkor${chosen ? " vald" : ""}${(info.origin?.source === "photo" || info.origin?.source === "sketch") && info.origin.certainty !== "confirmed" ? " forslag" : ""}`} data-switch={info.id}>
                     <circle cx={at[0]} cy={at[1]} r={unit * 1.9} strokeWidth={unit * 0.35} />
                     {layers.numbers ? (
                       <text x={at[0]} y={at[1] + unit * 0.75} textAnchor="middle" fontSize={unit * 2}>
@@ -411,9 +411,9 @@ export function Canvas({ view, tool, layers, selected, checks, zoom = 1, onOps, 
       <p className="cad-duk-fot">
         <span>Spår totalt {(view.stats.track_length / 1000).toLocaleString("sv-SE", { maximumFractionDigits: 1 })} m</span>
         <span>{view.stats.switches === 1 ? "1 växel" : `${view.stats.switches} växlar`}</span>
-        {view.drawing.source === "photo" && view.stats.deviation ? (
+        {(view.drawing.source === "photo" || view.drawing.source === "sketch") && view.stats.deviation ? (
           <span>
-            Avviker från fotot: median {view.stats.deviation.median.toLocaleString("sv-SE")} mm, högst {view.stats.deviation.max.toLocaleString("sv-SE")} mm
+            Avviker från {view.drawing.source === "sketch" ? "skissen" : "fotot"}: median {view.stats.deviation.median.toLocaleString("sv-SE")} mm, högst {view.stats.deviation.max.toLocaleString("sv-SE")} mm
           </span>
         ) : null}
       </p>

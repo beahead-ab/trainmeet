@@ -3,7 +3,7 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-read.schema.json",
   "title": "trainmeet.cad-1.photo-read",
   "additionalProperties": true,
-  "description": "Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,\nwith or without AI.",
+  "description": "Läs av: the corners, Kant 1 and gable A as the owner confirmed them, in the preview's\npixels, with or without AI; on a sketch, the frame that is this module.",
   "properties": {
     "corners": {
       "items": {
@@ -29,6 +29,34 @@
       "minimum": 0,
       "title": "Kant1",
       "type": "integer"
+    },
+    "gable_a": {
+      "anyOf": [
+        {
+          "maximum": 3,
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Null: before Kant 1.",
+      "title": "Gable A"
+    },
+    "frame": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Frame"
     },
     "ai": {
       "default": true,

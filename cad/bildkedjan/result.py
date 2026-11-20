@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 
@@ -501,7 +502,13 @@ def report(
                 agrees=bool(gauge_agrees),
             ),
         )
-    # The switches: their points, radius and type.
+    # The switches: their points, radius and the nearest type in the library, with how far
+    # off it is and how well the switch fits the photo (AR3: no type within 10 %, or a median
+    # error over 1 mm, is antagen).
+    fits = sorted(
+        assembled.net.switches,
+        key=lambda f: assembled.net.nodes[f.node].x if f.node in assembled.net.nodes else 0.0,
+    )
     for info_number, (from_a, pm) in assembled.switch_points.items():
         sw = next(
             s
@@ -509,16 +516,27 @@ def report(
             if (s.number or s.id) == info_number
         )
         matched = switches.match(sw.radius, sw.angle, scale)
+        index = int(info_number) - 1 if info_number.isdigit() else -1
+        fit = fits[index] if 0 <= index < len(fits) else None
+        error = fit.deviation if fit is not None and math.isfinite(fit.deviation) else None
+        off = (
+            f" ({(sw.radius / matched.radius - 1) * 100:+.0f} %)".replace(".", ",")
+            if matched is not None and matched.radius and sw.radius
+            else ""
+        )
+        good = matched is not None and (error is None or error <= 1.0)
         facts.append(
             PhotoFact(
                 key=f"vaxel.{info_number}",
                 label=f"Växel {info_number}: tungspetsar från gavel A",
                 value=round(from_a, 1),
                 text=(f"R {sw.radius:.0f} mm" if sw.radius else "radien okänd")
-                + (f" · {matched.name}" if matched else " · ingen känd växeltyp"),
+                + (f" · {matched.name}{off}" if matched else " · ingen känd växeltyp inom 10 %")
+                + (f" · avviker {error:.1f} mm".replace(".", ",") if error is not None else "")
+                + ("" if good else " · antagen"),
                 plus_minus=pm,
                 source=FactSource.PHOTO,
-                certainty=Certainty.PROBABLE if matched else Certainty.UNCERTAIN,
+                certainty=Certainty.PROBABLE if good else Certainty.UNCERTAIN,
             )
         )
     for fit in assembled.net.switches:
@@ -543,6 +561,43 @@ def report(
                     topology=False,
                 )
             )
+    if measured.edges is not None and not measured.edges.round and "kurva" not in answers:
+        questions.append(
+            PhotoQuestion(
+                key="kurva",
+                kind=PhotoQuestionKind.CURVE,
+                source=CheckSource.CODE,
+                title="Kurvans kanter stämmer inte med fotot",
+                text=measured.edges.text(),
+                choices=[
+                    PhotoChoice(id="horn", text="Jag drar hörnen igen"),
+                    PhotoChoice(id="stammer", text="Måtten stämmer"),
+                ],
+                at=(measured.length / 2, width / 2),
+                topology=False,
+            )
+        )
+    way = orientation_from_gables(measured, gables)
+    if way is not None and ORIENTATION_KEY not in answers:
+        questions.append(
+            PhotoQuestion(
+                key=ORIENTATION_KEY,
+                kind=PhotoQuestionKind.ORIENTATION,
+                source=CheckSource.CODE,
+                title="Modulen ligger åt andra hållet",
+                text=(
+                    "Spåren vid gavlarna stämmer med modulens gavlar om "
+                    + _way_text(way)
+                    + ". Det kostar inget att vända: fotot läses inte om."
+                ),
+                choices=[
+                    PhotoChoice(id="vand", text="Vänd som gavlarna visar"),
+                    PhotoChoice(id="behall", text="Behåll Kant 1 och gavel A"),
+                ],
+                at=(measured.length / 2, width / 2),
+                topology=False,
+            )
+        )
     connections = sorted(decision.connections)
     agreed = all(decision.certainty.get(p) == Certainty.CERTAIN for p in connections)
     facts.append(
@@ -577,5 +632,70 @@ def report(
     )
 
 
+ORIENTATION_KEY = "orientering"
+
+
+def _way_text(way: Any) -> str:
+    if way.ends and way.sides:
+        return (
+            "modulen vänds ett halvt varv: Kant 1 är den andra långsidan och gavel A den andra "
+            "gaveln"
+        )
+    if way.ends:
+        return "gavel A är den andra gaveln"
+    return "Kant 1 är den andra långsidan"
+
+
+def orientation_from_gables(measured: Measured, gables: list[Gable]) -> Any:
+    """The way round the module's known gables show, when it is clearly another than the one
+    read (bildkedjan step 13: Kant 1 ur profilen); None otherwise."""
+    from cad.bildkedjan import orient
+
+    known_a = list(gables[0].tracks) if gables else []
+    known_b = list(gables[1].tracks) if len(gables) > 1 else []
+    if not known_a and not known_b:
+        return None
+    found_a, found_b = orient.gable_positions(measured)
+    derived = orient.derive(
+        found_a, found_b, measured.setup.width_a, measured.setup.width_b, known_a, known_b
+    )
+    if not derived.decided or derived.way == orient.Way(False, False):
+        return None
+    return derived.way
+
+
 def scale_of(measured: Measured) -> Scale:
     return measured.setup.scale
+
+
+# --- Another Kant 1 or gable A after reading (part c2) ------------------------------------------
+
+
+def _ordered(a: str, b: str) -> tuple[str, str]:
+    return (a, b) if a < b else (b, a)
+
+
+def relabel_reading(
+    reading: AiReading | None, labels: dict[str, str], nodes: dict[str, str]
+) -> AiReading | None:
+    """The AI's answer with the ends and the enlarged parts named as in the new frame: the same
+    answer, never asked again."""
+    if reading is None:
+        return None
+    pairs = {_ordered(labels.get(a, a), labels.get(b, b)) for a, b in reading.pairs}
+    found = {nodes.get(name, name): answer for name, answer in reading.nodes.items()}
+    return AiReading(pairs, found, reading.note)
+
+
+def relabel_key(key: str, labels: dict[str, str], nodes: dict[str, str]) -> str:
+    """A question's key in the frame read, as the new frame names it."""
+    from cad.bildkedjan.questions import pair_of
+
+    pair = pair_of(key)
+    if pair is not None:
+        upper = {k.upper(): v for k, v in labels.items()}
+        return pair_key(_ordered(upper.get(pair[0], pair[0]), upper.get(pair[1], pair[1])))
+    if key.startswith("nod:"):
+        name = key.removeprefix("nod:").upper()
+        return node_key(nodes.get(name, name))
+    return key

@@ -28,11 +28,18 @@ SHARE_GAUGES = 0.18
 """Two paths closer than this many gauges are on the same track (3 mm in H0)."""
 TIDY_MM = 8
 """Shorter partings and joinings than this are noise and are smoothed away."""
+BUBBLE_MM = 250
+BUBBLE_GAUGES = 0.6
 CROSSING_SPAN_MM = 160.0
 """Two groups joined for less than this, that part with their sides swapped, crossed."""
 FIT_DEPTH_GAUGES = 0.75
 """The leg's distance from the straight is fitted up to this many gauges."""
 FIT_MIN_DEPTH = 0.4
+MIN_PIECE_MM = 10.0
+POINTS_BEHIND_MM = 200.0
+"""How far behind where the legs part a switch's points can lie (R 2200: about 120 mm)."""
+MAX_RADIUS_GAUGES = 400
+"""A fitted radius over this many gauges (6,6 m in H0) is no switch's: the fit found nothing."""
 
 
 @dataclass
@@ -127,8 +134,31 @@ def _together(paths: list[Path], gauge: float) -> dict[tuple[int, int], tuple[in
             yp = np.interp(xs, p.xs, p.ys)
             yq = np.interp(xs, q.xs, q.ys)
             slope = np.gradient((yp + yq) / 2)
-            close = np.abs(yp - yq) * np.cos(np.arctan(slope)) < limit
-            found[(i, j)] = (lo, _tidy(close))
+            apart = np.abs(yp - yq) * np.cos(np.arctan(slope))
+            close = _tidy(apart < limit)
+            found[(i, j)] = (lo, _bubbles(close, apart, gauge))
+    return found
+
+
+def _bubbles(close: Array, apart: Array, gauge: float) -> Array:
+    """Two paths on one track that part for a while and come together again, never more than
+    BUBBLE_GAUGES apart, wandered: at low resolution a path's middle wanders a few millimetres
+    where the map is weak. Two tracks that part and meet again (a loop) lie a track apart."""
+    found = close.copy()
+    start = None
+    for i in range(len(found) + 1):
+        inside = i < len(found) and not found[i]
+        if inside and start is None:
+            start = i
+        elif not inside and start is not None:
+            if (
+                start > 0
+                and i < len(found)
+                and i - start <= BUBBLE_MM
+                and float(apart[start:i].max()) <= BUBBLE_GAUGES * gauge
+            ):
+                found[start:i] = True
+            start = None
     return found
 
 
@@ -354,12 +384,30 @@ def _switch(
     ]
     straight, diverging = (legs[0], legs[1]) if turns[0] <= turns[1] else (legs[1], legs[0])
     node.kind = "switch"
-    fit = fit_points(paths[straight.pid], paths[diverging.pid], node.x, toward, gauge)
-    if fit is not None:
+    # The leg's own piece, and the trunk only as far as the points can lie behind where the
+    # legs part: further on, the leg's path may leave the trunk again at another switch.
+    if toward == "B":
+        reach = (
+            max(net.nodes[trunk.a].x, node.x - POINTS_BEHIND_MM),
+            net.nodes[diverging.b].x,
+        )
+    else:
+        reach = (
+            net.nodes[diverging.a].x,
+            min(net.nodes[trunk.b].x, node.x + POINTS_BEHIND_MM),
+        )
+    fit = fit_points(paths[straight.pid], paths[diverging.pid], node.x, toward, gauge, reach)
+    if fit is not None and fit[1] <= MAX_RADIUS_GAUGES * gauge and abs(fit[0] - node.x) <= 400:
         s0_x, radius, deviation, count = fit
+        # The points never on top of the trunk's other end: a switch at a gable lies inside.
+        if toward == "B":
+            s0_x = max(s0_x, net.nodes[trunk.a].x + MIN_PIECE_MM)
+        else:
+            s0_x = min(s0_x, net.nodes[trunk.b].x - MIN_PIECE_MM)
         node.x = s0_x
         node.y = _y_at(paths[straight.pid], s0_x)
     else:
+        # No fit, or a radius no switch has: where the legs part, the radius unknown (antagen).
         radius, deviation, count = None, math.inf, 0
     net.switches.append(
         SwitchFit(node.id, trunk.id, straight.id, diverging.id, toward, radius, deviation, count)
@@ -367,17 +415,25 @@ def _switch(
 
 
 def fit_points(
-    straight: Path, leg: Path, x_part: float, toward: str, gauge: float
+    straight: Path,
+    leg: Path,
+    x_part: float,
+    toward: str,
+    gauge: float,
+    reach: tuple[float, float] | None = None,
 ) -> tuple[float, float, float, int] | None:
     """The points (as x) and the radius from d = (s - s0)² / 2R: the leg's distance from the
     straight path, as the square root, grows linearly from the points. The fit takes the leg
     from where it is FIT_MIN_DEPTH mm off to FIT_DEPTH_GAUGES gauges off, and trims what lies
-    more than two deviations from the line."""
+    more than two deviations from the line. reach: the x the leg's own piece and the trunk
+    span; beyond it the leg's path is another track's (a path runs on through more switches)."""
     sign = 1.0 if toward == "B" else -1.0
     span = 400.0
     lo, hi = sorted((x_part - sign * span, x_part + sign * span))
     lo = max(lo, straight.xs[0], leg.xs[0])
     hi = min(hi, straight.xs[-1], leg.xs[-1])
+    if reach is not None:
+        lo, hi = max(lo, reach[0]), min(hi, reach[1])
     if hi - lo < 20:
         return None
     xs = np.arange(lo, hi + 1, 1.0)

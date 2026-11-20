@@ -2085,6 +2085,103 @@
         ]
       }
     },
+    "/api/cad/1/photos/{job}/orientation": {
+      "post": {
+        "operationId": "cadOrientPhoto",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.photo-job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "CAD säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.cad-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.cad-1.photo-orientation"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "job",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/cad/1/photos/{job}/answers": {
       "post": {
         "operationId": "cadPhotoAnswers",
@@ -4563,7 +4660,8 @@
         "enum": [
           "measures",
           "drawn",
-          "photo"
+          "photo",
+          "sketch"
         ],
         "title": "DrawingSource",
         "type": "string"
@@ -4643,7 +4741,7 @@
       },
       "trainmeet.cad-1.module.DrawnLine": {
         "additionalProperties": true,
-        "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning\nmakes it LINE and ARC again when its level changes, and the deviation is measured from it.",
+        "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo or the\nsketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is\nmeasured from it.",
         "properties": {
           "piece": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -4673,7 +4771,8 @@
             "default": "hand",
             "enum": [
               "hand",
-              "photo"
+              "photo",
+              "sketch"
             ],
             "title": "Source",
             "type": "string"
@@ -5411,7 +5510,7 @@
       },
       "trainmeet.cad-1.module.PhotoGrid": {
         "additionalProperties": true,
-        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
         "properties": {
           "x0": {
             "title": "X0",
@@ -5435,6 +5534,23 @@
             "minimum": 1,
             "title": "Height",
             "type": "integer"
+          },
+          "matrix": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 6,
+                "minItems": 6,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Matrix"
           }
         },
         "required": [
@@ -9212,7 +9328,8 @@
         "enum": [
           "measures",
           "drawn",
-          "photo"
+          "photo",
+          "sketch"
         ],
         "title": "DrawingSource",
         "type": "string"
@@ -9325,7 +9442,7 @@
       },
       "trainmeet.cad-1.drawing-view.DrawnLine": {
         "additionalProperties": true,
-        "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning\nmakes it LINE and ARC again when its level changes, and the deviation is measured from it.",
+        "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo or the\nsketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is\nmeasured from it.",
         "properties": {
           "piece": {
             "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -9355,7 +9472,8 @@
             "default": "hand",
             "enum": [
               "hand",
-              "photo"
+              "photo",
+              "sketch"
             ],
             "title": "Source",
             "type": "string"
@@ -9974,7 +10092,7 @@
       },
       "trainmeet.cad-1.drawing-view.PhotoGrid": {
         "additionalProperties": true,
-        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
         "properties": {
           "x0": {
             "title": "X0",
@@ -9998,6 +10116,23 @@
             "minimum": 1,
             "title": "Height",
             "type": "integer"
+          },
+          "matrix": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 6,
+                "minItems": 6,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Matrix"
           }
         },
         "required": [
@@ -12483,7 +12618,7 @@
       },
       "trainmeet.cad-1.photo-start": {
         "additionalProperties": true,
-        "description": "The form's data part: a new module from the photo, or a photo for a module.",
+        "description": "The form's data part: a new module from the photo, or a photo for a module. A curve\nmodule comes with the chord and sagitta measured on track 1, and track 1's distance from\nKant 1 at gable A (part c2, bildkedjan step 6). A sketch (profile skiss) needs the module's\nlength: its frame gives the sketch its scale.",
         "properties": {
           "module": {
             "anyOf": [
@@ -12497,6 +12632,15 @@
             ],
             "default": null,
             "title": "Module"
+          },
+          "profile": {
+            "default": "modulfoto",
+            "enum": [
+              "modulfoto",
+              "skiss"
+            ],
+            "title": "Profile",
+            "type": "string"
           },
           "name": {
             "anyOf": [
@@ -12520,7 +12664,8 @@
             "default": "straight",
             "enum": [
               "straight",
-              "trapezoid"
+              "trapezoid",
+              "curve"
             ],
             "title": "Kind",
             "type": "string"
@@ -12583,6 +12728,55 @@
             "default": null,
             "title": "Offset"
           },
+          "chord": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A curve's chord on track 1.",
+            "title": "Chord"
+          },
+          "sagitta": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A curve's sagitta on track 1.",
+            "title": "Sagitta"
+          },
+          "track1": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "maximum": 20000,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Track 1 from Kant 1 at gable A.",
+            "title": "Track1"
+          },
+          "edge": {
+            "$ref": "#/components/schemas/trainmeet.cad-1.photo-start.EdgeSide",
+            "default": "outer"
+          },
           "keep_original": {
             "default": false,
             "title": "Keep Original",
@@ -12604,6 +12798,15 @@
         },
         "title": "PhotoStart",
         "type": "object"
+      },
+      "trainmeet.cad-1.photo-start.EdgeSide": {
+        "description": "Which edge of a curve module is Kant 1.",
+        "enum": [
+          "outer",
+          "inner"
+        ],
+        "title": "EdgeSide",
+        "type": "string"
       },
       "trainmeet.cad-1.photo-start.Scale": {
         "description": "The module's scale (CAD10, CAD12).",
@@ -12627,6 +12830,16 @@
           "module": {
             "format": "uuid",
             "title": "Module",
+            "type": "string"
+          },
+          "profile": {
+            "default": "modulfoto",
+            "description": "A photo of the module, or a sketch (part c2).",
+            "enum": [
+              "modulfoto",
+              "skiss"
+            ],
+            "title": "Profile",
             "type": "string"
           },
           "state": {
@@ -12680,6 +12893,28 @@
               }
             ],
             "default": null
+          },
+          "frames": {
+            "description": "A sketch's module frames; corners is the chosen one.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.cad-1.photo-job.PhotoFrame"
+            },
+            "title": "Frames",
+            "type": "array"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The sketch's frame read.",
+            "title": "Frame"
           },
           "quality": {
             "anyOf": [
@@ -12955,7 +13190,8 @@
           "owner",
           "norm",
           "ai",
-          "code"
+          "code",
+          "sketch"
         ],
         "title": "FactSource",
         "type": "string"
@@ -13072,7 +13308,7 @@
       },
       "trainmeet.cad-1.photo-job.PhotoCorners": {
         "additionalProperties": true,
-        "description": "The module's corners in the preview's pixels (the photo, or the photos stitched, made\nsmaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to\ncorner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the\nmodule lies to the right.",
+        "description": "The module's corners in the preview's pixels (the photo, or the photos stitched, made\nsmaller), clockwise as seen, the side that is Kant 1 and the side that is gable A: side i\nruns from corner i to corner i + 1. Gable A is one of the two sides beside Kant 1: the one\nbefore it is the module as CAD draws it seen from above (from gable A along Kant 1 the\nmodule lies to the right); the one after it is the module mirrored (part c2).",
         "properties": {
           "corners": {
             "items": {
@@ -13099,6 +13335,21 @@
             "title": "Kant1",
             "type": "integer"
           },
+          "gable_a": {
+            "anyOf": [
+              {
+                "maximum": 3,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null: the side before Kant 1 (part c1).",
+            "title": "Gable A"
+          },
           "found": {
             "description": "Code found them; false: a guess to drag into place.",
             "title": "Found",
@@ -13108,6 +13359,27 @@
             "description": "Every side's edge fits its line within 2 px.",
             "title": "Certain",
             "type": "boolean"
+          },
+          "derived": {
+            "default": false,
+            "description": "Kant 1 and gable A derived from the gables' tracks and the module's known gables (an asymmetric profile), shown for the owner to confirm.",
+            "title": "Derived",
+            "type": "boolean"
+          },
+          "why": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why they were derived, or why the owner must tap them.",
+            "title": "Why"
           }
         },
         "required": [
@@ -13189,6 +13461,43 @@
         "title": "PhotoFact",
         "type": "object"
       },
+      "trainmeet.cad-1.photo-job.PhotoFrame": {
+        "additionalProperties": true,
+        "description": "A module's frame on a sketch (profile Skiss): its four corners in the preview's pixels,\nclockwise, and the long side the chain takes as Kant 1.",
+        "properties": {
+          "corners": {
+            "items": {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            "maxItems": 4,
+            "minItems": 4,
+            "title": "Corners",
+            "type": "array"
+          },
+          "kant1": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Kant1",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "corners",
+          "kant1"
+        ],
+        "title": "PhotoFrame",
+        "type": "object"
+      },
       "trainmeet.cad-1.photo-job.PhotoGate": {
         "additionalProperties": true,
         "description": "One row of the quality gate (bildkedjan step 3).",
@@ -13200,7 +13509,8 @@
               "sharpness",
               "clipped",
               "corners",
-              "stitch"
+              "stitch",
+              "curve"
             ],
             "title": "Key",
             "type": "string"
@@ -13230,7 +13540,7 @@
       },
       "trainmeet.cad-1.photo-job.PhotoGrid": {
         "additionalProperties": true,
-        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+        "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
         "properties": {
           "x0": {
             "title": "X0",
@@ -13254,6 +13564,23 @@
             "minimum": 1,
             "title": "Height",
             "type": "integer"
+          },
+          "matrix": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "maxItems": 6,
+                "minItems": 6,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Matrix"
           }
         },
         "required": [
@@ -13638,7 +13965,9 @@
           "scale",
           "gauge",
           "switch_fit",
-          "sleepers"
+          "sleepers",
+          "curve",
+          "orientation"
         ],
         "title": "PhotoQuestionKind",
         "type": "string"
@@ -13758,7 +14087,7 @@
       },
       "trainmeet.cad-1.photo-read": {
         "additionalProperties": true,
-        "description": "Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,\nwith or without AI.",
+        "description": "Läs av: the corners, Kant 1 and gable A as the owner confirmed them, in the preview's\npixels, with or without AI; on a sketch, the frame that is this module.",
         "properties": {
           "corners": {
             "items": {
@@ -13785,6 +14114,34 @@
             "title": "Kant1",
             "type": "integer"
           },
+          "gable_a": {
+            "anyOf": [
+              {
+                "maximum": 3,
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Null: before Kant 1.",
+            "title": "Gable A"
+          },
+          "frame": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Frame"
+          },
           "ai": {
             "default": true,
             "title": "Ai",
@@ -13801,6 +14158,30 @@
           "kant1"
         ],
         "title": "PhotoRead",
+        "type": "object"
+      },
+      "trainmeet.cad-1.photo-orientation": {
+        "additionalProperties": true,
+        "description": "Another Kant 1 or gable A for a photo already read: the same measuring, mirrored or\nturned, at no cost (part c2).",
+        "properties": {
+          "kant1": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Kant1",
+            "type": "integer"
+          },
+          "gable_a": {
+            "maximum": 3,
+            "minimum": 0,
+            "title": "Gable A",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "kant1",
+          "gable_a"
+        ],
+        "title": "PhotoOrientation",
         "type": "object"
       },
       "trainmeet.cad-1.photo-answers": {

@@ -56,7 +56,9 @@ describe("Modulens sida", () => {
     const drawing = page({ tab: "ritning" });
     expect(drawing).toContain("Spårgrafen ur måtten · 2 spårbitar · 4 noder");
     expect(drawing).toContain('aria-label="Kurva 30° · K2 ovanifrån"');
-    expect(page({ tab: "foto" })).toContain("Foto och kontroll tar raka moduler och trapetser än; kurvmoduler kommer.");
+    // A curve module takes a photo too (part c2): its chord and sagitta are the module's.
+    expect(page({ tab: "foto" })).toContain("Ladda upp ett foto av modulen");
+    expect(page({ tab: "foto" })).not.toContain("kurvmoduler kommer");
     expect(page({ module: STATION, tab: "foto" })).toContain("Modulen är inte fotad än");
     expect(page({ module: STATION, tab: "foto" })).toContain("Ladda upp ett foto av modulen");
     expect(page({ tab: "landskap" })).toContain("Kommer med landskapet.");

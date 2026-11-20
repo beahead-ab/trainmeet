@@ -408,7 +408,8 @@
       "enum": [
         "measures",
         "drawn",
-        "photo"
+        "photo",
+        "sketch"
       ],
       "title": "DrawingSource",
       "type": "string"
@@ -521,7 +522,7 @@
     },
     "DrawnLine": {
       "additionalProperties": true,
-      "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning\nmakes it LINE and ARC again when its level changes, and the deviation is measured from it.",
+      "description": "The line a piece was drawn from, by hand (or, in part c, traced in the photo or the\nsketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is\nmeasured from it.",
       "properties": {
         "piece": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -551,7 +552,8 @@
           "default": "hand",
           "enum": [
             "hand",
-            "photo"
+            "photo",
+            "sketch"
           ],
           "title": "Source",
           "type": "string"
@@ -1170,7 +1172,7 @@
     },
     "PhotoGrid": {
       "additionalProperties": true,
-      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm.",
+      "description": "Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at\n(x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner\nchose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm\nit was measured in to the module's.",
       "properties": {
         "x0": {
           "title": "X0",
@@ -1194,6 +1196,23 @@
           "minimum": 1,
           "title": "Height",
           "type": "integer"
+        },
+        "matrix": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 6,
+              "minItems": 6,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Matrix"
         }
       },
       "required": [

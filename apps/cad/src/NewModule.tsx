@@ -1,7 +1,7 @@
-// Ny modul: four ways in, of which Bara mått and Ladda upp ett foto work now; the phone and the
-// sketch say when they come (CAD-01).
+// Ny modul: four ways in, of which Bara mått, Ladda upp ett foto and Från en skiss work now; the
+// phone says when it comes (CAD-01).
 import { linkClick, type Navigate } from "@trainmeet/design";
-import { formPath, PATHS, UPLOAD_PATH } from "./routes";
+import { formPath, PATHS, SKETCH_PATH, UPLOAD_PATH } from "./routes";
 
 export function NewModulePage({ tokens, navigate }: { tokens?: number | null; navigate?: Navigate }) {
   return (
@@ -44,13 +44,18 @@ export function NewModulePage({ tokens, navigate }: { tokens?: number | null; na
             </a>
           </div>
         </article>
-        <article className="cad-kort cad-kommer">
+        <article className="cad-kort cad-vag-aktiv" id="fran-skiss">
           <h2>Från en skiss</h2>
           <p>En handritad spårplan med modulramarna utritade. Skalan tas från modulens längd. Måtten blir ungefärliga tills du fotar.</p>
           <p className="cad-taggar">
-            <span className="cad-tagg">12 tokens per bild</span> <span className="cad-tagg gul">± 20 mm</span>
+            <span className="cad-tagg">12 tokens per skiss</span> <span className="cad-tagg gron">Utan AI gratis</span>{" "}
+            <span className="cad-tagg gul">± 20 mm</span>
           </p>
-          <p className="cad-snart">Kommer i nästa steg av bildkedjan, med Ladda upp ritning i Studio.</p>
+          <div className="cad-knapprad">
+            <a className="tm-knapp primar" href={SKETCH_PATH} onClick={linkClick(navigate, SKETCH_PATH)}>
+              Ladda upp skiss
+            </a>
+          </div>
         </article>
         <article className="cad-kort cad-vag-aktiv" id="bara-matt">
           <h2>Bara mått</h2>

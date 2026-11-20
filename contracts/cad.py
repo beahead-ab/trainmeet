@@ -818,15 +818,18 @@ class DrawingSource(StrEnum):
     """Ritad: drawn or changed in Ritningen."""
     PHOTO = "photo"
     """AI-förslag from the photo (part c)."""
+    SKETCH = "sketch"
+    """Förslag from a hand-drawn sketch, ± 20 mm (part c2)."""
 
 
 class DrawnLine(Contract):
-    """The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
-    makes it LINE and ARC again when its level changes, and the deviation is measured from it."""
+    """The line a piece was drawn from, by hand (or, in part c, traced in the photo or the
+    sketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is
+    measured from it."""
 
     piece: Id
     points: list[Point] = Field(min_length=2, max_length=4000)
-    source: Literal["hand", "photo"] = "hand"
+    source: Literal["hand", "photo", "sketch"] = "hand"
 
 
 class IdChange(Contract):
@@ -1110,13 +1113,16 @@ class DrawingStats(Contract):
 
 class PhotoGrid(Contract):
     """Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
-    (x0, y0) mm, ppm px per mm."""
+    (x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner
+    chose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm
+    it was measured in to the module's."""
 
     x0: float
     y0: float
     ppm: float = Field(gt=0)
     width: int = Field(ge=1)
     height: int = Field(ge=1)
+    matrix: list[float] | None = Field(default=None, min_length=6, max_length=6)
 
 
 class PhotoLayer(Contract):
@@ -1385,13 +1391,17 @@ class ModuleRemoved(Contract):
     id: UUID
 
 
-# --- The photo chain, profile Modulfoto (part c1) ------------------------------------------
+# --- The photo chain, profiles Modulfoto and Skiss (parts c1 and c2) -------------------------
 #
 #     GET    /api/cad/1/photos/consent?module=                 PhotoConsent
 #     POST   /api/cad/1/photos                                 form: data PhotoStart, images
-#                                                              1–4 photos -> PhotoJob, 201
+#                                                              1–4 photos, or one sketch
+#                                                              -> PhotoJob, 201
 #     GET    /api/cad/1/photos/{job}                           PhotoJob
 #     POST   /api/cad/1/photos/{job}/read                      PhotoRead -> PhotoJob
+#     POST   /api/cad/1/photos/{job}/orientation               PhotoOrientation -> PhotoJob:
+#                                                              another Kant 1 or gable A after
+#                                                              reading, at no cost (part c2)
 #     POST   /api/cad/1/photos/{job}/answers                   PhotoAnswers -> PhotoJob
 #     POST   /api/cad/1/photos/{job}/questions/{key}/closeup   form: data PhotoCloseup, images
 #                                                              one photo -> PhotoJob
@@ -1430,7 +1440,7 @@ class PhotoLevel(StrEnum):
 class PhotoGate(Contract):
     """One row of the quality gate (bildkedjan step 3)."""
 
-    key: Literal["resolution", "tilt", "sharpness", "clipped", "corners", "stitch"]
+    key: Literal["resolution", "tilt", "sharpness", "clipped", "corners", "stitch", "curve"]
     level: PhotoLevel
     value: float
     text: Text
@@ -1445,14 +1455,34 @@ class PhotoQuality(Contract):
 
 class PhotoCorners(Contract):
     """The module's corners in the preview's pixels (the photo, or the photos stitched, made
-    smaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to
-    corner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the
-    module lies to the right."""
+    smaller), clockwise as seen, the side that is Kant 1 and the side that is gable A: side i
+    runs from corner i to corner i + 1. Gable A is one of the two sides beside Kant 1: the one
+    before it is the module as CAD draws it seen from above (from gable A along Kant 1 the
+    module lies to the right); the one after it is the module mirrored (part c2)."""
 
     corners: list[Point] = Field(min_length=4, max_length=4)
     kant1: int = Field(ge=0, le=3)
+    gable_a: int | None = Field(
+        default=None, ge=0, le=3, description="Null: the side before Kant 1 (part c1)."
+    )
     found: bool = Field(description="Code found them; false: a guess to drag into place.")
     certain: bool = Field(description="Every side's edge fits its line within 2 px.")
+    derived: bool = Field(
+        default=False,
+        description="Kant 1 and gable A derived from the gables' tracks and the module's known "
+        "gables (an asymmetric profile), shown for the owner to confirm.",
+    )
+    why: Text | None = Field(
+        default=None, description="Why they were derived, or why the owner must tap them."
+    )
+
+
+class PhotoFrame(Contract):
+    """A module's frame on a sketch (profile Skiss): its four corners in the preview's pixels,
+    clockwise, and the long side the chain takes as Kant 1."""
+
+    corners: list[Point] = Field(min_length=4, max_length=4)
+    kant1: int = Field(ge=0, le=3)
 
 
 class FactSource(StrEnum):
@@ -1463,6 +1493,8 @@ class FactSource(StrEnum):
     NORM = "norm"
     AI = "ai"
     CODE = "code"
+    SKETCH = "sketch"
+    """Read from a hand-drawn sketch: ± 20 mm until the owner measures (part c2)."""
 
 
 class PhotoFact(Contract):
@@ -1515,6 +1547,11 @@ class PhotoQuestionKind(StrEnum):
     """The switch's fit lies more than 1 mm from the photo."""
     SLEEPERS = "sleepers"
     """The sleepers' spacing differs on straight and slanting tracks."""
+    CURVE = "curve"
+    """A curve module's edges are no circular arcs once straightened: the corners or the
+    chord and sagitta are wrong (part c2)."""
+    ORIENTATION = "orientation"
+    """The gables' tracks show the module the other way round than Kant 1 and gable A say."""
 
 
 class PhotoQuestion(Contract):
@@ -1608,6 +1645,9 @@ class PhotoJob(Contract):
 
     id: UUID
     module: UUID
+    profile: Literal["modulfoto", "skiss"] = Field(
+        default="modulfoto", description="A photo of the module, or a sketch (part c2)."
+    )
     state: PhotoJobState
     progress: int = Field(ge=0, le=100)
     step: Text = Field(description="What it does now, in Swedish.")
@@ -1617,6 +1657,10 @@ class PhotoJob(Contract):
         default=None, description="The photos as one, for the corners."
     )
     corners: PhotoCorners | None = None
+    frames: list[PhotoFrame] = Field(
+        default_factory=list, description="A sketch's module frames; corners is the chosen one."
+    )
+    frame: int | None = Field(default=None, ge=0, description="The sketch's frame read.")
     quality: PhotoQuality | None = None
     length: float | None = None
     length_plus_minus: float | None = None
@@ -1642,28 +1686,46 @@ class PhotoJob(Contract):
 
 
 class PhotoStart(Contract):
-    """The form's data part: a new module from the photo, or a photo for a module."""
+    """The form's data part: a new module from the photo, or a photo for a module. A curve
+    module comes with the chord and sagitta measured on track 1, and track 1's distance from
+    Kant 1 at gable A (part c2, bildkedjan step 6). A sketch (profile skiss) needs the module's
+    length: its frame gives the sketch its scale."""
 
     module: UUID | None = None
+    profile: Literal["modulfoto", "skiss"] = "modulfoto"
     name: Name | None = None
     scale: Scale = Scale.H0
-    kind: Literal["straight", "trapezoid"] = "straight"
+    kind: Literal["straight", "trapezoid", "curve"] = "straight"
     width: Mm | None = Field(default=None, description="Gable A's width; null: the module's.")
     width_b: Mm | None = None
     length: Mm | None = Field(default=None, description="Null: the photo gives it.")
     offset: float | None = Field(default=None, ge=-20_000, le=20_000)
+    chord: Mm | None = Field(default=None, description="A curve's chord on track 1.")
+    sagitta: Mm | None = Field(default=None, description="A curve's sagitta on track 1.")
+    track1: Mm | None = Field(default=None, description="Track 1 from Kant 1 at gable A.")
+    edge: EdgeSide = EdgeSide.OUTER
     keep_original: bool = False
     owner: UUID | None = None
 
 
 class PhotoRead(Contract):
-    """Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,
-    with or without AI."""
+    """Läs av: the corners, Kant 1 and gable A as the owner confirmed them, in the preview's
+    pixels, with or without AI; on a sketch, the frame that is this module."""
 
     corners: list[Point] = Field(min_length=4, max_length=4)
     kant1: int = Field(ge=0, le=3)
+    gable_a: int | None = Field(default=None, ge=0, le=3, description="Null: before Kant 1.")
+    frame: int | None = Field(default=None, ge=0)
     ai: bool = True
     consent: bool = False
+
+
+class PhotoOrientation(Contract):
+    """Another Kant 1 or gable A for a photo already read: the same measuring, mirrored or
+    turned, at no cost (part c2)."""
+
+    kant1: int = Field(ge=0, le=3)
+    gable_a: int = Field(ge=0, le=3)
 
 
 class PhotoAnswer(Contract):

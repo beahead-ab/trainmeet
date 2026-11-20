@@ -19,10 +19,13 @@ the photo.
 
 from __future__ import annotations
 
+import itertools
 import math
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 
 import numpy as np
+from numpy.typing import NDArray
 
 from cad import curves, lock, smoothing, switches
 from cad.bildkedjan.network import Edge, Network, Node
@@ -54,6 +57,15 @@ START_MM = 40.0
 LEG_REACH_MM = 400.0
 """How much of a diverging leg decides its arc, mm."""
 """The fit samples the path every 4 mm."""
+LOOSER: ContextVar[float] = ContextVar("looser", default=1.0)
+CURVED: ContextVar[bool] = ContextVar("curved", default=False)
+"""A curve module (bildkedjan step 6): a track through it is first tried as one arc."""
+ONE_ARC_MM = (2.5, 1.0)
+"""A track in a curve module is drawn as one arc when the photo's path lies within this of it:
+the largest distance and the RMS, mm (times LOOSER at low resolution)."""
+ONE_ARC_MIN_MM = 100.0
+"""How much wider the fits' tolerances are for this photo: at low resolution the photo's paths
+wander as much as the tolerances are widened (measures.Quality.widen)."""
 CLEAN_WINDOW = 11
 CLEAN_MM = 0.5
 """A point further than this from the median of its neighbours found the wrong rail."""
@@ -141,7 +153,7 @@ def _clean(points: list[Point]) -> list[Point]:
     half = CLEAN_WINDOW // 2
     padded = np.pad(ys, half, mode="edge")
     median = np.median(np.lib.stride_tricks.sliding_window_view(padded, CLEAN_WINDOW), axis=1)
-    far = np.abs(ys - median) > CLEAN_MM
+    far = np.abs(ys - median) > CLEAN_MM * LOOSER.get()
     far[0] = far[-1] = False
     return [(p[0], float(m) if f else p[1]) for p, m, f in zip(points, median, far, strict=True)]
 
@@ -174,9 +186,28 @@ def build(
     paths: list[Path],
     certainty: dict[tuple[str, str], Certainty],
     gable_tracks: dict[str, tuple[GableEnd, int]],
+    looser: float = 1.0,
+    curved: bool = False,
 ) -> Built:
     """The drawing's graph made from the network: nodes, pieces and switches, with the photo
-    as their origin. drawing comes with the module's measures and no pieces."""
+    as their origin. drawing comes with the module's measures and no pieces. looser widens the
+    fits' tolerances (low resolution); curved: a curve module, whose tracks are arcs."""
+    token = LOOSER.set(max(1.0, looser))
+    bent = CURVED.set(curved)
+    try:
+        return _build(drawing, net, paths, certainty, gable_tracks)
+    finally:
+        CURVED.reset(bent)
+        LOOSER.reset(token)
+
+
+def _build(
+    drawing: Drawing,
+    net: Network,
+    paths: list[Path],
+    certainty: dict[tuple[str, str], Certainty],
+    gable_tracks: dict[str, tuple[GableEnd, int]],
+) -> Built:
     limits = switches.limits(drawing.scale)
     min_radius = limits.switch_min_radius
     nodes = net.nodes
@@ -196,7 +227,7 @@ def build(
             hosts = [_host(net, found, n) for n in needed]
             if any(h is None or id(h) not in fitted for h in hosts):
                 continue
-            route.segs = _fit(route, paths, nodes, found, net, min_radius)
+            route.segs = _sane(_fit(route, paths, nodes, found, net, min_radius), route, min_radius)
             fitted[id(route)] = route
             pending.remove(route)
         if not pending:
@@ -274,6 +305,24 @@ def build(
     return Built(drawing, found, deviation)
 
 
+SANE_LENGTH = (0.8, 1.25)
+"""A fitted route's length against its photo path's: outside this it fitted something else."""
+
+
+def _sane(segs: list[Seg], route: Route, min_radius: float) -> list[Seg]:
+    """The fitted route, or, when the fit ran off (a template that could not close, at low
+    resolution), the photo's path fitted freely between the same ends."""
+    photo = route.photo
+    if len(photo) < 2:
+        return segs
+    along = float(sum(math.dist(a, b) for a, b in itertools.pairwise(photo)))
+    total = curves.path_length(segs) if segs else 0.0
+    lo, hi = SANE_LENGTH
+    if along > 0 and lo * along <= total <= hi * along:
+        return segs
+    return _fit_free(photo, min_radius)
+
+
 def _host(net: Network, found: list[Route], node: str) -> Route | None:
     """The route a switch's straight leg lies on."""
     fit = next(s for s in net.switches if s.node == node)
@@ -298,7 +347,8 @@ def _fit_free(points: list[Point], min_radius: float, head: float | None = None)
     the track, such as where two tracks overlap and the profile finds the other one."""
     if head is None:
         head = _start_heading(points)
-    loose = smoothing.fit(points, min_radius, LOOSE_DEVIATION, head, FIT_STEP)
+    looser = LOOSER.get()
+    loose = smoothing.fit(points, min_radius, LOOSE_DEVIATION * looser, head, FIT_STEP)
     if loose:
         off = np.array([curves.distance(loose, p) for p in points])
         spread = float(np.median(off)) * 1.4826 + 0.05
@@ -307,7 +357,7 @@ def _fit_free(points: list[Point], min_radius: float, head: float | None = None)
             points = keep
         elif len(keep) >= 2:
             points = [points[0], *keep[1:-1], points[-1]]
-    segs = smoothing.fit(points, min_radius, FIT_DEVIATION, head, FIT_STEP)
+    segs = smoothing.fit(points, min_radius, FIT_DEVIATION * looser, head, FIT_STEP)
     return (
         curves.reshaped(segs, points[0], points[-1])
         if segs
@@ -371,7 +421,63 @@ def _fit(
             points[::-1], curves.wrap(a1 + math.pi), _radius(net, route.end, min_radius), min_radius
         )
         return curves.reverse_path(backward)
+    if CURVED.get():
+        arc = one_arc(points, min_radius)
+        if arc is not None:
+            return arc
     return _fit_free(points, min_radius)
+
+
+def one_arc(
+    points: list[Point], min_radius: float, within: tuple[float, float] | None = None
+) -> list[Seg] | None:
+    """The one arc from the path's first point to its last that lies nearest the path, when
+    the path lies within ONE_ARC_MM of it (or within: the largest distance and the RMS, mm):
+    a curve module's track from gable to gable."""
+    if len(points) < 10 or math.dist(points[0], points[-1]) < ONE_ARC_MIN_MM:
+        return None
+    a, b = np.array(points[0]), np.array(points[-1])
+    chord = float(np.linalg.norm(b - a))
+    u = (b - a) / chord
+    n = np.array([-u[1], u[0]])
+    pts = np.array(points, np.float64)
+    t = np.clip((pts - a) @ u / chord, 0.0, 1.0)
+    off = (pts - a) @ n
+    basis = 4 * t * (1 - t)
+    mid = (a + b) / 2
+
+    def misses(sag: float) -> NDArray[np.float64]:
+        if abs(sag) < 1e-3:
+            flat: NDArray[np.float64] = np.abs(off)
+            return flat
+        radius = (chord * chord / 4 + sag * sag) / (2 * sag)
+        centre = mid + n * (sag - radius)
+        found: NDArray[np.float64] = np.abs(np.linalg.norm(pts - centre, axis=1) - abs(radius))
+        return found
+
+    # The parabola through both ends is the start; a golden search refines the sagitta.
+    sag = float(basis @ off / max(1e-9, float(basis @ basis)))
+    lo, hi = sag - 0.2 * abs(sag) - 2.0, sag + 0.2 * abs(sag) + 2.0
+    golden = (math.sqrt(5) - 1) / 2
+    for _ in range(40):
+        x1, x2 = hi - golden * (hi - lo), lo + golden * (hi - lo)
+        if float(np.mean(misses(x1) ** 2)) <= float(np.mean(misses(x2) ** 2)):
+            hi = x2
+        else:
+            lo = x1
+    sag = (lo + hi) / 2
+    found = misses(sag)
+    most, rms = within or ONE_ARC_MM
+    looser = LOOSER.get()
+    if float(found.max()) > most * looser or float(np.sqrt(np.mean(found**2))) > rms * looser:
+        return None
+    if abs(sag) < 1e-3:
+        return [curves.Line(points[0], points[-1])]
+    middle = (float(mid[0] + n[0] * sag), float(mid[1] + n[1] * sag))
+    arc = curves.arc_through(points[0], middle, points[-1])
+    if arc is None or (isinstance(arc, curves.Arc) and arc.radius < min_radius):
+        return None
+    return [arc]
 
 
 def _crossover(ends: lock.Ends, r1: float, r2: float) -> list[Seg] | None:

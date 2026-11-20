@@ -6,7 +6,7 @@ import { STATION } from "./testdata";
 
 const JOB = "7b1e2d3c-4a5b-4c6d-8e7f-901a2b3c4d5e";
 const TAKEN = "2026-11-19T12:58:00+01:00";
-const GRID = { x0: -10, y0: -10, ppm: 1, width: 1521, height: 721 };
+const GRID = { x0: -10, y0: -10, ppm: 1, width: 1521, height: 721, matrix: null };
 
 export const CONSENT: PhotoConsent = {
   available: true,
@@ -30,6 +30,9 @@ const IMAGE = { id: "00000000-0000-0000-0000-000000000063", url: "/api/cad/1/pho
 export const CORNERS: PhotoJob = {
   id: JOB,
   module: STATION.id,
+  profile: "modulfoto",
+  frames: [],
+  frame: null,
   state: "corners",
   progress: 0,
   step: "Bekräfta hörnen och Kant 1",
@@ -44,8 +47,11 @@ export const CORNERS: PhotoJob = {
       [246, 820],
     ],
     kant1: 0,
+    gable_a: 3,
     found: true,
     certain: true,
+    derived: false,
+    why: "Tryck på den långsida som är Kant 1 och på gavel A.",
   },
   quality: null,
   length: null,

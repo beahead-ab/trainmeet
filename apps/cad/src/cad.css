@@ -1392,6 +1392,15 @@
   stroke-linecap: round;
   cursor: pointer;
 }
+/* Gavel A on the photo (part c2): tapped like Kant 1. */
+.cad-fotogavela {
+  stroke: #2563eb;
+  stroke-linecap: round;
+  cursor: pointer;
+}
+.cad-orientering .cad-knappstapel {
+  margin-top: 0.5rem;
+}
 .cad-fotohorn {
   fill: #2563eb;
   stroke: #fff;

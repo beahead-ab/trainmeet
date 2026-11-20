@@ -15,8 +15,9 @@ ID:s mätare för AI:n är också låtsad (PretendMeter, del c1): reservationer,
 dragning och återlämning som i contracts/tokens.py, och en låtsad AI som svarar med fasta svar.
 Utan --ai-svar svarar den som om fotot vore det syntetiska stationsfotot (cad/bildkedjan/
 syntetisk.py, scenen station): spårens förbindelser som de är, och två växlar där koden ser en
-korsning, så att provet får ett Osäkert parti att svara på. Fotona sparas på disken i en egen
-mapp som tas bort efteråt.
+korsning, så att provet får ett Osäkert parti att svara på. Andra moduler (del c2: kurvmodulen
+och skissen) får raka förbindelser, A1–B1, A2–B2 och så vidare, och varje förstorat parti är en
+korsning. Fotona sparas på disken i en egen mapp som tas bort efteråt.
 
 Med --ny skapas en egen databas på servern i --databas, och den tas bort när programmet stannar,
 så att provet alltid börjar från ett tomt bibliotek.
@@ -29,6 +30,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import re
 import secrets
 import signal
 import sys
@@ -73,6 +75,25 @@ STATION_ANSWER: Final = {
 }
 """The pretend AI's answer for the synthetic station (syntetisk.station_scene): its connections
 as they are, and two switches where the code sees a crossing (Osäkert parti)."""
+
+STATION_ENDS: Final = ["A1", "A2", "A3", "B1", "B2", "B3", "E1"]
+
+
+def pretend_answer(prompt: str) -> str:
+    """The pretend AI: the station's answer for the station's ends; for another module (part
+    c2: the curve module and the sketch) each A track to the B track with its number, and every
+    enlarged part a crossing."""
+    ends_found = re.search(r"Märkta ändar: ([A-Z0-9, ]+)\.", prompt)
+    ends = [e.strip() for e in ends_found.group(1).split(",")] if ends_found else []
+    if sorted(ends) == STATION_ENDS:
+        return json.dumps(STATION_ANSWER, ensure_ascii=False)
+    nodes_found = re.search(r"förstorat parti \(([A-Z0-9, ]+)\)", prompt)
+    nodes = [n.strip() for n in nodes_found.group(1).split(",")] if nodes_found else []
+    pairs = [[e, "B" + e[1:]] for e in ends if e.startswith("A") and "B" + e[1:] in ends]
+    return json.dumps(
+        {"forbindelser": pairs, "noder": {n: "korsning" for n in nodes}, "osakert": ""},
+        ensure_ascii=False,
+    )
 
 
 @dataclass
@@ -284,8 +305,11 @@ def main(argv: list[str] | None = None) -> None:
     logging.getLogger("httpx").setLevel(logging.WARNING)  # every call to the pretend ID
     if not (args.webb / "index.html").is_file():
         parser.error(f"Webbappen är inte byggd i {args.webb}: kör npm run build -w apps/cad.")
-    said = json.loads(args.ai_svar.read_text()) if args.ai_svar else STATION_ANSWER
-    pretend = PretendId(args.tokens, lambda _prompt: json.dumps(said, ensure_ascii=False))
+    if args.ai_svar:
+        said = json.loads(args.ai_svar.read_text())
+        pretend = PretendId(args.tokens, lambda _prompt: json.dumps(said, ensure_ascii=False))
+    else:
+        pretend = PretendId(args.tokens, pretend_answer)
     # uvicorn stops on SIGTERM and then raises it again: as an exit, so that the fresh database
     # is removed below.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
