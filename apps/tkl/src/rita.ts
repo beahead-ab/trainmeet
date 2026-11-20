@@ -1210,6 +1210,25 @@ export function confirm(d: FullDrawing, ref: Ref): FullDrawing {
   return { ...d, model: { ...model, switches: model.switches.map((s) => (s.node === node ? { ...s, origin: ok(s.origin) } : s)) } };
 }
 
+/** The note on everything Studio proposed from an uploaded drawing (tkl/studio/rita.py, READ). */
+export const READ = "Förslag ur en uppladdad ritning";
+
+const fromRead = (o: Origin | null | undefined): boolean => !!o && o.note === READ && !o.confirmed;
+
+/** How many things proposed from an uploaded drawing the owner has not confirmed: Använd
+ * ritningen waits for them (TKL27). */
+export function proposed(model: FullModel): number {
+  return [...model.pieces, ...model.switches, ...model.signals, ...model.line_exits].filter((item) => fromRead(item.origin)).length;
+}
+
+/** Bekräfta förslaget: everything proposed from the drawing is the owner's, and no longer
+ * yellow. */
+export function confirmAll(d: FullDrawing): FullDrawing {
+  const ok = <T extends { origin?: Origin | null }>(item: T): T => (fromRead(item.origin) ? { ...item, origin: { ...item.origin!, confirmed: true } } : item);
+  const model = d.model;
+  return { ...d, model: { ...model, pieces: model.pieces.map(ok), switches: model.switches.map(ok), signals: model.signals.map(ok), line_exits: model.line_exits.map(ok) } };
+}
+
 /** Yellow in Rita: what is assumed and not yet confirmed (RS5, RS7). */
 export function assumed(origin: Origin | null | undefined): boolean {
   return origin?.source === "assumed" && !origin.confirmed;

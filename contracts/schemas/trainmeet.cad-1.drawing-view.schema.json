@@ -634,7 +634,7 @@
     },
     "GraphLabel": {
       "additionalProperties": true,
-      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them.",
+      "description": "Etikett: a text in the drawing at a point in mm, on a piece or a switch or free\n(bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the\npoint is in the drawing's own coordinates, ref is the object code tied it to (the nearest\none), and read_by says how the text was read.",
       "properties": {
         "id": {
           "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
@@ -672,7 +672,7 @@
             }
           ],
           "default": null,
-          "description": "The piece or switch it names.",
+          "description": "The piece, switch, node or symbol it names.",
           "title": "Ref"
         },
         "origin": {
@@ -685,6 +685,18 @@
             }
           ],
           "default": null
+        },
+        "read_by": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ReadBy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Textlager, OCR eller AI; null: written in CAD."
         }
       },
       "required": [
@@ -857,7 +869,8 @@
         "photo",
         "sketch",
         "anyrail",
-        "drawn"
+        "drawn",
+        "drawing"
       ],
       "title": "GraphSource",
       "type": "string"
@@ -1011,6 +1024,167 @@
         "type"
       ],
       "title": "GraphSwitch",
+      "type": "object"
+    },
+    "GraphSymbol": {
+      "additionalProperties": true,
+      "description": "Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from\nthe catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).\nA signal's name and address are those read from its label, when there is one.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SymbolKind"
+        },
+        "signal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SignalType"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The catalogue's class."
+        },
+        "lamps": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Hsi 2, Hsi 4 …",
+          "title": "Lamps"
+        },
+        "facing": {
+          "anyOf": [
+            {
+              "enum": [
+                "east",
+                "west"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The way it applies: trains going east or west.",
+          "title": "Facing"
+        },
+        "at": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        },
+        "piece": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The track it stands by.",
+          "title": "Piece"
+        },
+        "name": {
+          "anyOf": [
+            {
+              "maxLength": 20,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Name"
+        },
+        "address": {
+          "anyOf": [
+            {
+              "maximum": 65535,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Address"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The label it was named by.",
+          "title": "Label"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "maxLength": 40,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What it looks like: signalfigur, ▲, ● …",
+          "title": "Shape"
+        },
+        "origin": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphOrigin"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "at"
+      ],
+      "title": "GraphSymbol",
       "type": "object"
     },
     "IdChange": {
@@ -1251,6 +1425,16 @@
       "title": "PhotoLayer",
       "type": "object"
     },
+    "ReadBy": {
+      "description": "How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text\nlayer, read by code; OCR; or transcribed by AI from a raster page.",
+      "enum": [
+        "text_layer",
+        "ocr",
+        "ai"
+      ],
+      "title": "ReadBy",
+      "type": "string"
+    },
     "Scale": {
       "description": "The module's scale (CAD10, CAD12).",
       "enum": [
@@ -1316,6 +1500,18 @@
       ],
       "title": "ScaleLimits",
       "type": "object"
+    },
+    "SignalType": {
+      "description": "The signal catalogue (§2). New types are added here for all stations (STD-19).",
+      "enum": [
+        "hsi",
+        "hdvsi",
+        "dvsi",
+        "fsi",
+        "stop_lamp"
+      ],
+      "title": "SignalType",
+      "type": "string"
     },
     "Smoothing": {
       "description": "Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).",
@@ -1649,9 +1845,19 @@
       "title": "SwitchType",
       "type": "string"
     },
+    "SymbolKind": {
+      "description": "What a symbol in a drawing is, classed against the standard interlocking's catalogue\n(bildkedjan R3, contracts/station_model.py).",
+      "enum": [
+        "signal",
+        "buffer_stop",
+        "unknown"
+      ],
+      "title": "SymbolKind",
+      "type": "string"
+    },
     "TrackGraph": {
       "additionalProperties": true,
-      "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21).\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
+      "description": "Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is\nredrawn, and never used again for something else (CAD-20). geometry is \"mm\" for a module's\nreal geometry; a drawing read by the photo chain for Studio gives \"schema\" (bildkedjan, 21),\nin the drawing's own coordinates with y down, with its labels and its symbols, and line exits\nand buffer stops at the tracks' ends. The same format goes both ways to Studio.\ncomplete is false while the tracks between the gables are unknown: a module from measures\nwhose gables differ waits for its photo or its drawing.",
       "properties": {
         "geometry": {
           "default": "mm",
@@ -1688,6 +1894,14 @@
             "$ref": "#/$defs/GraphLabel"
           },
           "title": "Labels",
+          "type": "array"
+        },
+        "symbols": {
+          "description": "Symbols read from a drawing (bildkedjan R3, 21).",
+          "items": {
+            "$ref": "#/$defs/GraphSymbol"
+          },
+          "title": "Symbols",
           "type": "array"
         },
         "complete": {

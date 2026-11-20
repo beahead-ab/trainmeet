@@ -6,7 +6,9 @@
 // the drawing as in Spårplan (STUDIO-16). Använd ritningen makes the draft the station's model:
 // the outside is derived from it, and Ställverket runs it. Undo and redo hold for the session.
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import { api, Problem, type Finding, type Position, type Rita as RitaView, type Route, type SignalType, type SwitchControl, type SwitchType, type TrackCircuit } from "./api";
+import { api, Problem, type Finding, type Position, type Rita as RitaView, type Route, type SignalType, type SwitchControl, type SwitchType, type TrackCircuit, type Upload } from "./api";
+import { LaddaUpp } from "./LaddaUpp";
+import { wayIn } from "./laddaupp";
 import {
   addDrag,
   addTrack,
@@ -14,6 +16,7 @@ import {
   bendTrack,
   changed,
   confirm,
+  confirmAll,
   drags,
   editor,
   extent,
@@ -33,6 +36,7 @@ import {
   placeLineExit,
   placeSignal,
   placeSwitch,
+  proposed,
   redo,
   refOf,
   removeAt,
@@ -105,7 +109,7 @@ const CONTROLS: [SwitchControl, string][] = [
   ["not_laid", "Läggs inte från ställverket"],
 ];
 const STATES: Record<string, string> = { new: "Ny ritning", draft: "Utkast, sparat på datorn", in_use: "Används i Ställverket" };
-const WAYS_IN = ["Rita", "Ladda upp ritning", "Från CAD", "AnyRail"];
+const LATER = ["Från CAD", "AnyRail"];
 const SAVE_AFTER_MS = 400;
 /** Screen pixels for the smaller side of a cell: the drawing keeps one scale and scrolls. */
 const CELL_ON_SCREEN = 30;
@@ -133,6 +137,10 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sent = useRef(0);
   const pending = useRef<FullDrawing | null>(null);
+  const [way, setWay] = useState<"rita" | "upload">("rita");
+  const [upload, setUpload] = useState<Upload | null>(null);
+  const [underlay, setUnderlay] = useState<string | null>(null);
+  const online = typeof navigator === "undefined" || navigator.onLine !== false;
 
   const load = useCallback((found: RitaView) => {
     setView(found);
@@ -144,6 +152,11 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
   useEffect(() => {
     api.rita().then(load).catch((error: unknown) => setMessage(error instanceof Error ? error.message : "TKL svarar inte."));
   }, [load]);
+
+  useEffect(() => {
+    // Ladda upp ritning: open or grey, with the reason (CAD6).
+    api.upload().then(setUpload, () => setUpload(null));
+  }, []);
 
   /** Saves the drawing as it is now; the answer counts only if nothing newer was sent. */
   const save = useCallback(async (drawing: FullDrawing) => {
@@ -252,6 +265,8 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
   const blocking = findings.filter((f) => f.problem).length;
   const circuits = view.model.track_circuits ?? [];
   const tip = TOOLS.find((t) => t.tool === tool)?.hint ?? "";
+  const entry = wayIn(upload, online);
+  const unconfirmed = proposed(drawing.model);
   const pick = (ref: Ref | null) => setSelected(ref ? [ref] : []);
   return (
     <div className="rita">
@@ -261,18 +276,30 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
           Rita stationen på rutnätet med sex objekt: spår, växel, signal, spårledningsgräns, stoppbock och linjeutfart. Allt annat räknas fram: spårledningarna mellan blockstrecken, vägarna och panelen. Har stationen redan en modell ritar du om dess panel här.
         </p>
       </div>
-      <nav className="rita-vagar" aria-label="Väg in">
-        {WAYS_IN.map((way, i) => (
-          <button key={way} type="button" aria-pressed={i === 0} disabled={i > 0}>
-            {way}
-            {i > 0 ? <span className="kommer"> · kommer</span> : null}
-          </button>
-        ))}
-      </nav>
+      <WaysIn way={way} entry={entry} onWay={setWay} />
+      {way === "upload" && entry.open ? (
+        <LaddaUpp
+          onClose={() => setWay("rita")}
+          onProposal={(found, picture) => {
+            if (timer.current) clearTimeout(timer.current);
+            pending.current = null;
+            sent.current++;
+            load(found);
+            setWay("rita");
+            setUnderlay(picture);
+            setMessage("Förslaget ur ritningen är gult tills du bekräftar det. Motorn har lagt ut panelen; rita om den om du vill.");
+          }}
+        />
+      ) : null}
       <div className="rad rita-status">
         <span className={`chip ${view.state === "in_use" ? "gron" : ""}`}>{STATES[view.state] ?? view.state}</span>
         <span className="liten">{saving ? "Sparar …" : drawing.proposal ? "Motorns förslag: rita om det, så sparas det som stationens spårplan." : ""}</span>
         <span className="tm-fyll" />
+        {unconfirmed ? (
+          <button type="button" className="gul-knapp" onClick={() => commit(changed(state, confirmAll(drawing)))}>
+            Bekräfta förslaget ({unconfirmed})
+          </button>
+        ) : null}
         <button type="button" disabled={!state.past.length} onClick={() => commit(undo(state))}>
           Ångra
         </button>
@@ -403,11 +430,46 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
           <LeversView drawing={drawing} selected={selected} act={act} pick={pick} />
         </aside>
       </div>
+      {underlay ? (
+        <figure className="ladda-underlag rita-underlag">
+          <img src={underlay} alt="Den uppladdade ritningen, uträtad" />
+          <figcaption className="liten">
+            Underlaget: ritningen som TrainMeet CAD läste den.{" "}
+            <button type="button" className="lank" onClick={() => setUnderlay(null)}>
+              Dölj
+            </button>
+          </figcaption>
+        </figure>
+      ) : null}
       <div className="kolumner sparplan-kolumner">
         <FindingsView findings={findings} onPick={(ref) => pick(ref)} />
         <RoutesView routes={view.route_list ?? []} counts={view.routes} chosen={route} onChoose={setRoute} />
       </div>
     </div>
+  );
+}
+
+/** The ways in (STUDIO-01): Rita, and Ladda upp ritning when TKL reaches TrainMeet CAD with a
+ * login with TrainMeet ID; grey with the reason otherwise, and Rita still works (CAD6). */
+export function WaysIn({ way, entry, onWay }: { way: "rita" | "upload"; entry: { open: boolean; reason: string | null }; onWay: (way: "rita" | "upload") => void }) {
+  return (
+    <>
+      <nav className="rita-vagar" aria-label="Väg in">
+        <button type="button" aria-pressed={way === "rita"} onClick={() => onWay("rita")}>
+          Rita
+        </button>
+        <button type="button" aria-pressed={way === "upload"} disabled={!entry.open} title={entry.reason ?? undefined} onClick={() => onWay("upload")}>
+          Ladda upp ritning
+        </button>
+        {LATER.map((later) => (
+          <button key={later} type="button" disabled>
+            {later}
+            <span className="kommer"> · kommer</span>
+          </button>
+        ))}
+      </nav>
+      {!entry.open && entry.reason ? <p className="liten ladda-gra">{entry.reason}</p> : null}
+    </>
   );
 }
 

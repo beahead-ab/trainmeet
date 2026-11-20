@@ -204,6 +204,18 @@ the station's model is no draft. Använd ritningen makes it the station's model 
 does: refused with the problems while it has any, and while the interlocking has set routes or
 train numbers.
 
+Ladda upp ritning (#89 del c4, STUDIO-01, STUDIO-03, CAD6): TKL sends the drawing to TrainMeet
+CAD (TKL_CAD) with the person's access token from TrainMeet ID, and Studio turns CAD's read into
+Rita's draft, everything yellow until the owner confirms it (tkl/studio/ritning.py):
+
+    GET  /api/tkl/1/studio/ritning                    TklUpload: open or grey, and the drawing
+    POST /api/tkl/1/studio/ritning?namn=              the file as the body -> TklUpload
+    GET  /api/tkl/1/studio/ritning/{job}              TklUpload
+    POST /api/tkl/1/studio/ritning/{job}/read         DrawingReadAsk -> TklUpload
+    POST /api/tkl/1/studio/ritning/{job}/answers      DrawingAnswers -> TklUpload
+    GET  /api/tkl/1/studio/ritning/{job}/underlag     the straightened drawing (PNG or JPEG)
+    POST /api/tkl/1/studio/ritning/{job}/forslag      TklRita: the proposal as Rita's draft
+
 Fjärrstyrning (#36 del c, tkl/fjarr/): TKL started in the remote role is a remote interlocking
 with no station of its own (FR1, TKL47); it connects as the station protocol's client kind remote
 with its remote area (FR4). A station's own TKL controls a neighbour with the same fjärrbild, as
@@ -262,6 +274,7 @@ from pathlib import Path
 from secrets import token_urlsafe
 from typing import Annotated, Any, Literal, NoReturn
 from urllib.parse import urlsplit
+from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, Cookie, FastAPI, HTTPException, Query, Request, Response
@@ -271,6 +284,7 @@ from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from pydantic import ValidationError
 
 from contracts import station
+from contracts.cad import DrawingAnswers, DrawingJob, DrawingJobState, DrawingReadAsk
 from contracts.hub import Version
 from contracts.station_model import StationModel, StationPart, dump
 from contracts.station_outside import StationOutside
@@ -362,10 +376,22 @@ from contracts.tkl import (
     TklTrainPut,
     TklTrainRef,
     TklUnlock,
+    TklUpload,
     TklView,
     TklWait,
 )
-from tkl import VERSION, fjarr, hub_places, hub_reports, id_login, manover, moln, prova, track_plan
+from tkl import (
+    VERSION,
+    cad_client,
+    fjarr,
+    hub_places,
+    hub_reports,
+    id_login,
+    manover,
+    moln,
+    prova,
+    track_plan,
+)
 from tkl.deck import deviations as deck_deviations
 from tkl.deck import logic as deck_logic
 from tkl.deck import look as deck_look
@@ -412,6 +438,7 @@ from tkl.store import (
 )
 from tkl.studio import dela, rita
 from tkl.studio import fjarr as remote_choice
+from tkl.studio import ritning as studio_ritning
 
 SESSION = "tkl_session"
 SLOT = "tkl_station"
@@ -466,6 +493,18 @@ PROVKOR_BUSY = (
 PROVKOR_IDLE = "Provkör är inte igång."
 PROVKOR_WAITS = "Provkör väntar på återrapporten. Svara när vägen ligger, eller hoppa över den."
 LOG_IN = "Logga in med TrainMeet ID."
+UPLOAD_LIMIT = 30 * 1024 * 1024 + 64 * 1024
+"""The largest drawing Ladda upp ritning takes, as CAD does."""
+NO_CAD = (
+    "Ladda upp ritning kräver internet och TrainMeet CAD, som den här TKL inte är inställd för. "
+    "Rita går alltid."
+)
+NEEDS_ID = "Ladda upp ritning kräver internet och inloggning med TrainMeet ID. Rita går alltid."
+LOG_IN_UPLOAD = (
+    "Ladda upp ritning kräver inloggning med TrainMeet ID: logga in under Inställningar. Rita går "
+    "alltid."
+)
+BOUND_UPLOAD = "Ladda upp ritning kräver inloggning med TrainMeet ID. Logga in igen."
 BOUND_SET_UP = (
     "TKL i molnet loggar in med TrainMeet ID. Skapa stationen under Dina stationer, så sparas den "
     "i molnet."
@@ -497,6 +536,7 @@ def create_app(
     loconet_settings: loconet.Settings | None = None,
     usb_finder: deck_usb.Finder | None = None,
     account: bool = True,
+    cad: str | None = None,
 ) -> FastAPI:
     """mode: one station on the station's computer, or one per browser in the cloud.
     over_internet: the hubs TKL may reach over the internet; in the cloud, the only ones.
@@ -506,7 +546,9 @@ def create_app(
     libhidapi; the cloud never looks. The driver runs while the app's lifespan does.
     account: in the cloud with TrainMeet ID, whether the station belongs to the account (#88,
     TKL5). from_environment turns it on only with TKL_KONTO, so that a test environment whose ID
-    cannot be reached yet keeps the station per browser."""
+    cannot be reached yet keeps the station per browser.
+    cad: TrainMeet CAD's address, for Studio's Ladda upp ritning (#89 del c4, TKL_CAD); without
+    it, or without a login with ID, the way in is grey and Rita still works (CAD6)."""
     store = TklStore(data_dir / "tkl.sqlite3")
     roles = fjarr.Roles(data_dir / "fjarr.sqlite3")
     internet = [a.rstrip("/") for a in (over_internet or [])]
@@ -923,7 +965,7 @@ def create_app(
         made = rita.model_of(draft)
         if stored is not None:
             made = rita.ordered_like(made, stored)
-        wrong = problems(made)
+        wrong = problems(made) + rita.unconfirmed_problems(made)
         if wrong:
             refuse_model("Ritningen kan inte användas än. Rätta problemen först.", wrong)
         try:
@@ -1423,6 +1465,193 @@ def create_app(
         else:
             store.saved_in_cloud(found, version)
         return TklSaved(version=version).model_dump(mode="json")
+
+    # --- Ladda upp ritning (#89 del c4, STUDIO-01, STUDIO-03, CAD6) -------------------------
+
+    cad_address = cad.rstrip("/") if cad else None
+    uploads: dict[str, UUID] = {}
+    """The drawing each station is reading now, while TKL runs."""
+
+    def upload_reason(found: str) -> str | None:
+        """Why Ladda upp ritning is grey here, or None when it is open."""
+        if cad_address is None:
+            return NO_CAD
+        if with_id is None:
+            return NEEDS_ID
+        if account_here(found) is None:
+            return BOUND_UPLOAD if bound else LOG_IN_UPLOAD
+        return None
+
+    def cad_for(found: str) -> cad_client.Cad:
+        reason = upload_reason(found)
+        account = account_here(found)
+        if reason is not None or account is None or cad_address is None:
+            raise HTTPException(409, reason or NEEDS_ID)
+        return cad_client.Cad(client, cad_address, access_of(found, account))
+
+    def cad_failed(error: cad_client.CadError) -> NoReturn:
+        raise HTTPException(error.status, error.detail) from error
+
+    def upload_state(found: str, job: DrawingJob | None) -> dict[str, Any]:
+        if job is not None:
+            uploads[found] = job.id
+        reason = upload_reason(found)
+        return TklUpload(
+            available=reason is None,
+            reason=reason,
+            job=job,
+            underlay=f"/api/tkl/1/studio/ritning/{job.id}/underlag"
+            if job is not None and job.read is not None and job.read.underlay is not None
+            else None,
+        ).model_dump(mode="json")
+
+    @routes.get("/studio/ritning")
+    def upload_now(
+        response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        """Whether the way in is open, and the drawing being read, if any."""
+        no_store(response)
+        found = unlocked(slot, session)
+        job = uploads.get(found)
+        if job is None or upload_reason(found) is not None:
+            return upload_state(found, None)
+        try:
+            return upload_state(found, cad_for(found).job(job))
+        except cad_client.CadError:
+            uploads.pop(found, None)
+            return upload_state(found, None)
+
+    @routes.post("/studio/ritning")
+    async def upload_drawing(
+        request: Request,
+        response: Response,
+        namn: Annotated[str, Query(max_length=120)] = "",
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Ladda upp ritning: the file as the body, sent on to CAD, which lists its pages and
+        its price."""
+        same_site(request)
+        no_store(response)
+        found = await run_in_threadpool(unlocked, slot, session)
+        declared = request.headers.get("content-length", "")
+        if declared.isdigit() and int(declared) > UPLOAD_LIMIT:
+            raise HTTPException(413, "Ritningen är för stor. Högst 30 MB.")
+        body = bytearray()
+        async for chunk in request.stream():
+            body += chunk
+            if len(body) > UPLOAD_LIMIT:
+                raise HTTPException(413, "Ritningen är för stor. Högst 30 MB.")
+        if not body:
+            raise HTTPException(422, "Välj en ritning: en PDF, en SVG eller en bild.")
+        kind = request.headers.get("content-type", "application/octet-stream").split(";")[0]
+        name = " ".join(namn.split()) or "Ritning"
+
+        def send() -> DrawingJob:
+            return cad_for(found).upload(name, bytes(body), kind)
+
+        try:
+            job = await run_in_threadpool(send)
+        except cad_client.CadError as error:
+            cad_failed(error)
+        return upload_state(found, job)
+
+    @routes.get("/studio/ritning/{job}")
+    def upload_job(
+        job: UUID, response: Response, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> dict[str, Any]:
+        no_store(response)
+        found = unlocked(slot, session)
+        try:
+            return upload_state(found, cad_for(found).job(job))
+        except cad_client.CadError as error:
+            cad_failed(error)
+
+    @routes.post("/studio/ritning/{job}/read")
+    def upload_read(
+        job: UUID,
+        ask: DrawingReadAsk,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Läs ritningen: the page, with AI for a picture's text or without, at the price
+        shown."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        try:
+            return upload_state(found, cad_for(found).read(job, ask))
+        except cad_client.CadError as error:
+            cad_failed(error)
+
+    @routes.post("/studio/ritning/{job}/answers")
+    def upload_answers(
+        job: UUID,
+        answers: DrawingAnswers,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """The owner's answers to the read's questions, the legend first."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        try:
+            return upload_state(found, cad_for(found).answers(job, answers))
+        except cad_client.CadError as error:
+            cad_failed(error)
+
+    @routes.get("/studio/ritning/{job}/underlag", response_model=None)
+    def upload_underlay(
+        job: UUID, slot: SlotCookie = None, session: SessionCookie = None
+    ) -> Response:
+        """The straightened drawing, through TKL, for Studio to show."""
+        found = unlocked(slot, session)
+        try:
+            data, kind = cad_for(found).underlay(job)
+        except cad_client.CadError as error:
+            cad_failed(error)
+        return Response(data, media_type=kind, headers={"Cache-Control": "private, no-store"})
+
+    @routes.post("/studio/ritning/{job}/forslag")
+    def upload_proposal(
+        job: UUID,
+        request: Request,
+        response: Response,
+        slot: SlotCookie = None,
+        session: SessionCookie = None,
+    ) -> dict[str, Any]:
+        """Förslaget: Studio turns the read into Rita's draft by the standard interlocking,
+        everything yellow until the owner confirms it; the engine lays out the panel (TKL23,
+        TKL27, TKL81). Never the station's model: Använd ritningen is the owner's, after
+        Bekräfta."""
+        same_site(request)
+        no_store(response)
+        found = unlocked(slot, session)
+        try:
+            drawing_job = cad_for(found).job(job)
+        except cad_client.CadError as error:
+            cad_failed(error)
+        read = drawing_job.read
+        if drawing_job.state != DrawingJobState.DONE or read is None:
+            raise HTTPException(409, "Ritningen är inte läst än.")
+        open_questions = [q.title for q in read.questions if q.answer is None and q.code is None]
+        if open_questions:
+            raise HTTPException(
+                409, {"message": "Svara på ritningens frågor först.", "problems": open_questions}
+            )
+        own = store.station_of(found)
+        assert own is not None
+        try:
+            made = studio_ritning.drawing(read, own.station_id, own.name, drawing_job.name)
+        except LayoutError as error:
+            raise HTTPException(
+                409, f"Motorn kan inte lägga ut förslaget ur ritningen. {error}"
+            ) from error
+        return keep_drawing(found, made)
 
     # --- TKL i molnet: the station belongs to the account (#88, TKL5, TKLMOLN-02) -------------
 
@@ -4326,11 +4555,22 @@ def create_app(
 
 def from_environment() -> FastAPI:
     """TKL_DATA_DIR, TKL_MODE (local or cloud) and TKL_HUBBAR, the hubs over the internet; the
-    login with TrainMeet ID (tkl/id_login.py); and TKL_KONTO (on/off, off by default): in the
-    cloud, the station belongs to the account and is opened from Synk (#88, TKL5)."""
+    login with TrainMeet ID (tkl/id_login.py); TKL_KONTO (on/off, off by default): in the
+    cloud, the station belongs to the account and is opened from Synk (#88, TKL5); and TKL_CAD,
+    TrainMeet CAD's address for Studio's Ladda upp ritning (#89 del c4)."""
     data = Path(os.environ.get("TKL_DATA_DIR", "").strip() or Path.home() / ".trainmeet-tkl")
     mode = TklMode(os.environ.get("TKL_MODE", "local").strip() or "local")
     hubs = [h.strip() for h in os.environ.get("TKL_HUBBAR", "").split(",") if h.strip()]
     found = id_login.settings_from(hubs=hubs if mode == TklMode.CLOUD else None)
     account = os.environ.get("TKL_KONTO", "").strip().lower() in {"1", "on", "ja", "true"}
-    return create_app(data, mode=mode, over_internet=hubs, id_settings=found, account=account)
+    cad = os.environ.get("TKL_CAD", "").strip().rstrip("/")
+    if cad and not ADDRESS.match(cad):
+        raise ValueError("TKL_CAD ska vara en adress, till exempel https://cad.trainmeet.app.")
+    return create_app(
+        data,
+        mode=mode,
+        over_internet=hubs,
+        id_settings=found,
+        account=account,
+        cad=cad or None,
+    )

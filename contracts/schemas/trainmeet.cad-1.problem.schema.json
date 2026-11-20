@@ -18,7 +18,8 @@
         "bad_photo",
         "storage_full",
         "consent_required",
-        "busy"
+        "busy",
+        "bad_drawing"
       ],
       "title": "ProblemCode",
       "type": "string"

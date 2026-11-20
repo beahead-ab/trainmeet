@@ -159,11 +159,13 @@ try {
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(String(error)));
 
-  // 1. Första start, och Studio › Rita med de fyra vägarna in: bara Rita fungerar än (STUDIO-01).
+  // 1. Första start, och Studio › Rita med de fyra vägarna in (STUDIO-01). Utan TrainMeet CAD är
+  //    Ladda upp ritning grå med skälet, och Rita fungerar ändå (CAD6).
   await firstStart(page);
   await page.goto(`${TKL}/studio/rita`);
   await page.getByRole("heading", { name: "Rita", exact: true }).waitFor();
-  check(await page.getByRole("button", { name: /Ladda upp ritning · kommer/ }).isDisabled(), "Ladda upp ritning går att välja.");
+  check(await page.getByRole("button", { name: "Ladda upp ritning", exact: true }).isDisabled(), "Ladda upp ritning går att välja utan CAD.");
+  await page.locator("p.ladda-gra").waitFor();
   await page.getByText("Ny ritning", { exact: true }).waitFor();
 
   // 2. Linjen från A till B: två röda punkter, en i var ände, tills utfarterna sätts (RS7).

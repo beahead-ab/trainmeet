@@ -1092,3 +1092,38 @@ svg.rita-rutnat .forslag-punkt {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Ladda upp ritning (#89 del c4): the panel above Rita, the questions with the legend first, and
+   the straightened drawing as CAD read it. */
+.ladda-upp {
+  margin-bottom: 12px;
+}
+.ladda-upp h2 {
+  margin: 0;
+}
+.ladda-fil input {
+  display: block;
+  margin-top: 4px;
+}
+.ladda-fragor {
+  padding-left: 20px;
+}
+.ladda-fragor li {
+  margin-bottom: 10px;
+}
+.ladda-fragor li.obesvarad strong {
+  color: #b54708;
+}
+.ladda-underlag img {
+  max-width: 100%;
+  border: 1px solid var(--tm-line, #d0d5dd);
+  border-radius: 8px;
+  background: #fff;
+}
+.ladda-gra {
+  margin-top: -4px;
+}
+.gul-knapp {
+  background: #fff4d6;
+  border-color: #f0c674;
+}

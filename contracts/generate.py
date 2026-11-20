@@ -89,6 +89,8 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.tkl-1.reference": tkl.TklReference,
     "trainmeet.tkl-1.drawing": tkl.TklDrawing,
     "trainmeet.tkl-1.rita": tkl.TklRita,
+    # Ladda upp ritning (#89 del c4): the drawing read by TrainMeet CAD, through TKL.
+    "trainmeet.tkl-1.upload": tkl.TklUpload,
     # Studio, Dela stationen (#87 del b).
     "trainmeet.tkl-1.dela": tkl.TklDela,
     "trainmeet.tkl-1.dela-edit": tkl.TklDelaEdit,
@@ -448,6 +450,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.photo-closeup": cad.PhotoCloseup,
     "trainmeet.cad-1.photo-settings": cad.PhotoSettings,
     "trainmeet.cad-1.storage-use": cad.StorageUse,
+    # Ladda upp ritning (part c4): Studio's drawing read by the image chain.
+    "trainmeet.cad-1.drawing-start": cad.DrawingStart,
+    "trainmeet.cad-1.drawing-job": cad.DrawingJob,
+    "trainmeet.cad-1.drawing-read-ask": cad.DrawingReadAsk,
+    "trainmeet.cad-1.drawing-answers": cad.DrawingAnswers,
+    "trainmeet.cad-1.drawing-read": cad.DrawingRead,
 }
 
 
@@ -2041,6 +2049,30 @@ def tkl_openapi() -> str:
     route("put", a + "/studio/rita", "tklSaveDrawing", t + "rita", t + "drawing")
     route("post", a + "/studio/rita/use", "tklUseDrawing", t + "rita")
     route("delete", a + "/studio/rita", "tklForgetDrawing", t + "rita")
+    # Ladda upp ritning (#89 del c4): TrainMeet CAD reads the drawing; Förslaget is Rita's draft.
+    rd = a + "/studio/ritning"
+    cd = "trainmeet.cad-1."
+    route("get", rd, "tklUpload", t + "upload")
+    route("post", rd, "tklUploadDrawing", t + "upload", query={"namn": {"type": "string"}})
+    paths[rd]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The drawing as it is: a PDF, an SVG, or a JPEG, PNG or WebP picture.",
+        "content": {"application/octet-stream": {"schema": {"type": "string", "format": "binary"}}},
+    }
+    route("get", rd + "/{job}", "tklUploadJob", t + "upload")
+    route("post", rd + "/{job}/read", "tklUploadRead", t + "upload", cd + "drawing-read-ask")
+    route("post", rd + "/{job}/answers", "tklUploadAnswers", t + "upload", cd + "drawing-answers")
+    route("get", rd + "/{job}/underlag", "tklUploadUnderlay", None)
+    paths[rd + "/{job}/underlag"]["get"]["responses"] = {
+        "200": {
+            "description": "The straightened drawing",
+            "content": {
+                "image/png": {"schema": {"type": "string", "format": "binary"}},
+                "image/jpeg": {"schema": {"type": "string", "format": "binary"}},
+            },
+        }
+    }
+    route("post", rd + "/{job}/forslag", "tklUploadProposal", t + "rita")
     # Studio, Dela stationen (#87 del b): the parts, kept as a draft until they are used.
     route("get", a + "/studio/dela", "tklParts", t + "dela")
     route("put", a + "/studio/dela", "tklSaveParts", t + "dela", t + "dela-edit")
@@ -2225,6 +2257,8 @@ def tkl_openapi() -> str:
             st + "exit-answer",
             "trainmeet.station-outside-1",
             STATION_MODEL,
+            "trainmeet.cad-1.drawing-read-ask",
+            "trainmeet.cad-1.drawing-answers",
         }
     ]
     return (
@@ -2490,6 +2524,63 @@ def cad_openapi() -> str:
         problems=(*write, 413),
     )
     route("get", a + "/storage", "cadStorage", "storage-use", problems=(401,))
+    # Ladda upp ritning (part c4): Studio, through TKL, with the person's access token from ID.
+    drawing_problems = (401, 402, 404, 409, 413, 415, 422, 429, 502, 503)
+    route(
+        "post",
+        a + "/drawings",
+        "cadUploadDrawing",
+        "drawing-job",
+        created=True,
+        problems=drawing_problems,
+    )
+    paths[a + "/drawings"]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The JSON in the part data, and the drawing in the part file: a PDF, an "
+        "SVG, or a JPEG, PNG or WebP picture, at most 30 MB.",
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "data": openapi_ref(c + "drawing-start"),
+                        "file": {"type": "string", "format": "binary"},
+                    },
+                    "required": ["file"],
+                }
+            }
+        },
+    }
+    route("get", a + "/drawings/{job}", "cadDrawingJob", "drawing-job", problems=read)
+    route(
+        "post",
+        a + "/drawings/{job}/read",
+        "cadReadDrawing",
+        "drawing-job",
+        "drawing-read-ask",
+        problems=drawing_problems,
+    )
+    route(
+        "post",
+        a + "/drawings/{job}/answers",
+        "cadDrawingAnswers",
+        "drawing-job",
+        "drawing-answers",
+        problems=write,
+    )
+    route("get", a + "/drawings/{job}/underlay", "cadDrawingUnderlay", "drawing-job", problems=read)
+    paths[a + "/drawings/{job}/underlay"]["get"]["responses"]["200"] = {
+        "description": "The straightened drawing",
+        "content": {
+            "image/png": {"schema": {"type": "string", "format": "binary"}},
+            "image/jpeg": {"schema": {"type": "string", "format": "binary"}},
+        },
+    }
+    # Studio's server calls these with the person's access token for TKL from ID (TKL18).
+    for path, methods in paths.items():
+        if path.startswith(a + "/drawings"):
+            for entry in methods.values():
+                entry["security"] = [{"id": []}, {"session": []}]
     return (
         json.dumps(
             {
@@ -2499,7 +2590,8 @@ def cad_openapi() -> str:
                 "components": {
                     "schemas": components([s for s in CONTRACTS if s.startswith(CAD_PREFIX)]),
                     "securitySchemes": {
-                        "session": {"type": "apiKey", "in": "cookie", "name": "cad_session"}
+                        "session": {"type": "apiKey", "in": "cookie", "name": "cad_session"},
+                        "id": {"type": "http", "scheme": "bearer", "bearerFormat": "JWT"},
                     },
                 },
                 "security": [{"session": []}],

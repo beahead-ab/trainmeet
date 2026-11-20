@@ -61,6 +61,9 @@ services:
       TKL_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
       TKL_ID_INTERNAL: http://id:8080/realms/trainmeet
       TKL_PUBLIC_URL: https://${TKL_DOMAIN:-test.tkl.trainmeet.app}
+      # Studio's Ladda upp ritning (#89 del c4): TrainMeet CAD beside it on compose's network,
+      # asked with the person's own access token from ID. Without it the way in is grey.
+      TKL_CAD: http://cad:8080
       FORWARDED_ALLOW_IPS: "*"
     volumes:
       - tkl-data:/data

@@ -452,6 +452,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/drawings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadUploadDrawing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/drawings/{job}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadDrawingJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/drawings/{job}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadReadDrawing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/drawings/{job}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadDrawingAnswers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cad/1/drawings/{job}/underlay": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["cadDrawingUnderlay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -646,7 +726,7 @@ export interface components {
          * @description Why CAD said no. The web app has the text for each.
          * @enum {string}
          */
-        "trainmeet.cad-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "changed" | "invalid" | "unavailable" | "no_tokens" | "too_many" | "reading_failed" | "bad_photo" | "storage_full" | "consent_required" | "busy";
+        "trainmeet.cad-1.problem.ProblemCode": "login" | "not_found" | "forbidden" | "changed" | "invalid" | "unavailable" | "no_tokens" | "too_many" | "reading_failed" | "bad_photo" | "storage_full" | "consent_required" | "busy" | "bad_drawing";
         /**
          * Library
          * @description Ett modulbibliotek: the person's own, a club's, or everything the person sees.
@@ -834,7 +914,9 @@ export interface components {
         /**
          * GraphLabel
          * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
-         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
          */
         "trainmeet.cad-1.module-list.GraphLabel": {
             /** Id */
@@ -848,12 +930,17 @@ export interface components {
             ];
             /**
              * Ref
-             * @description The piece or switch it names.
+             * @description The piece, switch, node or symbol it names.
              * @default null
              */
             ref: string | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.module-list.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.module-list.ReadBy"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -918,7 +1005,7 @@ export interface components {
          * @description Where a piece of the graph comes from.
          * @enum {string}
          */
-        "trainmeet.cad-1.module-list.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn";
+        "trainmeet.cad-1.module-list.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
@@ -982,6 +1069,71 @@ export interface components {
              * @default false
              */
             locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.module-list.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.module-list.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.module-list.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.module-list.GraphOrigin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1121,11 +1273,24 @@ export interface components {
          */
         "trainmeet.cad-1.module-list.OwnerKind": "person" | "club";
         /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-list.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
          * @enum {string}
          */
         "trainmeet.cad-1.module-list.Scale": "H0" | "N" | "0";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-list.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
         /**
          * Straight
          * @description Rak modul: length × width.
@@ -1156,10 +1321,19 @@ export interface components {
          */
         "trainmeet.cad-1.module-list.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
         /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module-list.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
          * TrackGraph
          * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
          *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
-         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
          *     complete is false while the tracks between the gables are unknown: a module from measures
          *     whose gables differ waits for its photo or its drawing.
          */
@@ -1178,6 +1352,11 @@ export interface components {
             switches?: components["schemas"]["trainmeet.cad-1.module-list.GraphSwitch"][];
             /** Labels */
             labels?: components["schemas"]["trainmeet.cad-1.module-list.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.module-list.GraphSymbol"][];
             /**
              * Complete
              * @default true
@@ -1635,7 +1814,9 @@ export interface components {
         /**
          * GraphLabel
          * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
-         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
          */
         "trainmeet.cad-1.module.GraphLabel": {
             /** Id */
@@ -1649,12 +1830,17 @@ export interface components {
             ];
             /**
              * Ref
-             * @description The piece or switch it names.
+             * @description The piece, switch, node or symbol it names.
              * @default null
              */
             ref: string | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.module.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.module.ReadBy"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1719,7 +1905,7 @@ export interface components {
          * @description Where a piece of the graph comes from.
          * @enum {string}
          */
-        "trainmeet.cad-1.module.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn";
+        "trainmeet.cad-1.module.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
@@ -1783,6 +1969,71 @@ export interface components {
              * @default false
              */
             locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.module.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.module.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.module.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.module.GraphOrigin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -1961,11 +2212,24 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
          * @enum {string}
          */
         "trainmeet.cad-1.module.Scale": "H0" | "N" | "0";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
         /**
          * Smoothing
          * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
@@ -2002,10 +2266,19 @@ export interface components {
          */
         "trainmeet.cad-1.module.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
         /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.module.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
          * TrackGraph
          * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
          *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
-         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
          *     complete is false while the tracks between the gables are unknown: a module from measures
          *     whose gables differ waits for its photo or its drawing.
          */
@@ -2024,6 +2297,11 @@ export interface components {
             switches?: components["schemas"]["trainmeet.cad-1.module.GraphSwitch"][];
             /** Labels */
             labels?: components["schemas"]["trainmeet.cad-1.module.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.module.GraphSymbol"][];
             /**
              * Complete
              * @default true
@@ -2772,7 +3050,9 @@ export interface components {
          * TrackGraph
          * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
          *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
-         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
          *     complete is false while the tracks between the gables are unknown: a module from measures
          *     whose gables differ waits for its photo or its drawing.
          */
@@ -2791,6 +3071,11 @@ export interface components {
             switches?: components["schemas"]["trainmeet.cad-1.track-graph.GraphSwitch"][];
             /** Labels */
             labels?: components["schemas"]["trainmeet.cad-1.track-graph.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.track-graph.GraphSymbol"][];
             /**
              * Complete
              * @default true
@@ -2852,7 +3137,9 @@ export interface components {
         /**
          * GraphLabel
          * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
-         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
          */
         "trainmeet.cad-1.track-graph.GraphLabel": {
             /** Id */
@@ -2866,12 +3153,17 @@ export interface components {
             ];
             /**
              * Ref
-             * @description The piece or switch it names.
+             * @description The piece, switch, node or symbol it names.
              * @default null
              */
             ref: string | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.track-graph.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.track-graph.ReadBy"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -2936,7 +3228,7 @@ export interface components {
          * @description Where a piece of the graph comes from.
          * @enum {string}
          */
-        "trainmeet.cad-1.track-graph.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn";
+        "trainmeet.cad-1.track-graph.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
@@ -3004,6 +3296,71 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.track-graph.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.track-graph.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.track-graph.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.track-graph.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * LineSegment
          * @description LINE: a straight piece of track centre, in mm.
          */
@@ -3033,11 +3390,31 @@ export interface components {
          */
         "trainmeet.cad-1.track-graph.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
         /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.track-graph.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.track-graph.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
          * SwitchType
          * @description Växeltyp (RS1).
          * @enum {string}
          */
         "trainmeet.cad-1.track-graph.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.track-graph.SymbolKind": "signal" | "buffer_stop" | "unknown";
         /**
          * Assembly
          * @description Anläggning: modules together, with joints and angles (CAD-06). One scale, and gables that
@@ -3969,7 +4346,9 @@ export interface components {
         /**
          * GraphLabel
          * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
-         *     (bildkedjan, R4 and point 21). The Text tool writes them.
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
          */
         "trainmeet.cad-1.drawing-view.GraphLabel": {
             /** Id */
@@ -3983,12 +4362,17 @@ export interface components {
             ];
             /**
              * Ref
-             * @description The piece or switch it names.
+             * @description The piece, switch, node or symbol it names.
              * @default null
              */
             ref: string | null;
             /** @default null */
             origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.drawing-view.ReadBy"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4053,7 +4437,7 @@ export interface components {
          * @description Where a piece of the graph comes from.
          * @enum {string}
          */
-        "trainmeet.cad-1.drawing-view.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn";
+        "trainmeet.cad-1.drawing-view.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
         /**
          * GraphSwitch
          * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
@@ -4117,6 +4501,71 @@ export interface components {
              * @default false
              */
             locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.drawing-view.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-view.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.drawing-view.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-view.GraphOrigin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -4238,6 +4687,13 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
          * @enum {string}
@@ -4283,6 +4739,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
         /**
          * Smoothing
          * @description Utjämning: how a drawn or traced line becomes LINE and ARC (bildkedjan step 12).
@@ -4441,10 +4903,19 @@ export interface components {
          */
         "trainmeet.cad-1.drawing-view.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
         /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-view.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
          * TrackGraph
          * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
          *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
-         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21).
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
          *     complete is false while the tracks between the gables are unknown: a module from measures
          *     whose gables differ waits for its photo or its drawing.
          */
@@ -4463,6 +4934,11 @@ export interface components {
             switches?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphSwitch"][];
             /** Labels */
             labels?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.drawing-view.GraphSymbol"][];
             /**
              * Complete
              * @default true
@@ -6224,6 +6700,1310 @@ export interface components {
              * @description Originals kept until approval, not counted.
              */
             waiting: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingStart
+         * @description The form's data part.
+         */
+        "trainmeet.cad-1.drawing-start": {
+            /**
+             * Name
+             * @description The file's name.
+             * @default null
+             */
+            name: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingJob
+         * @description One drawing taken in, and its read. The same file, page and input give the same job, at
+         *     no new cost (bildkedjan, Reproducerbarhet).
+         */
+        "trainmeet.cad-1.drawing-job": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Name
+             * @description The file's name, as the owner gave it.
+             */
+            name: string;
+            state: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingJobState"];
+            /** Progress */
+            progress: number;
+            /** Step */
+            step: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "pdf" | "svg" | "image";
+            /** Pages */
+            pages: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingPage"][];
+            /**
+             * Page
+             * @description The page read, or to read.
+             */
+            page: number;
+            price: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingPrice"];
+            ai: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingAi"];
+            /** @default null */
+            read: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingRead"] | null;
+            /** Cost */
+            cost: number;
+            /** Chain */
+            chain: string;
+            /** Key */
+            key: string;
+            /**
+             * Message
+             * @description Why it stopped, in Swedish.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.drawing-job.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * DrawingAi
+         * @description Whether AI can transcribe a raster page here, what is sent and to whom, and the yes
+         *     (as the photo's, CAT-142).
+         */
+        "trainmeet.cad-1.drawing-job.DrawingAi": {
+            /** Available */
+            available: boolean;
+            /** Given */
+            given: boolean;
+            /** Version */
+            version: string;
+            /** Sent To */
+            sent_to: string;
+            /** Text */
+            text: string;
+            /**
+             * Balance
+             * @default null
+             */
+            balance: number | null;
+            /**
+             * Message
+             * @description Why AI cannot be used now.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingBoundary
+         * @description Spårledningsgräns where the drawing shows one: a stroke across a track.
+         */
+        "trainmeet.cad-1.drawing-job.DrawingBoundary": {
+            /** Id */
+            id: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it crosses.
+             * @default null
+             */
+            piece: string | null;
+            origin: components["schemas"]["trainmeet.cad-1.drawing-job.GraphOrigin"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingChoice */
+        "trainmeet.cad-1.drawing-job.DrawingChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingJobState
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.DrawingJobState": "waiting" | "queued" | "running" | "done" | "failed";
+        /** DrawingPage */
+        "trainmeet.cad-1.drawing-job.DrawingPage": {
+            /** Number */
+            number: number;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingPageKind"];
+            /**
+             * Width
+             * @description In the page's own units: pt, or px for pixels.
+             */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Text
+             * @description The page has a text layer that code reads.
+             */
+            text: boolean;
+            /**
+             * Tokens
+             * @description What reading it with TrainMeets AI costs.
+             */
+            tokens: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingPageKind
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.DrawingPageKind": "vector" | "raster";
+        /**
+         * DrawingPrice
+         * @description The price before start (CAD-29, bildkedjan Pris): a vector page is free, a raster page
+         *     12 tokens when TrainMeets AI transcribes its text.
+         */
+        "trainmeet.cad-1.drawing-job.DrawingPrice": {
+            /** Tokens */
+            tokens: number;
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "vector" | "first" | "same" | "own_ai" | "no_ai";
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestion
+         * @description A question from the drawing's read: one per colour of line or symbol type that code
+         *     cannot place (R3: "Vad betyder ▲ i den här ritningen?"), the legend's first. The code's
+         *     choice stands until the owner answers; the answer changes the read without reading again,
+         *     at no cost.
+         */
+        "trainmeet.cad-1.drawing-job.DrawingQuestion": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingQuestionKind"];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingChoice"][];
+            /**
+             * Code
+             * @description The choice the code makes.
+             * @default null
+             */
+            code: string | null;
+            /**
+             * Answer
+             * @description The owner's.
+             * @default null
+             */
+            answer: string | null;
+            /**
+             * Sample
+             * @description ▲, ●, a colour …
+             * @default null
+             */
+            sample: string | null;
+            /**
+             * Count
+             * @description How many there are in the drawing.
+             */
+            count: number;
+            /**
+             * At
+             * @description One of them, in the drawing.
+             * @default null
+             */
+            at: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestionKind
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.DrawingQuestionKind": "legend" | "end";
+        /**
+         * DrawingRead
+         * @description Ritningsavläsning (bildkedjan R4): what the chain read from one page, for Studio. The
+         *     track graph is "schema": pieces, nodes and switches in the drawing's coordinates, the labels
+         *     with the object each names and how it was read, and the symbols with their class. Then the
+         *     track-circuit boundaries, the questions with the legend's first, the straightened drawing,
+         *     and the job and its price. Everything is a proposal until the owner confirms it in Studio.
+         */
+        "trainmeet.cad-1.drawing-job.DrawingRead": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /** Page */
+            page: number;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingPageKind"];
+            graph: components["schemas"]["trainmeet.cad-1.drawing-job.TrackGraph"];
+            /** Boundaries */
+            boundaries?: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingBoundary"][];
+            /** Questions */
+            questions?: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingQuestion"][];
+            /** @default null */
+            underlay: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingUnderlay"] | null;
+            summary: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingSummary"];
+            price: components["schemas"]["trainmeet.cad-1.drawing-job.DrawingPrice"];
+            /**
+             * Cost
+             * @description Tokens drawn for this read.
+             */
+            cost: number;
+            /**
+             * Notes
+             * @description What else to know, in Swedish.
+             */
+            notes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingSummary */
+        "trainmeet.cad-1.drawing-job.DrawingSummary": {
+            /** Pieces */
+            pieces: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /** Line Exits */
+            line_exits: number;
+            /** Buffer Stops */
+            buffer_stops: number;
+            /** Signals */
+            signals: number;
+            /** Boundaries */
+            boundaries: number;
+            /** Labels */
+            labels: number;
+            /** Unknown Symbols */
+            unknown_symbols: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingUnderlay
+         * @description The straightened drawing, for Studio to show under Rita: the image, its size, and the
+         *     affine transform from the drawing's coordinates to the image's pixels (a, b, c, d, e, f as
+         *     SVG's matrix).
+         */
+        "trainmeet.cad-1.drawing-job.DrawingUnderlay": {
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Transform */
+            transform: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.GableEnd": "A" | "B";
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
+         */
+        "trainmeet.cad-1.drawing-job.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece, switch, node or symbol it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-job.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.drawing-job.ReadBy"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphNode
+         * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
+         *     its track number there.
+         */
+        "trainmeet.cad-1.drawing-job.GraphNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-job.NodeType"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            gable: components["schemas"]["trainmeet.cad-1.drawing-job.GableEnd"] | null;
+            /**
+             * Track
+             * @description Spår n i gaveln.
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** GraphOrigin */
+        "trainmeet.cad-1.drawing-job.GraphOrigin": {
+            source: components["schemas"]["trainmeet.cad-1.drawing-job.GraphSource"];
+            certainty: components["schemas"]["trainmeet.cad-1.drawing-job.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPiece
+         * @description Spårbit: track centre from one node to another, as LINE and ARC segments in order.
+         */
+        "trainmeet.cad-1.drawing-job.GraphPiece": {
+            /** Id */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.cad-1.drawing-job.LineSegment"] | components["schemas"]["trainmeet.cad-1.drawing-job.ArcSegment"])[];
+            /**
+             * Track
+             * @description Spårnummer, när ägaren har gett det.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-job.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSource
+         * @description Where a piece of the graph comes from.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
+        /**
+         * GraphSwitch
+         * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
+         */
+        "trainmeet.cad-1.drawing-job.GraphSwitch": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-job.SwitchType"];
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-job.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.drawing-job.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.drawing-job.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-job.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.drawing-job.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-job.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.drawing-job.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-job.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
+         * TrackGraph
+         * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
+         *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
+         *     complete is false while the tracks between the gables are unknown: a module from measures
+         *     whose gables differ waits for its photo or its drawing.
+         */
+        "trainmeet.cad-1.drawing-job.TrackGraph": {
+            /**
+             * Geometry
+             * @default mm
+             * @enum {string}
+             */
+            geometry: "mm" | "schema";
+            /** Nodes */
+            nodes?: components["schemas"]["trainmeet.cad-1.drawing-job.GraphNode"][];
+            /** Pieces */
+            pieces?: components["schemas"]["trainmeet.cad-1.drawing-job.GraphPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.cad-1.drawing-job.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.drawing-job.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.drawing-job.GraphSymbol"][];
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
+             * Issued
+             * @description Ids issued so far; the next is one more.
+             * @default 0
+             */
+            issued: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingReadAsk
+         * @description Läs ritningen: the page, with AI for a raster page's text or without.
+         */
+        "trainmeet.cad-1.drawing-read-ask": {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Ai
+             * @default true
+             */
+            ai: boolean;
+            /**
+             * Consent
+             * @default false
+             */
+            consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingAnswers */
+        "trainmeet.cad-1.drawing-answers": {
+            /** Answers */
+            answers: components["schemas"]["trainmeet.cad-1.drawing-answers.DrawingAnswer"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingAnswer */
+        "trainmeet.cad-1.drawing-answers.DrawingAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingRead
+         * @description Ritningsavläsning (bildkedjan R4): what the chain read from one page, for Studio. The
+         *     track graph is "schema": pieces, nodes and switches in the drawing's coordinates, the labels
+         *     with the object each names and how it was read, and the symbols with their class. Then the
+         *     track-circuit boundaries, the questions with the legend's first, the straightened drawing,
+         *     and the job and its price. Everything is a proposal until the owner confirms it in Studio.
+         */
+        "trainmeet.cad-1.drawing-read": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /** Page */
+            page: number;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingPageKind"];
+            graph: components["schemas"]["trainmeet.cad-1.drawing-read.TrackGraph"];
+            /** Boundaries */
+            boundaries?: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingBoundary"][];
+            /** Questions */
+            questions?: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingQuestion"][];
+            /** @default null */
+            underlay: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingUnderlay"] | null;
+            summary: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingSummary"];
+            price: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingPrice"];
+            /**
+             * Cost
+             * @description Tokens drawn for this read.
+             */
+            cost: number;
+            /**
+             * Notes
+             * @description What else to know, in Swedish.
+             */
+            notes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.cad-1.drawing-read.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * DrawingBoundary
+         * @description Spårledningsgräns where the drawing shows one: a stroke across a track.
+         */
+        "trainmeet.cad-1.drawing-read.DrawingBoundary": {
+            /** Id */
+            id: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it crosses.
+             * @default null
+             */
+            piece: string | null;
+            origin: components["schemas"]["trainmeet.cad-1.drawing-read.GraphOrigin"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingChoice */
+        "trainmeet.cad-1.drawing-read.DrawingChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingPageKind
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.DrawingPageKind": "vector" | "raster";
+        /**
+         * DrawingPrice
+         * @description The price before start (CAD-29, bildkedjan Pris): a vector page is free, a raster page
+         *     12 tokens when TrainMeets AI transcribes its text.
+         */
+        "trainmeet.cad-1.drawing-read.DrawingPrice": {
+            /** Tokens */
+            tokens: number;
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "vector" | "first" | "same" | "own_ai" | "no_ai";
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestion
+         * @description A question from the drawing's read: one per colour of line or symbol type that code
+         *     cannot place (R3: "Vad betyder ▲ i den här ritningen?"), the legend's first. The code's
+         *     choice stands until the owner answers; the answer changes the read without reading again,
+         *     at no cost.
+         */
+        "trainmeet.cad-1.drawing-read.DrawingQuestion": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingQuestionKind"];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Choices */
+            choices: components["schemas"]["trainmeet.cad-1.drawing-read.DrawingChoice"][];
+            /**
+             * Code
+             * @description The choice the code makes.
+             * @default null
+             */
+            code: string | null;
+            /**
+             * Answer
+             * @description The owner's.
+             * @default null
+             */
+            answer: string | null;
+            /**
+             * Sample
+             * @description ▲, ●, a colour …
+             * @default null
+             */
+            sample: string | null;
+            /**
+             * Count
+             * @description How many there are in the drawing.
+             */
+            count: number;
+            /**
+             * At
+             * @description One of them, in the drawing.
+             * @default null
+             */
+            at: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestionKind
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.DrawingQuestionKind": "legend" | "end";
+        /** DrawingSummary */
+        "trainmeet.cad-1.drawing-read.DrawingSummary": {
+            /** Pieces */
+            pieces: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /** Line Exits */
+            line_exits: number;
+            /** Buffer Stops */
+            buffer_stops: number;
+            /** Signals */
+            signals: number;
+            /** Boundaries */
+            boundaries: number;
+            /** Labels */
+            labels: number;
+            /** Unknown Symbols */
+            unknown_symbols: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingUnderlay
+         * @description The straightened drawing, for Studio to show under Rita: the image, its size, and the
+         *     affine transform from the drawing's coordinates to the image's pixels (a, b, c, d, e, f as
+         *     SVG's matrix).
+         */
+        "trainmeet.cad-1.drawing-read.DrawingUnderlay": {
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Transform */
+            transform: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.GableEnd": "A" | "B";
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
+         */
+        "trainmeet.cad-1.drawing-read.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece, switch, node or symbol it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-read.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.cad-1.drawing-read.ReadBy"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphNode
+         * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
+         *     its track number there.
+         */
+        "trainmeet.cad-1.drawing-read.GraphNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-read.NodeType"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            gable: components["schemas"]["trainmeet.cad-1.drawing-read.GableEnd"] | null;
+            /**
+             * Track
+             * @description Spår n i gaveln.
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** GraphOrigin */
+        "trainmeet.cad-1.drawing-read.GraphOrigin": {
+            source: components["schemas"]["trainmeet.cad-1.drawing-read.GraphSource"];
+            certainty: components["schemas"]["trainmeet.cad-1.drawing-read.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPiece
+         * @description Spårbit: track centre from one node to another, as LINE and ARC segments in order.
+         */
+        "trainmeet.cad-1.drawing-read.GraphPiece": {
+            /** Id */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.cad-1.drawing-read.LineSegment"] | components["schemas"]["trainmeet.cad-1.drawing-read.ArcSegment"])[];
+            /**
+             * Track
+             * @description Spårnummer, när ägaren har gett det.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-read.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSource
+         * @description Where a piece of the graph comes from.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
+        /**
+         * GraphSwitch
+         * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
+         */
+        "trainmeet.cad-1.drawing-read.GraphSwitch": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            type: components["schemas"]["trainmeet.cad-1.drawing-read.SwitchType"];
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-read.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.cad-1.drawing-read.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.cad-1.drawing-read.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.cad-1.drawing-read.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.cad-1.drawing-read.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.cad-1.drawing-read.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.cad-1.drawing-read.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.cad-1.drawing-read.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
+         * TrackGraph
+         * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
+         *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
+         *     complete is false while the tracks between the gables are unknown: a module from measures
+         *     whose gables differ waits for its photo or its drawing.
+         */
+        "trainmeet.cad-1.drawing-read.TrackGraph": {
+            /**
+             * Geometry
+             * @default mm
+             * @enum {string}
+             */
+            geometry: "mm" | "schema";
+            /** Nodes */
+            nodes?: components["schemas"]["trainmeet.cad-1.drawing-read.GraphNode"][];
+            /** Pieces */
+            pieces?: components["schemas"]["trainmeet.cad-1.drawing-read.GraphPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.cad-1.drawing-read.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.cad-1.drawing-read.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.cad-1.drawing-read.GraphSymbol"][];
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
+             * Issued
+             * @description Ids issued so far; the next is one more.
+             * @default 0
+             */
+            issued: number;
         } & {
             [key: string]: unknown;
         };
@@ -8327,6 +10107,420 @@ export interface operations {
             };
             /** @description CAD säger nej */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadUploadDrawing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The JSON in the part data, and the drawing in the part file: a PDF, an SVG, or a JPEG, PNG or WebP picture, at most 30 MB. */
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    data?: components["schemas"]["trainmeet.cad-1.drawing-start"];
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description OK */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.drawing-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadDrawingJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.drawing-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadReadDrawing: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-read-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.drawing-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadDrawingAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-answers"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.drawing-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadDrawingUnderlay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The straightened drawing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

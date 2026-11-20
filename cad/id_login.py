@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import logging
 import secrets
 import threading
 import time
@@ -33,6 +34,7 @@ from cad.login import initials, key_hash
 from cad.settings import IdSettings
 from contracts.cad import CadAccount
 
+LOGGER = logging.getLogger("cad.id")
 COOKIE = "cad_id_login"
 COOKIE_PATH = "/api/cad/1/id"
 LIFETIME_SECONDS = 600
@@ -250,6 +252,32 @@ class IdLogin:
                 self._keys = keys
                 self._keys_read = time.monotonic()
             return self._keys[kid]
+
+    def app_account(self, authorization: str | None, apps: frozenset[str]) -> CadAccount | None:
+        """The person an app's access token from ID belongs to: Studio's Ladda upp ritning calls
+        CAD with the token TKL got from ID for the person (TKL18, part c4), as the hub's Synk
+        takes it. Signed by ID, not run out, from ID's issuer and issued to one of the apps (azp).
+        None for anything else; only the error's kind goes to the log, never the token."""
+        scheme, _, token = (authorization or "").partition(" ")
+        token = token.strip()
+        if scheme.lower() != "bearer" or not token or len(token) > 8000:
+            return None
+        try:
+            header = jwt.get_unverified_header(token)
+            key = self._key(str(header.get("kid", "")))
+            claims: dict[str, Any] = jwt.decode(
+                token,
+                key=key,
+                algorithms=[key.algorithm_name],
+                issuer=self.settings.issuer,
+                leeway=30,
+                options={"require": ["exp", "iat", "iss", "sub"], "verify_aud": False},
+            )
+            account = account_from(claims)
+        except (jwt.PyJWTError, httpx.HTTPError, LookupError, ValueError, LoginFailed) as error:
+            LOGGER.info("En apps token godtas inte: %s", type(error).__name__)
+            return None
+        return account if claims.get("azp") in apps else None
 
     def logout_address(self, id_token: str) -> str:
         """Where the browser goes so that ID logs out too, and then comes back (KONTO-01)."""

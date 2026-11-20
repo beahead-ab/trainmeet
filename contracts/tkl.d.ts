@@ -404,6 +404,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tkl/1/studio/ritning": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklUpload"];
+        put?: never;
+        post: operations["tklUploadDrawing"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/ritning/{job}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklUploadJob"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/ritning/{job}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklUploadRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/ritning/{job}/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklUploadAnswers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/ritning/{job}/underlag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["tklUploadUnderlay"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/tkl/1/studio/ritning/{job}/forslag": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["tklUploadProposal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tkl/1/studio/dela": {
         parameters: {
             query?: never;
@@ -8768,6 +8864,717 @@ export interface components {
              * @description Strålens vinkel i grader, moturs från öster.
              */
             angle: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TklUpload
+         * @description Ladda upp ritning i Studio (#89 del c4, STUDIO-01, STUDIO-03, CAD6): whether the way in is
+         *     open here and why not, and the drawing being read, as TrainMeet CAD answers it. TKL asks
+         *     CAD for the person with the person's access token from ID; a local TKL without internet or
+         *     without a login with ID can only Rita. The underlay comes through TKL, at underlay.
+         */
+        "trainmeet.tkl-1.upload": {
+            /** Available */
+            available: boolean;
+            /**
+             * Reason
+             * @description Varför vägen in är grå.
+             * @default null
+             */
+            reason: string | null;
+            /** @default null */
+            job: components["schemas"]["trainmeet.tkl-1.upload.DrawingJob"] | null;
+            /**
+             * Underlay
+             * @description TKL:s egen adress till den uträtade ritningen.
+             * @default null
+             */
+            underlay: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ArcSegment
+         * @description ARC: a circular piece of track centre, in mm, as DXF's ARC. clockwise is as the drawing
+         *     shows it, with y down.
+         */
+        "trainmeet.tkl-1.upload.ArcSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "arc";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+            /** Center */
+            center: [
+                number,
+                number
+            ];
+            /** Radius */
+            radius: number;
+            /** Clockwise */
+            clockwise: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Certainty
+         * @description How sure a fact is, as in the import and the photo chain (bildkedjan, principle 4).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.Certainty": "certain" | "probable" | "uncertain" | "confirmed";
+        /**
+         * DrawingAi
+         * @description Whether AI can transcribe a raster page here, what is sent and to whom, and the yes
+         *     (as the photo's, CAT-142).
+         */
+        "trainmeet.tkl-1.upload.DrawingAi": {
+            /** Available */
+            available: boolean;
+            /** Given */
+            given: boolean;
+            /** Version */
+            version: string;
+            /** Sent To */
+            sent_to: string;
+            /** Text */
+            text: string;
+            /**
+             * Balance
+             * @default null
+             */
+            balance: number | null;
+            /**
+             * Message
+             * @description Why AI cannot be used now.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingBoundary
+         * @description Spårledningsgräns where the drawing shows one: a stroke across a track.
+         */
+        "trainmeet.tkl-1.upload.DrawingBoundary": {
+            /** Id */
+            id: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it crosses.
+             * @default null
+             */
+            piece: string | null;
+            origin: components["schemas"]["trainmeet.tkl-1.upload.GraphOrigin"];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingChoice */
+        "trainmeet.tkl-1.upload.DrawingChoice": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingJob
+         * @description One drawing taken in, and its read. The same file, page and input give the same job, at
+         *     no new cost (bildkedjan, Reproducerbarhet).
+         */
+        "trainmeet.tkl-1.upload.DrawingJob": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Name
+             * @description The file's name, as the owner gave it.
+             */
+            name: string;
+            state: components["schemas"]["trainmeet.tkl-1.upload.DrawingJobState"];
+            /** Progress */
+            progress: number;
+            /** Step */
+            step: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Format
+             * @enum {string}
+             */
+            format: "pdf" | "svg" | "image";
+            /** Pages */
+            pages: components["schemas"]["trainmeet.tkl-1.upload.DrawingPage"][];
+            /**
+             * Page
+             * @description The page read, or to read.
+             */
+            page: number;
+            price: components["schemas"]["trainmeet.tkl-1.upload.DrawingPrice"];
+            ai: components["schemas"]["trainmeet.tkl-1.upload.DrawingAi"];
+            /** @default null */
+            read: components["schemas"]["trainmeet.tkl-1.upload.DrawingRead"] | null;
+            /** Cost */
+            cost: number;
+            /** Chain */
+            chain: string;
+            /** Key */
+            key: string;
+            /**
+             * Message
+             * @description Why it stopped, in Swedish.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingJobState
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.DrawingJobState": "waiting" | "queued" | "running" | "done" | "failed";
+        /** DrawingPage */
+        "trainmeet.tkl-1.upload.DrawingPage": {
+            /** Number */
+            number: number;
+            kind: components["schemas"]["trainmeet.tkl-1.upload.DrawingPageKind"];
+            /**
+             * Width
+             * @description In the page's own units: pt, or px for pixels.
+             */
+            width: number;
+            /** Height */
+            height: number;
+            /**
+             * Text
+             * @description The page has a text layer that code reads.
+             */
+            text: boolean;
+            /**
+             * Tokens
+             * @description What reading it with TrainMeets AI costs.
+             */
+            tokens: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingPageKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.DrawingPageKind": "vector" | "raster";
+        /**
+         * DrawingPrice
+         * @description The price before start (CAD-29, bildkedjan Pris): a vector page is free, a raster page
+         *     12 tokens when TrainMeets AI transcribes its text.
+         */
+        "trainmeet.tkl-1.upload.DrawingPrice": {
+            /** Tokens */
+            tokens: number;
+            /**
+             * Why
+             * @enum {string}
+             */
+            why: "vector" | "first" | "same" | "own_ai" | "no_ai";
+            /** Text */
+            text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestion
+         * @description A question from the drawing's read: one per colour of line or symbol type that code
+         *     cannot place (R3: "Vad betyder ▲ i den här ritningen?"), the legend's first. The code's
+         *     choice stands until the owner answers; the answer changes the read without reading again,
+         *     at no cost.
+         */
+        "trainmeet.tkl-1.upload.DrawingQuestion": {
+            /** Key */
+            key: string;
+            kind: components["schemas"]["trainmeet.tkl-1.upload.DrawingQuestionKind"];
+            /** Title */
+            title: string;
+            /** Text */
+            text: string;
+            /** Choices */
+            choices: components["schemas"]["trainmeet.tkl-1.upload.DrawingChoice"][];
+            /**
+             * Code
+             * @description The choice the code makes.
+             * @default null
+             */
+            code: string | null;
+            /**
+             * Answer
+             * @description The owner's.
+             * @default null
+             */
+            answer: string | null;
+            /**
+             * Sample
+             * @description ▲, ●, a colour …
+             * @default null
+             */
+            sample: string | null;
+            /**
+             * Count
+             * @description How many there are in the drawing.
+             */
+            count: number;
+            /**
+             * At
+             * @description One of them, in the drawing.
+             * @default null
+             */
+            at: [
+                number,
+                number
+            ] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingQuestionKind
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.DrawingQuestionKind": "legend" | "end";
+        /**
+         * DrawingRead
+         * @description Ritningsavläsning (bildkedjan R4): what the chain read from one page, for Studio. The
+         *     track graph is "schema": pieces, nodes and switches in the drawing's coordinates, the labels
+         *     with the object each names and how it was read, and the symbols with their class. Then the
+         *     track-circuit boundaries, the questions with the legend's first, the straightened drawing,
+         *     and the job and its price. Everything is a proposal until the owner confirms it in Studio.
+         */
+        "trainmeet.tkl-1.upload.DrawingRead": {
+            /**
+             * Job
+             * Format: uuid
+             */
+            job: string;
+            /** Page */
+            page: number;
+            kind: components["schemas"]["trainmeet.tkl-1.upload.DrawingPageKind"];
+            graph: components["schemas"]["trainmeet.tkl-1.upload.TrackGraph"];
+            /** Boundaries */
+            boundaries?: components["schemas"]["trainmeet.tkl-1.upload.DrawingBoundary"][];
+            /** Questions */
+            questions?: components["schemas"]["trainmeet.tkl-1.upload.DrawingQuestion"][];
+            /** @default null */
+            underlay: components["schemas"]["trainmeet.tkl-1.upload.DrawingUnderlay"] | null;
+            summary: components["schemas"]["trainmeet.tkl-1.upload.DrawingSummary"];
+            price: components["schemas"]["trainmeet.tkl-1.upload.DrawingPrice"];
+            /**
+             * Cost
+             * @description Tokens drawn for this read.
+             */
+            cost: number;
+            /**
+             * Notes
+             * @description What else to know, in Swedish.
+             */
+            notes?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingSummary */
+        "trainmeet.tkl-1.upload.DrawingSummary": {
+            /** Pieces */
+            pieces: number;
+            /** Switches */
+            switches: number;
+            /** Crossings */
+            crossings: number;
+            /** Line Exits */
+            line_exits: number;
+            /** Buffer Stops */
+            buffer_stops: number;
+            /** Signals */
+            signals: number;
+            /** Boundaries */
+            boundaries: number;
+            /** Labels */
+            labels: number;
+            /** Unknown Symbols */
+            unknown_symbols: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * DrawingUnderlay
+         * @description The straightened drawing, for Studio to show under Rita: the image, its size, and the
+         *     affine transform from the drawing's coordinates to the image's pixels (a, b, c, d, e, f as
+         *     SVG's matrix).
+         */
+        "trainmeet.tkl-1.upload.DrawingUnderlay": {
+            /** Url */
+            url: string;
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Transform */
+            transform: [
+                number,
+                number,
+                number,
+                number,
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GableEnd
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.GableEnd": "A" | "B";
+        /**
+         * GraphLabel
+         * @description Etikett: a text in the drawing at a point in mm, on a piece or a switch or free
+         *     (bildkedjan, R4 and point 21). The Text tool writes them. In a drawing read for Studio the
+         *     point is in the drawing's own coordinates, ref is the object code tied it to (the nearest
+         *     one), and read_by says how the text was read.
+         */
+        "trainmeet.tkl-1.upload.GraphLabel": {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Ref
+             * @description The piece, switch, node or symbol it names.
+             * @default null
+             */
+            ref: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.upload.GraphOrigin"] | null;
+            /**
+             * @description Textlager, OCR eller AI; null: written in CAD.
+             * @default null
+             */
+            read_by: components["schemas"]["trainmeet.tkl-1.upload.ReadBy"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphNode
+         * @description Nod: where pieces meet or end. A track at a gable is a module joint with its gable and
+         *     its track number there.
+         */
+        "trainmeet.tkl-1.upload.GraphNode": {
+            /** Id */
+            id: string;
+            type: components["schemas"]["trainmeet.tkl-1.upload.NodeType"];
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /** @default null */
+            gable: components["schemas"]["trainmeet.tkl-1.upload.GableEnd"] | null;
+            /**
+             * Track
+             * @description Spår n i gaveln.
+             * @default null
+             */
+            track: number | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** GraphOrigin */
+        "trainmeet.tkl-1.upload.GraphOrigin": {
+            source: components["schemas"]["trainmeet.tkl-1.upload.GraphSource"];
+            certainty: components["schemas"]["trainmeet.tkl-1.upload.Certainty"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphPiece
+         * @description Spårbit: track centre from one node to another, as LINE and ARC segments in order.
+         */
+        "trainmeet.tkl-1.upload.GraphPiece": {
+            /** Id */
+            id: string;
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Segments */
+            segments: (components["schemas"]["trainmeet.tkl-1.upload.LineSegment"] | components["schemas"]["trainmeet.tkl-1.upload.ArcSegment"])[];
+            /**
+             * Track
+             * @description Spårnummer, när ägaren har gett det.
+             * @default null
+             */
+            track: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.upload.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSource
+         * @description Where a piece of the graph comes from.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.GraphSource": "measures" | "photo" | "sketch" | "anyrail" | "drawn" | "drawing";
+        /**
+         * GraphSwitch
+         * @description Växel, korsningsväxel eller korsning, at a node: the station model's Switch with CAD's
+         *     ids. The diverging leg's radius and angle, when known. The node is the points (tungspetsen);
+         *     the diverging leg leaves the through track tangentially toward gable A or B (lärdomarna,
+         *     Växlar). design is the switch type from the switch library (Växeltyp), null while Okänd.
+         */
+        "trainmeet.tkl-1.upload.GraphSwitch": {
+            /** Id */
+            id: string;
+            /** Node */
+            node: string;
+            type: components["schemas"]["trainmeet.tkl-1.upload.SwitchType"];
+            /**
+             * Trunk
+             * @default null
+             */
+            trunk: string | null;
+            /**
+             * Straight
+             * @default null
+             */
+            straight: string | null;
+            /**
+             * Diverging
+             * @default null
+             */
+            diverging: string | null;
+            /**
+             * Radius
+             * @default null
+             */
+            radius: number | null;
+            /**
+             * Angle
+             * @default null
+             */
+            angle: number | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.upload.GraphOrigin"] | null;
+            /**
+             * Number
+             * @description Växelnummer.
+             * @default null
+             */
+            number: string | null;
+            /**
+             * Design
+             * @description Växeltyp; null: Okänd.
+             * @default null
+             */
+            design: string | null;
+            /**
+             * @description The gable the diverging leg heads for.
+             * @default null
+             */
+            toward: components["schemas"]["trainmeet.tkl-1.upload.GableEnd"] | null;
+            /**
+             * Locked
+             * @description Lås växelns läge när kurvorna räknas om: Lås mått keeps the points where they are.
+             * @default false
+             */
+            locked: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * GraphSymbol
+         * @description Symbol: a figure in a drawing (a signal figure, a triangle, a circle), with its class from
+         *     the catalogue, the way it faces, the track it stands by and how sure the class is (R3, R4).
+         *     A signal's name and address are those read from its label, when there is one.
+         */
+        "trainmeet.tkl-1.upload.GraphSymbol": {
+            /** Id */
+            id: string;
+            kind: components["schemas"]["trainmeet.tkl-1.upload.SymbolKind"];
+            /**
+             * @description The catalogue's class.
+             * @default null
+             */
+            signal: components["schemas"]["trainmeet.tkl-1.upload.SignalType"] | null;
+            /**
+             * Lamps
+             * @description Hsi 2, Hsi 4 …
+             * @default null
+             */
+            lamps: number | null;
+            /**
+             * Facing
+             * @description The way it applies: trains going east or west.
+             * @default null
+             */
+            facing: ("east" | "west") | null;
+            /** At */
+            at: [
+                number,
+                number
+            ];
+            /**
+             * Piece
+             * @description The track it stands by.
+             * @default null
+             */
+            piece: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Address
+             * @default null
+             */
+            address: number | null;
+            /**
+             * Label
+             * @description The label it was named by.
+             * @default null
+             */
+            label: string | null;
+            /**
+             * Shape
+             * @description What it looks like: signalfigur, ▲, ● …
+             * @default null
+             */
+            shape: string | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.upload.GraphOrigin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LineSegment
+         * @description LINE: a straight piece of track centre, in mm.
+         */
+        "trainmeet.tkl-1.upload.LineSegment": {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "line";
+            /** Start */
+            start: [
+                number,
+                number
+            ];
+            /** End */
+            end: [
+                number,
+                number
+            ];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * NodeType
+         * @description What is at a node. A node joins track pieces; how many depends on the type.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.NodeType": "switch" | "crossing" | "signal_point" | "block_boundary" | "module_joint" | "joint" | "stop_point" | "buffer_stop" | "line_exit" | "turntable";
+        /**
+         * ReadBy
+         * @description How a label's text came out of a drawing (bildkedjan R4): the PDF's or SVG's own text
+         *     layer, read by code; OCR; or transcribed by AI from a raster page.
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.ReadBy": "text_layer" | "ocr" | "ai";
+        /**
+         * SignalType
+         * @description The signal catalogue (§2). New types are added here for all stations (STD-19).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SwitchType
+         * @description Växeltyp (RS1).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.SwitchType": "ordinary" | "y" | "single_slip" | "double_slip" | "crossing";
+        /**
+         * SymbolKind
+         * @description What a symbol in a drawing is, classed against the standard interlocking's catalogue
+         *     (bildkedjan R3, contracts/station_model.py).
+         * @enum {string}
+         */
+        "trainmeet.tkl-1.upload.SymbolKind": "signal" | "buffer_stop" | "unknown";
+        /**
+         * TrackGraph
+         * @description Spårgraf: what CAD sends to Studio (CAD-10). Ids are never changed when the module is
+         *     redrawn, and never used again for something else (CAD-20). geometry is "mm" for a module's
+         *     real geometry; a drawing read by the photo chain for Studio gives "schema" (bildkedjan, 21),
+         *     in the drawing's own coordinates with y down, with its labels and its symbols, and line exits
+         *     and buffer stops at the tracks' ends. The same format goes both ways to Studio.
+         *     complete is false while the tracks between the gables are unknown: a module from measures
+         *     whose gables differ waits for its photo or its drawing.
+         */
+        "trainmeet.tkl-1.upload.TrackGraph": {
+            /**
+             * Geometry
+             * @default mm
+             * @enum {string}
+             */
+            geometry: "mm" | "schema";
+            /** Nodes */
+            nodes?: components["schemas"]["trainmeet.tkl-1.upload.GraphNode"][];
+            /** Pieces */
+            pieces?: components["schemas"]["trainmeet.tkl-1.upload.GraphPiece"][];
+            /** Switches */
+            switches?: components["schemas"]["trainmeet.tkl-1.upload.GraphSwitch"][];
+            /** Labels */
+            labels?: components["schemas"]["trainmeet.tkl-1.upload.GraphLabel"][];
+            /**
+             * Symbols
+             * @description Symbols read from a drawing (bildkedjan R3, 21).
+             */
+            symbols?: components["schemas"]["trainmeet.tkl-1.upload.GraphSymbol"][];
+            /**
+             * Complete
+             * @default true
+             */
+            complete: boolean;
+            /**
+             * Issued
+             * @description Ids issued so far; the next is one more.
+             * @default 0
+             */
+            issued: number;
         } & {
             [key: string]: unknown;
         };
@@ -18030,6 +18837,45 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * DrawingReadAsk
+         * @description Läs ritningen: the page, with AI for a raster page's text or without.
+         */
+        "trainmeet.cad-1.drawing-read-ask": {
+            /**
+             * Page
+             * @default 1
+             */
+            page: number;
+            /**
+             * Ai
+             * @default true
+             */
+            ai: boolean;
+            /**
+             * Consent
+             * @default false
+             */
+            consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingAnswers */
+        "trainmeet.cad-1.drawing-answers": {
+            /** Answers */
+            answers: components["schemas"]["trainmeet.cad-1.drawing-answers.DrawingAnswer"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** DrawingAnswer */
+        "trainmeet.cad-1.drawing-answers.DrawingAnswer": {
+            /** Key */
+            key: string;
+            /** Answer */
+            answer: string;
+        } & {
+            [key: string]: unknown;
+        };
     };
     responses: never;
     parameters: never;
@@ -18738,6 +19584,172 @@ export interface operations {
             query?: never;
             header?: never;
             path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.rita"];
+                };
+            };
+        };
+    };
+    tklUpload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.upload"];
+                };
+            };
+        };
+    };
+    tklUploadDrawing: {
+        parameters: {
+            query: {
+                namn: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The drawing as it is: a PDF, an SVG, or a JPEG, PNG or WebP picture. */
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.upload"];
+                };
+            };
+        };
+    };
+    tklUploadJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.upload"];
+                };
+            };
+        };
+    };
+    tklUploadRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-read-ask"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.upload"];
+                };
+            };
+        };
+    };
+    tklUploadAnswers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.drawing-answers"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.tkl-1.upload"];
+                };
+            };
+        };
+    };
+    tklUploadUnderlay: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The straightened drawing */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                };
+            };
+        };
+    };
+    tklUploadProposal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
             cookie?: never;
         };
         requestBody?: never;

@@ -24,6 +24,7 @@ EXAMPLE_FOR = {
     "trainmeet.terminal16.hello": "terminal16.hello.json",
     "trainmeet.terminal16.frame-message": "terminal16.frame-message.json",
     "trainmeet.drift-1.event": "drift-1.event.json",
+    "trainmeet.cad-1.drawing-read": "exempelby.drawing-read.json",
 }
 
 
