@@ -167,7 +167,7 @@ describe("Fotot under in Ritningen", () => {
     const view = {
       ...DRAWING,
       drawing: { ...DRAWING.drawing, source: "photo" as const, photo: JOB_ID },
-      photo: { job: JOB_ID, url: "/api/cad/1/photos/file/matbild.jpg", grid: { x0: -10, y0: -10, ppm: 1, width: 1521, height: 721 } },
+      photo: { job: JOB_ID, url: "/api/cad/1/photos/file/matbild.jpg", grid: { x0: -10, y0: -10, ppm: 1, width: 1521, height: 721, matrix: null } },
       stats: { ...DRAWING.stats, deviation: { median: 0.08, max: 0.94, count: 2792 } },
     };
     const html = renderToStaticMarkup(<Ritningen module={PHOTOGRAPHED} view={view} changes={0} undone={0} />);

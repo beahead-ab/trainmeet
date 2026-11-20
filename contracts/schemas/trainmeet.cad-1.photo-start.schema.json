@@ -3,6 +3,15 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-start.schema.json",
   "title": "trainmeet.cad-1.photo-start",
   "$defs": {
+    "EdgeSide": {
+      "description": "Which edge of a curve module is Kant 1.",
+      "enum": [
+        "outer",
+        "inner"
+      ],
+      "title": "EdgeSide",
+      "type": "string"
+    },
     "Scale": {
       "description": "The module's scale (CAD10, CAD12).",
       "enum": [
@@ -15,7 +24,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "The form's data part: a new module from the photo, or a photo for a module.",
+  "description": "The form's data part: a new module from the photo, or a photo for a module. A curve\nmodule comes with the chord and sagitta measured on track 1, and track 1's distance from\nKant 1 at gable A (part c2, bildkedjan step 6). A sketch (profile skiss) needs the module's\nlength: its frame gives the sketch its scale.",
   "properties": {
     "module": {
       "anyOf": [
@@ -29,6 +38,15 @@
       ],
       "default": null,
       "title": "Module"
+    },
+    "profile": {
+      "default": "modulfoto",
+      "enum": [
+        "modulfoto",
+        "skiss"
+      ],
+      "title": "Profile",
+      "type": "string"
     },
     "name": {
       "anyOf": [
@@ -52,7 +70,8 @@
       "default": "straight",
       "enum": [
         "straight",
-        "trapezoid"
+        "trapezoid",
+        "curve"
       ],
       "title": "Kind",
       "type": "string"
@@ -114,6 +133,55 @@
       ],
       "default": null,
       "title": "Offset"
+    },
+    "chord": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A curve's chord on track 1.",
+      "title": "Chord"
+    },
+    "sagitta": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A curve's sagitta on track 1.",
+      "title": "Sagitta"
+    },
+    "track1": {
+      "anyOf": [
+        {
+          "exclusiveMinimum": 0,
+          "maximum": 20000,
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Track 1 from Kant 1 at gable A.",
+      "title": "Track1"
+    },
+    "edge": {
+      "$ref": "#/$defs/EdgeSide",
+      "default": "outer"
     },
     "keep_original": {
       "default": false,

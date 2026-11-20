@@ -1,0 +1,24 @@
+{
+  "kalla": "Charlottendals depå, modul 10–13 (krav CAD-28: specarbetet läste 22 växlar och 2 korsningar ur de handritade skisserna; bildkedjan, Reproducerbarhet: depåskisserna är ett regressionstest). Skisserna ligger i ref/charlottendal/underlag i trainmeet-spec och inte här: CAD17 gäller fotona, inte skisserna, så testet läser dem där de ligger och hoppas över utan dem. När de får läggas i repot läggs de bredvid den här filen. Skiss 1 har modul 10a, 11 och 10b i var sin ram, som koden hittar (ram_nara: ramens mitt i den uträtade skissens pixlar). Skiss 3 har modul 12 och 13, vars ramar koden inte hittar: hörnen är satta för hand, i den uträtade skissens pixlar, Kant 1 den övre sidan och gavel A den vänstra. Måtten ur ref/charlottendal/station.json: 10a 1500 × 350, 10b och 11 1500 × 700; 12 och 13 finns inte där och läses som 1500 × 700. Del c2 läser 21 växlar och 2 korsningar: 10a 7 och 1 korsning, 11 5, 10b 5 och 1 korsning, 12 2, 13 2.",
+  "mapp": "underlag",
+  "vaxlar": 22,
+  "korsningar": 2,
+  "minst_vaxlar": 21,
+  "skisser": [
+    {
+      "skiss": "depaskiss-1.jpg",
+      "moduler": [
+        {"modul": "10a", "ram_nara": [657, 562], "langd": 1500, "bredd": 350, "minst_vaxlar": 7},
+        {"modul": "11", "ram_nara": [1562, 661], "langd": 1500, "bredd": 700, "minst_vaxlar": 5},
+        {"modul": "10b", "ram_nara": [638, 887], "langd": 1500, "bredd": 700, "minst_vaxlar": 5}
+      ]
+    },
+    {
+      "skiss": "depaskiss-3.jpg",
+      "moduler": [
+        {"modul": "12", "horn": [[248, 600], [1170, 600], [1170, 1026], [248, 1026]], "langd": 1500, "bredd": 700, "minst_vaxlar": 2},
+        {"modul": "13", "horn": [[1170, 596], [2096, 592], [2096, 1026], [1170, 1026]], "langd": 1500, "bredd": 700, "minst_vaxlar": 2}
+      ]
+    }
+  ]
+}

@@ -4,9 +4,15 @@ cheapest path on the track map between them (bildkedjan, Topologi; lärdomarna, 
 A module's tracks go from gable to gable, or from a gable to an end inside it, and run on
 along the module: within a module no track turns back on itself. So a path is y as a function
 of x, from one gable or end toward the other, and the cheapest one is found column by column,
-every millimetre of x, with y every half millimetre, as dynamic programming (Viterbi). A step
-costs what the map says the place is not a track, and what its direction differs from the
-track's there. A train never reverses on the way, and the path cannot either.
+every DX mm of x, with y every half millimetre, as dynamic programming (Viterbi). A step costs
+what the map says the place is not a track, and what its direction differs from the track's
+there. A train never reverses on the way, and the path cannot either.
+
+The path also carries its slope from step to step, and the slope changes by at most one step
+of SLOPE_BIN at a time, at a cost (del c2): a track bends, it never jumps. At low resolution the
+map is weak where a switch's legs overlap, and a path that may jump takes the short way across
+to the next track there; one that must bend follows the leg (bildkedjan, Vad fotona visar,
+point 10: fit to the track map, with the path only as the start).
 
 A path between two ends is accepted as a connection when it stays on track (TRACK_SHARE of it
 over the map's TRACK_SCORE, and no gap longer than GAP_MM) and never turns sharper than a
@@ -34,10 +40,20 @@ from cad.bildkedjan.trackmap import TRACK_SCORE, TrackMap, sample
 
 Y_STEP = 0.5
 """The paths' resolution across the module, mm."""
-SLOPES = 4
-"""The steepest step, in Y_STEP per mm of x: 2 mm per mm, 63°."""
+DX = 8
+"""The paths' step along the module, mm."""
+KMAX = 16
+"""The steepest slope, in Y_STEP per DX: 1 mm per mm, 45°."""
+SLOPE_BIN = Y_STEP / DX
+"""One step of slope: 0,125 mm per mm, 7°."""
+BEND_COST = 10.0
+"""What a change of slope by one step costs: a long weak stretch on a track, where a switch's
+legs overlap, is cheaper than a bend across to the next track and back."""
+WIDEN_MM = 5.0
+START_SLOPE = 1
+"""A track leaves a gable nearly square: its first slope at most this many steps."""
 DIRECTION_WEIGHT = 2.0
-OFF_TRACK_WEIGHT = 4.0
+OFF_TRACK_WEIGHT = 1.5
 """What a millimetre off the track costs more than one on a track's poorer stretch, such as
 where two tracks overlap in a switch."""
 TRACK_SHARE = 0.9
@@ -48,6 +64,9 @@ HIDDEN_GAP_MM = 120.0
 END_CLEAR_MM = 40.0
 """An end inside the module lies at least this far from the gables and sides."""
 END_AHEAD_MM = 40.0
+END_FOLLOW_MM = 30.0
+"""How far an end found where the ridge stops is moved on along the track while the map still
+sees it, mm: the ridge often stops a few millimetres short (part c2)."""
 END_RIDGE_AHEAD_MM = 100.0
 """Nor may a ridge in line with it go on within this far: a track that only breaks where it
 crosses another, at a shallow angle, goes on beyond the crossing."""
@@ -64,7 +83,7 @@ KINK_GAP_MM = 6.0
 STEP_MM = 1.25
 """A step across, mm per mm of x, steeper than any track in a module."""
 SMOOTH_MM = 4.0
-SHARP_SHARE = 0.4
+SHARP_SHARE = 0.8
 """A bend sharper than this share of the lower limit for a switch radius is no track: two
 tracks crossing, or a jump between them."""
 RIDGE_SCORE = 0.35
@@ -123,14 +142,14 @@ class Columns:
     ys: Array
     score: NDArray[Any]
     direction: NDArray[Any]
-    costs: dict[bool, NDArray[Any]] = field(default_factory=dict)
+    costs: NDArray[Any] | None = None
 
-    def steps(self, forward: bool) -> NDArray[Any]:
-        if forward not in self.costs:
-            self.costs[forward] = np.stack(
-                [_step_costs(self, column, forward) for column in range(len(self.xs))]
-            )
-        return self.costs[forward]
+    def steps(self) -> NDArray[Any]:
+        """The cost of arriving at each coarse column (every DX mm), row and slope, from the
+        column before: (columns, 2·KMAX + 1, rows)."""
+        if self.costs is None:
+            self.costs = _step_costs(self)
+        return self.costs
 
 
 def columns(
@@ -140,93 +159,121 @@ def columns(
     ys = np.arange(y_range[0], y_range[1] + Y_STEP / 2, Y_STEP)
     gx, gy = np.meshgrid(xs, ys, indexing="ij")
     px = tracks.grid.to_px(np.stack([gx.ravel(), gy.ravel()], axis=1))
-    score = sample(tracks.score, px[:, 0], px[:, 1]).reshape(gx.shape).astype(np.float32)
+    # The map's ridge is a millimetre or two wide; a path whose slope comes in steps of
+    # SLOPE_BIN runs beside it now and then. Widened, it stays on the track; the track's middle
+    # is found to a fraction of a millimetre afterwards (trackmap.refine_path).
+    wide = round(WIDEN_MM * tracks.grid.ppm) | 1
+    widened = cv2.dilate(tracks.score, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (wide, wide)))
+    score = sample(widened, px[:, 0], px[:, 1]).reshape(gx.shape).astype(np.float32)
     ix = np.clip(np.round(px[:, 0]).astype(int), 0, tracks.grid.width - 1)
     iy = np.clip(np.round(px[:, 1]).astype(int), 0, tracks.grid.height - 1)
     direction = tracks.direction[iy, ix].reshape(gx.shape)
     return Columns(xs, ys, score, direction)
 
 
-def _step_costs(cols: Columns, column: int, forward: bool) -> NDArray[Any]:
-    """The cost of arriving at each row of the column with each slope, (2·SLOPES+1, rows). A
-    step toward smaller x with the rise d runs in the direction of one toward larger x with -d."""
-    s = cols.score[column]
-    theta = cols.direction[column]
-    found = np.empty((2 * SLOPES + 1, len(s)), np.float32)
-    for i, d in enumerate(range(-SLOPES, SLOPES + 1)):
-        rise = d * Y_STEP
-        phi = math.atan2(rise if forward else -rise, 1.0)
+def _step_costs(cols: Columns) -> NDArray[Any]:
+    """Each coarse column's cost for each slope k (rows per DX) and row it arrives at: the mm
+    of x before it, each at the row the slope gives there, costing what the map says it is not
+    a track, off a track more, and what the slope differs from the map's direction."""
+    s = cols.score
+    unit = (1 - s) + OFF_TRACK_WEIGHT * np.maximum(0.0, TRACK_SCORE - s) / TRACK_SCORE
+    count = (len(cols.xs) - 1) // DX + 1
+    rows = len(cols.ys)
+    found = np.full((count, 2 * KMAX + 1, rows), np.inf, np.float32)
+    found[0] = 0.0
+    starts = np.arange(1, count) * DX
+    for j, k in enumerate(range(-KMAX, KMAX + 1)):
+        rise = k * Y_STEP / DX
+        phi = math.atan(rise)
         length = math.hypot(1.0, rise)
-        off_track = OFF_TRACK_WEIGHT * np.maximum(0.0, TRACK_SCORE - s) / TRACK_SCORE
-        found[i] = length * ((1 - s) + off_track + DIRECTION_WEIGHT * np.sin(phi - theta) ** 2)
+        total = np.zeros((count - 1, rows), np.float32)
+        for t in range(1, DX + 1):
+            # t mm into the step that arrives at row r, the path is at row r - k·(DX - t)/DX.
+            back = round(k * (DX - t) / DX)
+            column = starts - DX + t
+            costs = unit[column] + DIRECTION_WEIGHT * np.sin(phi - cols.direction[column]) ** 2
+            shifted = np.full((count - 1, rows), np.inf, np.float32)
+            if back >= 0:
+                shifted[:, back:] = costs[:, : rows - back] if back else costs
+            else:
+                shifted[:, :back] = costs[:, -back:]
+            total += shifted * length
+        found[1:, j] = total
     return found
 
 
 @dataclass(frozen=True)
 class Run:
-    """The dynamic programming from one start: the cost to every place, and the way back."""
+    """The dynamic programming from one start: the cost to every place and slope, and the way
+    back, from the start's coarse column on."""
 
     start: int
-    step: int
     cost: NDArray[Any]
     back: NDArray[np.int8]
 
 
-def run(
-    cols: Columns,
-    start: tuple[float, float],
-    forward: bool,
-    penalty: NDArray[Any] | None = None,
-) -> Run:
-    """The cheapest paths from start, toward larger x when forward, else toward smaller."""
-    c0 = round(start[0] - cols.xs[0])
-    r0 = round((start[1] - cols.ys[0]) / Y_STEP)
-    rows = len(cols.ys)
-    step = 1 if forward else -1
-    count = (len(cols.xs) - c0) if forward else (c0 + 1)
-    cost = np.full((count, rows), np.inf, np.float32)
-    back = np.zeros((count, rows), np.int8)
-    cost[0, max(0, min(rows - 1, r0))] = 0.0
-    every = cols.steps(forward)
-    for i in range(1, count):
-        column = c0 + step * i
-        steps = every[column]
-        if penalty is not None:
-            steps = steps + penalty[column]
+def run(cols: Columns, start: tuple[float, float], slopes: tuple[int, int] | None = None) -> Run:
+    """The cheapest smooth paths from start toward larger x. slopes: the first slope's range,
+    in steps; None: square to a gable."""
+    every = cols.steps()
+    count, k2, rows = every.shape
+    c0 = max(0, min(count - 1, round((start[0] - cols.xs[0]) / DX)))
+    r0 = max(0, min(rows - 1, round((start[1] - cols.ys[0]) / Y_STEP)))
+    lo, hi = slopes if slopes is not None else (-START_SLOPE, START_SLOPE)
+    cost = np.full((count - c0, k2, rows), np.inf, np.float32)
+    back = np.zeros((count - c0, k2, rows), np.int8)
+    for k in range(max(-KMAX, lo), min(KMAX, hi) + 1):
+        cost[0, k + KMAX, r0] = 0.0
+    bend = np.float32(BEND_COST)
+    for i in range(1, count - c0):
         previous = cost[i - 1]
-        candidates = np.full((2 * SLOPES + 1, rows), np.inf, np.float32)
-        for j, d in enumerate(range(-SLOPES, SLOPES + 1)):
-            # Arriving at row r with the rise d per mm came from row r - d.
-            if d >= 0:
-                candidates[j, d:] = previous[: rows - d] if d else previous
-            else:
-                candidates[j, :d] = previous[-d:]
-            candidates[j] += steps[j]
-        best = np.argmin(candidates, axis=0)
-        cost[i] = candidates[best, np.arange(rows)]
-        back[i] = (best - SLOPES).astype(np.int8)
-    return Run(c0, step, cost, back)
+        here = every[c0 + i]
+        for j in range(k2):
+            k = j - KMAX
+            # Arriving at row r with the slope k came from row r - k, with the slope k, or one
+            # step either side.
+            options = []
+            for d in (-1, 0, 1):
+                jp = j + d
+                if not 0 <= jp < k2:
+                    continue
+                came = np.full(rows, np.inf, np.float32)
+                if k >= 0:
+                    came[k:] = previous[jp, : rows - k] if k else previous[jp]
+                else:
+                    came[:k] = previous[jp, -k:]
+                options.append((d, came + (bend if d else 0)))
+            stack = np.stack([o for _, o in options])
+            best = np.argmin(stack, axis=0)
+            cost[i, j] = stack[best, np.arange(rows)] + here[j]
+            back[i, j] = np.array([d for d, _ in options], np.int8)[best]
+    return Run(c0, cost, back)
 
 
 def trace(cols: Columns, done: Run, target: tuple[float, float]) -> tuple[Array, Array] | None:
     """The path from the run's start to target, as x and y every mm of x, from smaller x."""
-    i = round(target[0] - cols.xs[0])
-    index = (i - done.start) * done.step
-    if index < 0 or index >= len(done.cost):
+    index = round((target[0] - cols.xs[0]) / DX) - done.start
+    if index == len(done.cost) and target[0] <= cols.xs[-1] + DX:
+        index -= 1  # the last coarse column, within a step of the module's end
+    if index <= 0 or index >= len(done.cost):
         return None
     r = round((target[1] - cols.ys[0]) / Y_STEP)
-    if not 0 <= r < done.cost.shape[1] or not np.isfinite(done.cost[index, r]):
+    if not 0 <= r < done.cost.shape[2]:
+        return None
+    j = int(np.argmin(done.cost[index, :, r]))
+    if not np.isfinite(done.cost[index, j, r]):
         return None
     rows = [r]
-    for k in range(index, 0, -1):
-        r = r - int(done.back[k, r])
+    for i in range(index, 0, -1):
+        k = j - KMAX
+        j = j + int(done.back[i, j, r])
+        r = r - k
         rows.append(r)
     rows.reverse()
-    columns_ = [done.start + done.step * k for k in range(index + 1)]
-    xs = cols.xs[columns_]
-    ys = cols.ys[rows]
-    if done.step < 0:
-        xs, ys = xs[::-1], ys[::-1]
+    coarse_x = cols.xs[0] + (done.start + np.arange(index + 1)) * DX
+    coarse_y = cols.ys[np.clip(rows, 0, len(cols.ys) - 1)]
+    xs = np.arange(coarse_x[0], coarse_x[-1] + 0.5, 1.0)
+    ys = np.interp(xs, coarse_x, coarse_y)
     return xs.astype(np.float64), ys.astype(np.float64)
 
 
@@ -312,8 +359,10 @@ def sharpest_radius(xs: Array, ys: Array) -> float:
     return KINK_SPAN / worst if worst > 1e-9 else math.inf
 
 
-def judge(path: Path, min_radius: float) -> None:
-    """track, hidden or none, by the map along it and how sharply it turns."""
+def judge(path: Path, min_radius: float, looser: float = 1.0) -> None:
+    """track, hidden or none, by the map along it and how sharply it turns. looser: at low
+    resolution the map is weak over a switch's overlap for longer (bildkedjan step 3: the
+    tolerances are widened), so a longer gap and a little less share are a track."""
     on = path.scores >= TRACK_SCORE
     path.share = float(on.mean()) if len(on) else 0.0
     gap = longest = 0
@@ -322,31 +371,34 @@ def judge(path: Path, min_radius: float) -> None:
         longest = max(longest, gap)
     path.gap = float(longest)
     path.sharpest = sharpest_radius(path.xs, path.ys)
+    looser = max(1.0, looser)
+    share = TRACK_SHARE - (LOW_SHARE if looser > 1.0 else 0.0)
     if path.sharpest < SHARP_SHARE * min_radius:
         path.status = "none"
-    elif path.share >= TRACK_SHARE and path.gap <= GAP_MM:
+    elif path.share >= share and path.gap <= GAP_MM * looser:
         path.status = "track"
-    elif path.share >= HIDDEN_SHARE and path.gap <= HIDDEN_GAP_MM:
+    elif path.share >= HIDDEN_SHARE and path.gap <= HIDDEN_GAP_MM * looser:
         path.status = "hidden"
     else:
         path.status = "none"
 
 
-def _sharp_at(xs: Array, ys: Array, min_radius: float) -> float | None:
-    """Where the path turns sharpest, if sharper than a switch may: x in mm."""
-    if sharpest_radius(xs, ys) >= SHARP_SHARE * min_radius:
-        return None
-    # Where: the place the straight lines on its two sides differ most.
-    run = int(KINK_RUN_MM)
-    if len(ys) < 2 * run + 2:
-        return None
-    slopes = np.arctan(_slopes(ys, run))
-    turn = np.abs(slopes[run:] - slopes[:-run])
-    return float(xs[int(np.argmax(turn)) + run])
+LOW_SHARE = 0.05
+"""How much less of a path must be clear on the map at low resolution."""
 
 
 Refiner = Callable[[Array, Array], Array]
 """y along a path made exact: from the columns' half millimetres to the track's middle."""
+
+
+def _first_slopes(source: Terminal) -> tuple[int, int] | None:
+    """A gable's track leaves it square; an end's track leaves it away from its end."""
+    if source.kind != "end" or source.out is None:
+        return None
+    back = source.out + math.pi
+    slope = math.tan(back) if math.cos(back) > 0.2 else 0.0
+    k = round(max(-1.0, min(1.0, slope)) / SLOPE_BIN)
+    return (k - 2, k + 2)
 
 
 def connect(
@@ -354,61 +406,84 @@ def connect(
     terminals: list[Terminal],
     min_radius: float,
     refiner: Refiner | None = None,
-    attempts: int = 3,
+    looser: float = 1.0,
 ) -> list[Path]:
-    """Every pair of terminals the cheapest path joins, judged. A path that turns too sharply
-    is tried again with that place made costly, so a smooth way round is found if there is one."""
+    """Every pair of terminals the cheapest smooth path joins, judged, from the one at the
+    smaller x."""
     found: dict[tuple[str, str], Path] = {}
-    by_id = {t.id: t for t in terminals}
-    rows = len(cols.ys)
     for source in terminals:
-        for forward in (True, False):
-            targets = [
-                t
-                for t in terminals
-                if t.id != source.id
-                and ((t.at[0] > source.at[0] + 50) if forward else (t.at[0] < source.at[0] - 50))
-                and not source.beyond(t)
-                and not t.beyond(source)
-            ]
-            if not targets:
+        targets = [
+            t
+            for t in terminals
+            if t.id != source.id
+            and t.at[0] > source.at[0] + 50
+            and not source.beyond(t)
+            and not t.beyond(source)
+        ]
+        if not targets:
+            continue
+        done = run(cols, source.at, _first_slopes(source))
+        for target in targets:
+            pair = (source.id, target.id) if source.id < target.id else (target.id, source.id)
+            traced = trace(cols, done, target.at)
+            if traced is None:
                 continue
-            penalty: NDArray[Any] | None = None
-            pending = list(targets)
-            for _ in range(attempts):
-                done = run(cols, source.at, forward, penalty)
-                again: list[Terminal] = []
-                for target in pending:
-                    pair = tuple(sorted((source.id, target.id)))
-                    if pair in found and found[pair].status == "track":
-                        continue
-                    traced = trace(cols, done, target.at)
-                    if traced is None:
-                        continue
-                    xs, ys = traced
-                    if refiner is not None:
-                        ys = refiner(xs, ys)
-                    first, second = (source, target) if forward else (target, source)
-                    scores = sample_map(cols, xs, ys)
-                    path = Path(first.id, second.id, xs, ys, 0, 0, 0, "none", scores)
-                    judge(path, min_radius)
-                    sharp = _sharp_at(xs, ys, min_radius)
-                    if path.status == "none" and sharp is not None:
-                        again.append(target)
-                        if penalty is None:
-                            penalty = np.zeros((len(cols.xs), rows), np.float32)
-                        c = round(sharp - cols.xs[0])
-                        r = round((float(np.interp(sharp, xs, ys)) - cols.ys[0]) / Y_STEP)
-                        penalty[max(0, c - 15) : c + 16, max(0, r - 40) : r + 41] += 50.0
-                    previous = found.get(pair)  # type: ignore[arg-type]
-                    if previous is None or _better(path, previous):
-                        found[pair] = path  # type: ignore[index]
-                pending = again
-                if not pending:
-                    break
-    for path in found.values():
-        path.a, path.b = sorted((path.a, path.b), key=lambda t: by_id[t].at[0])
+            xs, ys = traced
+            if refiner is not None:
+                ys = refiner(xs, ys)
+            scores = sample_map(cols, xs, ys)
+            path = Path(source.id, target.id, xs, ys, 0, 0, 0, "none", scores)
+            judge(path, min_radius, looser)
+            previous = found.get(pair)
+            if previous is None or _better(path, previous):
+                found[pair] = path
     return sorted(found.values(), key=lambda p: p.pair)
+
+
+OVERLAP_GAUGES = 2.0
+"""Two paths closer than this many gauges share their rails' surroundings: a switch's points
+and its frog, where the map is weak because three or four rails lie in the profile."""
+OVERLAP_SHARE = 0.6
+SAME_MM = 1.5
+"""Two paths closer than this run on the same track."""
+"""A path whose map is clear over less than this share, even where it overlaps, is no track."""
+
+
+def overlaps(found: list[Path], gauge: float, min_radius: float) -> None:
+    """The paths judged again where they overlap another smooth path (bildkedjan step 11). In a
+    switch the diverging leg runs within a gauge of the straight one for some distance, and at
+    low resolution the map is weak there over more than GAP_MM: that gap belongs to the switch,
+    not to a hidden part. A path that is smooth (never sharper than a switch may turn), clear on
+    the map elsewhere, and whose weak stretches all lie where another smooth path runs beside it,
+    is a track."""
+    smooth = [p for p in found if p.sharpest >= SHARP_SHARE * min_radius and len(p.xs) > 1]
+    limit = OVERLAP_GAUGES * gauge
+    for path in smooth:
+        if path.status == "track" or not len(path.scores):
+            continue
+        near = np.zeros(len(path.xs), bool)
+        for other in smooth:
+            if other is path:
+                continue
+            lo, hi = float(other.xs[0]), float(other.xs[-1])
+            inside = (path.xs >= lo) & (path.xs <= hi)
+            if not inside.any():
+                continue
+            ys = np.interp(path.xs, other.xs, other.ys)
+            apart = np.abs(ys - path.ys)
+            # Beside it, not on the same track: the same route twice is no switch.
+            near |= inside & (apart <= limit) & (apart >= SAME_MM)
+        on = (path.scores >= TRACK_SCORE) | near
+        share = float(on.mean())
+        gap = longest = 0
+        for value in on:
+            gap = 0 if value else gap + 1
+            longest = max(longest, gap)
+        clear = path.scores[~near]
+        clear_share = float((clear >= TRACK_SCORE).mean()) if len(clear) else 0.0
+        if share >= TRACK_SHARE and longest <= GAP_MM and clear_share >= OVERLAP_SHARE:
+            path.status = "track"
+            path.gap = float(longest)
 
 
 def _better(path: Path, other: Path) -> bool:
@@ -576,8 +651,7 @@ def ends(tracks: TrackMap, outline: Array, gauge: float) -> list[tuple[float, fl
     ridge = top.astype(np.uint8)
     ridge = thin(ridge)
     ppm = tracks.grid.ppm
-    lo = outline.min(axis=0) + END_CLEAR_MM
-    hi = outline.max(axis=0) - END_CLEAR_MM
+    polygon = outline.astype(np.float32).reshape(-1, 1, 2)
     found: list[tuple[float, float, float]] = []
     _count, labels, stats, _ = cv2.connectedComponentsWithStats(ridge, connectivity=8)
     neighbours = crossings(ridge)
@@ -599,9 +673,17 @@ def ends(tracks: TrackMap, outline: Array, gauge: float) -> list[tuple[float, fl
             continue
         candidates.append((np.array([col, row], np.float64), out / np.linalg.norm(out)))
     for at, out in candidates:
+        # The ridge can stop short of where the track ends: the map is followed on along the
+        # heading while it still sees track (part c2).
+        for _ in range(int(END_FOLLOW_MM)):
+            ahead = at + out * ppm
+            if float(sample(score, ahead[None, 0], ahead[None, 1])[0]) < TRACK_SCORE:
+                break
+            at = ahead
         col, row = float(at[0]), float(at[1])
         mm = tracks.grid.to_mm(np.array([[col, row]], np.float64))[0]
-        if not (lo[0] <= mm[0] <= hi[0] and lo[1] <= mm[1] <= hi[1]):
+        clear = cv2.pointPolygonTest(polygon, (float(mm[0]), float(mm[1])), True)
+        if clear < END_CLEAR_MM:
             continue
         # Nothing track-like ahead of it, in a cone: at a switch or a crossing the ridge breaks
         # where the tracks overlap, but the map still sees track there.

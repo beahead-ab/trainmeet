@@ -31,7 +31,7 @@ import {
   type Visibility,
 } from "./api";
 import { push, redo, startEditor, undo, type Editor } from "./editor";
-import { PhotoPage, UploadPage } from "./Foto";
+import { PhotoPage, SketchPage, UploadPage } from "./Foto";
 import type { Point } from "./geometry";
 import { LasMatt } from "./LasMatt";
 import { LibraryPage } from "./Library";
@@ -109,7 +109,8 @@ export type ShellProps = {
   consent?: PhotoConsent | null;
   storage?: StorageUse | null;
   onUpload?: (start: PhotoStart, files: File[]) => void;
-  onRead?: (corners: Point[], kant1: number, ai: boolean, consent: boolean) => void;
+  onRead?: (corners: Point[], kant1: number, ai: boolean, consent: boolean, gableA?: number, frame?: number) => void;
+  onOrientation?: (kant1: number, gableA: number) => void;
   onAnswer?: (key: string, answer: string) => void;
   onCloseup?: (key: string, file: File, consent: boolean) => void;
   onUseMeasure?: (measure: { gable?: "A" | "B"; track?: number; length?: number; width?: number }) => void;
@@ -236,6 +237,19 @@ function Page(props: ShellProps) {
       />
     );
   }
+  if (route.page === "sketch") {
+    return (
+      <SketchPage
+        scale={props.scale ?? "H0"}
+        consent={props.consent ?? null}
+        storage={props.storage}
+        busy={props.busy}
+        error={props.error}
+        navigate={navigate}
+        onUpload={props.onUpload}
+      />
+    );
+  }
   if (route.page === "photo") {
     if (props.module?.id !== route.id) return <p className="cad-sida">Hämtar modulen …</p>;
     return (
@@ -249,6 +263,7 @@ function Page(props: ShellProps) {
         error={props.error}
         navigate={navigate}
         onRead={props.onRead}
+        onOrientation={props.onOrientation}
         onAnswer={props.onAnswer}
         onCloseup={props.onCloseup}
         onUseMeasure={props.onUseMeasure}
@@ -592,7 +607,7 @@ export function App() {
 
   // The price and what is sent to AI, and the storage, where a photo can be taken in or read.
   const photoModule = route.page === "photo" || (route.page === "module" && route.tab === "foto") ? route.id : null;
-  const wantsPhoto = route.page === "upload" || photoModule !== null;
+  const wantsPhoto = route.page === "upload" || route.page === "sketch" || photoModule !== null;
   useEffect(() => {
     if (!account || !wantsPhoto) return;
     api.photoConsent(photoModule ?? undefined).then(setConsent, () => setConsent(null));
@@ -810,11 +825,11 @@ export function App() {
         navigate(photoPath(job.module, job.id));
       }, photoFailed);
     },
-    onRead: (corners, kant1, ai, agreed) => {
+    onRead: (corners, kant1, ai, agreed, gableA, frame) => {
       if (!photoJob) return;
       setBusy(true);
       setError(null);
-      api.readPhoto(photoJob.id, { corners, kant1, ai, consent: agreed }).then((job) => {
+      api.readPhoto(photoJob.id, { corners, kant1, ai, consent: agreed, gable_a: gableA ?? null, frame: frame ?? null }).then((job) => {
         setBusy(false);
         setPhotoJob(job);
         setFollows((n) => n + 1);
@@ -823,6 +838,19 @@ export function App() {
           api.module(job.module).then(setModule, () => undefined);
           navigate(photoPath(job.module, job.id));
         }
+      }, photoFailed);
+    },
+    onOrientation: (kant1, gableA) => {
+      if (!photoJob) return;
+      setBusy(true);
+      setError(null);
+      api.orientPhoto(photoJob.id, { kant1, gable_a: gableA }).then((job) => {
+        setBusy(false);
+        setPhotoJob(job);
+        setFollows((n) => n + 1);
+        api.module(job.module).then(setModule, () => undefined);
+        api.history(job.module).then(setHistory, () => undefined);
+        navigate(photoPath(job.module, job.id));
       }, photoFailed);
     },
     onAnswer: (key, answer) => {

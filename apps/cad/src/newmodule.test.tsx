@@ -3,16 +3,18 @@ import { describe, expect, it } from "vitest";
 import { NewModulePage } from "./NewModule";
 
 describe("Ny modul", () => {
-  it("has four ways in: Bara mått and Ladda upp ett foto work, the phone and the sketch say when they come", () => {
+  it("has four ways in: Bara mått, Ladda upp ett foto and Från en skiss work, the phone says when it comes", () => {
     const html = renderToStaticMarkup(<NewModulePage tokens={86} />);
     for (const way of ["Fota med mobilen", "Ladda upp ett foto", "Från en skiss", "Bara mått"]) expect(html).toContain(way);
     expect(html).toContain('<a class="tm-knapp primar" href="/moduler/ny/foto">Ladda upp foto</a>');
     expect(html).toContain("12 tokens per mätbild");
     expect(html).toContain("Utan AI gratis");
     expect(html).toContain("Kommer med CAD i mobilen (ärende 90): du skannar en QR-kod");
-    expect(html).toContain("Kommer i nästa steg av bildkedjan, med Ladda upp ritning i Studio.");
+    expect(html).not.toContain("Kommer i nästa steg av bildkedjan");
+    expect(html).toContain('<a class="tm-knapp primar" href="/moduler/ny/skiss">Ladda upp skiss</a>');
+    expect(html).toContain("12 tokens per skiss");
+    expect(html).toContain("± 20 mm");
     expect(html).not.toContain("Kommer med foto och kontroll");
-    expect(html).toContain("12 tokens per bild");
     expect(html).toContain("Gratis");
     expect(html).toContain('href="/moduler/ny/rak"');
     expect(html).toContain('href="/moduler/ny/kurva"');

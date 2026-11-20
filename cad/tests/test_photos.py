@@ -319,3 +319,80 @@ def test_a_bad_photo_is_refused_with_a_reason(world: World) -> None:
     answer = world.as_(A.id).post(PHOTOS, files=files)
     assert answer.status_code == 415
     assert "PDF" in answer.json()["message"]
+
+
+# --- Part c2: a curve module from its photo, and Kant 1 and gable A after reading -------------
+
+
+@cache
+def curve_module() -> syntetisk.Photo:
+    return syntetisk.take(syntetisk.curve_module_scene(), syntetisk.CURVE_SHOT)
+
+
+def test_a_curve_module_is_made_from_its_photo_with_the_chord_and_sagitta(world: World) -> None:
+    """Ny modul ur ett foto, Kurvmodul: the owner gives the chord and sagitta measured on track
+    1 and track 1's distance from Kant 1; the module is the curve they give (CAD16), and its
+    tracks are read as arcs."""
+    scene = syntetisk.curve_module_scene()
+    photo = curve_module()
+    chord, sagitta = syntetisk.curve_measure(scene)
+    job = upload(
+        world,
+        A.id,
+        photo.jpeg,
+        kind="curve",
+        width=400,
+        chord=round(chord, 1),
+        sagitta=round(sagitta, 2),
+        track1=140,
+    )
+    module = world.as_(A.id).get(f"{API}/modules/{job['module']}").json()
+    assert module["shape"]["kind"] == "curve"
+    assert module["shape"]["measured"] == {"chord": round(chord, 1), "sagitta": round(sagitta, 2)}
+    assert abs(module["shape"]["radius"] - 1860) <= 1 and abs(module["shape"]["angle"] - 20) <= 0.05
+    done = read(world, A.id, job, photo)
+    assert done["state"] == "done", done["message"]
+    assert not [q for q in done["questions"] if q["kind"] == "curve"]
+    module = world.as_(A.id).get(f"{API}/modules/{job['module']}").json()
+    # The gables' tracks from the photo, to the half millimetre.
+    for gable in module["gables"]:
+        assert len(gable["tracks"]) == 2
+        assert all(abs(at - t) <= 1.0 for at, t in zip(gable["tracks"], (140, 197), strict=True))
+    radii = sorted(
+        round(s["radius"])
+        for p in module["graph"]["pieces"]
+        for s in p["segments"]
+        if s["kind"] == "arc"
+    )
+    assert len(radii) == 2 and abs(radii[0] - 1803) <= 25 and abs(radii[1] - 1860) <= 25
+
+
+def test_mirroring_after_reading_costs_nothing_and_reads_nothing_again(world: World) -> None:
+    """Another gable A after reading (part c2): the module is turned in its frame, the photo is
+    not read again, no tokens are drawn and the measuring image is the same file."""
+    photo = straight()
+    world.id.answer = truth_answer(syntetisk.straight_scene(), {("A1", "B1"), ("A2", "B2")})
+    job = upload(world, A.id, photo.jpeg, width=480, length=1200)
+    done = read(world, A.id, job, photo, ai=True, consent=True)
+    assert done["state"] == "done" and done["cost"] == 12
+    balance, reads = world.id.balance, world.id.reads
+    measure_url = done["measure"]["url"]
+    kant1 = done["corners"]["kant1"]
+    gable_a = done["corners"]["gable_a"]
+    other = (kant1 + 1) % 4 if gable_a == (kant1 + 3) % 4 else (kant1 + 3) % 4
+    turned = world.as_(A.id).post(
+        f"{PHOTOS}/{job['id']}/orientation", json={"kant1": kant1, "gable_a": other}
+    )
+    assert turned.status_code == 200, turned.text
+    found = turned.json()
+    assert found["state"] == "done" and found["id"] == job["id"]
+    assert found["corners"]["kant1"] == kant1 and found["corners"]["gable_a"] == other
+    assert found["cost"] == 12 and world.id.balance == balance and world.id.reads == reads
+    assert found["measure"]["url"] == measure_url
+    module = world.as_(A.id).get(f"{API}/modules/{job['module']}").json()
+    assert module["photo"]["measure_url"]
+    # Gable A must be beside Kant 1.
+    refused = world.as_(A.id).post(
+        f"{PHOTOS}/{job['id']}/orientation", json={"kant1": kant1, "gable_a": (kant1 + 2) % 4}
+    )
+    assert refused.status_code == 422

@@ -31,6 +31,7 @@ from contracts.cad import (
     PhotoCloseup,
     PhotoConsent,
     PhotoJob,
+    PhotoOrientation,
     PhotoRead,
     PhotoSettings,
     PhotoStart,
@@ -135,6 +136,10 @@ def router(photos: Photos, who: Callable[..., Who], disk: DiskStore | None) -> A
     @routes.post("/photos/{job}/read")
     def read(job: UUID, body: PhotoRead, asker: Asker) -> PhotoJob:
         return photos.read(asker, job, body)
+
+    @routes.post("/photos/{job}/orientation")
+    def orientation(job: UUID, body: PhotoOrientation, asker: Asker) -> PhotoJob:
+        return photos.orientation(asker, job, body)
 
     @routes.post("/photos/{job}/answers")
     def answers(job: UUID, body: PhotoAnswers, asker: Asker) -> PhotoJob:

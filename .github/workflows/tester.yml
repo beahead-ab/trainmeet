@@ -795,7 +795,8 @@ jobs:
   # med testmiljöns compose-fil och en egen PostgreSQL, som Catalog: CAD vägrar starta mot en
   # omigrerad databas, säkerhetskopian tas och provas före migreringen och en natt med data i.
   # Sist webbläsarprovet: provinloggningen, en rak modul och en kurvmodul ur bara mått, Godkänn
-  # och biblioteket, mot en låtsad TrainMeet ID (cad/prov_webblasare.py).
+  # och biblioteket, mot en låtsad TrainMeet ID (cad/prov_webblasare.py). Del c2 lägger till en
+  # kurvmodul ur ett syntetiskt foto, med gavel A vald i fotot, och en modul ur en syntetisk skiss.
   cad:
     name: CAD:s bild
     runs-on: ubuntu-latest
@@ -893,7 +894,7 @@ jobs:
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac
 
-      - name: Bildkedjan i bilden (#89 del c1)
+      - name: Bildkedjan i bilden (#89 del c1 och c2)
         run: |
           cd "$PROV"
           # OpenCV och bildkedjan i bilden: ett syntetiskt foto görs och tas in där, och fotona
@@ -909,6 +910,19 @@ jobs:
           curl -fsS -b kakor -o original.jpg "http://localhost:8086$ORIGINAL"
           if grep -q 'Exif' original.jpg; then echo "Originalet har kvar sin EXIF." >&2; exit 1; fi
           ls cad-photos/*/ | grep -q '\.jpg$'
+          # Del c2: en kurvmodul ur ett foto, med kordan och pilhöjden på spår 1; hörnen hittas
+          # längs bågarna.
+          docker compose exec -T cad python -m cad.bildkedjan.syntetisk kurvmodul /tmp/kurva.jpg
+          docker compose cp cad:/tmp/kurva.jpg kurva.jpg
+          KURVA=$(curl -fsS -b kakor -F 'data={"name":"Kurvmodul","scale":"H0","kind":"curve","width":400,"chord":645.96,"sagitta":28.26,"track1":140};type=application/json' \
+            -F 'images=@kurva.jpg;type=image/jpeg' http://localhost:8086/api/cad/1/photos)
+          echo "$KURVA" | jq -e '.state == "corners" and .corners.found' >/dev/null
+          # Och Från skiss: en syntetisk skiss med två modulramar, vars ramar hittas.
+          docker compose exec -T cad python -m cad.bildkedjan.syntetisk skiss /tmp/skiss.jpg
+          docker compose cp cad:/tmp/skiss.jpg skiss.jpg
+          SKISS=$(curl -fsS -b kakor -F 'data={"profile":"skiss","name":"Skissmodul","scale":"H0","kind":"straight","width":600,"length":1500};type=application/json' \
+            -F 'images=@skiss.jpg;type=image/jpeg' http://localhost:8086/api/cad/1/photos)
+          echo "$SKISS" | jq -e '.profile == "skiss" and .state == "corners" and (.frames | length) == 2' >/dev/null
 
       - name: Nattens säkerhetskopia, med data i
         run: |

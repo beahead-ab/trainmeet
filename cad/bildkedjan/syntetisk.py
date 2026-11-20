@@ -32,6 +32,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from cad import curves
+from cad.bildkedjan.camera import Shape
 from cad.curves import Line, Seg
 from contracts.station_model import Point
 
@@ -75,20 +76,27 @@ class Scene:
     switches: list[TrueSwitch] = field(default_factory=list)
     crossings: list[Point] = field(default_factory=list)
     ends: list[Point] = field(default_factory=list)
+    curve: tuple[float, float] | None = None
+    """A curve module: Kant 1's radius and the angle, Kant 1 the outer edge (part c2)."""
 
     @property
     def kind(self) -> str:
+        if self.curve is not None:
+            return "curve"
         return "straight" if self.width_a == self.width_b and self.offset == 0 else "trapezoid"
+
+    def shape(self) -> Shape:
+        radius, angle = self.curve if self.curve is not None else (None, None)
+        return Shape(self.kind, self.width_a, self.width_b, self.length, self.offset, radius, angle)
 
     @property
     def corners(self) -> list[Point]:
         """A at Kant 1, B at Kant 1, B far, A far."""
-        return [
-            (0.0, 0.0),
-            (self.length, self.offset),
-            (self.length, self.offset + self.width_b),
-            (0.0, self.width_a),
-        ]
+        return [(float(x), float(y)) for x, y in self.shape().corners(self.length, self.offset)]
+
+    @property
+    def outline(self) -> list[Point]:
+        return [(float(x), float(y)) for x, y in self.shape().outline(self.length, self.offset)]
 
 
 def route(start: Point, head_degrees: float, *parts: tuple[float, ...]) -> list[Seg]:
@@ -217,7 +225,35 @@ def long_scene() -> Scene:
     )
 
 
+def curve_module_scene() -> Scene:
+    """En kurvmodul, 20° with Kant 1 outermost at R 2000 and 400 mm wide, double track at 140
+    and 197 mm from Kant 1: arcs R 1860 and R 1803 from gable to gable. Its owner measures the
+    chord 1860·2·sin 10° and the sagitta on track 1 (part c2)."""
+    radius, angle, width = 2000.0, 20.0, 400.0
+    tracks = [140.0, 197.0]
+    return Scene(
+        name="Kurvmodul",
+        length=radius * math.radians(angle),
+        width_a=width,
+        width_b=width,
+        offset=0,
+        routes=[route((0, d), 0, (radius - d, angle)) for d in tracks],
+        gables_a=tracks,
+        gables_b=tracks,
+        curve=(radius, angle),
+    )
+
+
+def curve_measure(scene: Scene) -> tuple[float, float]:
+    """The chord and the sagitta on track 1 of a curve scene, as the owner measures them."""
+    assert scene.curve is not None
+    radius = scene.curve[0] - scene.gables_a[0]
+    half = math.radians(scene.curve[1]) / 2
+    return 2 * radius * math.sin(half), radius * (1 - math.cos(half))
+
+
 SCENES = {
+    "kurvmodul": curve_module_scene,
     "rak": straight_scene,
     "kurva": curve_scene,
     "trapets": trapezoid_scene,
@@ -281,9 +317,15 @@ def texture(scene: Scene, seed: int = 7) -> Texture:
     x0, y0 = -margin, min(0.0, scene.offset) - margin
     width = round((scene.length + 2 * margin) * TEXTURE)
     bottom = max(scene.width_a, scene.offset + scene.width_b) + margin
+    if scene.curve is not None:
+        hull = np.array(scene.outline)
+        x0 = float(hull[:, 0].min()) - margin
+        y0 = float(hull[:, 1].min()) - margin
+        width = round((float(hull[:, 0].max()) + margin - x0) * TEXTURE)
+        bottom = float(hull[:, 1].max()) + margin
     height = round((bottom - y0) * TEXTURE)
     shape = (height, width)
-    outline = scene.corners
+    outline = scene.outline
     # The board: grass with patches, and the frame's edge darker.
     grass: NDArray[Any] = np.zeros((*shape, 3), np.float32)
     base = np.array([62, 104, 72], np.float32)  # BGR, a muted green
@@ -389,6 +431,12 @@ class Shot:
     centre: Point = (0.5, 0.5)
     """Where in the module the camera looks, as a share of its length and width."""
     seed: int = 11
+
+
+CURVE_SHOT = Shot(distortion=0.0)
+"""A curve module's photo: the phone has taken out its lens's distortion, as phones do. The
+chain finds the lens from the module's straight edges, and a curve module's long sides are
+arcs."""
 
 
 @dataclass(frozen=True)
@@ -551,13 +599,138 @@ def jpeg_with_exif(pixels: Image3, focal_35mm: float, quality: int = 92) -> byte
     return out.getvalue()
 
 
+# --- A hand-drawn sketch (profile Skiss, part c2) ----------------------------------------------
+
+
+@dataclass(frozen=True)
+class Sketch:
+    """A synthetic sketch and its truth, in the first frame's module mm."""
+
+    jpeg: bytes
+    pixels: Image3
+    frames: list[list[Point]]
+    """Each frame's corners on the sheet, px: A at Kant 1, B at Kant 1, B far, A far."""
+    length: float
+    width: float
+    switches: list[Point]
+    crossings: list[Point]
+    gables_a: list[float]
+    gables_b: list[float]
+
+
+SKETCH_PX = 0.55
+"""The sketch's scale on the sheet, px per mm: a scan of a hand drawing at 2200 px."""
+SKETCH_ORIGIN: Point = (160.0, 520.0)
+
+
+def sketch_routes() -> list[list[Seg]]:
+    """The first frame's tracks, 1500 × 600: double track at 150 and 250; a crossover from track
+    2 at 150 up to track 1 (two switches, R 1000); a siding from track 2 at 900 back toward
+    gable A, R 900, to its end; and a track from inside the module crossing both main tracks,
+    from one end to another (two crossings)."""
+    t1 = route((0, 150), 0, (1500,))
+    t2 = route((0, 250), 0, (1500,))
+    half = math.degrees(math.acos(1 - 50 / 1000))
+    crossover = route((150, 250), 0, (1000, -half), (1000, half))
+    siding = route((900, 250), 180, (900, -14), (1.0,))
+    siding = [*siding[:-1], curves.line_from(siding[-2].end, curves.end_heading(siding[-2]), 260)]
+    diagonal: list[Seg] = [curves.Line((950.0, 560.0), (1350.0, 60.0))]
+    second = [route((1500, 150), 0, (1500,)), route((1500, 250), 0, (1500,))]
+    second.append(route((2000, 250), 0, (1100, 9.0), (1.0,)))
+    return [t1, t2, crossover, siding, diagonal, *second]
+
+
+def sketch(seed: int = 5, photographed: bool = False) -> Sketch:
+    """Two module frames drawn by hand on a sheet: thin frame lines, thick black tracks,
+    coloured pencil, pencil text in Norwegian with leader lines across the tracks."""
+    rng = np.random.default_rng(seed)
+    w, h = 2200, 1555
+    k = SKETCH_PX
+    ox, oy = SKETCH_ORIGIN
+    sheet = np.full((h, w, 3), 252, np.float32)
+    sheet += rng.standard_normal((h, w, 1)).astype(np.float32) * 2
+
+    def px(p: Point) -> tuple[int, int]:
+        return round(ox + p[0] * k), round(oy + p[1] * k)
+
+    canvas = np.clip(sheet, 0, 255).astype(np.uint8)
+    # Coloured pencil: grass along the sides and brown ballast, in strokes.
+    for _ in range(900):
+        x = rng.uniform(0, 3000)
+        y = float(rng.choice([rng.uniform(10, 110), rng.uniform(170, 230), rng.uniform(330, 590)]))
+        colour = (70, 170, 80) if y < 120 or y > 420 else (70, 100, 150)
+        a = px((x, y))
+        b = (a[0] + int(rng.integers(-18, 18)), a[1] + int(rng.integers(-6, 6)))
+        cv2.line(canvas, a, b, colour, 1, cv2.LINE_AA)
+    # The frames: two modules, 1500 × 600 each, thin black lines.
+    frames = []
+    for left in (0.0, 1500.0):
+        corners = [(left, 0.0), (left + 1500.0, 0.0), (left + 1500.0, 600.0), (left, 600.0)]
+        frames.append([(float(px(c)[0]), float(px(c)[1])) for c in corners])
+        cv2.polylines(canvas, [np.array([px(c) for c in corners])], True, (30, 30, 30), 2)
+    # The tracks: thick black ink.
+    for segs in sketch_routes():
+        points = curves.sample_path(segs, 4.0)
+        cv2.polylines(canvas, [np.array([px(p) for p in points])], False, (25, 25, 25), 9)
+    # Text in pencil, with leader lines across the tracks.
+    for text, at, to in (
+        ("BEITEMARK MED KUER", (300.0, -180.0), (400.0, 60.0)),
+        ("GAMLE SKINNER", (700.0, 720.0), (640.0, 200.0)),
+        ("SKOG", (2300.0, -160.0), (2250.0, 300.0)),
+        ("HVILEBOD FOR RENGJORINGS PERSONALE", (1300.0, 760.0), (1100.0, 230.0)),
+    ):
+        cv2.putText(canvas, text, px(at), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (120, 120, 120), 2)
+        cv2.line(canvas, px(at), px(to), (135, 135, 135), 1, cv2.LINE_AA)
+    cv2.putText(
+        canvas, "#1", px((2900.0, 680.0)), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (110, 110, 110), 2
+    )
+    pixels = canvas
+    if photographed:
+        # The sheet photographed on a table: a turn, a tilt, a darker surround.
+        big = np.full((h + 500, w + 500, 3), (70, 95, 125), np.uint8)
+        src = np.array([[0, 0], [w, 0], [w, h], [0, h]], np.float32)
+        dst = np.array([[250, 220], [w + 240, 280], [w + 280, h + 300], [210, h + 240]], np.float32)
+        matrix = cv2.getPerspectiveTransform(src, dst)
+        warped = cv2.warpPerspective(canvas, matrix, (w + 500, h + 500), borderValue=(0, 0, 0))
+        cover = cv2.warpPerspective(np.full((h, w), 255, np.uint8), matrix, (w + 500, h + 500))
+        big[cover > 0] = warped[cover > 0]
+        pixels = big
+        frames = [
+            [
+                (float(q[0]), float(q[1]))
+                for q in cv2.perspectiveTransform(np.array([f], np.float32), matrix)[0]
+            ]
+            for f in frames
+        ]
+    ok, data = cv2.imencode(".jpg", pixels, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    assert ok
+    half = math.degrees(math.acos(1 - 50 / 1000))
+    x_end = 150 + 2 * 1000 * math.sin(math.radians(half))
+    return Sketch(
+        jpeg=data.tobytes(),
+        pixels=pixels,
+        frames=frames,
+        length=1500.0,
+        width=600.0,
+        switches=[(150.0, 250.0), (x_end, 150.0), (900.0, 250.0)],
+        crossings=[(950 + 400 * (310 / 500), 250.0), (950 + 400 * (410 / 500), 150.0)],
+        gables_a=[150.0, 250.0],
+        gables_b=[150.0, 250.0],
+    )
+
+
 def main(argv: list[str]) -> int:
+    if len(argv) == 3 and argv[1] == "skiss":
+        with open(argv[2], "wb") as file:
+            file.write(sketch().jpeg)
+        return 0
     if len(argv) != 3 or argv[1] not in SCENES:
         print(
-            f"python -m cad.bildkedjan.syntetisk {{{','.join(SCENES)}}} foto.jpg", file=sys.stderr
+            f"python -m cad.bildkedjan.syntetisk {{{','.join(SCENES)},skiss}} foto.jpg",
+            file=sys.stderr,
         )
         return 2
-    photo = take(SCENES[argv[1]]())
+    photo = take(SCENES[argv[1]](), CURVE_SHOT if argv[1] == "kurvmodul" else None)
     with open(argv[2], "wb") as file:
         file.write(photo.jpeg)
     return 0

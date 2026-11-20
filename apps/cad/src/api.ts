@@ -54,6 +54,9 @@ export type PhotoJob = Schemas["trainmeet.cad-1.photo-job"];
 export type PhotoConsent = Schemas["trainmeet.cad-1.photo-consent"];
 export type PhotoStart = Schemas["trainmeet.cad-1.photo-start"];
 export type PhotoRead = Schemas["trainmeet.cad-1.photo-read"];
+export type PhotoOrientation = Schemas["trainmeet.cad-1.photo-orientation"];
+export type PhotoFrame = NonNullable<PhotoJob["frames"]>[number];
+export type PhotoCorners = NonNullable<PhotoJob["corners"]>;
 export type PhotoSettings = Schemas["trainmeet.cad-1.photo-settings"];
 export type StorageUse = Schemas["trainmeet.cad-1.storage-use"];
 export type PhotoQuestion = NonNullable<PhotoJob["questions"]>[number];
@@ -126,6 +129,7 @@ export const api = {
   uploadPhotos: (start: PhotoStart, files: File[]) => call<PhotoJob>("POST", `${API}/photos`, photoForm(start, files)),
   photoJob: (job: string) => call<PhotoJob>("GET", `${API}/photos/${job}`),
   readPhoto: (job: string, body: PhotoRead) => call<PhotoJob>("POST", `${API}/photos/${job}/read`, body),
+  orientPhoto: (job: string, body: PhotoOrientation) => call<PhotoJob>("POST", `${API}/photos/${job}/orientation`, body),
   answerPhoto: (job: string, key: string, answer: string) =>
     call<PhotoJob>("POST", `${API}/photos/${job}/answers`, { answers: [{ key, answer }] }),
   closeup: (job: string, key: string, file: File, consent: boolean) =>

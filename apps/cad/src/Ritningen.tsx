@@ -53,7 +53,14 @@ function ToolIcon({ tool }: { tool: Tool }) {
 function Inspector({ info, view, onOps }: { info: SwitchInfo; view: DrawingView; onOps?: (ops: EditOp[]) => void }) {
   const [radius, setRadius] = useState(info.radius != null ? String(Math.round(info.radius)) : "");
   useEffect(() => setRadius(info.radius != null ? String(Math.round(info.radius)) : ""), [info.radius]);
-  const badge = info.origin?.source === "photo" && info.origin.certainty !== "confirmed" ? "AI-förslag" : info.assumed ? "Antagen" : null;
+  const badge =
+    info.origin?.source === "photo" && info.origin.certainty !== "confirmed"
+      ? "AI-förslag"
+      : info.origin?.source === "sketch" && info.origin.certainty !== "confirmed"
+        ? "Förslag ur skissen"
+        : info.assumed
+          ? "Antagen"
+          : null;
   const commit = () => {
     const value = Number(radius.replace(",", "."));
     if (value > 0 && Math.abs(value - (info.radius ?? 0)) >= 0.5) onOps?.([op.setSwitch(info.id, { radius: value })]);
@@ -63,7 +70,7 @@ function Inspector({ info, view, onOps }: { info: SwitchInfo; view: DrawingView;
       <div className="cad-inspektor-rubrik">
         <span className="cad-vaxelnummer">{info.number}</span>
         <h2 id="vaxel-rubrik">Växel {info.number}</h2>
-        {badge ? <span className={`cad-tagg ${badge === "AI-förslag" ? "orange" : "gul"}`}>{badge}</span> : null}
+        {badge ? <span className={`cad-tagg ${badge === "Antagen" ? "gul" : "orange"}`}>{badge}</span> : null}
       </div>
       <dl className="cad-inspektor-fakta">
         <dt>Lämnar</dt>

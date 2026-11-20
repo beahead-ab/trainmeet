@@ -60,26 +60,49 @@ type UploadProps = {
   error?: string | null;
   navigate?: Navigate;
   onUpload?: (start: PhotoStart, files: File[]) => void;
+  /** The form chosen at first: a straight module unless told otherwise. */
+  initialKind?: "straight" | "trapezoid" | "curve";
 };
 
 /** Ladda upp foto: one to four photos of one module from above, and for a new module its width;
- * the length can come from the photo. */
-export function PhotoUpload({ module, scale, consent, storage, busy, error, navigate, onUpload }: UploadProps) {
+ * the length can come from the photo. A curve module comes with its chord and sagitta on track 1
+ * and track 1's distance from Kant 1 (part c2). */
+export function PhotoUpload({ module, scale, consent, storage, busy, error, navigate, onUpload, initialKind }: UploadProps) {
   const [name, setName] = useState("");
-  const [kind, setKind] = useState<"straight" | "trapezoid">("straight");
+  const [kind, setKind] = useState<"straight" | "trapezoid" | "curve">(initialKind ?? "straight");
   const [width, setWidth] = useState("");
   const [widthB, setWidthB] = useState("");
   const [length, setLength] = useState("");
+  const [chord, setChord] = useState("");
+  const [sagitta, setSagitta] = useState("");
+  const [track1, setTrack1] = useState("");
+  const [edge, setEdge] = useState<"outer" | "inner">("outer");
   const [files, setFiles] = useState<File[]>([]);
   const [keep, setKeep] = useState(false);
   const number = (text: string) => Number(text.replace(",", "."));
-  const curve = module?.shape.kind === "curve";
-  const ready = files.length > 0 && files.length <= MAX_PHOTOS && !curve && (module ? true : name.trim() !== "" && number(width) > 0 && (kind === "straight" || number(widthB) > 0));
+  const curveReady = number(chord) > 0 && number(sagitta) > 0 && number(sagitta) < number(chord) / 2 && number(track1) > 0;
+  const ready =
+    files.length > 0 &&
+    files.length <= MAX_PHOTOS &&
+    (module ? true : name.trim() !== "" && number(width) > 0 && (kind !== "trapezoid" || number(widthB) > 0) && (kind !== "curve" || curveReady));
   const submit = () => {
     if (!ready) return;
-    const empty = { module: null, name: null, width: null, width_b: null, length: null, offset: null, owner: null };
+    const empty = {
+      module: null,
+      profile: "modulfoto" as const,
+      name: null,
+      width: null,
+      width_b: null,
+      length: null,
+      offset: null,
+      owner: null,
+      chord: null,
+      sagitta: null,
+      track1: null,
+      edge: "outer" as const,
+    };
     const start: PhotoStart = module
-      ? { ...empty, module: module.id, scale: module.scale, kind: module.shape.kind === "trapezoid" ? "trapezoid" : "straight", keep_original: keep }
+      ? { ...empty, module: module.id, scale: module.scale, kind: module.shape.kind, keep_original: keep }
       : {
           ...empty,
           name: name.trim(),
@@ -87,7 +110,11 @@ export function PhotoUpload({ module, scale, consent, storage, busy, error, navi
           kind,
           width: number(width),
           width_b: kind === "trapezoid" ? number(widthB) : null,
-          length: length.trim() ? number(length) : null,
+          length: kind !== "curve" && length.trim() ? number(length) : null,
+          chord: kind === "curve" ? number(chord) : null,
+          sagitta: kind === "curve" ? number(sagitta) : null,
+          track1: kind === "curve" ? number(track1) : null,
+          edge,
           keep_original: keep,
         };
     onUpload?.(start, files);
@@ -106,7 +133,6 @@ export function PhotoUpload({ module, scale, consent, storage, busy, error, navi
         Ett foto rakt ovanifrån med hela modulen och lite av golvet runt om. En lång modul får tas i 2–4 foton som överlappar; de sys
         ihop till ett. Bredden ger fotot dess skala, och längden kan räknas fram ur fotot.
       </p>
-      {curve ? <p className="cad-fel">Foto och kontroll tar raka moduler och trapetser än; kurvmoduler kommer.</p> : null}
       {module ? null : (
         <>
           <label className="cad-falt">
@@ -120,6 +146,7 @@ export function PhotoUpload({ module, scale, consent, storage, busy, error, navi
                 [
                   ["straight", "Rak"],
                   ["trapezoid", "Trapets"],
+                  ["curve", "Kurva"],
                 ] as const
               ).map(([value, label]) => (
                 <button key={value} type="button" role="radio" aria-checked={kind === value} onClick={() => setKind(value)}>
@@ -145,14 +172,59 @@ export function PhotoUpload({ module, scale, consent, storage, busy, error, navi
                 </span>
               </label>
             ) : null}
-            <label className="cad-matt-falt">
-              <span>Längd (om du vet den)</span>
-              <span className="cad-mm">
-                <input name="foto-langd" inputMode="decimal" placeholder="ur fotot" value={length} onChange={(event) => setLength(event.currentTarget.value)} />
-                <span aria-hidden="true">mm</span>
-              </span>
-            </label>
+            {kind !== "curve" ? (
+              <label className="cad-matt-falt">
+                <span>Längd (om du vet den)</span>
+                <span className="cad-mm">
+                  <input name="foto-langd" inputMode="decimal" placeholder="ur fotot" value={length} onChange={(event) => setLength(event.currentTarget.value)} />
+                  <span aria-hidden="true">mm</span>
+                </span>
+              </label>
+            ) : null}
           </div>
+          {kind === "curve" ? (
+            <div className="cad-ruta">
+              <p className="cad-dampad">
+                Mät spår 1 med ett snöre från spårmitten vid gavel A till spårmitten vid gavel B (kordan), och pilhöjden från snörets mitt till spåret.
+                Radien och vinkeln räknas fram exakt, utan avrundning.
+              </p>
+              <div className="cad-rad">
+                <label className="cad-matt-falt">
+                  <span>Korda</span>
+                  <span className="cad-mm">
+                    <input name="foto-korda" inputMode="decimal" value={chord} onChange={(event) => setChord(event.currentTarget.value)} />
+                    <span aria-hidden="true">mm</span>
+                  </span>
+                </label>
+                <label className="cad-matt-falt">
+                  <span>Pilhöjd</span>
+                  <span className="cad-mm">
+                    <input name="foto-pilhojd" inputMode="decimal" value={sagitta} onChange={(event) => setSagitta(event.currentTarget.value)} />
+                    <span aria-hidden="true">mm</span>
+                  </span>
+                </label>
+                <label className="cad-matt-falt">
+                  <span>Spår 1 från Kant 1</span>
+                  <span className="cad-mm">
+                    <input name="foto-spar1" inputMode="decimal" value={track1} onChange={(event) => setTrack1(event.currentTarget.value)} />
+                    <span aria-hidden="true">mm</span>
+                  </span>
+                </label>
+              </div>
+              <div className="cad-segment" role="radiogroup" aria-label="Kant 1 på kurvan">
+                {(
+                  [
+                    ["outer", "Kant 1 ytterst"],
+                    ["inner", "Kant 1 innerst"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button key={value} type="button" role="radio" aria-checked={edge === value} onClick={() => setEdge(value)}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </>
       )}
       <label className="cad-falt cad-filval">
@@ -200,6 +272,143 @@ export function PhotoUpload({ module, scale, consent, storage, busy, error, navi
   );
 }
 
+/** Från skiss: a hand-drawn track plan with the modules' frames, read into a module (part c2).
+ * The frame chosen is this module; its length and width give the sketch its scale. */
+export function SketchUpload({ scale, consent, busy, error, navigate, onUpload }: UploadProps) {
+  const [name, setName] = useState("");
+  const [kind, setKind] = useState<"straight" | "trapezoid">("straight");
+  const [length, setLength] = useState("");
+  const [width, setWidth] = useState("");
+  const [widthB, setWidthB] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const number = (text: string) => Number(text.replace(",", "."));
+  const ready = file !== null && name.trim() !== "" && number(length) > 0 && number(width) > 0 && (kind === "straight" || number(widthB) > 0);
+  return (
+    <form
+      className="cad-kort cad-formular cad-uppladdning"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!ready || !file) return;
+        onUpload?.(
+          {
+            module: null,
+            profile: "skiss",
+            name: name.trim(),
+            scale,
+            kind,
+            width: number(width),
+            width_b: kind === "trapezoid" ? number(widthB) : null,
+            length: number(length),
+            offset: null,
+            chord: null,
+            sagitta: null,
+            track1: null,
+            edge: "outer",
+            keep_original: false,
+            owner: null,
+          },
+          [file],
+        );
+      }}
+    >
+      <h2>Ladda upp en skiss</h2>
+      <p className="cad-dampad">
+        En handritad spårplan, skannad eller fotad, med modulernas ramar utritade. Du väljer sedan ramen som är den här modulen. Spåren ritas om
+        som raka och bågar som följer skissen, ± 20 mm, tills du mäter eller godkänner.
+      </p>
+      <label className="cad-falt">
+        <span>Namn</span>
+        <input name="skiss-namn" required maxLength={80} value={name} onChange={(event) => setName(event.currentTarget.value)} />
+      </label>
+      <div className="cad-falt">
+        <span>Form</span>
+        <div className="cad-segment" role="radiogroup" aria-label="Form">
+          {(
+            [
+              ["straight", "Rak"],
+              ["trapezoid", "Trapets"],
+            ] as const
+          ).map(([value, label]) => (
+            <button key={value} type="button" role="radio" aria-checked={kind === value} onClick={() => setKind(value)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="cad-rad">
+        <label className="cad-matt-falt">
+          <span>Längd</span>
+          <span className="cad-mm">
+            <input name="skiss-langd" inputMode="decimal" value={length} onChange={(event) => setLength(event.currentTarget.value)} />
+            <span aria-hidden="true">mm</span>
+          </span>
+        </label>
+        <label className="cad-matt-falt">
+          <span>{kind === "trapezoid" ? "Bredd vid gavel A" : "Bredd"}</span>
+          <span className="cad-mm">
+            <input name="skiss-bredd" inputMode="decimal" value={width} onChange={(event) => setWidth(event.currentTarget.value)} />
+            <span aria-hidden="true">mm</span>
+          </span>
+        </label>
+        {kind === "trapezoid" ? (
+          <label className="cad-matt-falt">
+            <span>Bredd vid gavel B</span>
+            <span className="cad-mm">
+              <input name="skiss-bredd-b" inputMode="decimal" value={widthB} onChange={(event) => setWidthB(event.currentTarget.value)} />
+              <span aria-hidden="true">mm</span>
+            </span>
+          </label>
+        ) : null}
+      </div>
+      <label className="cad-falt cad-filval">
+        <span>Skissen</span>
+        <input type="file" name="skiss" accept="image/jpeg,image/png" onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)} />
+      </label>
+      <div className="cad-ruta cad-prisruta">
+        <PriceText consent={consent} />
+        <p className="cad-dampad">
+          Koden läser spåren. AI:n frågas bara om ett parti koden inte kan avgöra, till samma pris som ett foto: 12 tokens för skissen, med
+          följdfrågorna. Utan AI är det gratis.
+        </p>
+      </div>
+      {error ? (
+        <p className="cad-fel" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <div className="cad-knapprad">
+        <a className="tm-knapp" href={PATHS.new} onClick={linkClick(navigate, PATHS.new)}>
+          Avbryt
+        </a>
+        <button type="submit" className="tm-knapp primar" disabled={!ready || busy}>
+          {busy ? "Laddar upp …" : "Ladda upp skissen"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+export function SketchPage(props: UploadProps) {
+  return (
+    <section className="cad-sida" aria-labelledby="rubrik">
+      <nav className="cad-brodsmulor" aria-label="Var du är">
+        <a href={PATHS.library} onClick={linkClick(props.navigate, PATHS.library)}>
+          Moduler
+        </a>{" "}
+        ›{" "}
+        <a href={PATHS.new} onClick={linkClick(props.navigate, PATHS.new)}>
+          Ny modul
+        </a>{" "}
+        › <span aria-current="page">Från en skiss</span>
+      </nav>
+      <div className="cad-rubrikrad">
+        <h1 id="rubrik">Ny modul ur en skiss</h1>
+      </div>
+      <SketchUpload {...props} />
+    </section>
+  );
+}
+
 /** Ny modul ur ett foto: its own page from Ny modul. */
 export function UploadPage(props: UploadProps) {
   return (
@@ -233,18 +442,34 @@ function sideMiddle(corners: Corners, side: number): Point {
   return [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
 }
 
+/** The side opposite a side. */
+const opposite = (side: number) => (side + 2) % 4;
+/** Is the side beside Kant 1, a gable? */
+const besideKant1 = (side: number, kant1: number) => side === (kant1 + 1) % 4 || side === (kant1 + 3) % 4;
+
+/** Tap a side: a gable becomes gable A; a long side becomes Kant 1. Gable A then stays at its
+ * end when the owner chose it (chosen), else it is the side before Kant 1, as CAD draws a module
+ * (part c2). */
+export function tapSide(side: number, kant1: number, gableA: number, chosen = false): { kant1: number; gableA: number } {
+  if (besideKant1(side, kant1)) return { kant1, gableA: side };
+  if (side === kant1) return { kant1, gableA };
+  return { kant1: side, gableA: chosen && besideKant1(gableA, side) ? gableA : (side + 3) % 4 };
+}
+
 function CornerEditor({
   job,
   corners,
   kant1,
+  gableA,
   onCorners,
-  onKant1,
+  onSide,
 }: {
   job: PhotoJob;
   corners: Corners;
   kant1: number;
+  gableA: number;
   onCorners: (corners: Corners) => void;
-  onKant1: (side: number) => void;
+  onSide: (side: number) => void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
   const [dragging, setDragging] = useState<number | null>(null);
@@ -262,8 +487,8 @@ function CornerEditor({
     if (!p) return;
     onCorners(corners.map((c, i) => (i === dragging ? [Math.round(p[0] * 10) / 10, Math.round(p[1] * 10) / 10] : c)));
   };
-  const gableA = sideMiddle(corners, kant1 + 3);
-  const gableB = sideMiddle(corners, kant1 + 1);
+  const gableAt = sideMiddle(corners, gableA);
+  const gableBt = sideMiddle(corners, opposite(gableA));
   const kant = sideMiddle(corners, kant1);
   return (
     <svg
@@ -283,15 +508,24 @@ function CornerEditor({
         return (
           <line
             key={`sida${side}`}
-            className={side === kant1 ? "cad-fotokant1" : "cad-fotosida"}
+            className={side === kant1 ? "cad-fotokant1" : side === gableA ? "cad-fotogavela" : "cad-fotosida"}
+            data-sida={side}
             x1={c[0]}
             y1={c[1]}
             x2={next[0]}
             y2={next[1]}
-            strokeWidth={unit * (side === kant1 ? 1.1 : 1.6)}
-            onClick={() => onKant1(side)}
+            strokeWidth={unit * (side === kant1 || side === gableA ? 1.1 : 1.6)}
+            onClick={() => onSide(side)}
           >
-            <title>{side === kant1 ? "Kant 1" : "Gör den här sidan till Kant 1"}</title>
+            <title>
+              {side === kant1
+                ? "Kant 1"
+                : side === gableA
+                  ? "Gavel A"
+                  : besideKant1(side, kant1)
+                    ? "Gör den här gaveln till gavel A"
+                    : "Gör den här sidan till Kant 1"}
+            </title>
           </line>
         );
       })}
@@ -314,10 +548,10 @@ function CornerEditor({
         <text x={kant[0]} y={kant[1] - unit * 1.8} textAnchor="middle">
           KANT 1
         </text>
-        <text x={gableA[0]} y={gableA[1]} textAnchor="middle">
+        <text x={gableAt[0]} y={gableAt[1]} textAnchor="middle">
           GAVEL A
         </text>
-        <text x={gableB[0]} y={gableB[1]} textAnchor="middle">
+        <text x={gableBt[0]} y={gableBt[1]} textAnchor="middle">
           GAVEL B
         </text>
       </g>
@@ -332,7 +566,7 @@ function PhotoWithTracks({ job, tracks }: { job: PhotoJob; tracks: boolean }) {
   const unit = Math.max(preview.width, preview.height) / 100;
   const corners = (job.corners?.corners ?? []) as Point[];
   return (
-    <svg className="cad-fotobild" viewBox={`0 0 ${preview.width} ${preview.height}`} role="img" aria-label={tracks ? "Fotot med AI:ns spår" : "Fotot"}>
+    <svg className="cad-fotobild" viewBox={`0 0 ${preview.width} ${preview.height}`} role="img" aria-label={job.profile === "skiss" ? (tracks ? "Skissen med spåren" : "Skissen") : tracks ? "Fotot med AI:ns spår" : "Fotot"}>
       <image href={preview.url} width={preview.width} height={preview.height} />
       {tracks
         ? (job.tracks_on_photo ?? []).map((line, i) => (
@@ -350,7 +584,7 @@ function PhotoWithTracks({ job, tracks }: { job: PhotoJob; tracks: boolean }) {
  * centre at (x0, y0) mm. */
 export function PhotoImage({ layer, opacity = 1 }: { layer: PhotoLayer; opacity?: number }) {
   const { grid } = layer;
-  return (
+  const image = (
     <image
       className="cad-fotolager"
       href={layer.url}
@@ -362,6 +596,8 @@ export function PhotoImage({ layer, opacity = 1 }: { layer: PhotoLayer; opacity?
       preserveAspectRatio="none"
     />
   );
+  // A photo read with another Kant 1 or gable A keeps its image: mirrored into this frame.
+  return grid.matrix ? <g transform={`matrix(${grid.matrix.join(" ")})`}>{image}</g> : image;
 }
 
 /** Uträtad ritning: the measuring image with the track plan over it, in mm. */
@@ -415,7 +651,9 @@ export type PhotoPageProps = {
   busy?: boolean;
   error?: string | null;
   navigate?: Navigate;
-  onRead?: (corners: Point[], kant1: number, ai: boolean, consent: boolean) => void;
+  onRead?: (corners: Point[], kant1: number, ai: boolean, consent: boolean, gableA?: number, frame?: number) => void;
+  /** Another Kant 1 or gable A after reading: at no cost (part c2). */
+  onOrientation?: (kant1: number, gableA: number) => void;
   onAnswer?: (key: string, answer: string) => void;
   onCloseup?: (key: string, file: File, consent: boolean) => void;
   /** Använd the photo's value for a gable's track, or the length: a new version of the measures. */
@@ -445,31 +683,89 @@ function ConfirmCorners({ module, job, consent, busy, onRead }: Pick<PhotoPagePr
   const start = (job.corners?.corners ?? []) as Point[];
   const [corners, setCorners] = useState<Corners>(start.length === 4 ? start : []);
   const [kant1, setKant1] = useState(job.corners?.kant1 ?? 0);
+  const [gableA, setGableA] = useState(job.corners?.gable_a ?? ((job.corners?.kant1 ?? 0) + 3) % 4);
+  // The frame the corners start on: the one code chose (the largest), or the one read before.
+  const startFrame = job.frame ?? job.frames?.findIndex((f) => JSON.stringify(f.corners) === JSON.stringify(start)) ?? -1;
+  const [frame, setFrame] = useState<number | undefined>(job.frames?.length ? Math.max(0, startFrame) : undefined);
   const [agreed, setAgreed] = useState(false);
   const aiPossible = Boolean(consent?.available && consent.may_read);
   const needsYes = aiPossible && !consent?.given;
+  const sketch = job.profile === "skiss";
+  // Gable A chosen by the owner, or derived: it stays at its end when Kant 1 moves.
+  const [aChosen, setAChosen] = useState(Boolean(job.corners?.derived));
+  const side = (tapped: number) => {
+    const next = tapSide(tapped, kant1, gableA, aChosen);
+    if (besideKant1(tapped, kant1)) setAChosen(true);
+    setKant1(next.kant1);
+    setGableA(next.gableA);
+  };
+  const chooseFrame = (index: number) => {
+    const chosen = job.frames?.[index];
+    if (!chosen) return;
+    setFrame(index);
+    setCorners(chosen.corners as Point[]);
+    setKant1(chosen.kant1);
+    setGableA((chosen.kant1 + 3) % 4);
+    setAChosen(false);
+  };
   return (
     <div className="cad-fotolayout">
       <div className="cad-kort cad-fotokort">
         <div className="cad-kortrubrik">
-          <h2>Fotot</h2>
+          <h2>{sketch ? "Skissen" : "Fotot"}</h2>
           <span className="cad-dampad">
-            {job.corners?.found ? (job.corners.certain ? "4 hörn hittade" : "4 hörn hittade, dra dem rätt om de ligger fel") : "Dra hörnen till modulens hörn"} · klicka på
-            den långsida som är Kant 1
+            {sketch
+              ? job.frames?.length
+                ? `${count(job.frames.length, "ram hittad", "ramar hittade")}, välj modulens`
+                : "Dra hörnen till modulens ram"
+              : job.corners?.found
+                ? job.corners.certain
+                  ? "4 hörn hittade"
+                  : "4 hörn hittade, dra dem rätt om de ligger fel"
+                : "Dra hörnen till modulens hörn"}{" "}
+            · tryck på den långsida som är Kant 1 och på gavel A
           </span>
         </div>
-        {corners.length === 4 ? <CornerEditor job={job} corners={corners} kant1={kant1} onCorners={setCorners} onKant1={setKant1} /> : null}
+        {sketch && job.frames?.length ? (
+          <div className="cad-knapprad" role="radiogroup" aria-label="Modulens ram">
+            {job.frames.map((_, index) => (
+              <button key={index} type="button" role="radio" aria-checked={frame === index} className="tm-knapp liten" onClick={() => chooseFrame(index)}>
+                Ram {index + 1}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {corners.length === 4 ? <CornerEditor job={job} corners={corners} kant1={kant1} gableA={gableA} onCorners={setCorners} onSide={side} /> : null}
         <div className="cad-knapprad">
-          <span className="cad-dampad">Kant 1:</span>
-          <button type="button" className="tm-knapp liten" onClick={() => setKant1((kant1 + 2) % 4)}>
-            Andra långsidan
+          <button
+            type="button"
+            className="tm-knapp liten"
+            onClick={() => {
+              setGableA(opposite(gableA));
+              setAChosen(true);
+            }}
+          >
+            Spegla: gavel A i andra änden
           </button>
-          <button type="button" className="tm-knapp liten" onClick={() => setKant1((kant1 + 1) % 4)}>
+          <button type="button" className="tm-knapp liten" onClick={() => side(opposite(kant1))}>
+            Andra långsidan som Kant 1
+          </button>
+          <button
+            type="button"
+            className="tm-knapp liten"
+            onClick={() => {
+              setKant1((kant1 + 1) % 4);
+              setGableA((gableA + 1) % 4);
+            }}
+          >
             Vrid ett kvarts varv
           </button>
         </div>
-        <p className="cad-dampad">
-          Gavel A är gaveln där Kant 1 börjar: från gavel A längs Kant 1 ligger modulen till höger, sett ovanifrån.
+        <p className={job.corners?.derived ? "cad-ruta" : "cad-dampad"} role={job.corners?.derived ? "status" : undefined}>
+          {job.corners?.why ?? "Tryck på den långsida som är Kant 1 och på gavel A."}{" "}
+          {gableA === (kant1 + 3) % 4
+            ? "Från gavel A längs Kant 1 ligger modulen till höger, sett ovanifrån."
+            : "Speglad: från gavel A längs Kant 1 ligger modulen till vänster, sett ovanifrån."}
           {job.message ? ` ${job.message}` : ""}
         </p>
       </div>
@@ -508,12 +804,12 @@ function ConfirmCorners({ module, job, consent, busy, onRead }: Pick<PhotoPagePr
                 type="button"
                 className="tm-knapp primar"
                 disabled={busy || corners.length !== 4 || (needsYes && !agreed)}
-                onClick={() => onRead?.(corners, kant1, true, needsYes && agreed)}
+                onClick={() => onRead?.(corners, kant1, true, needsYes && agreed, gableA, frame)}
               >
                 {consent?.price ? `Läs av med AI · ${consent.price} tokens` : "Läs av med AI"}
               </button>
             ) : null}
-            <button type="button" className={aiPossible ? "tm-knapp" : "tm-knapp primar"} disabled={busy || corners.length !== 4} onClick={() => onRead?.(corners, kant1, false, false)}>
+            <button type="button" className={aiPossible ? "tm-knapp" : "tm-knapp primar"} disabled={busy || corners.length !== 4} onClick={() => onRead?.(corners, kant1, false, false, gableA, frame)}>
               Läs av utan AI · gratis
             </button>
           </div>
@@ -597,8 +893,37 @@ function openQuestions(job: PhotoJob): PhotoQuestion[] {
   return (job.questions ?? []).filter((q) => !q.answer);
 }
 
-function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, busy }: PhotoPageProps & { job: PhotoJob }) {
+/** Kant 1 och gavel A after reading: mirror or swap at no cost (part c2). */
+function Orientation({ job, busy, onOrientation }: { job: PhotoJob; busy?: boolean; onOrientation?: PhotoPageProps["onOrientation"] }) {
+  const kant1 = job.corners?.kant1 ?? 0;
+  const gableA = job.corners?.gable_a ?? (kant1 + 3) % 4;
+  const mirrored = gableA !== (kant1 + 3) % 4;
+  return (
+    <div className="cad-kort cad-orientering">
+      <div className="cad-kortrubrik">
+        <h2>Kant 1 och gavel A</h2>
+        <span className="cad-fyll" />
+        <span className="cad-tagg gron">Kostar inget</span>
+      </div>
+      <p className="cad-dampad">
+        {mirrored ? "Speglad: modulen ligger till vänster om Kant 1 från gavel A." : "Modulen ligger till höger om Kant 1 från gavel A, som CAD ritar den."} Ett annat val
+        räknas om ur samma mätbild, utan ny avläsning.
+      </p>
+      <div className="cad-knappstapel">
+        <button type="button" className="tm-knapp" disabled={busy} onClick={() => onOrientation?.(kant1, opposite(gableA))}>
+          Byt gavel A och B
+        </button>
+        <button type="button" className="tm-knapp" disabled={busy} onClick={() => onOrientation?.(opposite(kant1), gableA)}>
+          Kant 1 på andra långsidan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, onOrientation, busy }: PhotoPageProps & { job: PhotoJob }) {
   const [tracks, setTracks] = useState(true);
+  const sketch = job.profile === "skiss";
   const measures = job.measures ?? [];
   const agree = measures.filter((m) => m.agrees).length;
   const open = openQuestions(job);
@@ -654,18 +979,18 @@ function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, 
         <div className="cad-hoger">
           <div className="cad-kort cad-fotokort">
             <div className="cad-kortrubrik">
-              <h2>Fotot</h2>
+              <h2>{sketch ? "Skissen" : "Fotot"}</h2>
               <span className="cad-dampad">
-                taget {dayText(job.created_at)}
+                {sketch ? "inläst" : "taget"} {dayText(job.created_at)}
                 {job.ai ? ` · läst av ${job.ai}` : " · läst utan AI"}
               </span>
               <span className="cad-fyll" />
               <div className="cad-vaxel" role="group" aria-label="Visa">
                 <button type="button" aria-pressed={!tracks} onClick={() => setTracks(false)}>
-                  Bara fotot
+                  {sketch ? "Bara skissen" : "Bara fotot"}
                 </button>
                 <button type="button" aria-pressed={tracks} onClick={() => setTracks(true)}>
-                  Med AI-spåren
+                  {sketch ? "Med spåren" : "Med AI-spåren"}
                 </button>
               </div>
             </div>
@@ -677,7 +1002,7 @@ function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, 
               <span className="cad-dampad">fotot omräknat till millimeter</span>
               <span className="cad-fyll" />
               <span className="cad-legend">
-                <i className="streckad orange" /> AI-förslag
+                <i className="streckad orange" /> {job.profile === "skiss" ? "Förslag ur skissen" : "AI-förslag"}
               </span>
             </div>
             <Straightened module={module} job={job} />
@@ -707,6 +1032,7 @@ function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, 
               </p>
             ) : null}
           </div>
+          <Orientation job={job} busy={busy} onOrientation={onOrientation} />
           {others.map((q) => (
             <div key={q.key} className="cad-kort cad-fraga">
               <h2>{q.title}</h2>
@@ -735,7 +1061,7 @@ function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, 
           <div className="cad-kort">
             <div className="cad-kortrubrik">
               <h2>Spårplanen</h2>
-              <span className="cad-tagg forslag">AI-förslag</span>
+              <span className="cad-tagg forslag">{job.profile === "skiss" ? "Förslag ur skissen, ± 20 mm" : "AI-förslag"}</span>
             </div>
             {summary ? (
               <dl className="cad-fakta-lista">
@@ -761,7 +1087,7 @@ function Result({ module, job, navigate, onAnswer, onUseMeasure, onApprovePlan, 
                 <dd>≈ {nr(summary.track_length / 1000)} m</dd>
                 {summary.deviation ? (
                   <>
-                    <dt>Avviker från fotot</dt>
+                    <dt>Avviker från {sketch ? "skissen" : "fotot"}</dt>
                     <dd>
                       median {nr(summary.deviation.median, 2)} mm, högst {nr(summary.deviation.max, 2)} mm
                     </dd>

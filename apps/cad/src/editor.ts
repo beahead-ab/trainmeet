@@ -195,6 +195,7 @@ export function drawnSwitchRadius(view: DrawingView): number {
 
 export function sourceBadge(source: string | undefined): { text: string; kind: string } {
   if (source === "photo") return { text: "AI-förslag", kind: "forslag" };
+  if (source === "sketch") return { text: "Förslag ur skissen", kind: "forslag" };
   if (source === "drawn") return { text: "Ritad", kind: "ritad" };
   return { text: "Ur måtten", kind: "matt" };
 }

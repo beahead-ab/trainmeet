@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.photo-orientation.schema.json",
+  "title": "trainmeet.cad-1.photo-orientation",
+  "additionalProperties": true,
+  "description": "Another Kant 1 or gable A for a photo already read: the same measuring, mirrored or\nturned, at no cost (part c2).",
+  "properties": {
+    "kant1": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Kant1",
+      "type": "integer"
+    },
+    "gable_a": {
+      "maximum": 3,
+      "minimum": 0,
+      "title": "Gable A",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "kant1",
+    "gable_a"
+  ],
+  "type": "object"
+}

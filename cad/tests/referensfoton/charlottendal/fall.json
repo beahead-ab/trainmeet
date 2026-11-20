@@ -1,0 +1,25 @@
+{
+  "kalla": "Charlottendal (CDA, beslut CAD17, krav CAD-36): fotot ur ref/charlottendal/foto/modul-3.jpg i trainmeet-spec, 720 × 1280 px utan kamerans data (bara JFIF-huvudet). Måtten, gavlarna och växlarna ur AnyRail-ritningen: ref/charlottendal/station.json (modules: modul-3, gables, turnouts) och dxf/CDA_modul_3.dxf (lagret VAXLAR: cirklarnas mitt är växelns läge; lagret GAVEL: spårens mm från Kant 1), lästa 20 november 2026. Stationens gavel A är gaveln mot modul 2a och 2b, gavel B den mot modul 4; i fotot står modulen mot en vägg med gavel A uppåt och Kant 1 till höger, som CAD ritar den. Hörnen är satta för hand i fotots pixlar. Fotot har 0,8 px per mm: under 1 px per mm ger det inte längden (bildkedjan steg 3), så längden är ägarens 1500 mm.",
+  "fall": [
+    {
+      "foto": "modul-3.jpg",
+      "kalla": "Modul 3: 1500 × 700 mm. Gavel A (mot 2a: 141, 198, 232, 267, 309; mot 2b, 350 mm längre in: 175 och 232) och gavel B (mot modul 4: 141, 198, 323, 373, 420, 477, 529, 581, 633). Tio växlar ur AnyRail, x från gavel A och y från Kant 1: 9 (38, 315), 10? (414, 408), 11? och 12 (430, 289, två växlar på samma ställe), 13 (460, 141), 14 (644, 418), 15? (807, 339), 16 (895, 625), 17 (1166, 198), 18 (1430, 633); frågetecknet är AnyRails antagna. Förbindelserna är fototestets från 1 november (moduler/modul-3-ur-foto.png, Kopplingar A → B, omräknade till stationens gavlar). Gavelmåtten skiljer upp till 13 mm från AnyRail i fotot; fototestet fick samma (646 mot 633 för spår 9).",
+      "form": "straight",
+      "bredd": 700,
+      "langd": 1500,
+      "langd_given": true,
+      "horn": [[74.5, 23.8], [620, 11], [635, 1225], [64, 1222]],
+      "kant1": 1,
+      "gavel_a": 0,
+      "gavel_a_mm": [141, 198, 232, 267, 309, 525, 582],
+      "gavel_b_mm": [141, 198, 323, 373, 420, 477, 529, 581, 633],
+      "forbindelser": ["A1-B1", "A1-B2", "A2-B2", "A3-B3", "A3-B4", "A3-B5", "A4-B3", "A4-B4", "A4-B5", "A5-B6", "A5-B7", "A5-B8", "A5-B9", "A6-B9", "A7-B9"],
+      "vaxlar": [[38, 315], [414, 408], [430, 289], [430, 289], [460, 141], [644, 418], [807, 339], [895, 625], [1166, 198], [1430, 633]],
+      "harleds": true,
+      "minst_hittade": 16,
+      "minst_vaxlar": 9,
+      "vaxel_tolerans_mm": 150.0,
+      "tolerans_mm": 25.0
+    }
+  ]
+}

@@ -2,9 +2,12 @@
 must not move the results outside the tolerance.
 
 Each folder under referensfoton/ holds a station's module photos and fall.json: for each photo
-the module's width and length, the corners as the owner confirms them, the side that is Kant 1,
-the gables' tracks from Kant 1 as the chain names the gables, how many gable tracks the chain
-finds today, and the tolerance. The measures and where each comes from are in fall.json.
+the module's form and measures, the corners as the owner confirms them, the sides the owner
+taps as Kant 1 and gable A, the gables' tracks from Kant 1, the connections and the switches as
+the station has them, how many of them the chain finds today, and the tolerances. The measures
+and where each comes from are in fall.json.
+
+Each photo is read once per run (read() is cached) and the tests share it: a photo takes 6–40 s.
 
 The committed photos carry no camera data, position or other metadata: only the JPEG's JFIF
 header.
@@ -13,15 +16,28 @@ header.
 from __future__ import annotations
 
 import json
+import math
 import struct
+from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 from typing import Any
 
 import pytest
 
-from cad.bildkedjan import chain, intake
+from cad import curves, geometry
+from cad.bildkedjan import chain, intake, orient
+from cad.bildkedjan.chain import Assembled, Measured
 from cad.editor import Drawing
-from contracts.cad import DrawingState, Gable, GableEnd, Scale, Straight, TrackGraph
+from contracts.cad import (
+    Curve,
+    DrawingState,
+    Gable,
+    GableEnd,
+    Scale,
+    Straight,
+    TrackGraph,
+)
 
 FOLDER = Path(__file__).parent / "referensfoton"
 MAX_BYTES = 4 * 1024 * 1024
@@ -36,6 +52,9 @@ def cases() -> list[tuple[Path, dict[str, Any]]]:
 
 
 CASES = cases()
+BY_NAME = {case["foto"]: (photo, case) for photo, case in CASES}
+STRAIGHT = [c["foto"] for _, c in CASES if c["form"] == "straight"]
+CURVES = [c["foto"] for _, c in CASES if c["form"] == "curve"]
 
 
 def markers(data: bytes) -> list[tuple[int, bytes]]:
@@ -53,8 +72,130 @@ def markers(data: bytes) -> list[tuple[int, bytes]]:
     return found
 
 
+@dataclass(frozen=True)
+class Read:
+    measured: Measured
+    assembled: Assembled
+
+
+def setup_of(case: dict[str, Any]) -> chain.Setup:
+    corners = tuple((float(x), float(y)) for x, y in case["horn"])
+    width = float(case["bredd"])
+    if case["form"] == "curve":
+        edge = float(case["radie_spar1"]) + float(case["gavel_a_mm"][0])
+        angle = float(case["vinkel"])
+        return chain.Setup(
+            Scale.H0,
+            "curve",
+            width,
+            width,
+            length=edge * math.radians(angle),
+            corners=corners,
+            kant1=int(case["kant1"]),
+            gable_a=int(case["gavel_a"]),
+            radius=edge,
+            angle=angle,
+        )
+    return chain.Setup(
+        Scale.H0,
+        "straight",
+        width,
+        width,
+        length=float(case["langd"]) if case.get("langd_given") else None,
+        corners=corners,
+        kant1=int(case["kant1"]),
+        gable_a=int(case["gavel_a"]),
+    )
+
+
+@cache
+def read(name: str) -> Read:
+    """The photo measured as the owner sets it up, and drawn with the code's connections."""
+    photo, case = BY_NAME[name]
+    prepared = chain.prepare([intake.take(photo.read_bytes())], curve=case["form"] == "curve")
+    setup = setup_of(case)
+    measured = chain.measure(prepared, setup)
+    gables = [
+        Gable(end=GableEnd.A, tracks=[float(v) for v in case["gavel_a_mm"]]),
+        Gable(end=GableEnd.B, tracks=[float(v) for v in case["gavel_b_mm"]]),
+    ]
+    if case["form"] == "curve":
+        shape: Straight | Curve = Curve(
+            radius=float(case["radie_spar1"]),
+            angle=float(case["vinkel"]),
+            width=float(case["bredd"]),
+        )
+    else:
+        shape = Straight(length=round(measured.length, 1), width=float(case["bredd"]))
+    drawing = Drawing.of(Scale.H0, shape, gables, TrackGraph(), DrawingState())
+    return Read(measured, chain.assemble(measured, measured.code_pairs(), drawing))
+
+
+def found_pairs(measured: Measured) -> set[str]:
+    return {f"{a}-{b}" for a, b in measured.code_pairs()}
+
+
+def station_pairs(name: str) -> set[str]:
+    """The connections found, each gable track named as the station names it: the nearest of
+    the station's tracks at that gable. A track the chain did not find leaves a gap in its own
+    numbering, never in the station's."""
+    _, case = BY_NAME[name]
+    found = read(name)
+    names: dict[str, str] = {}
+    for t in found.measured.terminals:
+        if t.kind != "gable" or t.gable is None:
+            names[t.id] = t.id
+            continue
+        owner = case["gavel_a_mm"] if t.gable == "A" else case["gavel_b_mm"]
+        at = found.assembled.gable_positions[t.id]
+        nearest = min(range(len(owner)), key=lambda i: abs(owner[i] - at))
+        names[t.id] = f"{t.gable}{nearest + 1}"
+    return {f"{names[a]}-{names[b]}" for a, b in found.measured.code_pairs()}
+
+
+def switch_positions(assembled: Assembled) -> list[tuple[float, float]]:
+    d = assembled.built.drawing
+    return sorted(
+        (round(d.nodes[s.node].at[0], 1), round(d.nodes[s.node].at[1], 1))
+        for s in d.switches.values()
+    )
+
+
+def matched(case: dict[str, Any], assembled: Assembled) -> list[float]:
+    """The station's switches each paired with one found, nearest first: the distances of
+    those within the case's tolerance."""
+    found = switch_positions(assembled)
+    pairs = sorted(
+        (math.dist(tuple(truth), at), i, j)
+        for i, truth in enumerate(case["vaxlar"])
+        for j, at in enumerate(found)
+    )
+    used_t: set[int] = set()
+    used_f: set[int] = set()
+    distances = []
+    for distance, i, j in pairs:
+        if i in used_t or j in used_f or distance > case.get("vaxel_tolerans_mm", 0):
+            continue
+        used_t.add(i)
+        used_f.add(j)
+        distances.append(round(distance, 1))
+    return distances
+
+
+def arc_radii(assembled: Assembled) -> list[float]:
+    """The radii of the drawn pieces' arcs, longest first: a curve module's tracks."""
+    arcs = [
+        seg
+        for piece in assembled.built.drawing.pieces.values()
+        for seg in piece.segs
+        if isinstance(seg, curves.Arc)
+    ]
+    return [round(a.radius) for a in sorted(arcs, key=curves.length, reverse=True)]
+
+
 def test_there_are_reference_photos() -> None:
-    assert len(CASES) >= 4
+    assert len(CASES) >= 7
+    assert {c["form"] for _, c in CASES} == {"straight", "curve"}
 
 
 @pytest.mark.parametrize(("photo", "case"), CASES, ids=[c["foto"] for _, c in CASES])
@@ -68,38 +209,101 @@ def test_the_committed_photo_has_no_metadata(photo: Path, case: dict[str, Any]) 
     assert found[0][1].startswith(b"JFIF\x00")
 
 
-@pytest.mark.parametrize(("photo", "case"), CASES, ids=[c["foto"] for _, c in CASES])
-def test_the_chain_keeps_to_the_owners_measures(photo: Path, case: dict[str, Any]) -> None:
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES])
+def test_the_gables_keep_to_the_stations_measures(name: str) -> None:
+    """Every gable track the chain finds is one of the station's, within the tolerance, at the
+    gable the station calls by that name; and at least as many as before."""
+    _, case = BY_NAME[name]
+    found = read(name)
     tolerance = float(case["tolerans_mm"])
-    width = float(case["bredd"])
-    prepared = chain.prepare([intake.take(photo.read_bytes())])
-    setup = chain.Setup(
-        Scale.H0,
-        "straight",
-        width,
-        width,
-        corners=tuple((float(x), float(y)) for x, y in case["horn"]),
-        kant1=int(case["kant1"]),
-    )
-    measured = chain.measure(prepared, setup)
-    # The length from the corners and the width.
-    assert abs(measured.length - float(case["langd"])) <= tolerance, measured.length
-    drawing = Drawing.of(
-        Scale.H0,
-        Straight(length=round(measured.length, 1), width=width),
-        [Gable(end=GableEnd.A, tracks=[]), Gable(end=GableEnd.B, tracks=[])],
-        TrackGraph(),
-        DrawingState(),
-    )
-    assembled = chain.assemble(measured, measured.code_pairs(), drawing)
-    found = 0
-    for t in measured.terminals:
+    count = 0
+    for t in found.measured.terminals:
         if t.kind != "gable" or t.gable is None:
             continue
-        owner = case["gavel_a"] if t.gable == "A" else case["gavel_b"]
-        at = assembled.gable_positions[t.id]
+        owner = case["gavel_a_mm"] if t.gable == "A" else case["gavel_b_mm"]
+        at = found.assembled.gable_positions[t.id]
         nearest = min(owner, key=lambda o: abs(o - at))
-        # Every track the chain finds is one of the owner's, within the tolerance.
-        assert abs(at - nearest) <= tolerance, (case["foto"], t.id, at, nearest)
-        found += 1
-    assert found >= int(case["minst_hittade"]), (case["foto"], found)
+        assert abs(at - nearest) <= tolerance, (name, t.id, at, nearest)
+        count += 1
+    assert count >= int(case["minst_hittade"]), (name, count)
+
+
+@pytest.mark.parametrize("name", STRAIGHT)
+def test_the_length_comes_from_the_photo(name: str) -> None:
+    _, case = BY_NAME[name]
+    found = read(name)
+    if case.get("langd_given"):
+        # Under 1 px per mm the photo gives no length (bildkedjan step 3).
+        assert not found.measured.quality.length_from_photo
+        return
+    assert abs(found.measured.length - float(case["langd"])) <= float(case["tolerans_mm"])
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES])
+def test_the_stations_connections_are_found(name: str) -> None:
+    """The switches' and the crossovers' connections that c1 missed (part c2)."""
+    _, case = BY_NAME[name]
+    found = station_pairs(name)
+    assert set(case["forbindelser"]) <= found, (name, sorted(found))
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES if c["vaxlar"]])
+def test_the_stations_switches_are_found_where_they_are(name: str) -> None:
+    _, case = BY_NAME[name]
+    distances = matched(case, read(name).assembled)
+    assert len(distances) >= int(case["minst_vaxlar"]), (name, distances)
+
+
+@pytest.mark.parametrize("name", CURVES)
+def test_a_curve_module_straightens_to_its_arcs(name: str) -> None:
+    """Kurvmodul (bildkedjan step 6): the corners and the owner's chord and sagitta give the
+    measuring image, and its long sides are circular arcs there."""
+    found = read(name)
+    edges = found.measured.edges
+    assert edges is not None and edges.sides
+    _, case = BY_NAME[name]
+    if case.get("kanter") == "oklara":
+        # Grass or scenery over the edges: the check abstains rather than guess.
+        assert edges.clear == [], (name, edges)
+    assert edges.round, (name, edges)
+    # Each track is drawn as arcs near its own radius: track 1's is the longest.
+    radius = float(case["radie_spar1"])
+    longest = arc_radii(found.assembled)[0]
+    assert abs(longest - radius) / radius <= 0.15, (name, longest)
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES if c["form"] == "straight"])
+def test_kant1_and_gable_a_are_derived_only_from_an_asymmetric_profile(name: str) -> None:
+    """Tapped the other way round, the chain sees from the gables' tracks which way the module
+    lies when its known profile is asymmetric, and says nothing when it is symmetric."""
+    _, case = BY_NAME[name]
+    measured = read(name).measured
+    kant1, gable_a = int(case["kant1"]), int(case["gavel_a"])
+    known_a = [float(v) for v in case["gavel_a_mm"]]
+    known_b = [float(v) for v in case["gavel_b_mm"]]
+    for way in orient.WAYS[1:]:
+        wrong_k, wrong_a = orient.sides_for(kant1, gable_a, way)
+        tapped = orient.reorient(measured, wrong_k, wrong_a).measured
+        found_a, found_b = orient.gable_positions(tapped)
+        derived = orient.derive(
+            found_a,
+            found_b,
+            tapped.setup.width_a,
+            tapped.setup.width_b,
+            known_a,
+            known_b,
+        )
+        if case["harleds"]:
+            assert derived.decided, (name, way, derived)
+            assert orient.sides_for(wrong_k, wrong_a, derived.way) == (kant1, gable_a)
+        else:
+            assert not derived.decided or orient.sides_for(wrong_k, wrong_a, derived.way) == (
+                kant1,
+                gable_a,
+            ), (name, way, derived)
+
+
+def test_a_curve_is_measured_with_kant_1_s_radius() -> None:
+    """The curve's Kant 1 radius from the module's: track 1's radius and its distance."""
+    curve = Curve(radius=3014, angle=10, width=337)
+    assert geometry.edge_radius(curve, 140) == 3154

@@ -10,6 +10,7 @@ export type Route =
   | { page: "new" }
   | { page: "form"; kind: FormKind; id?: string }
   | { page: "upload" }
+  | { page: "sketch" }
   | { page: "module"; id: string; tab: Tab; version?: number }
   | { page: "drawing"; id: string }
   | { page: "lock"; id: string }
@@ -33,6 +34,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /** Ny modul ur ett foto. */
 export const UPLOAD_PATH = `${PATHS.new}/foto`;
+/** Ny modul ur en skiss (part c2). */
+export const SKETCH_PATH = `${PATHS.new}/skiss`;
 
 export function formPath(kind: FormKind): string {
   return `${PATHS.new}/${FORM_PATHS[kind]}`;
@@ -73,6 +76,7 @@ export function routeFor(pathname: string, search = ""): Route {
   if (path === PATHS.login) return { page: "login" };
   const parts = path.split("/").slice(1);
   if (path === UPLOAD_PATH) return { page: "upload" };
+  if (path === SKETCH_PATH) return { page: "sketch" };
   if (parts[0] === "moduler" && parts[1] === "ny" && parts.length === 3) {
     const kind = (Object.keys(FORM_PATHS) as FormKind[]).find((k) => FORM_PATHS[k] === parts[2]);
     if (kind) return { page: "form", kind };
@@ -105,6 +109,6 @@ function withVersion(route: Extract<Route, { page: "module" }>, search: string):
 export function tabOf(route: Route): "library" | "assemblies" | "profiles" | null {
   if (route.page === "assemblies") return "assemblies";
   if (route.page === "profiles") return "profiles";
-  if (["library", "new", "form", "upload", "module", "drawing", "lock", "photo"].includes(route.page)) return "library";
+  if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo"].includes(route.page)) return "library";
   return null;
 }

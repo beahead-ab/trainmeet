@@ -211,16 +211,57 @@ def nelder_mead(
 @dataclass(frozen=True)
 class Shape:
     """The module's outline in mm as a function of its unknowns. known: the given measures.
-    unknown: names of what the photo solves for, with starting values."""
+    unknown: names of what the photo solves for, with starting values.
+
+    A curve module (kind "curve", bildkedjan step 6, Kurvmodul) has no unknowns: Kant 1's
+    radius, the angle and the width give its four corners, as cad/geometry.py has them. With
+    Kant 1 as the outer edge its centre lies at (0, radius) under Kant 1 and it turns right seen
+    from gable A; as the inner edge the centre lies at (0, -radius) and it turns left."""
 
     kind: str
     width_a: float
     width_b: float
     length: float | None
     offset: float | None
+    radius: float | None = None
+    """A curve's Kant 1 radius, mm."""
+    angle: float | None = None
+    """A curve's angle, degrees."""
+    edge: str = "outer"
+    sides: str = "bent"
+
+    @property
+    def curved(self) -> bool:
+        return self.kind == "curve" and self.radius is not None and self.angle is not None
+
+    @property
+    def arc_length(self) -> float:
+        """A curve's length along Kant 1."""
+        assert self.radius is not None and self.angle is not None
+        return self.radius * math.radians(self.angle)
+
+    def point(self, offset: float, angle: float) -> Array:
+        """A curve's point offset mm from Kant 1, angle degrees from gable A."""
+        assert self.radius is not None
+        phi = math.radians(angle)
+        if self.edge == "outer":
+            r = self.radius - offset
+            return np.array([r * math.sin(phi), self.radius - r * math.cos(phi)])
+        r = self.radius + offset
+        return np.array([r * math.sin(phi), -self.radius + r * math.cos(phi)])
 
     def corners(self, length: float, offset: float) -> Array:
         """A at Kant 1, B at Kant 1, B far, A far."""
+        if self.curved:
+            assert self.angle is not None
+            return np.array(
+                [
+                    self.point(0.0, 0.0),
+                    self.point(0.0, self.angle),
+                    self.point(self.width_b, self.angle),
+                    self.point(self.width_a, 0.0),
+                ]
+            )
         return np.array(
             [
                 [0.0, 0.0],
@@ -229,6 +270,17 @@ class Shape:
                 [0.0, self.width_a],
             ]
         )
+
+    def outline(self, length: float, offset: float, steps: int = 48) -> Array:
+        """The board's outline: Kant 1 from gable A, gable B, the far side back, gable A. A
+        curve's long sides are arcs, unless its box has straight sides."""
+        if not self.curved:
+            return self.corners(length, offset)
+        assert self.angle is not None
+        ks = range(steps + 1) if self.sides == "bent" else (0, steps)
+        edge = [self.point(0.0, self.angle * k / steps) for k in ks]
+        far = [self.point(self.width_a, self.angle * k / steps) for k in ks]
+        return np.array(edge + far[::-1])
 
 
 def pose(h: Array, f: float, centre: tuple[float, float]) -> tuple[Array, Array, Array]:
@@ -266,13 +318,15 @@ def solve(
         if shape.length is not None
         else float(sides / max(ends, 1e-6) * (shape.width_a + shape.width_b) / 2)
     )
-    solve_length = shape.length is None
+    solve_length = shape.length is None and not shape.curved
     solve_offset = shape.kind == "trapezoid" and shape.offset is None
     log_f0 = math.log(focal)
 
     def unpack(x: Array) -> tuple[float, float, float]:
         i = 0
-        length = shape.length if shape.length is not None else 0.0
+        length = (
+            shape.arc_length if shape.curved else shape.length if shape.length is not None else 0.0
+        )
         offset = shape.offset or 0.0
         if solve_length:
             length = float(x[i])
@@ -335,21 +389,44 @@ def _line_error(points: Array) -> float:
     return float(values[0]) / len(points)
 
 
-def lens(sides: Sequence[Array], corners: Array, size: tuple[int, int], focal: float) -> float:
-    """The division model's k from the module's edges, which are straight lines; 0 when the
-    correction moves no corner more than LENS_MIN_SHIFT px or does not make the edges clearly
-    straighter. Each side counts by how much straighter it gets, so a side with scenery over
-    its edge does not drown the others."""
+def _circle_error(points: Array) -> float:
+    """The mean squared distance from the best circle (Kåsa): a curve module's long side, an arc
+    seen nearly from above (part c2)."""
+    x, y = points[:, 0], points[:, 1]
+    a = np.c_[2 * x, 2 * y, np.ones(len(x))]
+    (cx, cy, c), *_ = np.linalg.lstsq(a, x * x + y * y, rcond=None)
+    r = math.sqrt(max(1e-9, float(c + cx * cx + cy * cy)))
+    off = np.hypot(x - cx, y - cy) - r
+    return float(np.mean(off * off))
+
+
+def lens(
+    sides: Sequence[Array],
+    corners: Array,
+    size: tuple[int, int],
+    focal: float,
+    bent: Sequence[bool] | None = None,
+) -> float:
+    """The division model's k from the module's edges, which are straight lines (or arcs, for
+    the sides bent: a curve module's long sides); 0 when the correction moves no corner more
+    than LENS_MIN_SHIFT px or does not make the edges clearly straighter. Each side counts by
+    how much straighter it gets, so a side with scenery over its edge does not drown the
+    others."""
     centre = (size[0] / 2, size[1] / 2)
-    usable = [s for s in sides if len(s) >= 12]
+    flags = list(bent) if bent is not None else [False] * len(sides)
+    usable = [(s, f) for s, f in zip(sides, flags, strict=True) if len(s) >= 12]
     if len(usable) < 2:
         return 0.0
-    floor = [max(_line_error(s), 1e-3) for s in usable]
+
+    def side_error(points: Array, arc: bool) -> float:
+        return _circle_error(points) if arc else _line_error(points)
+
+    floor = [max(side_error(s, f), 1e-3) for s, f in usable]
 
     def error(k: float) -> float:
         return sum(
-            _line_error(undistort(s, centre, focal, k)) / base
-            for s, base in zip(usable, floor, strict=True)
+            side_error(undistort(s, centre, focal, k), f) / base
+            for (s, f), base in zip(usable, floor, strict=True)
         ) / len(usable)
 
     lo, hi = -MAX_DISTORTION, MAX_DISTORTION
@@ -360,7 +437,8 @@ def lens(sides: Sequence[Array], corners: Array, size: tuple[int, int], focal: f
         else:
             lo = m1
     k = (lo + hi) / 2
-    if error(k) > LENS_IMPROVEMENT:
+    # At the bound the edges asked for more than any lens: no estimate (part c2).
+    if error(k) > LENS_IMPROVEMENT or abs(k) >= 0.98 * MAX_DISTORTION:
         return 0.0
     moved = np.linalg.norm(undistort(corners, centre, focal, k) - corners, axis=1)
     return k if float(moved.max()) > LENS_MIN_SHIFT else 0.0

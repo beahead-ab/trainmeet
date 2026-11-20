@@ -372,6 +372,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/cad/1/photos/{job}/orientation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["cadOrientPhoto"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cad/1/photos/{job}/answers": {
         parameters: {
             query?: never;
@@ -1519,7 +1535,7 @@ export interface components {
          * @description Where the track plan comes from: the badge in Ritningen.
          * @enum {string}
          */
-        "trainmeet.cad-1.module.DrawingSource": "measures" | "drawn" | "photo";
+        "trainmeet.cad-1.module.DrawingSource": "measures" | "drawn" | "photo" | "sketch";
         /**
          * DrawingState
          * @description What a version keeps of its drawing besides the graph: where it came from, the
@@ -1564,8 +1580,9 @@ export interface components {
         };
         /**
          * DrawnLine
-         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
-         *     makes it LINE and ARC again when its level changes, and the deviation is measured from it.
+         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo or the
+         *     sketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is
+         *     measured from it.
          */
         "trainmeet.cad-1.module.DrawnLine": {
             /** Piece */
@@ -1580,7 +1597,7 @@ export interface components {
              * @default hand
              * @enum {string}
              */
-            source: "hand" | "photo";
+            source: "hand" | "photo" | "sketch";
         } & {
             [key: string]: unknown;
         };
@@ -1920,7 +1937,9 @@ export interface components {
         /**
          * PhotoGrid
          * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
-         *     (x0, y0) mm, ppm px per mm.
+         *     (x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner
+         *     chose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm
+         *     it was measured in to the module's.
          */
         "trainmeet.cad-1.module.PhotoGrid": {
             /** X0 */
@@ -1933,6 +1952,11 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+            /**
+             * Matrix
+             * @default null
+             */
+            matrix: number[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -3830,7 +3854,7 @@ export interface components {
          * @description Where the track plan comes from: the badge in Ritningen.
          * @enum {string}
          */
-        "trainmeet.cad-1.drawing-view.DrawingSource": "measures" | "drawn" | "photo";
+        "trainmeet.cad-1.drawing-view.DrawingSource": "measures" | "drawn" | "photo" | "sketch";
         /**
          * DrawingState
          * @description What a version keeps of its drawing besides the graph: where it came from, the
@@ -3890,8 +3914,9 @@ export interface components {
         };
         /**
          * DrawnLine
-         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo): utjämning
-         *     makes it LINE and ARC again when its level changes, and the deviation is measured from it.
+         * @description The line a piece was drawn from, by hand (or, in part c, traced in the photo or the
+         *     sketch): utjämning makes it LINE and ARC again when its level changes, and the deviation is
+         *     measured from it.
          */
         "trainmeet.cad-1.drawing-view.DrawnLine": {
             /** Piece */
@@ -3906,7 +3931,7 @@ export interface components {
              * @default hand
              * @enum {string}
              */
-            source: "hand" | "photo";
+            source: "hand" | "photo" | "sketch";
         } & {
             [key: string]: unknown;
         };
@@ -4170,7 +4195,9 @@ export interface components {
         /**
          * PhotoGrid
          * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
-         *     (x0, y0) mm, ppm px per mm.
+         *     (x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner
+         *     chose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm
+         *     it was measured in to the module's.
          */
         "trainmeet.cad-1.drawing-view.PhotoGrid": {
             /** X0 */
@@ -4183,6 +4210,11 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+            /**
+             * Matrix
+             * @default null
+             */
+            matrix: number[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5401,7 +5433,10 @@ export interface components {
         };
         /**
          * PhotoStart
-         * @description The form's data part: a new module from the photo, or a photo for a module.
+         * @description The form's data part: a new module from the photo, or a photo for a module. A curve
+         *     module comes with the chord and sagitta measured on track 1, and track 1's distance from
+         *     Kant 1 at gable A (part c2, bildkedjan step 6). A sketch (profile skiss) needs the module's
+         *     length: its frame gives the sketch its scale.
          */
         "trainmeet.cad-1.photo-start": {
             /**
@@ -5409,6 +5444,12 @@ export interface components {
              * @default null
              */
             module: string | null;
+            /**
+             * Profile
+             * @default modulfoto
+             * @enum {string}
+             */
+            profile: "modulfoto" | "skiss";
             /**
              * Name
              * @default null
@@ -5421,7 +5462,7 @@ export interface components {
              * @default straight
              * @enum {string}
              */
-            kind: "straight" | "trapezoid";
+            kind: "straight" | "trapezoid" | "curve";
             /**
              * Width
              * @description Gable A's width; null: the module's.
@@ -5445,6 +5486,26 @@ export interface components {
              */
             offset: number | null;
             /**
+             * Chord
+             * @description A curve's chord on track 1.
+             * @default null
+             */
+            chord: number | null;
+            /**
+             * Sagitta
+             * @description A curve's sagitta on track 1.
+             * @default null
+             */
+            sagitta: number | null;
+            /**
+             * Track1
+             * @description Track 1 from Kant 1 at gable A.
+             * @default null
+             */
+            track1: number | null;
+            /** @default outer */
+            edge: components["schemas"]["trainmeet.cad-1.photo-start.EdgeSide"];
+            /**
              * Keep Original
              * @default false
              */
@@ -5457,6 +5518,12 @@ export interface components {
         } & {
             [key: string]: unknown;
         };
+        /**
+         * EdgeSide
+         * @description Which edge of a curve module is Kant 1.
+         * @enum {string}
+         */
+        "trainmeet.cad-1.photo-start.EdgeSide": "outer" | "inner";
         /**
          * Scale
          * @description The module's scale (CAD10, CAD12).
@@ -5479,6 +5546,13 @@ export interface components {
              * Format: uuid
              */
             module: string;
+            /**
+             * Profile
+             * @description A photo of the module, or a sketch (part c2).
+             * @default modulfoto
+             * @enum {string}
+             */
+            profile: "modulfoto" | "skiss";
             state: components["schemas"]["trainmeet.cad-1.photo-job.PhotoJobState"];
             /** Progress */
             progress: number;
@@ -5504,6 +5578,17 @@ export interface components {
             preview: components["schemas"]["trainmeet.cad-1.photo-job.PhotoImage"] | null;
             /** @default null */
             corners: components["schemas"]["trainmeet.cad-1.photo-job.PhotoCorners"] | null;
+            /**
+             * Frames
+             * @description A sketch's module frames; corners is the chosen one.
+             */
+            frames?: components["schemas"]["trainmeet.cad-1.photo-job.PhotoFrame"][];
+            /**
+             * Frame
+             * @description The sketch's frame read.
+             * @default null
+             */
+            frame: number | null;
             /** @default null */
             quality: components["schemas"]["trainmeet.cad-1.photo-job.PhotoQuality"] | null;
             /**
@@ -5610,7 +5695,7 @@ export interface components {
          * @description Where a fact comes from (bildkedjan, principle 4).
          * @enum {string}
          */
-        "trainmeet.cad-1.photo-job.FactSource": "photo" | "owner" | "norm" | "ai" | "code";
+        "trainmeet.cad-1.photo-job.FactSource": "photo" | "owner" | "norm" | "ai" | "code" | "sketch";
         /**
          * GableEnd
          * @enum {string}
@@ -5661,9 +5746,10 @@ export interface components {
         /**
          * PhotoCorners
          * @description The module's corners in the preview's pixels (the photo, or the photos stitched, made
-         *     smaller), clockwise as seen, and the side that is Kant 1: side i runs from corner i to
-         *     corner i + 1. Gable A follows from it: in a photo from above, from gable A along Kant 1 the
-         *     module lies to the right.
+         *     smaller), clockwise as seen, the side that is Kant 1 and the side that is gable A: side i
+         *     runs from corner i to corner i + 1. Gable A is one of the two sides beside Kant 1: the one
+         *     before it is the module as CAD draws it seen from above (from gable A along Kant 1 the
+         *     module lies to the right); the one after it is the module mirrored (part c2).
          */
         "trainmeet.cad-1.photo-job.PhotoCorners": {
             /** Corners */
@@ -5674,6 +5760,12 @@ export interface components {
             /** Kant1 */
             kant1: number;
             /**
+             * Gable A
+             * @description Null: the side before Kant 1 (part c1).
+             * @default null
+             */
+            gable_a: number | null;
+            /**
              * Found
              * @description Code found them; false: a guess to drag into place.
              */
@@ -5683,6 +5775,18 @@ export interface components {
              * @description Every side's edge fits its line within 2 px.
              */
             certain: boolean;
+            /**
+             * Derived
+             * @description Kant 1 and gable A derived from the gables' tracks and the module's known gables (an asymmetric profile), shown for the owner to confirm.
+             * @default false
+             */
+            derived: boolean;
+            /**
+             * Why
+             * @description Why they were derived, or why the owner must tap them.
+             * @default null
+             */
+            why: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -5716,6 +5820,22 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * PhotoFrame
+         * @description A module's frame on a sketch (profile Skiss): its four corners in the preview's pixels,
+         *     clockwise, and the long side the chain takes as Kant 1.
+         */
+        "trainmeet.cad-1.photo-job.PhotoFrame": {
+            /** Corners */
+            corners: [
+                number,
+                number
+            ][];
+            /** Kant1 */
+            kant1: number;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * PhotoGate
          * @description One row of the quality gate (bildkedjan step 3).
          */
@@ -5724,7 +5844,7 @@ export interface components {
              * Key
              * @enum {string}
              */
-            key: "resolution" | "tilt" | "sharpness" | "clipped" | "corners" | "stitch";
+            key: "resolution" | "tilt" | "sharpness" | "clipped" | "corners" | "stitch" | "curve";
             level: components["schemas"]["trainmeet.cad-1.photo-job.PhotoLevel"];
             /** Value */
             value: number;
@@ -5736,7 +5856,9 @@ export interface components {
         /**
          * PhotoGrid
          * @description Where a measuring image lies in the module's millimetres: pixel (0, 0)'s centre at
-         *     (x0, y0) mm, ppm px per mm.
+         *     (x0, y0) mm, ppm px per mm. A photo read with another Kant 1 or gable A than the owner
+         *     chose afterwards keeps its image (part c2): matrix, SVG's (a, b, c, d, e, f), takes the mm
+         *     it was measured in to the module's.
          */
         "trainmeet.cad-1.photo-job.PhotoGrid": {
             /** X0 */
@@ -5749,6 +5871,11 @@ export interface components {
             width: number;
             /** Height */
             height: number;
+            /**
+             * Matrix
+             * @default null
+             */
+            matrix: number[] | null;
         } & {
             [key: string]: unknown;
         };
@@ -5936,7 +6063,7 @@ export interface components {
          * PhotoQuestionKind
          * @enum {string}
          */
-        "trainmeet.cad-1.photo-job.PhotoQuestionKind": "connection" | "node" | "hidden" | "scale" | "gauge" | "switch_fit" | "sleepers";
+        "trainmeet.cad-1.photo-job.PhotoQuestionKind": "connection" | "node" | "hidden" | "scale" | "gauge" | "switch_fit" | "sleepers" | "curve" | "orientation";
         /**
          * PhotoSummary
          * @description Spårplanen: what the chain read.
@@ -5990,8 +6117,8 @@ export interface components {
         };
         /**
          * PhotoRead
-         * @description Läs av: the corners and Kant 1 as the owner confirmed them, in the preview's pixels,
-         *     with or without AI.
+         * @description Läs av: the corners, Kant 1 and gable A as the owner confirmed them, in the preview's
+         *     pixels, with or without AI; on a sketch, the frame that is this module.
          */
         "trainmeet.cad-1.photo-read": {
             /** Corners */
@@ -6002,6 +6129,17 @@ export interface components {
             /** Kant1 */
             kant1: number;
             /**
+             * Gable A
+             * @description Null: before Kant 1.
+             * @default null
+             */
+            gable_a: number | null;
+            /**
+             * Frame
+             * @default null
+             */
+            frame: number | null;
+            /**
              * Ai
              * @default true
              */
@@ -6011,6 +6149,19 @@ export interface components {
              * @default false
              */
             consent: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PhotoOrientation
+         * @description Another Kant 1 or gable A for a photo already read: the same measuring, mirrored or
+         *     turned, at no cost (part c2).
+         */
+        "trainmeet.cad-1.photo-orientation": {
+            /** Kant1 */
+            kant1: number;
+            /** Gable A */
+            gable_a: number;
         } & {
             [key: string]: unknown;
         };
@@ -7813,6 +7964,86 @@ export interface operations {
             };
             /** @description CAD säger nej */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+        };
+    };
+    cadOrientPhoto: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.cad-1.photo-orientation"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.photo-job"];
+                };
+            };
+            /** @description CAD säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.cad-1.problem"];
+                };
+            };
+            /** @description CAD säger nej */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

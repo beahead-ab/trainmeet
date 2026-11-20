@@ -443,6 +443,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.photo-start": cad.PhotoStart,
     "trainmeet.cad-1.photo-job": cad.PhotoJob,
     "trainmeet.cad-1.photo-read": cad.PhotoRead,
+    "trainmeet.cad-1.photo-orientation": cad.PhotoOrientation,
     "trainmeet.cad-1.photo-answers": cad.PhotoAnswers,
     "trainmeet.cad-1.photo-closeup": cad.PhotoCloseup,
     "trainmeet.cad-1.photo-settings": cad.PhotoSettings,
@@ -2462,6 +2463,14 @@ def cad_openapi() -> str:
         "photo-job",
         "photo-read",
         problems=photo_problems,
+    )
+    route(
+        "post",
+        a + "/photos/{job}/orientation",
+        "cadOrientPhoto",
+        "photo-job",
+        "photo-orientation",
+        problems=write,
     )
     route(
         "post",
