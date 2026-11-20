@@ -31,9 +31,9 @@ from contracts.cad import DrawingState, Gable, GableEnd, GraphSource, Scale, Str
 
 PHOTOS = f"{API}/photos"
 REFERENCE = Path(__file__).parent / "referensskisser"
-SWITCH_MM = 30.0
-"""A switch's points from a sketch: the ink parts well behind them, so they are estimated (the
-document asks ± 20 mm of a sketch; the synthetic sketches get within 30)."""
+SWITCH_MM = skiss.SKETCH_MM
+"""A switch's points from a sketch: the ink parts well behind them, so they are read from how
+much wider the ink is where the strokes overlap (part c3): within the document's ± 20 mm."""
 
 
 @cache
@@ -105,6 +105,41 @@ def test_the_sketch_becomes_a_proposal_drawn_in_the_module() -> None:
     # Redrawn as straights and arcs that follow the sketch within its ± 20 mm.
     assert deviation and float(np.median(deviation)) <= 3.0
     assert max(deviation) <= skiss.SKETCH_MM
+
+
+def test_an_x_answered_two_switches_is_drawn_as_two() -> None:
+    """Part c3: an uncertain X the owner or the AI calls two switches is split into the two
+    nodes with 3 ends the ink merged, each with its two tracks, joined by a piece."""
+    drawn = sketch(False)
+    _, found = read_first(False)
+    gables = [
+        Gable(end=GableEnd.A, tracks=drawn.gables_a),
+        Gable(end=GableEnd.B, tracks=drawn.gables_b),
+    ]
+
+    target = Drawing.of(
+        Scale.H0, Straight(length=1500, width=600), gables, TrackGraph(), DrawingState()
+    )
+    answers = {"X1": skiss.TWO_SWITCHES, "X2": "korsning"}
+    built, deviation = skiss.drawing(found, target, answers)
+    graph = built.graph()
+    assert len(graph.switches) == 5
+    assert sum(1 for n in graph.nodes if n.type.value == "crossing") == 1
+    assert skiss.counts(found, answers) == (5, 1)
+    # The two switches lie where the ink's two nodes were, either side of the X.
+    x1 = found.uncertain["X1"]
+    near = sorted(
+        math.dist(n.at, x1)
+        for n in graph.nodes
+        if n.type.value == "switch" and math.dist(n.at, x1) <= skiss.SKETCH_MM
+    )
+    assert len(near) == 2 and all(d > 1.0 for d in near), near
+    assert max(deviation) <= skiss.SKETCH_MM
+    # Unanswered, or answered a crossing, it stays one (test_the_sketch_becomes_a_proposal…).
+    assert skiss.counts(found, {}) == (3, 2)
+    # The X's parts survive the job's JSON.
+    again = skiss.from_json(skiss.to_json(found), found.image)
+    assert skiss.counts(again, answers) == (5, 1)
 
 
 # --- Från skiss through the service -----------------------------------------------------------

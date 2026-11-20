@@ -27,7 +27,7 @@ across the track) ends and nothing continues ahead of it.
 from __future__ import annotations
 
 import math
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,8 +35,8 @@ import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from cad.bildkedjan.camera import Array
-from cad.bildkedjan.trackmap import TRACK_SCORE, TrackMap, sample
+from cad.bildkedjan.camera import Array, Shape
+from cad.bildkedjan.trackmap import TRACK_SCORE, GableStrip, TrackMap, sample
 
 Y_STEP = 0.5
 """The paths' resolution across the module, mm."""
@@ -385,6 +385,117 @@ def judge(path: Path, min_radius: float, looser: float = 1.0) -> None:
 
 LOW_SHARE = 0.05
 """How much less of a path must be clear on the map at low resolution."""
+
+
+CONCENTRIC_STEP = 1.0
+"""A curve module's track as a concentric arc is sampled every this many mm of x."""
+CONCENTRIC_SIDE_MM = 3.0
+"""And may lie this far beside the arc and still be on it, where the photo's track wanders."""
+
+
+def concentric(
+    cols: Columns,
+    terminals: list[Terminal],
+    found: list[Path],
+    strips: Sequence[GableStrip],
+    shape: Shape,
+    gauge: float,
+) -> tuple[list[Terminal], list[Path]]:
+    """A curve module's tracks follow its arcs (bildkedjan step 6, part c3): a gable's track
+    that no smooth path joins to the other gable is tried as the concentric arc from it, at
+    its distance from Kant 1 (or to the other gable's track within a gauge of that), and is a
+    track when the map is on it as for any path (TRACK_SHARE, GAP_MM), within
+    CONCENTRIC_SIDE_MM beside it. A track the other gable's strip did not show gets a gable
+    end there. The gables' tracks are numbered again from Kant 1."""
+    assert shape.angle is not None
+    gables = {g: [t for t in terminals if t.kind == "gable" and t.gable == g] for g in "AB"}
+
+    def along(t: Terminal) -> float:
+        strip = strips[0 if t.gable == "A" else 1]
+        return float(
+            (t.at[0] - strip.corner[0]) * strip.along[0]
+            + (t.at[1] - strip.corner[1]) * strip.along[1]
+        )
+
+    made: list[Terminal] = []
+    added: list[Path] = []
+    for start_end, other_end in (("A", "B"), ("B", "A")):
+        for t in gables[start_end]:
+            v = along(t)
+            others = gables[other_end] + [m for m in made if m.gable == other_end]
+            near = min(others, key=lambda o: abs(along(o) - v), default=None)
+            target = near if near is not None and abs(along(near) - v) <= gauge else None
+            if any(t.id in (p.a, p.b) for p in added) or any(
+                t.id in (p.a, p.b) and p.status == "track" for p in found
+            ):
+                continue
+            v_other = along(target) if target is not None else v
+            v_a, v_b = (v, v_other) if start_end == "A" else (v_other, v)
+            if not (0 < v_a < shape.width_a and 0 < v_b < shape.width_b):
+                continue
+            # The arc from gable A to gable B, its distance from Kant 1 going from v_a to v_b.
+            angles = np.linspace(0.0, shape.angle, 400)
+            arc = np.array(
+                [shape.point(v_a + (v_b - v_a) * a / shape.angle, float(a)) for a in angles]
+            )
+            if (np.diff(arc[:, 0]) <= 0).any():
+                continue
+            xs = np.arange(math.ceil(arc[0, 0]), math.floor(arc[-1, 0]) + 1, CONCENTRIC_STEP)
+            if len(xs) < 20:
+                continue
+            ys = np.interp(xs, arc[:, 0], arc[:, 1])
+            best = np.max(
+                np.stack(
+                    [
+                        sample_map(cols, xs, ys + side)
+                        for side in np.arange(
+                            -CONCENTRIC_SIDE_MM, CONCENTRIC_SIDE_MM + 0.01, Y_STEP
+                        )
+                    ]
+                ),
+                axis=0,
+            )
+            on = best >= TRACK_SCORE
+            share = float(on.mean())
+            gap = longest = 0
+            for value in on:
+                gap = 0 if value else gap + 1
+                longest = max(longest, gap)
+            if share < TRACK_SHARE or longest > GAP_MM:
+                continue
+            if target is None:
+                strip = strips[1 if start_end == "A" else 0]
+                at = strip.points(np.array([v]), 0.0)[0]
+                target = Terminal(
+                    f"{other_end}+{len(made) + 1}",
+                    "gable",
+                    (float(at[0]), float(at[1])),
+                    other_end,
+                    None,
+                )
+                made.append(target)
+            first, last = (t, target) if t.at[0] <= target.at[0] else (target, t)
+            radius = shape.radius - (v_a + v_b) / 2 if shape.radius is not None else math.inf
+            added.append(
+                Path(first.id, last.id, xs, ys, share, float(longest), radius, "track", best)
+            )
+    if not added:
+        return terminals, found
+    pairs = {p.pair for p in added}
+    kept_paths = [p for p in found if p.pair not in pairs] + added
+    everything = terminals + made
+    # The gables' tracks numbered again from Kant 1.
+    rename: dict[str, str] = {}
+    renumbered: list[Terminal] = []
+    for end in ("A", "B"):
+        own = sorted((t for t in everything if t.kind == "gable" and t.gable == end), key=along)
+        for n, t in enumerate(own, start=1):
+            rename[t.id] = f"{end}{n}"
+            renumbered.append(Terminal(f"{end}{n}", t.kind, t.at, t.gable, n, t.out))
+    renumbered.extend(t for t in everything if t.kind != "gable")
+    for p in kept_paths:
+        p.a, p.b = rename.get(p.a, p.a), rename.get(p.b, p.b)
+    return renumbered, sorted(kept_paths, key=lambda p: p.pair)
 
 
 Refiner = Callable[[Array, Array], Array]

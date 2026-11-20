@@ -457,7 +457,7 @@ class Photos:
         chain.steady()
         curve = start.kind == "curve" if start.module is None else self._is_curve(who, start.module)
         try:
-            prepared = chain.prepare(taken, curve)
+            prepared = chain.prepare(taken, curve, self._aspect(who, start))
         except StitchError as error:
             raise _bad(str(error)) from error
         module = self._new_module(who, start, prepared) if start.module is None else start.module
@@ -669,6 +669,17 @@ class Photos:
     def _is_curve(self, who: Who, module: UUID) -> bool:
         row, _ = self._module_row(who, module, Right.EDIT)
         return bool(SHAPE.validate_python(row["shape"]).kind == "curve")
+
+    def _aspect(self, who: Who, start: PhotoStart) -> float | None:
+        """A straight module's length over its width, when known: it decides which edges in
+        the photo are the module's sides (part c3)."""
+        if start.module is None:
+            return chain.aspect_of(start.kind, start.width, start.length)
+        row, _ = self._module_row(who, start.module, Right.EDIT)
+        shape = SHAPE.validate_python(row["shape"])
+        if isinstance(shape, Straight):
+            return chain.aspect_of("straight", shape.width, shape.length)
+        return None
 
     def _derived(
         self,
@@ -1103,7 +1114,13 @@ class Photos:
         use_ai = bool(setup_data.pop("ai", False))
         self._step(job_id, "prepare")
         taken = self._originals(job_id)
-        prepared = chain.prepare(taken, setup_data.get("kind") == "curve")
+        prepared = chain.prepare(
+            taken,
+            setup_data.get("kind") == "curve",
+            chain.aspect_of(
+                str(setup_data.get("kind")), setup_data.get("width_a"), setup_data.get("length")
+            ),
+        )
         if start.get("focal_35mm") and prepared.focal_35mm is None:
             prepared.focal_35mm = float(start["focal_35mm"])
         setup = chain.Setup.of(setup_data)

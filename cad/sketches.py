@@ -290,10 +290,17 @@ def assemble(
     )
     asked = node_questions(sketched, reading, answers)
     open_topology = [q for q in asked if q.answer is None]
+    # What each uncertain X is: the owner's answer, else the AI's (part c3: two switches are
+    # drawn as two).
+    decided = {
+        name: answers.get(questions.node_key(name))
+        or (reading.nodes.get(name, "") if reading is not None else "")
+        for name in sketched.uncertain
+    }
     built, deviation = skiss.drawing(
         sketched,
         target,
-        answers,
+        decided,
         Certainty.UNCERTAIN if open_topology else Certainty.PROBABLE,
     )
     built.photo = job_id
@@ -315,7 +322,7 @@ def assemble(
         for q in open_topology
     ]
     graph_ = built.graph()
-    switch_count, crossing_count = skiss.counts(sketched)
+    switch_count, crossing_count = skiss.counts(sketched, decided)
     facts = [
         PhotoFact(
             key="langd",

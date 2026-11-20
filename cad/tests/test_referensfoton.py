@@ -7,6 +7,13 @@ taps as Kant 1 and gable A, the gables' tracks from Kant 1, the connections and 
 the station has them, how many of them the chain finds today, and the tolerances. The measures
 and where each comes from are in fall.json.
 
+Part c3: where code finds the corners within 1 % of the module's width of the hand-set ones
+(horn_ur_koden), the photo is read with the code's corners, unless fall.json says why not
+(las_med_hand); the hand-set ones stay the truth.
+A switch's position is what its source means by it (vaxel_lage): the drawn node where the
+diverging arc leaves the straight (AnyRail's), or the blade tips (tungspetsarna, the station
+page's); the median distance is held to vaxel_median_mm.
+
 Each photo is read once per run (read() is cached) and the tests share it: a photo takes 6–40 s.
 
 The committed photos carry no camera data, position or other metadata: only the JPEG's JFIF
@@ -18,15 +25,17 @@ from __future__ import annotations
 import json
 import math
 import struct
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 
 from cad import curves, geometry
 from cad.bildkedjan import chain, intake, orient
+from cad.bildkedjan import corners as corners_
 from cad.bildkedjan.chain import Assembled, Measured
 from cad.editor import Drawing
 from contracts.cad import (
@@ -108,12 +117,28 @@ def setup_of(case: dict[str, Any]) -> chain.Setup:
     )
 
 
+def aspect_of(case: dict[str, Any]) -> float | None:
+    """The module's length over its width, as CAD knows them for a module the photo is for."""
+    return chain.aspect_of(case["form"], case.get("bredd"), case.get("langd"))
+
+
+@cache
+def prepared_of(name: str) -> chain.Prepared:
+    """The photo taken in, and the corners code finds in it, once."""
+    photo, case = BY_NAME[name]
+    return chain.prepare(
+        [intake.take(photo.read_bytes())], curve=case["form"] == "curve", aspect=aspect_of(case)
+    )
+
+
 @cache
 def read(name: str) -> Read:
     """The photo measured as the owner sets it up, and drawn with the code's connections."""
-    photo, case = BY_NAME[name]
-    prepared = chain.prepare([intake.take(photo.read_bytes())], curve=case["form"] == "curve")
+    _, case = BY_NAME[name]
+    prepared = prepared_of(name)
     setup = setup_of(case)
+    if case.get("horn_ur_koden") and not case.get("las_med_hand"):
+        setup = replace(setup, corners=None)
     measured = chain.measure(prepared, setup)
     gables = [
         Gable(end=GableEnd.A, tracks=[float(v) for v in case["gavel_a_mm"]]),
@@ -153,7 +178,10 @@ def station_pairs(name: str) -> set[str]:
     return {f"{names[a]}-{names[b]}" for a, b in found.measured.code_pairs()}
 
 
-def switch_positions(assembled: Assembled) -> list[tuple[float, float]]:
+def switch_positions(assembled: Assembled, meaning: str = "nod") -> list[tuple[float, float]]:
+    """The switches found: their drawn nodes, or their blade tips (tungspetsar)."""
+    if meaning == "tungspetsar":
+        return sorted((round(x, 1), round(y, 1)) for x, y in assembled.switch_tips.values())
     d = assembled.built.drawing
     return sorted(
         (round(d.nodes[s.node].at[0], 1), round(d.nodes[s.node].at[1], 1))
@@ -164,7 +192,7 @@ def switch_positions(assembled: Assembled) -> list[tuple[float, float]]:
 def matched(case: dict[str, Any], assembled: Assembled) -> list[float]:
     """The station's switches each paired with one found, nearest first: the distances of
     those within the case's tolerance."""
-    found = switch_positions(assembled)
+    found = switch_positions(assembled, case.get("vaxel_lage", "nod"))
     pairs = sorted(
         (math.dist(tuple(truth), at), i, j)
         for i, truth in enumerate(case["vaxlar"])
@@ -252,6 +280,44 @@ def test_the_stations_switches_are_found_where_they_are(name: str) -> None:
     _, case = BY_NAME[name]
     distances = matched(case, read(name).assembled)
     assert len(distances) >= int(case["minst_vaxlar"]), (name, distances)
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES if c.get("vaxel_median_mm")])
+def test_the_switches_lie_within_their_median(name: str) -> None:
+    """Part c3: the switches read from their legs' rails, fitted with the library's types."""
+    _, case = BY_NAME[name]
+    distances = matched(case, read(name).assembled)
+    assert distances and float(np.median(distances)) <= float(case["vaxel_median_mm"]), (
+        name,
+        distances,
+    )
+
+
+def corner_distances_mm(name: str) -> list[float]:
+    """How far the corners code finds lie from the hand-set ones, mm on the module: the px
+    over the photo's px per mm there."""
+    _, case = BY_NAME[name]
+    prepared = prepared_of(name)
+    assert prepared.corners is not None, name
+    hand = corners_.clockwise(np.array(case["horn"], np.float64))
+    found = corners_.clockwise(np.asarray(prepared.corners, np.float64))
+    ppm = read(name).measured.quality.px_per_mm
+    return [float(v) / ppm for v in np.linalg.norm(found - hand, axis=1)]
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES if c.get("horn_ur_koden")])
+def test_the_corners_come_from_code(name: str) -> None:
+    """Part c3 (bildkedjan step 4): code's corners within 1 % of the module's width of the
+    hand-set ones, and the photo read with them keeps to the station's measures above."""
+    _, case = BY_NAME[name]
+    assert max(corner_distances_mm(name)) <= 0.01 * float(case["bredd"]), (
+        name,
+        corner_distances_mm(name),
+    )
+
+
+def test_code_finds_the_corners_on_most_photos() -> None:
+    assert sum(bool(c.get("horn_ur_koden")) for _, c in CASES) >= 4
 
 
 @pytest.mark.parametrize("name", CURVES)

@@ -12,10 +12,27 @@ owner drags the handles there (bildkedjan step 15, Hörn osäkra). The owner con
 in any case, and marks Kant 1 (and so gable A, cad/bildkedjan/chain.py).
 
 The edge points are also the plumb lines the lens is found from (camera.lens).
+
+Part c3, on real photos (the module on a floor or against a wall, with clutter and shadows):
+
+- The chat's red numbers (saturated red, thin strokes) are painted out before the edges are
+  looked for (marks, unmarked). The rough outline is found in the photo as sent: painted out,
+  the border's colours that GrabCut learns from change, and with them a curve's outline.
+- When the module's proportions are known (a straight module's length and width), they decide
+  whether the outline is the module: a photo from above shows them to within a percent or two.
+  When the outline's are off by more than PROPORTION_SLACK, the side that is wrong is looked for
+  where the opposite side and the proportions put it: a line parallel to it, within
+  PROPORTION_REACH of the distance, along which the colour changes most across it all the way
+  (the board's edge, not a platform's or a shadow's). Side by side, as long as it gets better.
+- The sides are then sharpened (sharpen): at many places along each side the colour's strongest
+  change across it, the innermost where a shadow lies outside, to a fraction of a px (a
+  parabola through the best three), and a line fitted through them, leaving out those far
+  from it. This is what a line segment detector (LSD) does along a side it already has.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -39,6 +56,27 @@ an arc (a curve module's long side, bildkedjan step 6, part c2): its edge is loo
 the arc, and its corners are where its tangents at the ends cross the gables."""
 BENT_SHARE = 0.7
 """And its edge points lie this much nearer the bow than the straight line (RMS)."""
+RED_HUE = 8
+RED_SATURATION = 150
+RED_VALUE = 120
+"""The chat's red: within this of pure red's hue (OpenCV's 0–180), and this saturated and bright."""
+RED_STROKE = 0.012
+"""A red mark is strokes at most this share of the photo's short side wide (half: from the middle
+of a stroke to its edge)."""
+RED_MIN_PX = 30
+PROPORTION_SLACK = 0.015
+"""The outline's proportions may be this far off the module's (log of the ratio) before its
+sides are looked for again: the reference photos show them within 1 %."""
+PROPORTION_REACH = 0.04
+PROPORTION_TURN = 2.0
+"""A side looked for again lies within this share of where the proportions put it, and within
+this many degrees of parallel to the opposite side."""
+PROPORTION_WEIGHT = 20.0
+EDGE_SATURATION = 12.0
+"""A colour change across a side this large (Lab, lightness weighed less) counts in full."""
+EDGE_LEAST = 4.0
+SHARPEN_PX = 2.5
+"""The sides are sharpened within this many of the small photo's px."""
 
 
 @dataclass(frozen=True)
@@ -380,14 +418,224 @@ def _guides(mask: NDArray[Any], quad: Array, factor: float) -> list[Bow | None]:
     return found
 
 
-def find(pixels: NDArray[Any], curve: bool = False) -> Found | None:
+def marks(pixels: NDArray[Any]) -> NDArray[Any]:
+    """The chat's red numbers and letters drawn over the photo, as 255: saturated red in thin
+    strokes (bildkedjan step 4, Mask)."""
+    hsv = cv2.cvtColor(pixels, cv2.COLOR_BGR2HSV)
+    hue, saturation, value = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    red = (
+        ((hue <= RED_HUE) | (hue >= 180 - RED_HUE))
+        & (saturation >= RED_SATURATION)
+        & (value >= RED_VALUE)
+    ).astype(np.uint8)
+    found: NDArray[Any] = np.zeros_like(red)
+    if not red.any():
+        return found
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(red, connectivity=8)
+    half = cv2.distanceTransform(red, cv2.DIST_L2, 3)
+    widest = RED_STROKE * min(pixels.shape[:2])
+    # Each piece's widest place, all at once.
+    thickest = np.zeros(count, np.float32)
+    np.maximum.at(thickest, labels.ravel().astype(np.intp), half.ravel())
+    keep = (stats[:, cv2.CC_STAT_AREA] >= RED_MIN_PX) & (thickest <= widest)
+    keep[0] = False
+    found[keep[labels]] = 255
+    grown: NDArray[Any] = cv2.dilate(found, np.ones((7, 7), np.uint8))
+    return grown
+
+
+def unmarked(pixels: NDArray[Any]) -> NDArray[Any]:
+    """The photo with the chat's red marks painted out from around them."""
+    drawn = marks(pixels)
+    if not drawn.any():
+        return pixels
+    found: NDArray[Any] = cv2.inpaint(pixels, drawn, 5, cv2.INPAINT_TELEA)
+    return found
+
+
+def _sample(lab: NDArray[Any], points: Array) -> NDArray[Any]:
+    """The Lab image at the px points (..., 2), bilinear: (..., 3)."""
+    shape = points.shape[:-1]
+    flat = points.reshape(-1, 2)
+    n = len(flat)
+    width = 1024
+    rows = max(1, -(-n // width))
+    pad = rows * width - n
+    xs = np.concatenate([flat[:, 0], np.zeros(pad)]).reshape(rows, width).astype(np.float32)
+    ys = np.concatenate([flat[:, 1], np.zeros(pad)]).reshape(rows, width).astype(np.float32)
+    found = np.stack(
+        [
+            cv2.remap(lab[..., c], xs, ys, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
+            for c in range(3)
+        ],
+        axis=-1,
+    )
+    sampled: NDArray[Any] = found.reshape(-1, 3)[:n].reshape(*shape, 3)
+    return sampled
+
+
+def edge_strength(lab: NDArray[Any], a: Array, b: Array) -> Array:
+    """How much the colour changes across the line from a to b, all along it: 0 to 1 (a full
+    EDGE_SATURATION at every place), for any number of lines (..., 2)."""
+    d = b - a
+    length = np.linalg.norm(d, axis=-1, keepdims=True)
+    u = d / np.maximum(length, 1e-9)
+    n = np.stack([-u[..., 1], u[..., 0]], axis=-1)[..., None, :]
+    ts = np.linspace(0.05, 0.95, 48)
+    base = a[..., None, :] + ts[:, None] * d[..., None, :]
+    change = np.linalg.norm(_sample(lab, base + 2.0 * n) - _sample(lab, base - 2.0 * n), axis=-1)
+    found: Array = np.minimum(change / EDGE_SATURATION, 1.0).mean(axis=-1)
+    return found
+
+
+def proportion(corners: Array) -> float:
+    """The outline's long sides over its short ones."""
+    sides = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
+    first, second = sides[0] + sides[2], sides[1] + sides[3]
+    return float(max(first, second) / max(min(first, second), 1e-9))
+
+
+def _off(corners: Array, aspect: float) -> float:
+    return abs(math.log(proportion(corners) / aspect))
+
+
+def _score(lab: NDArray[Any], corners: Array, aspect: float) -> float:
+    strength = edge_strength(lab, corners, np.roll(corners, -1, axis=0))
+    return float(strength.sum()) - PROPORTION_WEIGHT * max(
+        0.0, _off(corners, aspect) - PROPORTION_SLACK
+    )
+
+
+def _lines(corners: Array) -> list[tuple[Array, Array]]:
+    found = []
+    for i in range(4):
+        d = corners[(i + 1) % 4] - corners[i]
+        found.append((corners[i], d / np.linalg.norm(d)))
+    return found
+
+
+def _crossed(lines: list[tuple[Array, Array]]) -> Array:
+    return np.array([intersect(lines[(i - 1) % 4], lines[i]) for i in range(4)])
+
+
+def _side_again(lab: NDArray[Any], corners: Array, i: int, aspect: float) -> Array | None:
+    """The outline with side i looked for again where the opposite side and the proportions
+    put it: the line nearly parallel to the opposite side, about the module's width or length
+    from it, along which the colour changes most."""
+    lines = _lines(corners)
+    sides = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
+    long_pair = 0 if sides[0] + sides[2] >= sides[1] + sides[3] else 1
+    opposite = lines[(i + 2) % 4]
+    if i % 2 == long_pair:
+        # A long side: the module's width from the other long side, by that side's length.
+        distance = sides[(i + 2) % 4] / aspect
+    else:
+        # A short side: the module's length from the other, by the long sides' distance.
+        lb = lines[(i + 3) % 4]
+        middle = (corners[(i + 1) % 4] + corners[(i + 2) % 4]) / 2
+        distance = abs(float((middle - lb[0]) @ np.array([-lb[1][1], lb[1][0]]))) * aspect
+    u = -opposite[1]
+    n = np.array([-u[1], u[0]])
+    if float((corners[i] - opposite[0]) @ n) < 0:
+        n = -n
+    turns = np.radians(np.arange(-PROPORTION_TURN, PROPORTION_TURN + 0.01, 0.5))
+    shares = np.arange(1 - PROPORTION_REACH, 1 + PROPORTION_REACH + 1e-9, 0.002)
+    candidates: list[Array] = []
+    for turn in turns:
+        c, s_ = math.cos(float(turn)), math.sin(float(turn))
+        direction = np.array([u[0] * c - u[1] * s_, u[0] * s_ + u[1] * c])
+        for share in shares:
+            new = list(lines)
+            new[i] = (opposite[0] + n * distance * float(share), direction)
+            quad = _crossed(new)
+            if np.isfinite(quad).all():
+                candidates.append(quad)
+    if not candidates:
+        return None
+    quads = np.array(candidates)
+    strength = edge_strength(lab, quads[:, i], quads[:, (i + 1) % 4])
+    found: Array = quads[int(np.argmax(strength))]
+    return found
+
+
+def proportioned(lab: NDArray[Any], corners: Array, aspect: float) -> Array:
+    """The outline's sides looked for again, one at a time, as long as the colour changes more
+    along them and their proportions come nearer the module's (part c3)."""
+    best, score = corners, _score(lab, corners, aspect)
+    for _ in range(6):
+        options = [_side_again(lab, best, i, aspect) for i in range(4)]
+        scored = [(_score(lab, q, aspect), q) for q in options if q is not None]
+        if not scored:
+            break
+        top, quad = max(scored, key=lambda pair: pair[0])
+        if top <= score + 0.02:
+            break
+        best, score = quad, top
+    return best
+
+
+def sharpen(lab: NDArray[Any], corners: Array, reach: float) -> Found:
+    """Each side found again near the given corners: at SAMPLES places the strongest colour
+    change across it within reach (the innermost of those at least half as strong, so that a
+    shadow outside the board does not draw the side out), to a fraction of a px, and a line
+    through them; the corners where the lines cross."""
+    centre = corners.mean(axis=0)
+    sides: list[Array] = []
+    lines: list[tuple[Array, Array]] = []
+    residuals: list[float] = []
+    step = 0.5
+    offsets = np.arange(-reach, reach + step / 2, step)
+    for i in range(4):
+        a, b = corners[i], corners[(i + 1) % 4]
+        d = b - a
+        u = d / np.linalg.norm(d)
+        n = np.array([-u[1], u[0]])
+        inward = float((centre - a) @ n) > 0
+        ts = np.linspace(0.08, 0.92, SAMPLES)
+        base = a[None, :] + ts[:, None] * d[None, :]
+        values = _sample(lab, base[:, None, :] + offsets[None, :, None] * n[None, None, :])
+        change = np.linalg.norm(values[:, 2:] - values[:, :-2], axis=-1)
+        found = []
+        for row in range(len(ts)):
+            g = change[row]
+            top = float(g.max())
+            if top < EDGE_LEAST:
+                continue
+            peaks = [
+                j
+                for j in range(1, len(g) - 1)
+                if g[j] >= g[j - 1] and g[j] >= g[j + 1] and g[j] >= 0.5 * top
+            ]
+            if not peaks:
+                continue
+            j = max(peaks) if inward else min(peaks)
+            y0, y1, y2 = g[j - 1], g[j], g[j + 1]
+            denominator = y0 - 2 * y1 + y2
+            shift = 0.5 * (y0 - y2) / denominator if denominator < 0 else 0.0
+            found.append(base[row] + (offsets[j + 1] + shift * step) * n)
+        points = np.array(found).reshape(-1, 2)
+        if len(points) < 8:
+            return Found(corners, [99.0] * 4, [])
+        line, rms, kept = _robust_line(points)
+        sides.append(kept)
+        lines.append(line)
+        residuals.append(rms)
+    return Found(_crossed(lines), residuals, sides)
+
+
+def find(pixels: NDArray[Any], curve: bool = False, aspect: float | None = None) -> Found | None:
     """The module's four corners in the photo, or None when nothing four-sided stands out. A
     curve module's long sides may be arcs (curve): a side its outline shows bent is followed
-    along its bow. A straight module's sides are lines, however the lens bends them."""
+    along its bow. A straight module's sides are lines, however the lens bends them. aspect: a
+    straight module's length over its width, when the owner has given them."""
     h, w = pixels.shape[:2]
     factor = WORK_SIZE / max(h, w)
-    small = cv2.resize(pixels, (round(w * factor), round(h * factor)), interpolation=cv2.INTER_AREA)
+    size = (round(w * factor), round(h * factor))
+    # The rough outline from the photo as sent; the edges are looked for with the chat's red
+    # marks painted out (painted out, the border's colours GrabCut learns from change too).
+    small = cv2.resize(pixels, size, interpolation=cv2.INTER_AREA)
     mask, _ = _mask(small)
+    pixels = unmarked(pixels)
     quad = _quad(mask)
     if quad is None:
         return None
@@ -399,8 +647,20 @@ def find(pixels: NDArray[Any], curve: bool = False) -> Found | None:
     corners = quad / factor
     reach = max(10.0, 8 / factor)
     guides = _guides(mask, quad, factor) if curve else None
-    found = refine(_lab(pixels, 3), corners, reach, guides)
-    return Found(found.corners, found.residuals, found.sides, found.bent)
+    full = _lab(pixels, 3)
+    found = refine(full, corners, reach, guides)
+    if curve or aspect is None or len(found.sides) != 4:
+        return Found(found.corners, found.residuals, found.sides, found.bent)
+    outline = clockwise(found.corners) * factor
+    if _off(outline, aspect) <= PROPORTION_SLACK:
+        return Found(found.corners, found.residuals, found.sides, found.bent)
+    # The outline is not the module's shape: its sides looked for again (part c3).
+    clean = cv2.resize(pixels, size, interpolation=cv2.INTER_AREA)
+    better = proportioned(_lab(clean), outline, aspect)
+    sharp = sharpen(full, better / factor, max(4.0, SHARPEN_PX / factor))
+    if len(sharp.sides) != 4:
+        return Found(better / factor, [99.0] * 4, [])
+    return sharp
 
 
 def through_lens(found: Found, centre: tuple[float, float], f: float, k: float) -> Array:

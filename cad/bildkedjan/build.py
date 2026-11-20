@@ -212,6 +212,7 @@ def _build(
     min_radius = limits.switch_min_radius
     nodes = net.nodes
     found = routes(net)
+    _ends_on_track(net, paths, found)
     # Routes between terminals first; legs that start at a switch after their straight routes.
     pending = list(found)
     fitted: dict[int, Route] = {}
@@ -303,6 +304,38 @@ def _build(
     except EditError:
         raise
     return Built(drawing, found, deviation)
+
+
+END_LINE_MM = (4.0, 40.0)
+"""A track's end inside the module is put on the line its path runs along this far before it,
+mm (part c3)."""
+END_MOVE_MM = 3.0
+"""And moved at most this far across: further, the path itself is not straight there."""
+
+
+def _ends_on_track(net: Network, paths: list[Path], found: list[Route]) -> None:
+    """A track's end inside the module (a buffer stop) on the line the track runs along up to
+    it. Where the map's ridge stops, the end found lies a millimetre or so beside the track,
+    and a fit that must reach it hooks there: a kink in the last few millimetres. Across the
+    track the end means nothing; along it, it stays where it was found."""
+    for node in net.nodes.values():
+        if node.kind != "end":
+            continue
+        for route in found:
+            if node.id not in (route.start, route.end):
+                continue
+            edge = route.edges[-1] if route.end == node.id else route.edges[0]
+            path = paths[edge.pid]
+            sign = -1.0 if route.end == node.id else 1.0
+            lo, hi = sorted((node.x + sign * END_LINE_MM[0], node.x + sign * END_LINE_MM[1]))
+            near = (path.xs >= lo) & (path.xs <= hi)
+            if int(near.sum()) < 10:
+                continue
+            k, c = np.polyfit(path.xs[near], path.ys[near], 1)
+            y = float(k * node.x + c)
+            if abs(y - node.y) <= END_MOVE_MM:
+                node.y = y
+            break
 
 
 SANE_LENGTH = (0.8, 1.25)

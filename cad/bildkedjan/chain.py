@@ -47,7 +47,7 @@ def _array(values: Array) -> list[list[float]]:
     return [[round(float(v), 4) for v in row] for row in np.atleast_2d(values)]
 
 
-CHAIN_VERSION = "2.0.0"
+CHAIN_VERSION = "3.0.0"
 """The measuring code's version: part of every job's key (bildkedjan, Jobbet är nyckeln)."""
 PROFILE = "modulfoto"
 RAIL_HEIGHT = {Scale.H0: 7.0, Scale.N: 4.0, Scale.ZERO: 14.0}
@@ -102,9 +102,10 @@ class Prepared:
         return corners_.through_lens(self.found, centre, focal, self.lens)
 
 
-def prepare(intakes: list[Intake], curve: bool = False) -> Prepared:
+def prepare(intakes: list[Intake], curve: bool = False, aspect: float | None = None) -> Prepared:
     """The photos as one, and the module's corners in it, if code finds them; a curve module's
-    long sides as arcs (curve)."""
+    long sides as arcs (curve); a straight module's length over its width, when known, decides
+    which edges are its sides (aspect, part c3)."""
     steady()
     first = intakes[0]
     if len(intakes) == 1:
@@ -114,7 +115,7 @@ def prepare(intakes: list[Intake], curve: bool = False) -> Prepared:
     else:
         mosaic = stitch.stitch([i.pixels for i in intakes])
         pixels, origin = mosaic.pixels, mosaic.origin
-    found = corners_.find(pixels, curve)
+    found = corners_.find(pixels, curve, aspect)
     size = (first.width, first.height)
     lens = 0.0
     if found is not None and len(intakes) == 1:
@@ -127,6 +128,14 @@ def prepare(intakes: list[Intake], curve: bool = False) -> Prepared:
             found.bent,
         )
     return Prepared(pixels, first.focal_35mm, size, origin, found, len(intakes), mosaic, lens)
+
+
+def aspect_of(kind: str, width: float | None, length: float | None) -> float | None:
+    """A straight module's length over its width, when both are known: what decides which
+    edges in the photo are its sides (corners.find)."""
+    if kind != "straight" or not width or not length:
+        return None
+    return float(length) / float(width)
 
 
 def ordered(corners: Array, kant1: int, gable_a: int | None = None) -> Array:
@@ -512,6 +521,11 @@ def _measure(prepared: Prepared, setup: Setup) -> Measured:
     min_radius = switches.limits(setup.scale).switch_min_radius
     found_paths = paths.connect(cols, terminals, min_radius, looser=quality.widen)
     paths.overlaps(found_paths, gauge, min_radius)
+    if shape.curved:
+        # A curve module's tracks follow its arcs (part c3).
+        terminals, found_paths = paths.concentric(
+            cols, terminals, found_paths, strips, shape, gauge
+        )
     terminals, found_paths = _kept(terminals, found_paths)
     for p in found_paths:
         # Only what can be drawn without an answer is made exact; a path that is no track is
@@ -677,7 +691,10 @@ class Assembled:
     """Each gable track's position from Kant 1, mm."""
     gable_plus_minus: dict[str, float]
     switch_points: dict[str, tuple[float, float]]
-    """Each switch number's points from gable A, mm, and its ±."""
+    """Each switch number's points (the blade tips where the rails show them) from gable A, mm,
+    and its ±."""
+    switch_tips: dict[str, tuple[float, float]] = field(default_factory=dict)
+    """Each switch number's blade tips (or its node) in the module's mm."""
 
 
 def assemble(
@@ -693,7 +710,12 @@ def assemble(
     chosen = [p for p in measured.paths if p.pair in connections]
     used = {t for p in chosen for t in (p.a, p.b)}
     terminals = [t for t in measured.terminals if t.id in used]
-    net = network.build(chosen, terminals, gauge_mm)
+    gray = measured.gray()
+    # The switches are read from their legs' rails in the measuring image, and fitted with the
+    # library's types (part c3).
+    seen = network.Seen.of(gray, measured.grid, measured.profile, measured.quality.px_per_mm)
+    designs = [d for d in switches.designs(setup.scale) if d.radius is not None]
+    net = network.build(chosen, terminals, gauge_mm, seen, designs)
     gable_tracks = {
         t.id: (GableEnd(t.gable), t.track or 1)
         for t in terminals
@@ -708,7 +730,6 @@ def assemble(
         measured.quality.widen,
         measured.shape.curved,
     )
-    gray = measured.gray()
     runs: list[curves.Line] = []
     for piece in built.drawing.pieces.values():
         runs.extend(measures.straight_runs(piece.segs, 120.0))
@@ -721,10 +742,21 @@ def assemble(
     for t in measured.terminals:
         if t.kind == "gable":
             positions[t.id] = along_gable(strips[0 if t.gable == "A" else 1], t.at)
-    switch_at = {
-        sw.number or sw.id: built.drawing.nodes[sw.node].at
-        for sw in built.drawing.switches.values()
-    }
+    # The blade tips (tungspetsarna) where the rails show them, else the drawn node: the switches
+    # are numbered in the drawing as their fits by x (build).
+    fits = sorted(net.switches, key=lambda f: net.nodes[f.node].x)
+    switch_at: dict[str, tuple[float, float]] = {}
+    tips_spread: dict[str, float] = {}
+    for sw in built.drawing.switches.values():
+        number = sw.number or sw.id
+        at = built.drawing.nodes[sw.node].at
+        index = int(number) - 1 if number.isdigit() else -1
+        fit = fits[index] if 0 <= index < len(fits) else None
+        if fit is not None and fit.tips is not None:
+            straight = chosen[net.edges[fit.straight].pid]
+            at = (fit.tips, float(np.interp(fit.tips, straight.xs, straight.ys)))
+            tips_spread[number] = fit.tips_spread
+        switch_at[number] = at
     gables = [t for t in measured.terminals if t.kind == "gable"]
     points_mm = np.array([t.at for t in gables] + list(switch_at.values()), np.float64).reshape(
         -1, 2
@@ -758,9 +790,19 @@ def assemble(
         i = len(gables) + k
         # A switch's points are measured from gable A: their spread in x.
         sigma = float(spread.points[i][0]) if i < len(spread.points) else 0.5
-        switch_points[number] = (at[0], measures.plus_minus(sigma, widen))
+        # And where the blade tips can lie between the arc's tangent point and the rails' slope.
+        pm = max(measures.plus_minus(sigma, widen), round(tips_spread.get(number, 0.0), 1))
+        switch_points[number] = (at[0], pm)
     return Assembled(
-        built, net, found_gauge, found_sleepers, spread, positions, plus_minus, switch_points
+        built,
+        net,
+        found_gauge,
+        found_sleepers,
+        spread,
+        positions,
+        plus_minus,
+        switch_points,
+        switch_at,
     )
 
 
