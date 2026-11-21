@@ -81,6 +81,10 @@ SEP_SHARE = 0.5
 """The leg's two rails stand out at least this share as much as the straight's two."""
 SEP_MISS_MM = 12.0
 """The walk toward the points stops after this much without the leg's rails."""
+SEP_RISE_MM = 1.0
+"""Once the leg is at the floor, where its rails merge with the straight's, a reading this much
+above it is no longer the leg's: the walk has run on past the merge onto other rails (between two
+switches toe to toe, toward the other's), and stops there (part c6)."""
 SEP_TOP_GAUGES = 0.9
 """d is fitted up to this many gauges: further on the leg's inner rail meets the frog."""
 SEP_REACH_MM = 300.0
@@ -92,6 +96,12 @@ DESIGN_FIT_MM = 1.0
 SEP_START_MM = 350.0
 """The walk starts where the leg is a gauge off, at most this far beyond where the legs part."""
 TIPS_REACH_MM = 400.0
+TRUNK_SKIP_MM = 30.0
+TRUNK_SPAN_MM = 60.0
+TRUNK_MIN_MM = 20.0
+"""A switch's straight leg is the one that turns least from the trunk. Where the trunk runs to
+another switch, its heading is taken over TRUNK_SPAN_MM from TRUNK_SKIP_MM behind where the legs
+part (at least TRUNK_MIN_MM of it)."""
 REFERENCE_MM = 250.0
 """The straight is a line fitted to the straight leg's path this far either side of the node."""
 
@@ -479,7 +489,16 @@ def _switch(
 ) -> None:
     sign = 1.0 if toward == "B" else -1.0
     trunk_path = paths[trunk.pid]
-    base = _heading(trunk_path, node.x - sign * 60, node.x - sign * 4)
+    # Between two switches toe to toe the trunk is short, and next to where the legs part it
+    # is still drawn toward the diverging leg: its heading is taken where the leg has left it,
+    # as far as the trunk reaches toward the other switch (part c6).
+    far = net.nodes[trunk.a] if toward == "B" else net.nodes[trunk.b]
+    room = abs(node.x - far.x)
+    if far.kind not in ("gable", "end") and room >= TRUNK_SKIP_MM + TRUNK_MIN_MM:
+        span = min(room, TRUNK_SKIP_MM + TRUNK_SPAN_MM)
+        base = _heading(trunk_path, node.x - sign * TRUNK_SKIP_MM, node.x - sign * span)
+    else:
+        base = _heading(trunk_path, node.x - sign * 60, node.x - sign * 4)
     turns = [
         abs(_heading(paths[leg.pid], node.x + sign * 4, node.x + sign * 60) - base) for leg in legs
     ]
@@ -705,6 +724,7 @@ def separation(
     es = np.arange(-2.0, 2.01, 0.25)
     found: list[tuple[float, float]] = []
     previous: float | None = None
+    lowest = math.inf
     missed = 0.0
     for i, x in enumerate(xs):
         row = rails[i]
@@ -718,8 +738,12 @@ def separation(
         )
         j = int(np.argmax(leg_rails))
         if strength > 0 and leg_rails[j] >= SEP_SHARE * strength and 0 < j < len(ds) - 1:
-            found.append((float(x), float(ds[j])))
-            previous = float(ds[j])
+            d = float(ds[j])
+            if lowest <= seen.floor and d >= lowest + SEP_RISE_MM:
+                break  # past where the leg's rails merge: other rails from here
+            found.append((float(x), d))
+            previous = d
+            lowest = min(lowest, d)
             missed = 0.0
             if previous < seen.floor:
                 break

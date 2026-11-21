@@ -579,6 +579,10 @@ OVERLAP_SHARE = 0.6
 SAME_MM = 1.5
 """Two paths closer than this run on the same track."""
 """A path whose map is clear over less than this share, even where it overlaps, is no track."""
+PARTING_MM = 80.0
+"""Where two paths part, they ran as one for this far before: a switch's points and its legs'
+first stretch, from the blade tips to where the legs lie SAME_MM apart (R 1880: about 75 mm),
+where the map is as weak as where they lie beside each other (part c6)."""
 
 
 def overlaps(found: list[Path], gauge: float, min_radius: float) -> None:
@@ -603,8 +607,10 @@ def overlaps(found: list[Path], gauge: float, min_radius: float) -> None:
                 continue
             ys = np.interp(path.xs, other.xs, other.ys)
             apart = np.abs(ys - path.ys)
-            # Beside it, not on the same track: the same route twice is no switch.
-            near |= inside & (apart <= limit) & (apart >= SAME_MM)
+            # Beside it, not on the same track: the same route twice is no switch. But where
+            # the two part, the stretch they ran as one just before is the switch's too.
+            beside = inside & (apart <= limit) & (apart >= SAME_MM)
+            near |= beside | _before_parting(path.xs, inside & (apart < SAME_MM), beside)
         on = (path.scores >= TRACK_SCORE) | near
         share = float(on.mean())
         gap = longest = 0
@@ -616,6 +622,20 @@ def overlaps(found: list[Path], gauge: float, min_radius: float) -> None:
         if share >= TRACK_SHARE and longest <= GAP_MM and clear_share >= OVERLAP_SHARE:
             path.status = "track"
             path.gap = float(longest)
+
+
+def _before_parting(xs: Array, same: Array, beside: Array) -> Array:
+    """Where two paths run as one within PARTING_MM of where they part: the end of a run of
+    same next to beside, on either side."""
+    found = np.zeros(len(xs), bool)
+    edges = np.diff(np.concatenate([[0], same.astype(np.int8), [0]]))
+    for start, end in zip(np.flatnonzero(edges == 1), np.flatnonzero(edges == -1), strict=True):
+        run = xs[start:end]
+        if start > 0 and beside[start - 1]:
+            found[start:end] |= run <= run[0] + PARTING_MM
+        if end < len(same) and beside[end]:
+            found[start:end] |= run >= run[-1] - PARTING_MM
+    return found
 
 
 def _better(path: Path, other: Path) -> bool:

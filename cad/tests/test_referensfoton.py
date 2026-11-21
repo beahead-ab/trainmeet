@@ -10,13 +10,14 @@ and where each comes from are in fall.json.
 Part c3: where code finds the corners within 1 % of the module's width of the hand-set ones
 (horn_ur_koden), the photo is read with the code's corners; the hand-set ones stay the truth.
 Part c5: code finds them on every photo (past a shadow the module casts, a curve's outline by
-its shape), and every photo but one is read with them (las_med_hand, with the reason in the
-case's source).
+its shape). Part c6: every photo is read with them, and the one with two switches toe to toe
+keeps its switches and gable tracks when code's corners move by up to SHAKE_PX.
 A switch's position is what its source means by it (vaxel_lage): the drawn node where the
 diverging arc leaves the straight (AnyRail's), or the blade tips (tungspetsarna, the station
 page's); the median distance is held to vaxel_median_mm.
 
 Each photo is read once per run (read() is cached) and the tests share it: a photo takes 6–40 s.
+The shaken readings are measured in SHAKE_WORKERS processes at once.
 
 The committed photos carry no camera data, position or other metadata: only the JPEG's JFIF
 header.
@@ -26,7 +27,10 @@ from __future__ import annotations
 
 import json
 import math
+import multiprocessing
+import os
 import struct
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
 from functools import cache
 from pathlib import Path
@@ -34,6 +38,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+from numpy.typing import ArrayLike
 
 from cad import curves, geometry
 from cad.bildkedjan import chain, intake, orient
@@ -150,7 +155,7 @@ def read(name: str) -> Read:
     _, case = BY_NAME[name]
     prepared = prepared_of(name)
     setup = setup_of(case)
-    if case.get("horn_ur_koden") and not case.get("las_med_hand"):
+    if case.get("horn_ur_koden"):
         setup = replace(setup, corners=None)
     measured = chain.measure(prepared, setup)
     gables = [
@@ -205,7 +210,10 @@ def switch_positions(assembled: Assembled, meaning: str = "nod") -> list[tuple[f
 def matched(case: dict[str, Any], assembled: Assembled) -> list[float]:
     """The station's switches each paired with one found, nearest first: the distances of
     those within the case's tolerance."""
-    found = switch_positions(assembled, case.get("vaxel_lage", "nod"))
+    return matched_at(case, switch_positions(assembled, case.get("vaxel_lage", "nod")))
+
+
+def matched_at(case: dict[str, Any], found: list[tuple[float, float]]) -> list[float]:
     pairs = sorted(
         (math.dist(tuple(truth), at), i, j)
         for i, truth in enumerate(case["vaxlar"])
@@ -330,10 +338,81 @@ def test_the_corners_come_from_code(name: str) -> None:
 
 
 def test_code_finds_the_corners_on_every_photo() -> None:
-    """Part c5: on every reference photo, and all but one are read with them (the one read
-    with the hand-set ones says why in its source)."""
+    """Part c5: on every reference photo; part c6: and every photo is read with them, none with
+    the hand-set ones."""
     assert all(c.get("horn_ur_koden") for _, c in CASES)
-    assert sum(bool(c.get("las_med_hand")) for _, c in CASES) <= 1
+    assert not any(c.get("las_med_hand") for _, c in CASES)
+
+
+SHAKEN = "sektion-2.jpg"
+"""Two switches toe to toe, 32 mm apart (112 and 113): where the reading of the blade tips flipped
+when the corners moved by half a pixel (part c5)."""
+SHAKE_PX = 0.7
+SHAKE_SEEDS = range(8)
+"""Code's corners are moved by up to SHAKE_PX in x and y, each, with these fixed seeds."""
+SHAKE_WORKERS = 4
+
+
+@dataclass(frozen=True)
+class Shaken:
+    """A reading with the corners moved: the gable tracks (gable, mm from Kant 1) and the
+    switches' blade tips (or nodes) in the module's mm."""
+
+    gables: list[tuple[str, float]]
+    switches: list[tuple[float, float]]
+
+
+def shaken_corners(corners: ArrayLike, seed: int) -> chain.Setup:
+    _, case = BY_NAME[SHAKEN]
+    moved = np.asarray(corners, np.float64) + np.random.default_rng(seed).uniform(
+        -SHAKE_PX, SHAKE_PX, (4, 2)
+    )
+    return replace(setup_of(case), corners=tuple((float(x), float(y)) for x, y in moved))
+
+
+def read_shaken(prepared: chain.Prepared, setup: chain.Setup) -> Shaken:
+    """The photo measured with the corners given, and its switches read as assemble reads
+    them (the drawing itself is not needed)."""
+    measured = chain.measure(prepared, setup)
+    chosen, net = chain.read_network(measured, measured.code_pairs())
+    tips = []
+    for fit in chain.numbered_switches(net):
+        node = net.nodes[fit.node]
+        tips.append(chain.blade_tips(fit, chosen, net) or (node.x, node.y))
+    strips = measured.strips()
+    gables = [
+        (t.gable, chain.along_gable(strips[0 if t.gable == "A" else 1], t.at))
+        for t in measured.terminals
+        if t.kind == "gable" and t.gable is not None
+    ]
+    return Shaken(gables, tips)
+
+
+@cache
+def shaken() -> dict[int, Shaken]:
+    """Every seed's reading, measured in parallel: a reading takes 4–8 s."""
+    prepared = prepared_of(SHAKEN)
+    assert prepared.corners is not None
+    setups = [shaken_corners(prepared.corners, seed) for seed in SHAKE_SEEDS]
+    workers = min(SHAKE_WORKERS, os.cpu_count() or 1, len(setups))
+    with ProcessPoolExecutor(workers, mp_context=multiprocessing.get_context("spawn")) as pool:
+        found = list(pool.map(read_shaken, [prepared] * len(setups), setups))
+    return dict(zip(SHAKE_SEEDS, found, strict=True))
+
+
+@pytest.mark.parametrize("seed", SHAKE_SEEDS)
+def test_two_switches_toe_to_toe_hold_when_the_corners_move(seed: int) -> None:
+    """Part c6: with code's corners moved by up to SHAKE_PX, every one of the station's switches
+    is found within its tolerance and every gable track within its, as with code's corners."""
+    _, case = BY_NAME[SHAKEN]
+    found = shaken()[seed]
+    tolerance = float(case["tolerans_mm"])
+    for gable, at in found.gables:
+        owner = case["gavel_a_mm"] if gable == "A" else case["gavel_b_mm"]
+        assert min(abs(o - at) for o in owner) <= tolerance, (seed, gable, at)
+    assert len(found.gables) >= int(case["minst_hittade"]), (seed, found.gables)
+    distances = matched_at(case, sorted((round(x, 1), round(y, 1)) for x, y in found.switches))
+    assert len(distances) == len(case["vaxlar"]), (seed, found.switches, distances)
 
 
 @pytest.mark.parametrize("name", CURVES)
