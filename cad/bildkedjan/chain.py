@@ -47,7 +47,7 @@ def _array(values: Array) -> list[list[float]]:
     return [[round(float(v), 4) for v in row] for row in np.atleast_2d(values)]
 
 
-CHAIN_VERSION = "3.1.0"
+CHAIN_VERSION = "3.2.0"
 """The measuring code's version: part of every job's key (bildkedjan, Jobbet är nyckeln)."""
 PROFILE = "modulfoto"
 RAIL_HEIGHT = {Scale.H0: 7.0, Scale.N: 4.0, Scale.ZERO: 14.0}
@@ -752,6 +752,39 @@ class Assembled:
     """Each switch number's blade tips (or its node) in the module's mm."""
 
 
+def read_network(
+    measured: Measured, connections: set[tuple[str, str]]
+) -> tuple[list[Path], network.Network]:
+    """The paths of the connections decided, and their track network: the switches read from
+    their legs' rails in the measuring image, and fitted with the library's types (part c3)."""
+    steady()
+    setup = measured.setup
+    chosen = [p for p in measured.paths if p.pair in connections]
+    used = {t for p in chosen for t in (p.a, p.b)}
+    terminals = [t for t in measured.terminals if t.id in used]
+    seen = network.Seen.of(
+        measured.gray(), measured.grid, measured.profile, measured.quality.px_per_mm
+    )
+    designs = [d for d in switches.designs(setup.scale) if d.radius is not None]
+    net = network.build(chosen, terminals, switches.GAUGE[setup.scale], seen, designs)
+    return chosen, net
+
+
+def numbered_switches(net: network.Network) -> list[network.SwitchFit]:
+    """The switches in the order the drawing numbers them: by their nodes' x (build)."""
+    return sorted(net.switches, key=lambda f: net.nodes[f.node].x)
+
+
+def blade_tips(
+    fit: network.SwitchFit, chosen: list[Path], net: network.Network
+) -> tuple[float, float] | None:
+    """The switch's blade tips (tungspetsarna) on its straight, where the rails show them."""
+    if fit.tips is None:
+        return None
+    straight = chosen[net.edges[fit.straight].pid]
+    return (fit.tips, float(np.interp(fit.tips, straight.xs, straight.ys)))
+
+
 def assemble(
     measured: Measured,
     connections: set[tuple[str, str]],
@@ -762,15 +795,10 @@ def assemble(
     steady()
     setup = measured.setup
     gauge_mm = switches.GAUGE[setup.scale]
-    chosen = [p for p in measured.paths if p.pair in connections]
+    chosen, net = read_network(measured, connections)
     used = {t for p in chosen for t in (p.a, p.b)}
     terminals = [t for t in measured.terminals if t.id in used]
     gray = measured.gray()
-    # The switches are read from their legs' rails in the measuring image, and fitted with the
-    # library's types (part c3).
-    seen = network.Seen.of(gray, measured.grid, measured.profile, measured.quality.px_per_mm)
-    designs = [d for d in switches.designs(setup.scale) if d.radius is not None]
-    net = network.build(chosen, terminals, gauge_mm, seen, designs)
     gable_tracks = {
         t.id: (GableEnd(t.gable), t.track or 1)
         for t in terminals
@@ -799,7 +827,7 @@ def assemble(
             positions[t.id] = along_gable(strips[0 if t.gable == "A" else 1], t.at)
     # The blade tips (tungspetsarna) where the rails show them, else the drawn node: the switches
     # are numbered in the drawing as their fits by x (build).
-    fits = sorted(net.switches, key=lambda f: net.nodes[f.node].x)
+    fits = numbered_switches(net)
     switch_at: dict[str, tuple[float, float]] = {}
     tips_spread: dict[str, float] = {}
     for sw in built.drawing.switches.values():
@@ -807,9 +835,9 @@ def assemble(
         at = built.drawing.nodes[sw.node].at
         index = int(number) - 1 if number.isdigit() else -1
         fit = fits[index] if 0 <= index < len(fits) else None
-        if fit is not None and fit.tips is not None:
-            straight = chosen[net.edges[fit.straight].pid]
-            at = (fit.tips, float(np.interp(fit.tips, straight.xs, straight.ys)))
+        tips = blade_tips(fit, chosen, net) if fit is not None else None
+        if fit is not None and tips is not None:
+            at = tips
             tips_spread[number] = fit.tips_spread
         switch_at[number] = at
     gables = [t for t in measured.terminals if t.kind == "gable"]
