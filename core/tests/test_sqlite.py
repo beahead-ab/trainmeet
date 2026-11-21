@@ -11,7 +11,7 @@ from threading import Event, Thread
 
 import pytest
 
-from core.sqlite import BUSY_SECONDS, connect, prepare
+from core.sqlite import BUSY_SECONDS, add_columns, connect, prepare
 
 SCHEMA = "CREATE TABLE IF NOT EXISTS thing (id TEXT PRIMARY KEY);"
 
@@ -86,3 +86,31 @@ def test_a_file_another_connection_writes_to_is_waited_for(tmp_path: Path) -> No
 def test_a_transaction_waits_longer_than_sqlite3s_five_seconds(tmp_path: Path) -> None:
     with closing(connect(tmp_path / "planering.sqlite3")) as db:
         assert db.execute("PRAGMA busy_timeout").fetchone()[0] == BUSY_SECONDS * 1000
+
+
+def test_processes_starting_on_a_new_file_add_each_column_once(tmp_path: Path) -> None:
+    """Four processes that make the same store on a new file at once (the hub imported in each
+    of "Tester"'s processes): the later columns are added once, and no one is refused."""
+    path = tmp_path / "ny.sqlite3"
+    prepare(path, SCHEMA)
+    columns = [(f"c{i}", "TEXT") for i in range(20)]
+    start = Event()
+    failed: list[BaseException] = []
+
+    def make() -> None:
+        start.wait()
+        try:
+            add_columns(path, "thing", columns)
+        except BaseException as error:
+            failed.append(error)
+
+    threads = [Thread(target=make) for _ in range(4)]
+    for thread in threads:
+        thread.start()
+    start.set()
+    for thread in threads:
+        thread.join()
+    assert failed == []
+    with closing(sqlite3.connect(path)) as db:
+        present = [str(row[1]) for row in db.execute("PRAGMA table_info(thing)")]
+    assert present == ["id", *(c for c, _ in columns)]

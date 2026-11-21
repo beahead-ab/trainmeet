@@ -378,7 +378,11 @@ class TklStore:
                 self.path.parent.mkdir(parents=True, exist_ok=True)
                 with closing(sqlite3.connect(self.path)) as db:
                     db.executescript(_SCHEMA)
+                    # Read and changed under the write lock: two processes on a new file never
+                    # add the same column.
+                    db.execute("BEGIN IMMEDIATE")
                     _migrate(db)
+                    db.commit()
                 self.path.chmod(0o600)
                 self._ready = True
             with closing(sqlite3.connect(self.path)) as db, db:
