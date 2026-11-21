@@ -23,8 +23,9 @@ jobs:
   tester:
     name: Tester
     runs-on: ubuntu-latest
-    # CAD's image chain (#89 del c1) runs real photos through OpenCV; pytest took 14 minutes
-    # with it, so 25 leaves room. --durations shows what grew.
+    # CAD's image chain (#89 del c1) runs real photos through OpenCV; pytest took 22 minutes in
+    # one process, and takes about 8 in four (pytest-xdist, the runner's 4 vCPUs). --durations
+    # shows what grew.
     timeout-minutes: 25
     # TrainMeet Catalog's tests need a PostgreSQL of their own (catalog/tests/conftest.py).
     services:
@@ -63,8 +64,11 @@ jobs:
           sudo apt-get install -y -q mosquitto \
             || (sudo apt-get update -q && sudo apt-get install -y -q mosquitto)
 
+      # Four processes, one per vCPU. --dist loadfile keeps each test file in one process, so
+      # what a file reads once and caches (CAD's photos, the reference stations) is read once.
+      # Every test makes its own databases, ports and folders, so the processes share nothing.
       - name: Testerna
-        run: uv run pytest --durations=15
+        run: uv run pytest -n 4 --dist loadfile --durations=15
 
       - name: Kontraktens TypeScript-typer
         run: |

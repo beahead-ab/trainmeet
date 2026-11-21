@@ -33,7 +33,7 @@ Det behövs bara [uv](https://docs.astral.sh/uv/). Det hämtar rätt Python (3.1
 
 ```sh
 uv sync                                  # installerar allt
-uv run pytest                            # testerna
+uv run pytest -n 4 --dist loadfile       # testerna, i fyra processer som "Tester"
 uv run ruff check . && uv run mypy       # kodstil och typer
 uv run uvicorn hub.app:app --reload      # hubben på http://127.0.0.1:8000
 ```
