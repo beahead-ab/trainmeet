@@ -436,6 +436,11 @@ export function UploadPage(props: UploadProps) {
 type Corners = Point[];
 
 /** Gable A is the side before Kant 1, gable B the side after it (side i runs from corner i). */
+/** The same four corners, to a pixel. */
+export function sameCorners(a: Corners, b: Corners): boolean {
+  return a.length === 4 && b.length === 4 && a.every((p, i) => Math.abs(p[0] - (b[i]?.[0] ?? NaN)) <= 1 && Math.abs(p[1] - (b[i]?.[1] ?? NaN)) <= 1);
+}
+
 function sideMiddle(corners: Corners, side: number): Point {
   const a = corners[side % 4] ?? [0, 0];
   const b = corners[(side + 1) % 4] ?? [0, 0];
@@ -502,6 +507,9 @@ function CornerEditor({
       onPointerLeave={() => setDragging(null)}
     >
       <image href={preview.url} width={preview.width} height={preview.height} />
+      {(job.corners?.outlines ?? []).map((o) => (
+        <path key={`kontur-${o.id}`} className={`cad-kontur cad-kontur-${o.id}`} data-kontur={o.id} d={poly(o.corners as Point[], (p) => p, true)} strokeWidth={unit * 0.3} />
+      ))}
       <path className="cad-fotoram" d={poly(corners, (p) => p, true)} strokeWidth={unit * 0.35} />
       {corners.map((c, side) => {
         const next = corners[(side + 1) % 4] ?? c;
@@ -693,6 +701,9 @@ function ConfirmCorners({ module, job, consent, busy, onRead }: Pick<PhotoPagePr
   const sketch = job.profile === "skiss";
   // Gable A chosen by the owner, or derived: it stays at its end when Kant 1 moves.
   const [aChosen, setAChosen] = useState(Boolean(job.corners?.derived));
+  // Code not sure (part c5): its outlines in their colours, its own first; with AI, the AI
+  // answers when the corners are left as code put them.
+  const outlines = job.corners?.outlines ?? [];
   const side = (tapped: number) => {
     const next = tapSide(tapped, kant1, gableA, aChosen);
     if (besideKant1(tapped, kant1)) setAChosen(true);
@@ -731,6 +742,23 @@ function ConfirmCorners({ module, job, consent, busy, onRead }: Pick<PhotoPagePr
             {job.frames.map((_, index) => (
               <button key={index} type="button" role="radio" aria-checked={frame === index} className="tm-knapp liten" onClick={() => chooseFrame(index)}>
                 Ram {index + 1}
+              </button>
+            ))}
+          </div>
+        ) : null}
+        {outlines.length ? (
+          <div className="cad-knapprad" role="radiogroup" aria-label="Vilken kontur följer modulens kant?">
+            <span className="cad-dampad">Vilken kontur följer modulens kant?</span>
+            {outlines.map((o) => (
+              <button
+                key={o.id}
+                type="button"
+                role="radio"
+                aria-checked={sameCorners(corners, o.corners as Point[])}
+                className={`tm-knapp liten cad-kontur-val cad-kontur-${o.id}`}
+                onClick={() => setCorners(o.corners as Point[])}
+              >
+                {o.text}
               </button>
             ))}
           </div>
@@ -1416,7 +1444,7 @@ function Osakert(props: PhotoPageProps) {
   const switches = job.summary?.switches ?? 0;
   const gableTracks = (job.summary?.tracks_a ?? 0) + (job.summary?.tracks_b ?? 0);
   const layer = job.measure;
-  const span = 260;
+  const span = Math.max(260, (asked?.span ?? 0) / 2);
   const fromB = module.shape.kind !== "curve" ? module.shape.length - asked.at[0] : 0;
   const choice = asked.choices.find((c) => c.id === chosen);
   return (
@@ -1448,6 +1476,14 @@ function Osakert(props: PhotoPageProps) {
               >
                 <PhotoImage layer={layer} />
                 <ellipse className="cad-osakert-ring" cx={asked.at[0]} cy={asked.at[1]} rx={span * 0.32} ry={span * 0.22} strokeWidth={2.5} strokeDasharray="10 7" />
+                {(asked.marks ?? []).map((m) => (
+                  <g key={`mark-${m.label}`} className="cad-osakert-mark" data-mark={m.label}>
+                    <circle cx={m.at[0]} cy={m.at[1]} r={span * 0.025} strokeWidth={2} />
+                    <text x={m.at[0] + span * 0.035} y={m.at[1] - span * 0.035} fontSize={span * 0.06}>
+                      {m.label}
+                    </text>
+                  </g>
+                ))}
               </svg>
             ) : null}
           </div>

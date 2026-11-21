@@ -1540,6 +1540,15 @@ class PhotoQuality(Contract):
     length_from_photo: bool = Field(description="False under 1 px per mm: no length from it.")
 
 
+class PhotoOutline(Contract):
+    """One of the outlines code found when it is not sure which follows the module's edge
+    (part c5): drawn in its colour over the photo, its corners in the preview's pixels."""
+
+    id: Literal["rod", "bla", "gul"]
+    text: Text = Field(max_length=40, description="The colour's name, as the owner sees it.")
+    corners: list[Point] = Field(min_length=4, max_length=4)
+
+
 class PhotoCorners(Contract):
     """The module's corners in the preview's pixels (the photo, or the photos stitched, made
     smaller), clockwise as seen, the side that is Kant 1 and the side that is gable A: side i
@@ -1561,6 +1570,15 @@ class PhotoCorners(Contract):
     )
     why: Text | None = Field(
         default=None, description="Why they were derived, or why the owner must tap them."
+    )
+    outlines: list[PhotoOutline] = Field(
+        default_factory=list,
+        description="Code is not sure (part c5): Vilken kontur följer modulens kant? Its own "
+        "first. Read with AI, the AI answers when the corners are left as code put them; "
+        "without, the owner picks one, or drags the corners.",
+    )
+    chosen: Literal["rod", "bla", "gul", "ingen"] | None = Field(
+        default=None, description="The outline the AI chose, when it was asked."
     )
 
 
@@ -1639,6 +1657,17 @@ class PhotoQuestionKind(StrEnum):
     chord and sagitta are wrong (part c2)."""
     ORIENTATION = "orientation"
     """The gables' tracks show the module the other way round than Kant 1 and gable A say."""
+    BRIDGE = "bridge"
+    """Which track ends join under a bridge drawn over the tracks? (part c5, a sketch)"""
+    WEDGE = "wedge"
+    """Two tracks' ink runs together: a switch, two tracks side by side, or something else?"""
+
+
+class PhotoMark(Contract):
+    """A place marked in a question's picture: a track's end at a bridge, A, B, C …"""
+
+    label: Annotated[str, StringConstraints(pattern=r"^[A-Z]{1,2}$")]
+    at: Point = Field(description="mm, in the module's coordinates.")
 
 
 class PhotoQuestion(Contract):
@@ -1659,6 +1688,12 @@ class PhotoQuestion(Contract):
     topology: bool = Field(description="The answer changes the track plan.")
     closeup: bool = Field(default=False, description="Ta en närbild helps here.")
     closeup_ai: str | None = Field(default=None, description="What the AI says from the close-up.")
+    marks: list[PhotoMark] = Field(
+        default_factory=list, description="The places the choices name, marked in the picture."
+    )
+    span: Mm | None = Field(
+        default=None, description="How much of the module around it to show, mm across."
+    )
 
 
 class PhotoPrice(Contract):

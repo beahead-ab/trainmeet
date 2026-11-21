@@ -28,19 +28,37 @@ Part c3, on real photos (the module on a floor or against a wall, with clutter a
   change across it, the innermost where a shadow lies outside, to a fraction of a px (a
   parabola through the best three), and a line fitted through them, leaving out those far
   from it. This is what a line segment detector (LSD) does along a side it already has.
+
+Part c5, on all seven reference photos:
+
+- A shadow the module casts on the floor beside it is no part of it (shadowed): the shadow is
+  the floor's own colour, darker and warmer, as smooth as the floor; the board begins where
+  the colour changes from it (a change of material), not where the light does.
+- The sides are found once more (settle) at many places along their middles, the outermost
+  strong edge at each, and the corners are where the lines cross, never a rounded or chipped
+  corner's own outline.
+- A tilted photo's opposite sides differ: the proportions are judged as the camera model sees
+  a rectangle (Zhang and He) when the plain search's outline does not have them.
+- A curve module's outline is its shape (Bend: two concentric arcs and two straight gables,
+  from the radii and the angle): when the outline's four corners do not fit it, it is put
+  through three of them, and its sides are found again along it.
+- When the outlines code found differ by more than OUTLINE_SAME, code is not sure: they are
+  offered (outlines), its own first, to the AI as a question with fixed answers, or to the
+  owner (cad/bildkedjan/choices.py).
+- When the module's measures and the photo do not agree (misfit), the owner is told.
 """
 
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import cv2
 import numpy as np
 from numpy.typing import NDArray
 
-from cad.bildkedjan.camera import Array, distort, fit_line, intersect, undistort
+from cad.bildkedjan.camera import Array, distort, fit_line, focal_from_35mm, intersect, undistort
 
 WORK_SIZE = 1000
 """The photo's long side while the module is looked for, px."""
@@ -68,7 +86,18 @@ PROPORTION_SLACK = 0.015
 """The outline's proportions may be this far off the module's (log of the ratio) before its
 sides are looked for again: the reference photos show them within 1 %."""
 PROPORTION_REACH = 0.04
+PROPORTION_TILTED = 0.03
+"""An outline the plain search found, whose proportions as the camera model sees a rectangle
+lie more than this (log of the ratio) from the module's, is a tilted photo's: its sides are
+looked for again with the camera model (part c5)."""
+PROPORTION_TILT = 0.15
+"""The search reaches as much further as the outline's opposite sides differ, up to this (a
+tilted camera), and the camera model judges the outlines found (proportion with the view,
+part c5)."""
 PROPORTION_TURN = 2.0
+TURN_MORE = 3.0
+"""Under a tilt the opposite sides converge as the other two do: the search turns as much
+further, up to this many degrees (part c5)."""
 """A side looked for again lies within this share of where the proportions put it, and within
 this many degrees of parallel to the opposite side."""
 PROPORTION_WEIGHT = 20.0
@@ -77,6 +106,34 @@ EDGE_SATURATION = 12.0
 EDGE_LEAST = 4.0
 SHARPEN_PX = 2.5
 """The sides are sharpened within this many of the small photo's px."""
+OUTLINE_SAME = 0.01
+"""Two outlines whose corners all lie within this share of the module's short side are one:
+the reference photos' target for the corners (part c5)."""
+MEASURES_MISFIT = 0.05
+"""The photo shows the module's length over its width more than this far (log of the ratio)
+from its measures: the measures or the photo are not this module, and the owner is told."""
+SHADOW_DARK = 0.7
+"""A cast shadow on the floor is at most this share of the floor's light beside it (part c5)."""
+SHADOW_SMOOTH = 6.0
+"""and smooth: the grey's spread over 7 × 7 px at most this (the floor's grain dims with it)."""
+SHADOW_GREEN = 4.0
+"""A shadow on the floor keeps at least half the colour (Lab a and b) of the floor lit beside
+it, and is no greener (Lab a) than the floor by more than this: a dark strip of the board's own
+colour, or a grey one, is no shadow."""
+SHADOW_GRAIN = 16.0
+"""Dark and grainier than this is the board (grass, ballast), not a shadow."""
+SHADOW_STEP = 6.0
+"""The board begins where the colour (Lab a and b, the light left out) changes this much from
+the shadow's: a change of material, where the shadow is the floor's own colour, darker."""
+SHADOW_WIDTH = 0.06
+"""A shadow beside the module is at most this share of its short side wide."""
+SHADOW_SHARE = 0.4
+SHADOW_MOVE = 3.0
+"""A side is moved past a shadow when at least this share of the places along it show one, and
+the side then moves at least this many px somewhere."""
+SETTLE_REACH = 0.0125
+"""The sides are found again within this share of the module's short side, px (part c5)."""
+SETTLE_ROWS = 96
 
 
 @dataclass(frozen=True)
@@ -177,10 +234,20 @@ class Found:
     bent: list[bool] = field(default_factory=lambda: [False] * 4)
     """Which sides the outline shows bent (a curve module's long sides): arcs for the lens, and
     their corners where their tangents cross the gables (part c2)."""
+    misfit: float = 0.0
+    """How far the outline's proportions lie from the module's measures, as the log of their
+    ratio (0 when they are not known): over MEASURES_MISFIT the photo and the measures do not
+    agree, and the owner is told (part c5)."""
+    seen: float | None = None
+    """The outline's long sides over its short ones, as the camera sees a rectangle."""
+    outlines: list[Array] = field(default_factory=list)
+    """When code is not sure (part c5): the outlines it found that differ by more than
+    OUTLINE_SAME of the module's short side, its own (these corners) first, to ask which one
+    follows the module's edge (Vilken kontur följer modulens kant?). Empty when sure."""
 
     @property
     def certain(self) -> bool:
-        return all(r <= CORNER_RESIDUAL for r in self.residuals)
+        return self.misfit <= MEASURES_MISFIT and all(r <= CORNER_RESIDUAL for r in self.residuals)
 
 
 def _clockwise_order(corners: Array) -> list[int]:
@@ -366,7 +433,7 @@ def refine(
         guide = guides[i] if guides is not None else None
         points = _edge_points(lab, a, b, reach, guide)
         if len(points) < 8:
-            return Found(corners, [99.0] * 4, [])
+            return Settled(corners, [99.0] * 4, [])
         line, rms, kept = _robust_line(points)
         bow: Bow | None = None
         if guide is not None:
@@ -488,22 +555,63 @@ def edge_strength(lab: NDArray[Any], a: Array, b: Array) -> Array:
     return found
 
 
-def proportion(corners: Array) -> float:
-    """The outline's long sides over its short ones."""
+View = tuple[float, tuple[float, float]]
+"""The camera as find() knows it: the focal length and the photo's middle, in px."""
+
+
+def proportion(corners: Array, view: View | None = None) -> float:
+    """The outline's long sides over its short ones; with the camera (view), the rectangle's
+    own as the camera model has it, so that a tilted photo, whose opposite sides differ, keeps
+    the module's proportions (part c5)."""
     sides = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
     first, second = sides[0] + sides[2], sides[1] + sides[3]
-    return float(max(first, second) / max(min(first, second), 1e-9))
+    plain = float(max(first, second) / max(min(first, second), 1e-9))
+    if view is None:
+        return plain
+    seen = _rectangle_aspect(corners, view)
+    if seen is None:
+        return plain
+    return max(seen, 1 / seen)
 
 
-def _off(corners: Array, aspect: float) -> float:
-    return abs(math.log(proportion(corners) / aspect))
+def _rectangle_aspect(corners: Array, view: View) -> float | None:
+    """A rectangle's sides 0 → 1 over 1 → 2, from its four corners in a photo taken with a
+    pinhole camera (Zhang and He, whiteboard scanning): None when the corners say nothing."""
+    focal, centre = view
+    c = np.asarray(corners, np.float64) - np.array(centre)
+    # m1 (0, 0), m2 (w, 0), m3 (0, h), m4 (w, h).
+    m1, m2, m4, m3 = (np.array([p[0], p[1], 1.0]) for p in c)
+    below2, below3 = float(np.cross(m2, m4) @ m3), float(np.cross(m3, m4) @ m2)
+    if abs(below2) < 1e-9 or abs(below3) < 1e-9:
+        return None
+    k2 = float(np.cross(m1, m4) @ m3) / below2
+    k3 = float(np.cross(m1, m4) @ m2) / below3
+    n2 = k2 * m2 - m1
+    n3 = k3 * m3 - m1
+    inverse = np.diag([1 / focal**2, 1 / focal**2, 1.0])
+    top = float(n2 @ inverse @ n2)
+    bottom = float(n3 @ inverse @ n3)
+    if top <= 0 or bottom <= 0 or not math.isfinite(top / bottom):
+        return None
+    return math.sqrt(top / bottom)
 
 
-def _score(lab: NDArray[Any], corners: Array, aspect: float) -> float:
+def _off(corners: Array, aspect: float, view: View | None = None) -> float:
+    return abs(math.log(proportion(corners, view) / aspect))
+
+
+def _score(lab: NDArray[Any], corners: Array, aspect: float, view: View | None = None) -> float:
     strength = edge_strength(lab, corners, np.roll(corners, -1, axis=0))
     return float(strength.sum()) - PROPORTION_WEIGHT * max(
-        0.0, _off(corners, aspect) - PROPORTION_SLACK
+        0.0, _off(corners, aspect, view) - PROPORTION_SLACK
     )
+
+
+def tilted(corners: Array) -> float:
+    """How much the outline's opposite sides differ, as the log of their ratio: what a tilted
+    camera does to a rectangle (part c5)."""
+    sides = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
+    return float(max(abs(math.log(sides[k] / max(sides[k + 2], 1e-9))) for k in (0, 1)))
 
 
 def _lines(corners: Array) -> list[tuple[Array, Array]]:
@@ -518,10 +626,13 @@ def _crossed(lines: list[tuple[Array, Array]]) -> Array:
     return np.array([intersect(lines[(i - 1) % 4], lines[i]) for i in range(4)])
 
 
-def _side_again(lab: NDArray[Any], corners: Array, i: int, aspect: float) -> Array | None:
+def _side_again(
+    lab: NDArray[Any], corners: Array, i: int, aspect: float, view: View | None = None
+) -> Array | None:
     """The outline with side i looked for again where the opposite side and the proportions
     put it: the line nearly parallel to the opposite side, about the module's width or length
-    from it, along which the colour changes most."""
+    from it (within PROPORTION_REACH, and as much more as the outline's opposite sides differ:
+    a tilted photo, part c5), along which the colour changes most."""
     lines = _lines(corners)
     sides = np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1)
     long_pair = 0 if sides[0] + sides[2] >= sides[1] + sides[3] else 1
@@ -538,8 +649,13 @@ def _side_again(lab: NDArray[Any], corners: Array, i: int, aspect: float) -> Arr
     n = np.array([-u[1], u[0]])
     if float((corners[i] - opposite[0]) @ n) < 0:
         n = -n
-    turns = np.radians(np.arange(-PROPORTION_TURN, PROPORTION_TURN + 0.01, 0.5))
-    shares = np.arange(1 - PROPORTION_REACH, 1 + PROPORTION_REACH + 1e-9, 0.002)
+    # Under a tilt the opposite sides converge as much as the other two do, about.
+    a, b = lines[(i + 1) % 4][1], lines[(i + 3) % 4][1]
+    converge = math.degrees(math.acos(min(1.0, abs(float(a @ b)))))
+    turn = PROPORTION_TURN + (min(converge, TURN_MORE) if view is not None else 0.0)
+    turns = np.radians(np.arange(-turn, turn + 0.01, 0.5))
+    reach = PROPORTION_REACH + min(tilted(corners), PROPORTION_TILT)
+    shares = np.arange(1 - reach, 1 + reach + 1e-9, 0.002)
     candidates: list[Array] = []
     for turn in turns:
         c, s_ = math.cos(float(turn)), math.sin(float(turn))
@@ -558,13 +674,16 @@ def _side_again(lab: NDArray[Any], corners: Array, i: int, aspect: float) -> Arr
     return found
 
 
-def proportioned(lab: NDArray[Any], corners: Array, aspect: float) -> Array:
+def proportioned(
+    lab: NDArray[Any], corners: Array, aspect: float, view: View | None = None
+) -> Array:
     """The outline's sides looked for again, one at a time, as long as the colour changes more
-    along them and their proportions come nearer the module's (part c3)."""
-    best, score = corners, _score(lab, corners, aspect)
+    along them and their proportions, as the camera (view) sees a rectangle (part c5), come
+    nearer the module's (part c3)."""
+    best, score = corners, _score(lab, corners, aspect, view)
     for _ in range(6):
-        options = [_side_again(lab, best, i, aspect) for i in range(4)]
-        scored = [(_score(lab, q, aspect), q) for q in options if q is not None]
+        options = [_side_again(lab, best, i, aspect, view) for i in range(4)]
+        scored = [(_score(lab, q, aspect, view), q) for q in options if q is not None]
         if not scored:
             break
         top, quad = max(scored, key=lambda pair: pair[0])
@@ -623,7 +742,324 @@ def sharpen(lab: NDArray[Any], corners: Array, reach: float) -> Found:
     return Found(_crossed(lines), residuals, sides)
 
 
-def find(pixels: NDArray[Any], curve: bool = False, aspect: float | None = None) -> Found | None:
+def _maps(pixels: NDArray[Any]) -> tuple[NDArray[Any], NDArray[Any], NDArray[Any]]:
+    """Lab (lightness weighed less), the grey and its spread over 7 × 7 px (the texture)."""
+    lab = _lab(pixels, 3)
+    grey = cv2.cvtColor(pixels, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    mean = cv2.blur(grey, (7, 7))
+    spread = np.sqrt(np.maximum(cv2.blur(grey * grey, (7, 7)) - mean * mean, 0.0))
+    return lab, grey, spread
+
+
+def _rows(path: Array, centre: Array, rows: int) -> tuple[Array, Array]:
+    """rows places along the middle of a side's path (a line is two points, an arc many), and
+    the normal into the module at each."""
+    lengths = np.linalg.norm(np.diff(path, axis=0), axis=1)
+    total = np.concatenate([[0.0], np.cumsum(lengths)])
+    at = np.linspace(0.04, 0.96, rows) * total[-1]
+    base = np.stack([np.interp(at, total, path[:, 0]), np.interp(at, total, path[:, 1])], axis=1)
+    if len(path) == 2:
+        tangent = np.repeat(((path[1] - path[0]) / max(total[-1], 1e-9))[None, :], rows, axis=0)
+    else:
+        tangent = np.gradient(base, axis=0)
+        tangent /= np.maximum(np.linalg.norm(tangent, axis=1), 1e-9)[:, None]
+    normal = np.stack([-tangent[:, 1], tangent[:, 0]], axis=1)
+    outward = ((centre[None, :] - base) * normal).sum(axis=1) < 0
+    normal[outward] *= -1
+    return base, normal
+
+
+def _windowed(values: Array, size: int) -> tuple[Array, Array]:
+    """The mean over the size values before each place and the size after it, along axis 1."""
+    pad = np.zeros_like(values[:, :1])
+    total = np.cumsum(np.concatenate([pad, values], axis=1), axis=1)
+    n = values.shape[1]
+    before = np.full_like(values, np.nan)
+    after = np.full_like(values, np.nan)
+    idx = np.arange(size, n - size)
+    before[:, idx] = (total[:, idx] - total[:, idx - size]) / size
+    after[:, idx] = (total[:, idx + 1 + size] - total[:, idx + 1]) / size
+    return before, after
+
+
+def _grey_at(image: NDArray[Any], points: Array) -> Array:
+    found: Array = _sample(np.repeat(image[..., None], 3, axis=2), points)[..., 0]
+    return found
+
+
+def shadowed(
+    maps: tuple[NDArray[Any], NDArray[Any], NDArray[Any]],
+    base: Array,
+    normal: Array,
+    short: float,
+) -> Array | None:
+    """Where a side lies past a cast shadow, at each place that shows one, or None (part c5).
+    The board's edge is a change of material; a cast shadow on the floor beside it is the
+    floor's own colour, darker, and as smooth as the floor (its grain dims with it). At each
+    place along the side, within SHADOW_WIDTH of the module's short side either way, the
+    board's edge is where the colour (Lab a and b) changes most from a dark, smooth stretch of
+    floor: darker than SHADOW_DARK of the floor's light further out, smoother than
+    SHADOW_SMOOTH. A side that shows it along SHADOW_SHARE of its places goes there, when that
+    moves it SHADOW_MOVE px or more."""
+    lab, grey, spread = maps
+    reach = max(10.0, SHADOW_WIDTH * short)
+    win = 5
+    offsets = np.arange(-reach - win - 1, reach + win + 1.01, 1.0)
+    points = base[:, None, :] + offsets[None, :, None] * normal[:, None, :]
+    light = _grey_at(grey, points)
+    smooth = _grey_at(spread, points)
+    colour = _sample(lab, points)[..., 1:]
+    floor = np.nanpercentile(np.where(offsets[None, :] <= 0, light, np.nan), 90, axis=1)
+    before_l, _ = _windowed(light, win)
+    before_s, _ = _windowed(smooth, win)
+    step = np.zeros_like(light)
+    shade = []
+    for c in range(2):
+        before, after = _windowed(colour[..., c], win)
+        step += (after - before) ** 2
+        shade.append(before)
+    step = np.sqrt(step)
+    # The floor's own colour (Lab a and b about grey) where it is lit, further out: a shadow
+    # on it keeps half of it at least, and the light off the floor around makes it warmer,
+    # never greener (SHADOW_GREEN).
+    lit = (offsets[None, :] <= 0) & (light >= 0.9 * floor[:, None])
+    tone = [np.nanmedian(np.where(lit, colour[..., c], np.nan), axis=1) - 128.0 for c in range(2)]
+    rich = np.hypot(shade[0] - 128.0, shade[1] - 128.0) >= 0.5 * np.hypot(*tone)[:, None]
+    warm = (shade[0] - 128.0) >= tone[0][:, None] - SHADOW_GREEN
+    same_hue = rich & warm
+    with np.errstate(invalid="ignore"):
+        # Nothing of the board between the floor and the shadow: no dark, grainy stretch
+        # further out (a dark, smooth stretch on the board itself is no shadow).
+        board = (before_l <= SHADOW_DARK * floor[:, None]) & (before_s > SHADOW_GRAIN)
+        # Grainy over a stretch wider than the grain is measured over: an edge alone is not.
+        stretch, _ = _windowed(board.astype(np.float64), 8)
+        seen = np.cumsum(np.nan_to_num(stretch) >= 0.99, axis=1) > 0
+        beyond = np.zeros_like(seen)
+        beyond[:, win:] = seen[:, :-win]
+        ok = (
+            (np.abs(offsets)[None, :] <= reach)
+            & (step >= SHADOW_STEP)
+            & (before_l <= SHADOW_DARK * floor[:, None])
+            & (before_s <= SHADOW_SMOOTH)
+            & same_hue
+            & ~beyond
+        )
+    score = np.where(ok, step, -1.0)
+    best = np.argmax(score, axis=1)
+    hit = score[np.arange(len(best)), best] > 0
+    if int(hit.sum()) < max(8, SHADOW_SHARE * len(base)):
+        return None
+    # The shadow ends, and the board begins, where the change has risen to half its height
+    # from the shadow's side: the change measured over 5 px either way peaks in the middle of
+    # the blur between them.
+    rows = np.nonzero(hit)[0]
+    moved = np.zeros(len(rows))
+    for k, row in enumerate(rows):
+        g = step[row]
+        j = int(best[row])
+        half = 0.5 * float(g[j])
+        while j > 0 and np.isfinite(g[j - 1]) and g[j - 1] >= half:
+            j -= 1
+        if j > 0 and np.isfinite(g[j - 1]) and g[j] > g[j - 1]:
+            moved[k] = offsets[j] - (g[j] - half) / (g[j] - g[j - 1])
+        else:
+            moved[k] = offsets[j]
+    # Whether the side moves is the changes' own places: a shadow too narrow to move it is none.
+    peaks = offsets[best[rows]]
+    third = max(1, len(peaks) // 3)
+    if max(abs(float(np.median(peaks[:third]))), abs(float(np.median(peaks[-third:])))) < (
+        SHADOW_MOVE
+    ):
+        return None
+    found: Array = base[rows] + moved[:, None] * normal[rows]
+    return found
+
+
+def _outer_edges(lab: NDArray[Any], base: Array, normal: Array, reach: float) -> Array:
+    """At each place, the outermost of the strong colour changes across the side within reach
+    (at least half the strongest there): the board's outer edge, not an edge on the board just
+    inside it, to a fraction of a px."""
+    step = 0.5
+    offsets = np.arange(-reach - 1, reach + 1.01, step)
+    values = _sample(lab, base[:, None, :] + offsets[None, :, None] * normal[:, None, :])
+    change = np.linalg.norm(values[:, 2:] - values[:, :-2], axis=-1)
+    middle = offsets[1:-1]
+    peak = np.zeros_like(change, dtype=bool)
+    peak[:, 1:-1] = (change[:, 1:-1] >= change[:, :-2]) & (change[:, 1:-1] >= change[:, 2:])
+    peak &= (np.abs(middle) <= reach)[None, :] & (change >= EDGE_LEAST)
+    top = np.where(peak, change, 0.0).max(axis=1)
+    strong = peak & (change >= 0.5 * top[:, None])
+    found = []
+    for row in np.nonzero(strong.any(axis=1))[0]:
+        j = int(np.argmax(strong[row]))
+        g = change[row]
+        y0, y1, y2 = g[j - 1], g[j], g[j + 1]
+        denominator = y0 - 2 * y1 + y2
+        shift = 0.5 * (y0 - y2) / denominator if denominator < 0 else 0.0
+        found.append(base[row] + (middle[j] + shift * step) * normal[row])
+    return np.array(found).reshape(-1, 2)
+
+
+def settle(
+    pixels: NDArray[Any],
+    corners: Array,
+    paths: list[Array] | None = None,
+    arcs: list[bool] | None = None,
+    reaches: list[float] | None = None,
+    shadows: bool = True,
+) -> Settled:
+    """The sides found once more in the full photo (part c5): at SETTLE_ROWS places along the
+    middle of each (its path: a line, or a curve module's arc), past a cast shadow beside it
+    (shadowed), else the outermost strong colour change across it within SETTLE_REACH of the
+    module's short side (or the side's own reach); a line through them, or a bow along an arc.
+    The corners are where the sides cross, never a rounded or chipped corner's own outline:
+    the places leave out the side's ends."""
+    maps = _maps(pixels)
+    corners = np.asarray(corners, np.float64)
+    centre = corners.mean(axis=0)
+    short = float(np.linalg.norm(np.roll(corners, -1, axis=0) - corners, axis=1).min())
+    bent = arcs or [False] * 4
+    sides: list[Array] = []
+    lines: list[tuple[Array, Array]] = []
+    bows: list[Bow | None] = []
+    residuals: list[float] = []
+    moved: list[Array | None] = []
+    for i in range(4):
+        path = paths[i] if paths is not None else np.array([corners[i], corners[(i + 1) % 4]])
+        base, normal = _rows(path, centre, SETTLE_ROWS)
+        past = shadowed(maps, base, normal, short) if shadows else None
+        moved.append(past)
+        reach = max(4.0, (reaches[i] if reaches is not None else SETTLE_REACH) * short)
+        points = past if past is not None else _outer_edges(maps[0], base, normal, reach)
+        if len(points) < 8:
+            return Settled(corners, [99.0] * 4, [])
+        line, rms, kept = _robust_line(points)
+        bow: Bow | None = None
+        if bent[i]:
+            bow, rms, kept = _robust_bow(points, corners[i], corners[(i + 1) % 4])
+        if past is not None:
+            # Past a shadow the places are coarser than an edge's: the lens sees them on
+            # their line or bow.
+            if bow is not None:
+                t = (kept - bow.origin) @ bow.u
+                kept = bow.point(t)
+            else:
+                origin, direction = line
+                kept = origin + np.outer((kept - origin) @ direction, direction)
+        sides.append(kept)
+        lines.append(line)
+        bows.append(bow)
+        residuals.append(rms)
+    return Settled(crossings(lines, bows), residuals, sides, list(bent), past=moved)
+
+
+@dataclass(frozen=True)
+class Settled(Found):
+    """The sides found once more (settle), and those moved past a shadow."""
+
+    past: list[Array | None] = field(default_factory=lambda: [None] * 4)
+
+
+@dataclass(frozen=True)
+class Bend:
+    """A curve module's outline (part c5): its long sides' radii, mm, and its angle, degrees,
+    from the owner's chord and sagitta (or the module's radius and angle) and its width."""
+
+    outer: float
+    inner: float
+    angle: float
+
+    def outline(self, places: int = 48) -> tuple[Array, list[Array]]:
+        """The corners in the module's plane (outer at gable A, outer at B, inner at B, inner
+        at A) and each side's path from corner i to i + 1: the outer arc, gable B, the inner
+        arc and gable A."""
+        turn = np.linspace(0.0, math.radians(self.angle), places)
+        outer = np.stack([self.outer * np.cos(turn), self.outer * np.sin(turn)], axis=1)
+        inner = np.stack([self.inner * np.cos(turn), self.inner * np.sin(turn)], axis=1)
+        corners = np.array([outer[0], outer[-1], inner[-1], inner[0]])
+        return corners, [outer, corners[[1, 2]], inner[::-1], corners[[3, 0]]]
+
+
+BEND_FIT = 0.03
+"""A curve's four corners that a turned and scaled outline of its shape does not fit within
+this share of their diagonal hold one that is wrong: the outline is put through three of them
+instead, the one that follows the photo's edges best (part c5)."""
+GABLE_REACH = 0.03
+"""A gable put by the curve's shape is looked for within this share of the short side."""
+
+
+def _similar(source: Array, target: Array) -> tuple[float, Array, Array]:
+    """The turn, scale and shift (no mirroring) that put the source points nearest the target
+    points (Umeyama): scale, rotation, shift."""
+    ms, mt = source.mean(axis=0), target.mean(axis=0)
+    s, t = source - ms, target - mt
+    u, sigma, vt = np.linalg.svd(t.T @ s / len(source))
+    d = np.eye(2)
+    if np.linalg.det(u @ vt) < 0:
+        d[1, 1] = -1
+    rotation = u @ d @ vt
+    scale = float(np.trace(np.diag(sigma) @ d) / max((s**2).sum() / len(source), 1e-12))
+    return scale, rotation, mt - scale * rotation @ ms
+
+
+def _along(lab: NDArray[Any], path: Array) -> float:
+    """How much the colour changes across a path, all along it: 0 to 1."""
+    tangent = np.gradient(path, axis=0)
+    tangent /= np.maximum(np.linalg.norm(tangent, axis=1), 1e-9)[:, None]
+    normal = np.stack([-tangent[:, 1], tangent[:, 0]], axis=1)
+    change = np.linalg.norm(
+        _sample(lab, path + 2 * normal) - _sample(lab, path - 2 * normal), axis=1
+    )
+    return float(np.minimum(change / EDGE_SATURATION, 1.0).mean())
+
+
+def bent_outline(
+    lab: NDArray[Any], quad: Array, bend: Bend
+) -> tuple[Array, list[Array], list[bool]] | None:
+    """The curve's outline put on the photo's four corners (clockwise), when they do not fit
+    its shape: through the three of them, and the way round, whose outline follows the edges
+    best (part c5). The corners, each side's path and which sides are arcs; None when the four
+    fit the shape within BEND_FIT."""
+    shape, paths = bend.outline()
+    diagonal = float(np.linalg.norm(quad[0] - quad[2]))
+    tried: list[tuple[float, float, Array, list[Array], list[bool]]] = []
+    for mirror in (1.0, -1.0):
+        flip = np.array([1.0, mirror])
+        corners_m, paths_m = shape * flip, [p * flip for p in paths]
+        for turn in range(4):
+            order = [(turn + k) % 4 for k in range(4)]
+            target = quad[order]
+            for left_out in (None, 0, 1, 2, 3):
+                keep = [k for k in range(4) if k != left_out]
+                scale, rotation, shift = _similar(corners_m[keep], target[keep])
+                placed = (scale * (rotation @ corners_m.T)).T + shift
+                misfit = float(np.linalg.norm(placed[keep] - target[keep], axis=1).max())
+                sides = [(scale * (rotation @ p.T)).T + shift for p in paths_m]
+                corners_out = np.zeros((4, 2))
+                paths_out: list[Array] = [np.zeros((0, 2))] * 4
+                arcs = [False] * 4
+                for k in range(4):
+                    corners_out[order[k]] = placed[k]
+                    paths_out[order[k]] = sides[k]
+                    arcs[order[k]] = k in (0, 2)
+                if left_out is None:
+                    tried.append((-1.0, misfit, corners_out, paths_out, arcs))
+                    continue
+                score = float(np.mean([_along(lab, p) for p in sides]))
+                tried.append((score - 2 * misfit / diagonal, misfit, corners_out, paths_out, arcs))
+    fitting = min((t for t in tried if t[0] == -1.0), key=lambda t: t[1])
+    if fitting[1] <= BEND_FIT * diagonal:
+        return None
+    best = max((t for t in tried if t[0] != -1.0), key=lambda t: t[0])
+    return best[2], best[3], best[4]
+
+
+def find(
+    pixels: NDArray[Any],
+    curve: bool = False,
+    aspect: float | None = None,
+    bend: Bend | None = None,
+) -> Found | None:
     """The module's four corners in the photo, or None when nothing four-sided stands out. A
     curve module's long sides may be arcs (curve): a side its outline shows bent is followed
     along its bow. A straight module's sides are lines, however the lens bends them. aspect: a
@@ -649,18 +1085,84 @@ def find(pixels: NDArray[Any], curve: bool = False, aspect: float | None = None)
     guides = _guides(mask, quad, factor) if curve else None
     full = _lab(pixels, 3)
     found = refine(full, corners, reach, guides)
-    if curve or aspect is None or len(found.sides) != 4:
-        return Found(found.corners, found.residuals, found.sides, found.bent)
+    if curve:
+        outline = None
+        if bend is not None and len(found.sides) == 4:
+            clean = cv2.resize(pixels, size, interpolation=cv2.INTER_AREA)
+            outline = bent_outline(_lab(clean), clockwise(found.corners) * factor, bend)
+        if outline is None:
+            return Found(found.corners, found.residuals, found.sides, found.bent)
+        # A corner the outline missed: the curve's shape put through the other three, and its
+        # sides found again along it, the gables within GABLE_REACH (part c5).
+        placed, paths, arcs = outline
+        settled = settle(
+            pixels,
+            placed / factor,
+            [p / factor for p in paths],
+            arcs,
+            [SETTLE_REACH if a else GABLE_REACH for a in arcs],
+        )
+        if len(settled.sides) != 4:
+            return Found(placed / factor, [99.0] * 4, [])
+        return replace(settled, outlines=_candidates([settled.corners, found.corners]))
+    if len(found.sides) != 4:
+        return found
     outline = clockwise(found.corners) * factor
-    if _off(outline, aspect) <= PROPORTION_SLACK:
-        return Found(found.corners, found.residuals, found.sides, found.bent)
-    # The outline is not the module's shape: its sides looked for again (part c3).
-    clean = cv2.resize(pixels, size, interpolation=cv2.INTER_AREA)
-    better = proportioned(_lab(clean), outline, aspect)
-    sharp = sharpen(full, better / factor, max(4.0, SHARPEN_PX / factor))
-    if len(sharp.sides) != 4:
-        return Found(better / factor, [99.0] * 4, [])
-    return sharp
+    # The camera as a phone's: the photo's middle, and its focal length from the size.
+    view = (focal_from_35mm((w, h), None) * factor, (w * factor / 2, h * factor / 2))
+    if aspect is not None and _off(outline, aspect) > PROPORTION_SLACK:
+        # The outline is not the module's shape: its sides looked for again (part c3).
+        clean = cv2.resize(pixels, size, interpolation=cv2.INTER_AREA)
+        better = proportioned(_lab(clean), outline, aspect)
+        if _off(better, aspect, view) > PROPORTION_TILTED:
+            # A tilted photo: the camera model does not see the module's proportions in the
+            # outline found, so its sides are looked for as the camera model has them (c5).
+            better = proportioned(_lab(clean), outline, aspect, view)
+        if min(_off(better, aspect), _off(better, aspect, view)) > 2 * PROPORTION_SLACK:
+            # No edges where the measures put the sides: the photo's own outline, and how far
+            # its proportions lie from the measures (part c5).
+            return _measured(found, factor, aspect, view)
+        sharp = sharpen(full, better / factor, max(4.0, SHARPEN_PX / factor))
+        if len(sharp.sides) != 4:
+            # No edge where the measures put the side: the photo's own outline, and how far
+            # its proportions lie from the measures (part c5).
+            return _measured(found, factor, aspect, view)
+        found = sharp
+    settled = settle(pixels, clockwise(found.corners))
+    if len(settled.sides) != 4:
+        return _measured(found, factor, aspect, view)
+    options = [settled.corners, found.corners]
+    if any(p is not None for p in settled.past):
+        # The same without moving past the shadows: the edge as the colour's strongest change.
+        plain = settle(pixels, clockwise(found.corners), shadows=False)
+        if len(plain.sides) == 4:
+            options.insert(1, plain.corners)
+    return _measured(replace(settled, outlines=_candidates(options)), factor, aspect, view)
+
+
+def _candidates(options: list[Array]) -> list[Array]:
+    """The outlines that differ by more than OUTLINE_SAME of the short side, the first (code's
+    own) first; none when they all agree."""
+    first = clockwise(np.asarray(options[0], np.float64))
+    short = float(np.linalg.norm(np.roll(first, -1, axis=0) - first, axis=1).min())
+    kept = [first]
+    for option in options[1:]:
+        quad = clockwise(np.asarray(option, np.float64))
+        if all(
+            float(np.linalg.norm(quad - other, axis=1).max()) > OUTLINE_SAME * short
+            for other in kept
+        ):
+            kept.append(quad)
+    return kept if len(kept) > 1 else []
+
+
+def _measured(found: Found, factor: float, aspect: float | None, view: View) -> Found:
+    """The outline with its proportions as the camera sees them, and how far they lie from
+    the module's measures."""
+    outline = clockwise(found.corners) * factor
+    seen = proportion(outline, view)
+    misfit = abs(math.log(seen / aspect)) if aspect is not None else 0.0
+    return replace(found, misfit=misfit, seen=seen)
 
 
 def through_lens(found: Found, centre: tuple[float, float], f: float, k: float) -> Array:

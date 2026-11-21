@@ -1,5 +1,5 @@
 {
-  "kalla": "Gårdsjö station (beslut CAD17, krav CAD-36): fotona ur ref/gardsjo/foto i trainmeet-spec, utan kamerans data (filerna har bara JFIF-huvudet), i originalets upplösning. Måtten och växlarna ur ref/gardsjo/station.json (modules[].size, gavlar, turnouts: nummer, mm från västra gaveln längs Kant 1, mm från Kant 1) och modulbladen ref/gardsjo/moduler/*.png (Kopplingar A → B), lästa 19 och 20 november 2026. Stationens gavel A är den västra. Hörnen är satta för hand i fotot, i fotots pixlar, så som ägaren bekräftar dem i Foto och kontroll. kant1 och gavel_a är fotots sidor (sida i går från hörn i till hörn i + 1, medurs från hörnet uppe till vänster) som ägaren trycker på: Gårdsjös moduler är mätta speglade mot CAD:s ritning (modulen ligger till vänster om Kant 1 från gavel A), så gavel A är sidan efter Kant 1. Därför är gavel_a, gavel_b, växlarnas lägen och förbindelserna stationens egna. Kurvorna har Kant 1 ytterst; radien är spår 1:s ur station.json, och kordan och pilhöjden ägaren mäter följer av den (CAD16). Växlarnas lägen på stationssidan är tungspetsarna, som specarbetet läste dem ur fotona och ägaren bekräftade (sektion 2: 112 och 113 tå mot tå, 32 mm isär; förgreningen: tungspetsen 57 mm från gaveln); i fotona syns tungspetsarnas dragstång där. De jämförs därför med kedjans tungspetsar (vaxel_lage: tungspetsar), inte med växelns nod i ritningen, som är där det ritade avvikande benets båge lämnar det raka (del c3). horn_ur_koden: koden hittar hörnen inom 1 % av modulens bredd från de handsatta, och testet läser fotot med kodens hörn, utom där las_med_hand och fallets källa säger varför inte (del c3); de handsatta står kvar som facit.",
+  "kalla": "Gårdsjö station (beslut CAD17, krav CAD-36): fotona ur ref/gardsjo/foto i trainmeet-spec, utan kamerans data (filerna har bara JFIF-huvudet), i originalets upplösning. Måtten och växlarna ur ref/gardsjo/station.json (modules[].size, gavlar, turnouts: nummer, mm från västra gaveln längs Kant 1, mm från Kant 1) och modulbladen ref/gardsjo/moduler/*.png (Kopplingar A → B), lästa 19 och 20 november 2026. Stationens gavel A är den västra. Hörnen är satta för hand i fotot, i fotots pixlar, så som ägaren bekräftar dem i Foto och kontroll. kant1 och gavel_a är fotots sidor (sida i går från hörn i till hörn i + 1, medurs från hörnet uppe till vänster) som ägaren trycker på: Gårdsjös moduler är mätta speglade mot CAD:s ritning (modulen ligger till vänster om Kant 1 från gavel A), så gavel A är sidan efter Kant 1. Därför är gavel_a, gavel_b, växlarnas lägen och förbindelserna stationens egna. Kurvorna har Kant 1 ytterst; radien är spår 1:s ur station.json, och kordan och pilhöjden ägaren mäter följer av den (CAD16). Växlarnas lägen på stationssidan är tungspetsarna, som specarbetet läste dem ur fotona och ägaren bekräftade (sektion 2: 112 och 113 tå mot tå, 32 mm isär; förgreningen: tungspetsen 57 mm från gaveln); i fotona syns tungspetsarnas dragstång där. De jämförs därför med kedjans tungspetsar (vaxel_lage: tungspetsar), inte med växelns nod i ritningen, som är där det ritade avvikande benets båge lämnar det raka (del c3). horn_ur_koden: koden hittar hörnen inom 1 % av modulens bredd från de handsatta, och testet läser fotot med kodens hörn (del c3; del c5: på alla fotona, och alla utom sektion 2 läses med dem, se dess källa); de handsatta står kvar som facit.",
   "fall": [
     {
       "foto": "infart-1.jpg",
@@ -21,7 +21,7 @@
     },
     {
       "foto": "sektion-2.jpg",
-      "kalla": "Sektion 2: 1220 × 480 mm; gavel A 140/196/270 och gavel B 140/196/285/343, status 'Uppmätt ur foto'. Växlarna 111 (57 mm, 196), 112 (583, 265) och 113 (615, 270); förbindelserna A1–B1, A2–B2, A2 → B3/B4 via 111, 112 och 113, A3 → B3/B4 (modulbladet). Profilen är osymmetrisk (3 spår mot 4): Kant 1 och gavel A härleds.",
+      "kalla": "Sektion 2: 1220 × 480 mm; gavel A 140/196/270 och gavel B 140/196/285/343, status 'Uppmätt ur foto'. Växlarna 111 (57 mm, 196), 112 (583, 265) och 113 (615, 270); förbindelserna A1–B1, A2–B2, A2 → B3/B4 via 111, 112 och 113, A3 → B3/B4 (modulbladet). Profilen är osymmetrisk (3 spår mot 4): Kant 1 och gavel A härleds. Del c5: till höger ligger modulens skugga på golvet, mörk och varmare än golvet; del c3 tog dess yttre kant för brädans (12,5 mm fel). Koden går nu förbi skuggan till där materialet byter (2,5 mm), men fotot läses ändå med de handsatta (las_med_hand): med kodens hörn hamnar tungspetsarna för 112 och 113 (tå mot tå, 32 mm isär) än vid 600 och 629, än vid 629 och 646 mm, när hörnen flyttas en halv pixel, och den andra läsningen lämnar 112 63,8 mm från stationens, utanför växeltoleransen 60. Det är växelläsningen som är känslig, inte hörnen (del c5).",
       "form": "straight",
       "bredd": 480,
       "langd": 1220,
@@ -33,7 +33,8 @@
       "forbindelser": ["A1-B1", "A2-B2", "A2-B3", "A2-B4", "A3-B3", "A3-B4"],
       "vaxlar": [[57, 196], [583, 265], [615, 270]],
       "harleds": true,
-      "horn_ur_koden": false,
+      "horn_ur_koden": true,
+      "las_med_hand": true,
       "vaxel_lage": "tungspetsar",
       "vaxel_median_mm": 25.0,
       "minst_hittade": 7,
@@ -65,7 +66,7 @@
     },
     {
       "foto": "sektion-8.jpg",
-      "kalla": "Sektion 8: 900 × 337 mm, bredden bekräftad av ägaren; gavel A 140/194 och gavel B 140/197, status 'Uppmätt ur foto'. Överkorsningen 152 (62 mm, 194) och 151 (772, 140): A2 → B1 (modulbladet). Stationssidan säger att spår 2 avviker 3 mm från parallellt; fotot ger ungefär 197 vid båda gavlarna. 140/194 mot 140/197 skiljer för lite för att härleda Kant 1 och gavel A.",
+      "kalla": "Sektion 8: 900 × 337 mm, bredden bekräftad av ägaren; gavel A 140/194 och gavel B 140/197, status 'Uppmätt ur foto'. Överkorsningen 152 (62 mm, 194) och 151 (772, 140): A2 → B1 (modulbladet). Stationssidan säger att spår 2 avviker 3 mm från parallellt; fotot ger ungefär 197 vid båda gavlarna. 140/194 mot 140/197 skiljer för lite för att härleda Kant 1 och gavel A. Del c5: nere till höger ligger modulens skugga på golvet, mörk som gräset; koden går förbi den till brädans kant, och vänster sida är brädans yttre kant, inte gräsets (del c3: 6,1 mm fel, nu 2,7). Läst med kodens hörn: längden 899,1.",
       "form": "straight",
       "bredd": 337,
       "langd": 900,
@@ -77,7 +78,7 @@
       "forbindelser": ["A1-B1", "A2-B2", "A2-B1"],
       "vaxlar": [[62, 194], [772, 140]],
       "harleds": false,
-      "horn_ur_koden": false,
+      "horn_ur_koden": true,
       "vaxel_lage": "tungspetsar",
       "vaxel_median_mm": 35.0,
       "minst_hittade": 4,
@@ -87,7 +88,7 @@
     },
     {
       "foto": "infart-2.jpg",
-      "kalla": "Infart 2: kurvmodul 550 / 491 × 337 mm, 10°, R 3014 / 2957 (spår 1 / spår 2) ur ägarens SketchUp, Kant 1 ytterst, spåren 140 och 197 vid båda gavlarna (station.json). 550 och 491 är kordorna längs Kant 1 och den inre kanten: 2 · 3154 · sin 5° = 550 och 2 · 2817 · sin 5° = 491, så kordan och pilhöjden ägaren mäter på spår 1 ger 10° och R 3014. Stationssidans 'Fotot gav R 2980 / 3037 och 12°' är specarbetets avläsning, inte modulen. Hörnen är de koden hittade när fallet sattes i del c2; koden hittar dem nu, som vid del c2:s slut, högst 3,8 px därifrån (1,9 mm, inom 1 % av bredden), men fotot läses med fallets (las_med_hand): med kodens hamnar gavel A:s spår 1 6,9 mm fel, för nära toleransen. Med fallets hamnar det 6,4 mm fel (toleransen 7 mm, satt i del c2 för det här nya fallet): fotot har 1,1 px/mm. Långsidornas kanter ligger under gräs och är för otydliga för bågkontrollen (kanter: oklara).",
+      "kalla": "Infart 2: kurvmodul 550 / 491 × 337 mm, 10°, R 3014 / 2957 (spår 1 / spår 2) ur ägarens SketchUp, Kant 1 ytterst, spåren 140 och 197 vid båda gavlarna (station.json). 550 och 491 är kordorna längs Kant 1 och den inre kanten: 2 · 3154 · sin 5° = 550 och 2 · 2817 · sin 5° = 491, så kordan och pilhöjden ägaren mäter på spår 1 ger 10° och R 3014. Stationssidans 'Fotot gav R 2980 / 3037 och 12°' är specarbetets avläsning, inte modulen. Hörnen är de koden hittade när fallet sattes i del c2; koden hittar dem nu, som vid del c2:s slut, högst 3,8 px därifrån (1,9 mm, inom 1 % av bredden), och fotot läses med dem (del c5): gavel A:s spår 1 hamnar 6,9 mm fel (med fallets hörn 6,4; toleransen 7 mm, satt i del c2 för det här nya fallet). Båda spåren vid gavel A ligger 5–7 mm fel åt samma håll: hörnet vid Kant 1 ligger under gräs, och var brädans kant är där avgör inte fotot. Långsidornas kanter ligger under gräs och är för otydliga för bågkontrollen (kanter: oklara).",
       "form": "curve",
       "bredd": 337,
       "radie_spar1": 3014,
@@ -101,14 +102,13 @@
       "vaxlar": [],
       "harleds": false,
       "horn_ur_koden": true,
-      "las_med_hand": true,
       "kanter": "oklara",
       "minst_hittade": 4,
       "tolerans_mm": 7.0
     },
     {
       "foto": "sektion-3-5.jpg",
-      "kalla": "Sektion 3 (och 4 och 5, lika): kurvmodul 932 / 848 × 480 mm, 10°, fyra koncentriska bågar R 5201 / 5144 / 5058 / 5001 (spår 1–4), Kant 1 ytterst, spåren 140/197/283/340 vid båda gavlarna (station.json). Hörnen är satta för hand: koden hittar inte hörnet uppe till vänster, där en grå kant och gräs ligger mot golvet. Del c2 hittade spår 1 och 4 vid båda gavlarna och förbindelserna A1–B1 och A4–B4; spår 2 och 3 gav vägar med knyckar (skarpast R 130–150 mm). Del c3 följer modulens bågar: spår 2 och 3 syns inte i remsan vid gavel A men är koncentriska bågar från gavel B, och kartan ligger på dem, så alla fyra spåren och förbindelserna hittas (gavel A: 142, 199, 284, 341). Gavel B är för smal i mätbilden: spår 4 hamnar 11,5 mm fel, som i c2, och rälsen mätt direkt vid gavel B ligger 187 mm isär från spår 1 till 4. Det kommer inte från hörnet nere till vänster, som ligger på gräs som hänger över gaveln: satt på brädans kant blir gaveln smalare, inte bredare. Toleransen är 12 mm, som i c2. Långsidornas kanter ligger under gräs och är för otydliga för bågkontrollen (kanter: oklara).",
+      "kalla": "Sektion 3 (och 4 och 5, lika): kurvmodul 932 / 848 × 480 mm, 10°, fyra koncentriska bågar R 5201 / 5144 / 5058 / 5001 (spår 1–4), Kant 1 ytterst, spåren 140/197/283/340 vid båda gavlarna (station.json). Hörnen är satta för hand. Del c3 hittade inte hörnet uppe till vänster, där en grå kant och gräs ligger mot golvet (113 mm fel); del c5 lägger kurvans form (två koncentriska bågar och två raka gavlar ur radien, vinkeln och bredden) genom de tre andra hörnen och söker sidorna längs den, förbi skuggan nere till höger: högst 2,7 mm från de handsatta, och fotot läses med kodens hörn. Del c2 hittade spår 1 och 4 vid båda gavlarna och förbindelserna A1–B1 och A4–B4; spår 2 och 3 gav vägar med knyckar (skarpast R 130–150 mm). Del c3 följer modulens bågar: spår 2 och 3 syns inte i remsan vid gavel A men är koncentriska bågar från gavel B, och kartan ligger på dem, så alla fyra spåren och förbindelserna hittas (gavel A: 142, 199, 284, 341). Gavel B är för smal i mätbilden: spår 4 hamnade 11,5 mm fel, som i c2, och rälsen mätt direkt vid gavel B ligger 187 mm isär från spår 1 till 4. Del c5 mäter en kurvmoduls gavelspår kring kurvans mittpunkt (där gavlarna möts) över 150 mm i stället för 60: spår 4 9,0 mm fel, och en topp i gavelremsan som inte är spår hindrar inte längre bågen från den andra gaveln. Det kommer inte från hörnet nere till vänster, som ligger på gräs som hänger över gaveln: satt på brädans kant blir gaveln smalare, inte bredare. Toleransen är 12 mm, som i c2. Långsidornas kanter ligger under gräs och är för otydliga för bågkontrollen (kanter: oklara).",
       "form": "curve",
       "bredd": 480,
       "radie_spar1": 5201,
@@ -121,7 +121,7 @@
       "forbindelser": ["A1-B1", "A2-B2", "A3-B3", "A4-B4"],
       "vaxlar": [],
       "harleds": false,
-      "horn_ur_koden": false,
+      "horn_ur_koden": true,
       "kanter": "oklara",
       "minst_hittade": 8,
       "tolerans_mm": 12.0

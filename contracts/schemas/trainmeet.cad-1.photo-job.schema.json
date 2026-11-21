@@ -247,6 +247,33 @@
           "default": null,
           "description": "Why they were derived, or why the owner must tap them.",
           "title": "Why"
+        },
+        "outlines": {
+          "description": "Code is not sure (part c5): Vilken kontur följer modulens kant? Its own first. Read with AI, the AI answers when the corners are left as code put them; without, the owner picks one, or drags the corners.",
+          "items": {
+            "$ref": "#/$defs/PhotoOutline"
+          },
+          "title": "Outlines",
+          "type": "array"
+        },
+        "chosen": {
+          "anyOf": [
+            {
+              "enum": [
+                "rod",
+                "bla",
+                "gul",
+                "ingen"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The outline the AI chose, when it was asked.",
+          "title": "Chosen"
         }
       },
       "required": [
@@ -537,6 +564,38 @@
       "title": "PhotoLevel",
       "type": "string"
     },
+    "PhotoMark": {
+      "additionalProperties": true,
+      "description": "A place marked in a question's picture: a track's end at a bridge, A, B, C …",
+      "properties": {
+        "label": {
+          "pattern": "^[A-Z]{1,2}$",
+          "title": "Label",
+          "type": "string"
+        },
+        "at": {
+          "description": "mm, in the module's coordinates.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "At",
+          "type": "array"
+        }
+      },
+      "required": [
+        "label",
+        "at"
+      ],
+      "title": "PhotoMark",
+      "type": "object"
+    },
     "PhotoMeasure": {
       "additionalProperties": true,
       "description": "Dina mått mot fotot: the owner's measure, or the norm's, against the photo's.",
@@ -623,6 +682,54 @@
         "agrees"
       ],
       "title": "PhotoMeasure",
+      "type": "object"
+    },
+    "PhotoOutline": {
+      "additionalProperties": true,
+      "description": "One of the outlines code found when it is not sure which follows the module's edge\n(part c5): drawn in its colour over the photo, its corners in the preview's pixels.",
+      "properties": {
+        "id": {
+          "enum": [
+            "rod",
+            "bla",
+            "gul"
+          ],
+          "title": "Id",
+          "type": "string"
+        },
+        "text": {
+          "description": "The colour's name, as the owner sees it.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "corners": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "type": "array"
+          },
+          "maxItems": 4,
+          "minItems": 4,
+          "title": "Corners",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "corners"
+      ],
+      "title": "PhotoOutline",
       "type": "object"
     },
     "PhotoPrice": {
@@ -809,6 +916,29 @@
           "default": null,
           "description": "What the AI says from the close-up.",
           "title": "Closeup Ai"
+        },
+        "marks": {
+          "description": "The places the choices name, marked in the picture.",
+          "items": {
+            "$ref": "#/$defs/PhotoMark"
+          },
+          "title": "Marks",
+          "type": "array"
+        },
+        "span": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "maximum": 20000,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How much of the module around it to show, mm across.",
+          "title": "Span"
         }
       },
       "required": [
@@ -834,7 +964,9 @@
         "switch_fit",
         "sleepers",
         "curve",
-        "orientation"
+        "orientation",
+        "bridge",
+        "wedge"
       ],
       "title": "PhotoQuestionKind",
       "type": "string"

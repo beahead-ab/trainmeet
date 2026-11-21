@@ -1575,6 +1575,42 @@
   fill: none;
   stroke: var(--cad-orange);
 }
+/* The ends a bridge's question names, A, B, C … (part c5). */
+.cad-osakert-mark circle {
+  fill: none;
+  stroke: var(--cad-orange);
+}
+.cad-osakert-mark text {
+  fill: #111827;
+  stroke: #fff;
+  stroke-width: 3px;
+  paint-order: stroke;
+  font-weight: 700;
+}
+/* The outlines code found when it is not sure of the corners (part c5). */
+.cad-kontur {
+  fill: none;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+.cad-kontur-rod {
+  stroke: #e11d48;
+}
+.cad-kontur-bla {
+  stroke: #2563eb;
+}
+.cad-kontur-gul {
+  stroke: #eab308;
+}
+.cad-kontur-val.cad-kontur-rod {
+  border-color: #e11d48;
+}
+.cad-kontur-val.cad-kontur-bla {
+  border-color: #2563eb;
+}
+.cad-kontur-val.cad-kontur-gul {
+  border-color: #eab308;
+}
 .cad-val {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));

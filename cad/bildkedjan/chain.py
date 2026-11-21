@@ -47,7 +47,7 @@ def _array(values: Array) -> list[list[float]]:
     return [[round(float(v), 4) for v in row] for row in np.atleast_2d(values)]
 
 
-CHAIN_VERSION = "3.0.0"
+CHAIN_VERSION = "3.1.0"
 """The measuring code's version: part of every job's key (bildkedjan, Jobbet är nyckeln)."""
 PROFILE = "modulfoto"
 RAIL_HEIGHT = {Scale.H0: 7.0, Scale.N: 4.0, Scale.ZERO: 14.0}
@@ -59,6 +59,11 @@ CORNER_SIGMA_OWNER = 1.5
 """How well an owner places a corner, px."""
 GABLE_FIT_MM = (3.0, 60.0)
 """The stretch at a gable the track's position from Kant 1 is measured over."""
+CURVE_FIT_MM = (3.0, 150.0)
+"""On a curve module, where the tracks are arcs about the curve's centre and cross the gables
+square, the track's distance from Kant 1 is measured about that centre over this stretch: a
+longer stretch than a straight module's, so that a few millimetres the measuring image bends
+at the very gable do not decide it (part c5)."""
 
 
 def version_key() -> dict[str, str]:
@@ -102,10 +107,16 @@ class Prepared:
         return corners_.through_lens(self.found, centre, focal, self.lens)
 
 
-def prepare(intakes: list[Intake], curve: bool = False, aspect: float | None = None) -> Prepared:
+def prepare(
+    intakes: list[Intake],
+    curve: bool = False,
+    aspect: float | None = None,
+    bend: corners_.Bend | None = None,
+) -> Prepared:
     """The photos as one, and the module's corners in it, if code finds them; a curve module's
     long sides as arcs (curve); a straight module's length over its width, when known, decides
-    which edges are its sides (aspect, part c3)."""
+    which edges are its sides (aspect, part c3), and a curve's shape its outline (bend, part
+    c5)."""
     steady()
     first = intakes[0]
     if len(intakes) == 1:
@@ -115,10 +126,10 @@ def prepare(intakes: list[Intake], curve: bool = False, aspect: float | None = N
     else:
         mosaic = stitch.stitch([i.pixels for i in intakes])
         pixels, origin = mosaic.pixels, mosaic.origin
-    found = corners_.find(pixels, curve, aspect)
+    found = corners_.find(pixels, curve, aspect, bend)
     size = (first.width, first.height)
     lens = 0.0
-    if found is not None and len(intakes) == 1:
+    if found is not None and len(intakes) == 1 and len(found.sides) == 4:
         # A curve module's long sides are arcs: the lens makes them circles, the others lines.
         lens = cam.lens(
             found.sides,
@@ -136,6 +147,24 @@ def aspect_of(kind: str, width: float | None, length: float | None) -> float | N
     if kind != "straight" or not width or not length:
         return None
     return float(length) / float(width)
+
+
+def bend_of(
+    kind: str,
+    width: float | None,
+    edge_radius: float | None,
+    angle: float | None,
+    edge: str = "outer",
+    sides: str = "bent",
+) -> corners_.Bend | None:
+    """A curve module's outline from Kant 1's radius, which edge Kant 1 is, its width and its
+    angle, when known and the box's long sides are bent (corners.find, part c5)."""
+    if kind != "curve" or sides != "bent" or not width or not edge_radius or not angle:
+        return None
+    other = edge_radius - width if edge == "outer" else edge_radius + width
+    if other <= 0:
+        return None
+    return corners_.Bend(max(edge_radius, other), min(edge_radius, other), float(angle))
 
 
 def ordered(corners: Array, kant1: int, gable_a: int | None = None) -> Array:
@@ -532,7 +561,7 @@ def _measure(prepared: Prepared, setup: Setup) -> Measured:
         # drawn only if the owner says so, as it was found.
         if p.status != "none":
             p.ys = trackmap.refine_path(gray2, grid, p.xs, p.ys, profile)
-    terminals = _measured_gables(terminals, found_paths, strips)
+    terminals = _measured_gables(terminals, found_paths, strips, shape.curved)
     stitch_mm = None
     if prepared.mosaic is not None:
         stitch_mm = stitch.residual_mm(prepared.mosaic, np.linalg.inv(camera.plane_at(rail)))
@@ -631,11 +660,28 @@ def _shifted(camera: Camera, shift: Array) -> Camera:
     )
 
 
+def _curve_centre(strips: list[trackmap.GableStrip]) -> Array | None:
+    """Where a curve module's gables cross: its centre, when they are not near parallel."""
+    a, b = strips
+    if abs(a.along[0] * b.along[1] - a.along[1] * b.along[0]) < math.sin(math.radians(1.0)):
+        return None
+    found: Array = cam.intersect(
+        (np.array(a.corner), np.array(a.along)), (np.array(b.corner), np.array(b.along))
+    )
+    return found
+
+
 def _measured_gables(
-    terminals: list[Terminal], found: list[Path], strips: list[trackmap.GableStrip]
+    terminals: list[Terminal],
+    found: list[Path],
+    strips: list[trackmap.GableStrip],
+    curved: bool = False,
 ) -> list[Terminal]:
     """Each gable's track where its path, fitted as a straight line over GABLE_FIT_MM, meets
-    the gable: the position from Kant 1 to a fraction of a millimetre (bildkedjan step 13)."""
+    the gable: the position from Kant 1 to a fraction of a millimetre (bildkedjan step 13). On
+    a curve module the position is the path's distance from Kant 1 about the curve's centre,
+    over CURVE_FIT_MM (part c5)."""
+    centre = _curve_centre(strips) if curved else None
     measured: list[Terminal] = []
     for t in terminals:
         if t.kind != "gable":
@@ -651,7 +697,16 @@ def _measured_gables(
             pts = p.points() - corner
             depth = pts @ inward
             v = pts @ along
-            sel = (depth >= GABLE_FIT_MM[0]) & (depth <= GABLE_FIT_MM[1])
+            near, far = GABLE_FIT_MM
+            if centre is not None:
+                # About the centre: how far the path lies from Kant 1's arc.
+                out = corner - centre
+                sign = 1.0 if float(along @ out) < 0 else -1.0
+                v = sign * (
+                    float(np.linalg.norm(out)) - np.linalg.norm(p.points() - centre, axis=1)
+                )
+                near, far = CURVE_FIT_MM
+            sel = (depth >= near) & (depth <= far)
             if sel.sum() >= 10:
                 _, intercept = np.polyfit(depth[sel], v[sel], 1)
                 vs.append(float(intercept))

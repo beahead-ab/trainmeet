@@ -393,6 +393,41 @@ CONCENTRIC_SIDE_MM = 3.0
 """And may lie this far beside the arc and still be on it, where the photo's track wanders."""
 
 
+def _on_arc(
+    cols: Columns, shape: Shape, v_a: float, v_b: float
+) -> tuple[Array, Array, float, int, Array] | None:
+    """The arc from gable A to gable B, its distance from Kant 1 going from v_a to v_b, when
+    the map is on it as for any path (TRACK_SHARE, GAP_MM), within CONCENTRIC_SIDE_MM beside
+    it: x, y, the share on it, the longest gap and the map along it."""
+    assert shape.angle is not None
+    angles = np.linspace(0.0, shape.angle, 400)
+    arc = np.array([shape.point(v_a + (v_b - v_a) * a / shape.angle, float(a)) for a in angles])
+    if (np.diff(arc[:, 0]) <= 0).any():
+        return None
+    xs = np.arange(math.ceil(arc[0, 0]), math.floor(arc[-1, 0]) + 1, CONCENTRIC_STEP)
+    if len(xs) < 20:
+        return None
+    ys = np.interp(xs, arc[:, 0], arc[:, 1])
+    best = np.max(
+        np.stack(
+            [
+                sample_map(cols, xs, ys + side)
+                for side in np.arange(-CONCENTRIC_SIDE_MM, CONCENTRIC_SIDE_MM + 0.01, Y_STEP)
+            ]
+        ),
+        axis=0,
+    )
+    on = best >= TRACK_SCORE
+    share = float(on.mean())
+    gap = longest = 0
+    for value in on:
+        gap = 0 if value else gap + 1
+        longest = max(longest, gap)
+    if share < TRACK_SHARE or longest > GAP_MM:
+        return None
+    return xs, ys, share, longest, best
+
+
 def concentric(
     cols: Columns,
     terminals: list[Terminal],
@@ -424,45 +459,31 @@ def concentric(
             v = along(t)
             others = gables[other_end] + [m for m in made if m.gable == other_end]
             near = min(others, key=lambda o: abs(along(o) - v), default=None)
-            target = near if near is not None and abs(along(near) - v) <= gauge else None
             if any(t.id in (p.a, p.b) for p in added) or any(
                 t.id in (p.a, p.b) and p.status == "track" for p in found
             ):
                 continue
+            # To the other gable's track within a gauge, else (or when that is no arc the map
+            # follows: a peak in its strip that is something else, part c5) at its own
+            # distance from Kant 1, with a new gable end there.
+            tries: list[Terminal | None] = [None]
+            if near is not None and abs(along(near) - v) <= gauge:
+                tries.insert(0, near)
+            chosen: tuple[Terminal | None, Array, Array, float, int, Array] | None = None
+            for target in tries:
+                v_other = along(target) if target is not None else v
+                v_a, v_b = (v, v_other) if start_end == "A" else (v_other, v)
+                if not (0 < v_a < shape.width_a and 0 < v_b < shape.width_b):
+                    continue
+                on_arc = _on_arc(cols, shape, v_a, v_b)
+                if on_arc is not None:
+                    chosen = (target, *on_arc)
+                    break
+            if chosen is None:
+                continue
+            target, xs, ys, share, longest, best = chosen
             v_other = along(target) if target is not None else v
             v_a, v_b = (v, v_other) if start_end == "A" else (v_other, v)
-            if not (0 < v_a < shape.width_a and 0 < v_b < shape.width_b):
-                continue
-            # The arc from gable A to gable B, its distance from Kant 1 going from v_a to v_b.
-            angles = np.linspace(0.0, shape.angle, 400)
-            arc = np.array(
-                [shape.point(v_a + (v_b - v_a) * a / shape.angle, float(a)) for a in angles]
-            )
-            if (np.diff(arc[:, 0]) <= 0).any():
-                continue
-            xs = np.arange(math.ceil(arc[0, 0]), math.floor(arc[-1, 0]) + 1, CONCENTRIC_STEP)
-            if len(xs) < 20:
-                continue
-            ys = np.interp(xs, arc[:, 0], arc[:, 1])
-            best = np.max(
-                np.stack(
-                    [
-                        sample_map(cols, xs, ys + side)
-                        for side in np.arange(
-                            -CONCENTRIC_SIDE_MM, CONCENTRIC_SIDE_MM + 0.01, Y_STEP
-                        )
-                    ]
-                ),
-                axis=0,
-            )
-            on = best >= TRACK_SCORE
-            share = float(on.mean())
-            gap = longest = 0
-            for value in on:
-                gap = 0 if value else gap + 1
-                longest = max(longest, gap)
-            if share < TRACK_SHARE or longest > GAP_MM:
-                continue
             if target is None:
                 strip = strips[1 if start_end == "A" else 0]
                 at = strip.points(np.array([v]), 0.0)[0]

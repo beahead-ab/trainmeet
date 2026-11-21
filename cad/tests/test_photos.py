@@ -6,6 +6,7 @@ rights. The chain runs on a synthetic photo (cad/bildkedjan/syntetisk.py)."""
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from functools import cache
 from typing import Any
@@ -14,6 +15,7 @@ from uuid import UUID
 import numpy as np
 import pytest
 
+from cad.bildkedjan import corners as corners_
 from cad.bildkedjan import intake, syntetisk
 from cad.bildkedjan.corners import clockwise
 from cad.tests.conftest import API, CLUB, A, B, World
@@ -99,6 +101,64 @@ def test_the_upload_takes_out_the_metadata_and_finds_the_corners(world: World) -
     module = world.as_(A.id).get(f"{API}/modules/{job['module']}").json()
     assert module["name"] == "Fotomodul"
     assert module["shape"]["width"] == 480
+
+
+def test_a_photo_that_does_not_fit_the_measures_is_a_question_not_an_error(
+    world: World,
+) -> None:
+    """Part c5 (#90): a 1200 × 480 module photographed, sent as 1500 × 500. No edge lies where
+    the measures put the module's side, so its corners are where the photo shows them, and the
+    owner is told that the measures and the photo do not agree, never a server error."""
+    photo = syntetisk.take(syntetisk.straight_scene(), syntetisk.Shot(size=(1600, 1200)))
+    job = upload(world, A.id, photo.jpeg, width=500, length=1500)
+    assert job["state"] == "corners"
+    corners = job["corners"]
+    assert corners["found"] and not corners["certain"]
+    assert "måtten säger 3,0" in corners["why"], corners["why"]
+    found = np.array(corners["corners"], np.float64) / on_preview(job, photo)
+    assert np.abs(found - clockwise(np.array(photo.corners))).max() < 8
+
+
+def test_corners_code_is_not_sure_of_are_a_hard_question_inside_the_price(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Part c5: when code finds two outlines that differ by more than 1 % of the module's
+    width, the owner sees both in their colours (Vilken kontur följer modulens kant?). Read
+    with AI and the corners left as code put them, the AI is asked first, as a hard question
+    (CAD18) on the corners enlarged, inside the image's 12 tokens with the connections; code
+    refines the outline it chose and reads the photo with it."""
+    real = corners_.find
+
+    def unsure(*args: Any, **kwargs: Any) -> corners_.Found | None:
+        found = real(*args, **kwargs)
+        assert found is not None
+        other = clockwise(found.corners).copy()
+        other[[2, 3], 1] += 30.0
+        return replace(found, outlines=[clockwise(found.corners), other])
+
+    monkeypatch.setattr(corners_, "find", unsure)
+    photo = straight()
+    connections = truth_answer(syntetisk.straight_scene(), {("A1", "B1"), ("A2", "B2")})
+
+    def ai(prompt: str) -> str:
+        if "Vilken kontur följer modulens kant?" in prompt:
+            return json.dumps({"svar": "bla", "osakert": ""})
+        return str(connections(prompt))
+
+    world.id.answer = ai
+    job = upload(world, A.id, photo.jpeg, width=480, length=1200)
+    corners = job["corners"]
+    assert [o["id"] for o in corners["outlines"]] == ["rod", "bla"]
+    assert not corners["certain"] and "Vilken kontur" in corners["why"]
+    start = world.id.balance
+    done = read(world, A.id, job, photo, ai=True, consent=True)
+    assert done["state"] == "done", done["message"]
+    assert done["cost"] == 12 and world.id.balance == start - 12
+    assert world.id.hard == [True, False]
+    assert done["corners"]["chosen"] == "bla"
+    blue = np.array(corners["outlines"][1]["corners"], np.float64)
+    used = clockwise(np.array(done["corners"]["corners"], np.float64))
+    assert float(np.abs(used - clockwise(blue)).max()) <= 4.0
 
 
 def test_a_photo_read_without_ai_gives_a_track_plan_with_questions(world: World) -> None:

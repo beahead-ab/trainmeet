@@ -111,6 +111,7 @@ describe("a curve module from a photo", () => {
           code: null,
           closeup: false,
           closeup_ai: null,
+          span: null,
         },
       ],
     };

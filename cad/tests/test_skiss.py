@@ -13,6 +13,7 @@ committed, they are put beside it and the test reads them from there.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
 import os
@@ -24,6 +25,7 @@ from uuid import UUID
 import numpy as np
 import pytest
 
+from cad import curves, sketches
 from cad.bildkedjan import chain, intake, skiss, syntetisk
 from cad.editor import Drawing
 from cad.tests.conftest import API, A, World
@@ -209,6 +211,95 @@ def test_fran_skiss_reads_a_frame_with_ai_only_where_code_cannot_decide(world: W
     assert module["shape"] == {"kind": "straight", "length": 1500.0, "width": 600.0}
 
 
+def _depot_job(world: World, answer: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    """The synthetic depot sketch uploaded and read with AI: the AI answers the bridge's
+    question as given (part c5)."""
+
+    def ai(prompt: str) -> str:
+        assert "Vilka spårändar hänger ihop under bron?" in prompt, prompt
+        return json.dumps({"svar": answer, "osakert": ""})
+
+    world.id.answer = ai
+    drawn = syntetisk.depot_sketch()
+    files: list[tuple[str, Any]] = [
+        (
+            "data",
+            (
+                None,
+                json.dumps({"profile": "skiss", "kind": "straight", "width": 700, "length": 1500}),
+                "application/json",
+            ),
+        ),
+        ("images", ("skiss.jpg", drawn.jpeg, "image/jpeg")),
+    ]
+    uploaded = world.as_(A.id).post(PHOTOS, files=files)
+    assert uploaded.status_code == 201, uploaded.text
+    job = uploaded.json()
+    # The frame in faint pencil with its corner cut, found by code.
+    assert len(job["frames"]) == 1
+    frame = job["frames"][0]
+    body = {"corners": frame["corners"], "kant1": frame["kant1"], "frame": 0, "ai": True}
+    body["consent"] = True
+    answered = world.as_(A.id).post(f"{PHOTOS}/{job['id']}/read", json=body)
+    assert answered.status_code == 200, answered.text
+    world.app.state.photos.work()
+    done = world.as_(A.id).get(f"{PHOTOS}/{job['id']}").json()
+    assert done["state"] == "done", done["message"]
+    return job, done
+
+
+def _straights(points: list[tuple[float, float]], min_radius: float) -> list[curves.Seg]:
+    """The ink as straights every 100 mm: the geometry is another test's (Ren geometri takes
+    seconds a piece); here it is the question's way through the service."""
+    del min_radius
+    kept = [points[0]]
+    for p in points[1:]:
+        if math.dist(p, kept[-1]) >= 100.0:
+            kept.append(p)
+    if kept[-1] != points[-1]:
+        kept.append(points[-1])
+    return [curves.Line(a, b) for a, b in itertools.pairwise(kept) if math.dist(a, b) > 0]
+
+
+def test_a_bridge_code_is_not_sure_of_is_a_hard_question_the_owner_decides(
+    world: World, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Part c5: a track parting under a bridge drawn over the tracks. The AI is asked about it
+    with fixed answers, as a hard question (CAD18), on a crop around the bridge, inside the
+    sketch's 12 tokens. It says the track ends at the bridge: the sketch is read so, and the
+    owner is asked, with code's and the AI's answers and the ends marked; answered as code
+    reads it, the sketch is read again so. The same question is never asked twice."""
+    monkeypatch.setattr(skiss, "_fit", _straights)
+    start = world.id.balance
+    job, done = _depot_job(world, "slutar")
+    assert done["cost"] == 12 and world.id.balance == start - 12
+    assert world.id.reads == 1 and world.id.hard == [True]
+    asked = [q for q in done["questions"] if q["kind"] == "bridge"]
+    assert len(asked) == 1
+    question = asked[0]
+    assert question["code"] == "grenar" and question["ai"] == "slutar"
+    assert question["answer"] is None and question["topology"]
+    assert {c["id"] for c in question["choices"]} == {"grenar", "slutar"}
+    assert [m["label"] for m in question["marks"]] == ["A", "B", "C", "D", "E"]
+    assert {f["key"]: f for f in done["facts"]}["vaxlar"]["value"] == 1
+    answer = {"answers": [{"key": question["key"], "answer": "grenar"}]}
+    given = world.as_(A.id).post(f"{PHOTOS}/{job['id']}/answers", json=answer)
+    assert given.status_code == 200, given.text
+    assert {f["key"]: f for f in given.json()["facts"]}["vaxlar"]["value"] == 2
+    # A follow-up question on the sketch already paid for: read, and nothing drawn (the
+    # meter holds a picture's price while it reads, and it all goes back); asked again, the
+    # transcript answers, without reading.
+    photos = world.app.state.photos
+    with photos.db.transaction() as conn:
+        row = photos._row(conn, job["id"])
+    sketched, _ = sketches.stored(photos, row)
+    choice = sketches.choice_of(sketched, "B1", sketched.asked["B1"])
+    assert photos._ask_choice(row, choice) == "slutar"
+    assert world.id.reads == 2 and world.id.balance == start - 12
+    assert photos._ask_choice(row, choice) == "slutar"
+    assert world.id.reads == 2 and world.id.balance == start - 12
+
+
 def test_fran_skiss_needs_the_modules_measures(world: World) -> None:
     files: list[tuple[str, Any]] = [
         (
@@ -275,12 +366,17 @@ def test_the_reference_sketches(station: Path, data: dict[str, Any]) -> None:
         assert path is not None
         sheet = skiss.prepare(intake.take(path.read_bytes()).pixels)
         for module in described["moduler"]:
+            # Every frame found by code (part c5), the one whose middle is nearest ram_nara.
+            near = np.array(module["ram_nara"], np.float64)
+            corners = min(sheet.frames, key=lambda q: float(np.linalg.norm(q.mean(0) - near)))
+            assert float(np.linalg.norm(corners.mean(0) - near)) <= 60, module["modul"]
             if "horn" in module:
-                corners = np.array(module["horn"], np.float64)
-            else:
-                near = np.array(module["ram_nara"], np.float64)
-                corners = min(sheet.frames, key=lambda q: float(np.linalg.norm(q.mean(0) - near)))
-                assert float(np.linalg.norm(corners.mean(0) - near)) <= 60, module["modul"]
+                # Where the frame's corners were set by hand, code's lie within the sketch's
+                # ± 20 mm of them.
+                hand = chain.ordered(np.array(module["horn"], np.float64), 0, 3)
+                mm_per_px = float(module["langd"]) / float(np.linalg.norm(hand[1] - hand[0]))
+                off = np.linalg.norm(chain.ordered(corners, 0, 3) - hand, axis=1) * mm_per_px
+                assert float(off.max()) <= skiss.SKETCH_MM, (module["modul"], off)
             found = skiss.read(
                 sheet.pixels,
                 sheet.paper,

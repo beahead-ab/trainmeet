@@ -17,6 +17,7 @@ price and meter as a photo.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -25,7 +26,7 @@ import numpy as np
 from psycopg.types.json import Jsonb
 
 from cad import curves, graph
-from cad.bildkedjan import chain, intake, questions, skiss
+from cad.bildkedjan import chain, choices, intake, questions, skiss
 from cad.bildkedjan.camera import apply, homography
 from cad.bildkedjan.corners import clockwise
 from cad.bildkedjan.paths import Terminal
@@ -48,6 +49,7 @@ from contracts.cad import (
     ModuleEventKind,
     PhotoChoice,
     PhotoFact,
+    PhotoMark,
     PhotoMeasure,
     PhotoQuestion,
     PhotoQuestionKind,
@@ -150,7 +152,20 @@ def run(photos: Photos, job: dict[str, Any]) -> None:
         )
     reading: questions.AiReading | None = None
     message: str | None = None
-    if use_ai and sketched.uncertain:
+    if use_ai and sketched.asked:
+        # The bridges and wedges code is not sure of (part c5): one hard question each, on a
+        # crop around it, inside the sketch's price.
+        photos._step(job_id, "ai")
+        for key, asked in sorted(sketched.asked.items()):
+            try:
+                photos._ask_choice(job, choice_of(sketched, key, asked))
+            except Exception as error:  # the meter's refusals: the owner gets the questions
+                text = getattr(error, "message", None)
+                if text is None:
+                    raise
+                message = f"AI:n kunde inte läsa skissen: {text} Du får frågorna i stället."
+                break
+    if use_ai and sketched.uncertain and message is None:
         photos._step(job_id, "ai")
         try:
             reading = photos._ask(
@@ -165,6 +180,142 @@ def run(photos: Photos, job: dict[str, Any]) -> None:
     with photos.db.transaction() as conn:
         fresh = photos._row(conn, job_id)
     assemble(photos, job_id, sketched, corners, reading, dict(fresh["answers"] or {}), message)
+
+
+BRIDGE_CHOICES: dict[str, tuple[str, str]] = {
+    "grenar": (
+        "En växel vid bron",
+        "Som koden läser skissen: ett spår delar sig, eller två går "
+        "ihop, under bron eller precis vid den.",
+    ),
+    "slutar": ("Ett spår slutar vid bron", "Alla andra spår fortsätter under bron, ett och ett."),
+    "isar": (
+        "Två spår bredvid varandra",
+        "Där bläcket flyter ihop vid bron är det två spår, som fortsätter under bron var för sig.",
+    ),
+    "vet-inte": ("Vet inte", "Koden läser skissen som den gör."),
+}
+WEDGE_CHOICES: dict[str, tuple[str, str]] = {
+    "vaxel": ("En växel", "Två spår går ihop till ett där bläcket flyter ihop."),
+    "tva-spar": ("Två spår bredvid varandra", "Spåren hänger inte ihop här."),
+    "annat": ("Något annat", "Inte spår: skissen läses som den är ritad."),
+    "vet-inte": ("Vet inte", "Koden läser skissen som den gör."),
+}
+
+
+def question_key(key: str) -> str:
+    """The owner's answer's key for a bridge or a wedge (B1, K1 …)."""
+    return f"skiss:{key.lower()}"
+
+
+def choice_of(sketched: skiss.Sketched, key: str, asked: skiss.Asked) -> choices.Choice:
+    """The question for the AI: the frame around it, enlarged, its ends marked (part c5)."""
+    x0, y0, ppm, _, _ = sketched.grid
+
+    def px(p: tuple[float, float]) -> tuple[float, float]:
+        return ((p[0] - x0) * ppm, (p[1] - y0) * ppm)
+
+    picture = choices.sketch_picture(
+        sketched.image,
+        px(asked.at),
+        asked.span * ppm,
+        {label: px(at) for label, at in asked.marks.items()},
+    )
+    if asked.kind == "bridge":
+        return choices.Choice(
+            key,
+            "bridge",
+            choices.BRIDGE_QUESTION,
+            choices.bridge_options(asked.options, asked.marks),
+            picture,
+        )
+    return choices.Choice(
+        key, "wedge", choices.WEDGE_QUESTION, dict(choices.WEDGE_OPTIONS), picture
+    )
+
+
+def parts_decided(
+    sketched: skiss.Sketched, ai: dict[str, str], answers: dict[str, str]
+) -> dict[str, str]:
+    """What each bridge and wedge is: the owner's answer, else the AI's (when it knew), else
+    code's reading."""
+    found: dict[str, str] = {}
+    for key, asked in sketched.asked.items():
+        said = answers.get(question_key(key)) or ai.get(key)
+        found[key] = said if said in asked.options and said != "vet-inte" else asked.code
+    return found
+
+
+def reread(
+    photos: Photos, job: dict[str, Any], corners: np.ndarray[Any, Any], answers: dict[str, str]
+) -> skiss.Sketched:
+    """The frame read again as the bridges and wedges were answered."""
+    setup = chain.Setup.of(
+        {k: v for k, v in job["setup"].items() if k not in ("ai", "ask_corners")}
+    )
+    with photos.db.transaction() as conn:
+        files = photos._files(conn, job["id"])
+    original = files.one("original")
+    if original is None:
+        raise chain.Stop("Skissen finns inte längre. Ladda upp den igen.")
+    _, sheet = sheet_of(photos.store.get(original["key"]))
+    return skiss.read(
+        sheet.pixels,
+        sheet.paper,
+        corners,
+        setup.length or 0.0,
+        setup.width_a,
+        setup.width_b,
+        setup.offset or 0.0,
+        answers,
+    )
+
+
+def part_questions(
+    sketched: skiss.Sketched, ai: dict[str, str], answers: dict[str, str]
+) -> list[PhotoQuestion]:
+    """Bro and Kil (part c5): asked of the owner where the AI did not say what code reads, or
+    no AI read the sketch; where they agree, nothing is asked."""
+    found: list[PhotoQuestion] = []
+    for key, asked in sorted(sketched.asked.items()):
+        said = ai.get(key)
+        if said == asked.code:
+            continue
+        table = BRIDGE_CHOICES if asked.kind == "bridge" else WEDGE_CHOICES
+        options = [o for o in asked.options if o != "vet-inte"]
+        bridge = asked.kind == "bridge"
+        sees = (
+            "Ett spår är dolt under något som är ritat över spåren, och koden läser en växel där"
+            if bridge
+            else "Två spårs bläck flyter ihop till en kil, och koden läser en växel där"
+        )
+        found.append(
+            PhotoQuestion(
+                key=question_key(key),
+                kind=PhotoQuestionKind.BRIDGE if bridge else PhotoQuestionKind.WEDGE,
+                source=CheckSource.AI if said is not None else CheckSource.CODE,
+                title=choices.BRIDGE_QUESTION if bridge else choices.WEDGE_QUESTION,
+                text=sees
+                + (
+                    f", AI:n att det är: {table[said][0].lower()}"
+                    if said in table and said != "vet-inte"
+                    else ", och ingen AI har läst skissen"
+                    if said is None
+                    else ", AI:n är osäker"
+                )
+                + ". Du avgör.",
+                choices=[PhotoChoice(id=o, text=table[o][0], hint=table[o][1]) for o in options],
+                code=asked.code,
+                ai=said if said in options else None,
+                answer=answers.get(question_key(key)),
+                at=asked.at,
+                topology=True,
+                closeup=False,
+                marks=[PhotoMark(label=k, at=v) for k, v in sorted(asked.marks.items())],
+                span=asked.span,
+            )
+        )
+    return found
 
 
 def _jpeg(pixels: np.ndarray[Any, Any], quality: int) -> bytes:
@@ -262,12 +413,17 @@ def assemble(
             raise chain.Stop("Modulen finns inte längre.")
         before = photos.modules._row(conn, module, int(latest["latest"]))
         known = photos.modules._profiles_for(conn, [before["gables"]])
-    if reading is None and job["ai"] is not None:
+    if reading is None and job["ai"] is not None and "pairs" in job["ai"]:
         reading = questions.AiReading(
             {tuple(p) for p in job["ai"]["pairs"]},
             dict(job["ai"]["nodes"]),
             str(job["ai"].get("note", "")),
         )
+    ai_parts = dict((job["ai"] or {}).get("choices") or {})
+    parts = parts_decided(sketched, ai_parts, answers)
+    if any(parts[k] != asked.code for k, asked in sketched.asked.items()):
+        # Read again as answered: the bridges and wedges are part of how the ink is read.
+        sketched = replace(reread(photos, job, corners, parts), asked=sketched.asked)
     shape = SHAPE.validate_python(before["shape"])
     gables = [Gable.model_validate(g) for g in before["gables"]]
     old_graph = TrackGraph.model_validate(before["graph"])
@@ -288,7 +444,7 @@ def assemble(
         DrawingState(),
         known,
     )
-    asked = node_questions(sketched, reading, answers)
+    asked = node_questions(sketched, reading, answers) + part_questions(sketched, ai_parts, answers)
     open_topology = [q for q in asked if q.answer is None]
     # What each uncertain X is: the owner's answer, else the AI's (part c3: two switches are
     # drawn as two).

@@ -428,6 +428,11 @@ class Shot:
     noise: float = 2.5
     shadow: bool = True
     light: bool = True
+    cast: float = 0.0
+    """A shadow the module casts on the floor beside its far long side, mm wide: the floor's
+    own colour, darker and warmer, as the reference photos show it (part c5)."""
+    rounded: float = 0.0
+    """The board's corners rounded off with this radius, mm (part c5)."""
     centre: Point = (0.5, 0.5)
     """Where in the module the camera looks, as a share of its length and width."""
     seed: int = 11
@@ -542,6 +547,30 @@ def take(scene: Scene, shot: Shot | None = None, tex: Texture | None = None) -> 
     seams = (np.abs(((fy + 37) % 140) - 0.5) < 1.2)[..., None]
     floor = np.where(seams, floor * 0.6, floor).astype(np.float32)
     (board, board_a), (tracks, tracks_a) = layers
+    if shot.cast > 0 and scene.curve is None:
+        # The module's own shadow on the floor beside its far side: darker, the wood's colour
+        # deeper (light from the floor around it), as smooth as the floor.
+        far = max(scene.width_a, scene.offset + scene.width_b)
+        inside = ((fy > far) & (fy < far + shot.cast) & (fx > 0) & (fx < scene.length)).astype(
+            np.float32
+        )
+        inside = cv2.GaussianBlur(inside, (0, 0), 1.0)[..., None]
+        floor = floor * (1 - inside) + floor * np.array([0.2, 0.28, 0.4], np.float32) * inside
+    if shot.rounded > 0 and scene.curve is None:
+        # The board's corners rounded off: the floor shows there.
+        lam0 = np.float32(-camera[2]) / rays[2]
+        bx = np.float32(camera[0]) + lam0 * rays[0]
+        by = np.float32(camera[1]) + lam0 * rays[1]
+        radius = np.float32(shot.rounded)
+        cut = np.zeros_like(board_a, dtype=bool)
+        for cx, cy in scene.corners:
+            sx = 1.0 if cx <= 0 else -1.0
+            sy = 1.0 if cy <= 0 else -1.0
+            u = (bx - np.float32(cx)) * np.float32(sx)
+            v = (by - np.float32(cy)) * np.float32(sy)
+            cut |= (u < radius) & (v < radius) & ((radius - u) ** 2 + (radius - v) ** 2 > radius**2)
+        board_a = np.where(cut, 0.0, board_a).astype(np.float32)
+        tracks_a = np.where(cut, 0.0, tracks_a).astype(np.float32)
     out = floor * (1 - board_a[..., None]) + board * board_a[..., None]
     out = out * (1 - tracks_a[..., None]) + tracks * tracks_a[..., None]
     if shot.light:
@@ -716,6 +745,112 @@ def sketch(seed: int = 5, photographed: bool = False) -> Sketch:
         crossings=[(950 + 400 * (310 / 500), 250.0), (950 + 400 * (410 / 500), 150.0)],
         gables_a=[150.0, 250.0],
         gables_b=[150.0, 250.0],
+    )
+
+
+@dataclass(frozen=True)
+class DepotSketch:
+    """A sketch like the reference depot's module 12 (part c5), and its truth."""
+
+    jpeg: bytes
+    pixels: Image3
+    frame: list[Point]
+    """The frame's corners on the sheet, px, where its lines cross: A at Kant 1, B at Kant 1, B
+    far, A far (the corner A far is cut)."""
+    switches: int
+    """Code's reading: the wedge where track 3 runs into track 2 at the bridge, and the track
+    parting under it."""
+
+
+def depot_sketch(seed: int = 9) -> DepotSketch:
+    """One module, 1500 × 700, its frame in faint pencil with the corner at A far cut and
+    coloured pencil over it in places; track 1 straight at 150; tracks 2 and 3 from gable A at
+    300 and 420, track 3 running into track 2 (their ink a wedge) at the left side of a bridge
+    drawn over the tracks (two thin dark lines 120 mm apart, hatched), and under the bridge a
+    track parting from track 2 at 15°, to gable B at 548."""
+    rng = np.random.default_rng(seed)
+    w, h = 2200, 1555
+    k = SKETCH_PX
+    ox, oy = SKETCH_ORIGIN
+
+    def px(p: Point) -> tuple[int, int]:
+        return round(ox + p[0] * k), round(oy + p[1] * k)
+
+    sheet = np.full((h, w, 3), 252, np.float32)
+    sheet += rng.standard_normal((h, w, 1)).astype(np.float32) * 2
+    canvas = np.clip(sheet, 0, 255).astype(np.uint8)
+    for _ in range(700):
+        x = rng.uniform(0, 1500)
+        y = float(rng.choice([rng.uniform(-30, 100), rng.uniform(600, 690)]))
+        a = px((x, y))
+        b = (a[0] + int(rng.integers(-18, 18)), a[1] + int(rng.integers(-6, 6)))
+        cv2.line(canvas, a, b, (70, 170, 80), 1, cv2.LINE_AA)
+    # The frame in faint pencil, its corner at A far cut.
+    outline = [(0.0, 0.0), (1500.0, 0.0), (1500.0, 700.0), (140.0, 700.0), (0.0, 560.0)]
+    cv2.polylines(canvas, [np.array([px(p) for p in outline])], True, (172, 172, 172), 2)
+    # Coloured pencil over the frame's line in places.
+    for x in np.arange(300.0, 700.0, 9.0):
+        a = px((float(x), -6.0))
+        cv2.line(canvas, a, (a[0] + 4, a[1] + 7), (60, 160, 90), 1, cv2.LINE_AA)
+    track1 = route((0, 150), 0, (1500,))
+    half = math.degrees(2 * math.atan(120 / 585))
+    radius = 585 / (2 * math.sin(math.radians(half)))
+    track2 = route((0, 300), 0, (1500,))
+    track3 = route((0, 420), 0, (radius, -half), (radius, half))
+    slope = math.radians(15)
+    parting = [curves.Line((575.0, 300.0), (1500.0, 300.0 + 925.0 * math.tan(slope)))]
+    for segs in (track1, track2, track3, parting):
+        points = curves.sample_path(segs, 4.0)
+        cv2.polylines(canvas, [np.array([px(p) for p in points])], False, (25, 25, 25), 9)
+    # The bridge: 120 mm wide at 60° to the tracks, hatched, over them.
+    centre = np.array([600.0, 350.0])
+    along = np.array([0.5, -math.sqrt(3) / 2])
+    normal = np.array([math.sqrt(3) / 2, 0.5])
+    ends = [centre + t * along for t in (-430.0, 430.0)]
+    band = [
+        ends[0] - 60 * normal,
+        ends[1] - 60 * normal,
+        ends[1] + 60 * normal,
+        ends[0] + 60 * normal,
+    ]
+    cv2.fillPoly(
+        canvas, [np.array([px((float(p[0]), float(p[1]))) for p in band])], (214, 214, 214)
+    )
+    for t in np.arange(-420.0, 420.0, 14.0):
+        a = centre + t * along - 58 * normal
+        b = centre + t * along + 58 * normal
+        cv2.line(
+            canvas,
+            px((float(a[0]), float(a[1]))),
+            px((float(b[0]), float(b[1]))),
+            (160, 160, 160),
+            1,
+            cv2.LINE_AA,
+        )
+    for side in (-60.0, 60.0):
+        first = ends[0] + side * normal
+        last = ends[1] + side * normal
+        cv2.line(
+            canvas,
+            px((float(first[0]), float(first[1]))),
+            px((float(last[0]), float(last[1]))),
+            (60, 60, 60),
+            2,
+            cv2.LINE_AA,
+        )
+    # Text in pencil, a leader line across the tracks.
+    cv2.putText(
+        canvas, "BRU", px((900.0, -150.0)), cv2.FONT_HERSHEY_SIMPLEX, 1.1, (120, 120, 120), 2
+    )
+    cv2.line(canvas, px((900.0, -150.0)), px((640.0, 330.0)), (135, 135, 135), 1, cv2.LINE_AA)
+    ok, data = cv2.imencode(".jpg", canvas, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    assert ok
+    frame = [(0.0, 0.0), (1500.0, 0.0), (1500.0, 700.0), (0.0, 700.0)]
+    return DepotSketch(
+        jpeg=data.tobytes(),
+        pixels=canvas,
+        frame=[(float(px(p)[0]), float(px(p)[1])) for p in frame],
+        switches=2,
     )
 
 

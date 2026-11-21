@@ -663,7 +663,9 @@ class Drawings:
         balance = meter.balance(job["person_id"], payer)
         with self.db.transaction() as conn:
             paid = bool(self._row(conn, job["id"])["paid"])
-        needed = 0 if balance.own_ai or paid else TOKENS_PER_PAGE
+        # A page already paid for is read again at no cost, but the meter reads no picture on
+        # less than a picture's price: it is held while the meter reads, and all of it goes back.
+        needed = 0 if balance.own_ai else TOKENS_PER_PAGE
         if needed > balance.available:
             raise no_tokens(needed, balance.available)
         reservation: TokenReservation | None = None
