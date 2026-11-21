@@ -10,6 +10,8 @@ stand in each other's way:
 - Changing a file to write-ahead logging takes the whole file, and SQLite does not wait for
   that as it waits for a write: while another connection writes, it says at once that the
   database is locked. That is why it is done here, and tried again until the wait is over.
+- Columns that came after a table's first version are added under the file's write lock
+  (add_columns), so that two processes starting on a new file at once never add the same one.
 - A transaction waits up to BUSY_SECONDS for another connection's write (connect), rather than
   sqlite3's five seconds: a big import on a Pi can hold the write that long.
 """
@@ -18,6 +20,7 @@ from __future__ import annotations
 
 import sqlite3
 import time
+from collections.abc import Iterable
 from contextlib import closing
 from pathlib import Path
 from typing import Final
@@ -40,6 +43,19 @@ def prepare(path: Path, schema: str) -> None:
     with closing(connect(path)) as db:
         _write_ahead(db)
         db.executescript(schema)
+
+
+def add_columns(path: Path, table: str, columns: Iterable[tuple[str, str]]) -> None:
+    """Add the columns the table does not have yet, in order. The table is read and changed in
+    one write transaction, so a second process that starts on the same file at the same time
+    waits, then finds the columns there and adds nothing."""
+    with closing(connect(path)) as db:
+        db.execute("BEGIN IMMEDIATE")
+        present = {str(row[1]) for row in db.execute(f"PRAGMA table_info({table})")}
+        for column, kind in columns:
+            if column not in present:
+                db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
+        db.commit()
 
 
 def _write_ahead(db: sqlite3.Connection) -> None:

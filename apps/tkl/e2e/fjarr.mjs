@@ -104,8 +104,11 @@ async function stationA(browser, hub, code) {
   await page.getByRole("link", { name: "Studio" }).first().waitFor();
   await page.goto(`${STATION}/studio/sparplan`);
   await page.getByRole("button", { name: "Gårdsjö" }).click();
-  await page.getByRole("button", { name: "Använd som min station" }).click();
+  // The reference is shown first; used, it takes the station's own name (TKL keeps it
+  // with the station), so then the own station's view is waited for.
   await page.getByRole("heading", { name: /Gårdsjö/ }).waitFor();
+  await page.getByRole("button", { name: "Använd som min station" }).click();
+  await page.locator(".ruta .overrad", { hasText: "Min station" }).waitFor();
   // The catalogue: every train route in and out, kept with the model and the outside's version.
   await page.goto(`${STATION}/studio/installningar/fjarrstyrning`);
   await page.getByRole("heading", { name: "Fjärrkatalogen" }).waitFor();
@@ -276,8 +279,11 @@ async function parts(a, page) {
   await a.reset();
   await a.page.goto(`${STATION}/studio/sparplan`);
   await a.page.getByRole("button", { name: "Charlottendal" }).click();
-  await a.page.getByRole("button", { name: "Använd som min station" }).click();
+  // The reference is shown first; used, it takes the station's own name (TKL keeps it
+  // with the station), so then the own station's view is waited for.
   await a.page.getByRole("heading", { name: /Charlottendal/ }).waitFor();
+  await a.page.getByRole("button", { name: "Använd som min station" }).click();
+  await a.page.locator(".ruta .overrad", { hasText: "Min station" }).waitFor();
   for (let i = 0; i < 50 && !(await a.state()).parts?.length; i++) await a.page.waitForTimeout(100);
   const [yard] = (await a.state()).parts ?? [];
   check(yard, "Modellen har ingen del.");

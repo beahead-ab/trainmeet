@@ -120,9 +120,11 @@ async function firstStart(page) {
 async function useGardsjo(page) {
   await page.goto(`${TKL}/studio/sparplan`);
   await page.getByRole("button", { name: "Gårdsjö" }).click();
-  await page.getByRole("button", { name: "Använd som min station" }).click();
-  await page.getByText("Min station", { exact: true }).first().waitFor();
+  // The reference is shown first; used, it takes the station's own name (TKL keeps it
+  // with the station), so then the own station's view is waited for.
   await page.getByRole("heading", { name: /Gårdsjö/ }).waitFor();
+  await page.getByRole("button", { name: "Använd som min station" }).click();
+  await page.locator(".ruta .overrad", { hasText: "Min station" }).waitFor();
 }
 
 /** Studio › Prova (STUDIO-05, STUDIO-27): Ställverket says the station is not tried; Prova runs a
@@ -289,8 +291,11 @@ async function rangerbangarden(browser, page) {
   check(reset.ok(), `Ställverket nollställdes inte (${reset.status()}).`);
   await page.goto(`${TKL}/studio/sparplan`);
   await page.getByRole("button", { name: "Charlottendal" }).click();
-  await page.getByRole("button", { name: "Använd som min station" }).click();
+  // The reference is shown first; used, it takes the station's own name (TKL keeps it
+  // with the station), so then the own station's view is waited for.
   await page.getByRole("heading", { name: /Charlottendal/ }).waitFor();
+  await page.getByRole("button", { name: "Använd som min station" }).click();
+  await page.locator(".ruta .overrad", { hasText: "Min station" }).waitFor();
   for (let i = 0; i < 50 && (await state()).parts?.[0]?.id !== "rangerbangarden"; i++) await page.waitForTimeout(100);
   check((await state()).parts?.[0]?.id === "rangerbangarden", "Charlottendals modell har ingen rangerbangård.");
 
