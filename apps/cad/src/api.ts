@@ -71,6 +71,16 @@ export type MobileFlow = Schemas["trainmeet.cad-1.mobile-flow"];
 export type MobileProgress = Schemas["trainmeet.cad-1.mobile-progress"];
 export type MobileStep = MobileFlow["step"];
 
+/** Import från AnyRail (#91): the file read in CAD, its proposals, and Skapa modulerna. */
+export type AnyRailImport = Schemas["trainmeet.cad-1.anyrail-import"];
+export type AnyRailMeasures = Schemas["trainmeet.cad-1.anyrail-measures"];
+export type AnyRailSettings = Schemas["trainmeet.cad-1.anyrail-settings"];
+export type AnyRailStart = Schemas["trainmeet.cad-1.anyrail-start"];
+export type AnyRailCreate = Schemas["trainmeet.cad-1.anyrail-create"];
+export type AnyRailCreated = Schemas["trainmeet.cad-1.anyrail-created"];
+export type AnyRailModule = NonNullable<AnyRailImport["modules"]>[number];
+export type AnyRailSwitch = NonNullable<AnyRailImport["switches"]>[number];
+
 export const API = "/api/cad/1";
 export const SCALES: Scale[] = ["H0", "N", "0"];
 
@@ -150,7 +160,20 @@ export const api = {
   mobileFlow: () => call<MobileFlow>("GET", `${API}/mobile/flow`),
   mobileProgress: (body: MobileProgress) => call<MobileFlow>("PUT", `${API}/mobile/flow`, body),
   mobileEnd: () => call<MobileFlow>("DELETE", `${API}/mobile/flow`),
+  // Import från AnyRail (#91): the file stays in CAD.
+  anyrailUpload: (file: File, start: AnyRailStart) => call<AnyRailImport>("POST", `${API}/anyrail`, anyrailForm(file, start)),
+  anyrailRead: (id: string) => call<AnyRailImport>("GET", `${API}/anyrail/${id}`),
+  anyrailSettings: (id: string, body: AnyRailSettings) => call<AnyRailImport>("PUT", `${API}/anyrail/${id}`, body),
+  anyrailCreate: (id: string, body: AnyRailCreate) => call<AnyRailCreated>("POST", `${API}/anyrail/${id}/create`, body),
 };
+
+/** The AnyRail upload's form: its data and the file. */
+export function anyrailForm(file: File, start: AnyRailStart): FormData {
+  const form = new FormData();
+  form.append("data", new Blob([JSON.stringify({ ...start, name: start.name ?? file.name })], { type: "application/json" }));
+  form.append("file", file, file.name);
+  return form;
+}
 
 /** A photo form: the JSON in the part data and the photos in the parts images. */
 export function photoForm(data: unknown, files: File[]): FormData {

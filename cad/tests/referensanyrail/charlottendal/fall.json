@@ -1,0 +1,86 @@
+{
+  "kalla": "Charlottendal (CDA): AnyRail 2.0:s XML-export »CDA, Utan ombyggnad av modul 9.xml« i specens ref/charlottendal/underlag (inte i repot). Facit: ANYRAIL-19 och trainmeet-cad-anyrail-import.md (avsnitt 1–6), och prototypens filer från 2 november i ref/charlottendal/filer.",
+  "fil": "underlag/CDA-utan-ombyggnad-av-modul-9.xml.zip",
+  "vaxellista": "filer/charlottendal-vaxlar.csv",
+  "gavelprofiler": "filer/charlottendal-gavelprofiler.csv",
+  "skala": "H0",
+  "facit": {
+    "parts": 629,
+    "modules": 18,
+    "switches": [
+      57,
+      59
+    ],
+    "assumed": [
+      12,
+      15
+    ],
+    "crossings": 5,
+    "switches_over_joint": 2,
+    "backward_removed": 11,
+    "doubled_removed": 1,
+    "max_kink": [
+      0.0,
+      1.2
+    ],
+    "min_radius": [
+      745,
+      900
+    ],
+    "station_tracks": 9,
+    "station_middle": [
+      7150,
+      7300
+    ],
+    "arcs": 71
+  },
+  "moduler": [
+    "1",
+    "2a",
+    "2b",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10a",
+    "10b",
+    "11",
+    "Ä1",
+    "Ä2",
+    "Ä3",
+    "Ä4",
+    "Ä5"
+  ],
+  "huvudspar": {
+    "skarv": "3|4",
+    "spar": [
+      141,
+      198
+    ],
+    "mm": 2
+  },
+  "avvikelser": {
+    "gavelprofiler": {
+      "Ä2|1": "Ändmodulen ligger 22,5° snett mot modul 1: importen mäter spåren längs gaveln på modulen som ligger längs stationen, prototypen längs ändmodulens.",
+      "Ä3|2b": "Samma: Ä3 ligger snett mot 2b.",
+      "11|Ä5": "Samma: Ä5 ligger snett mot 11."
+    },
+    "vaxlar": {
+      "5324": "AnyRails egen högerväxel R 971 i modul 10b läses som den växel den är; prototypen kallade den antagen (skiss).",
+      "skiss vid 17865;1041": "Två spår är ritade ovanpå varandra från 17226;753 till öglan bakom Ä5, utanför modulerna: importen läser dem som ett spår (det ena tas bort och visas gult), så att det blir en antagen växel vid 17226;753 där prototypen har två, och två spårändar där prototypen har en antagen växel.",
+      "665": "Tungspetsen ligger på skarven 6|7 (x = 9 799,9 mm): importen lägger växeln i modulen där dess två ben ligger (7), prototypen i 6.",
+      "437": "Tungspetsen ligger 23 mm in i modul 7, och båda benen korsar skarven 6|7 0,3 mm isär innan de skiljts åt: importen flyttar tungspetsen till skarven, så att gaveln får ett spår som i prototypen (558 mm), och växeln hör till modul 6 där benen ligger; prototypen lägger den i 7. Den är kvar som växel över skarven."
+    },
+    "min_radius": "Prototypen anger 745 mm i modul 2b; importen mäter 832 mm, de 830 mm-växlarnas avvikande ben, och ingen flexbåge under det efter utjämningen.",
+    "max_kink": "Prototypen anger högst 1,2°; importen mäter högst 0,7° efter filtren.",
+    "station_middle": "Prototypen numrerar spåren på x = 725 cm; importen på mitten av den längsta sträckan med flest spår sida vid sida, 721,5 cm.",
+    "arcs_other_way": "Utan direction buktade 41 av 71 bågar fel i prototypen; AnyRail skriver alla stationens bågar åt samma håll från p1 till p2, så det beror på hur man läser utan direction, och importen redovisar talet för den kortare bågen åt vänster."
+  },
+  "som_prototypen": [
+    "3|4",
+    "6|7"
+  ]
+}

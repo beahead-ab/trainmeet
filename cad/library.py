@@ -524,7 +524,15 @@ class Modules:
 
     # --- One module ---------------------------------------------------------------------------
 
-    def create(self, who: Who, new: NewModule, made_from: str = "Modulen skapad ur mått") -> Module:
+    def create(
+        self,
+        who: Who,
+        new: NewModule,
+        made_from: str = "Modulen skapad ur mått",
+        drawn: tuple[TrackGraph, DrawingState] | None = None,
+    ) -> Module:
+        """Ny modul. drawn: a graph and its drawing state made elsewhere, as the AnyRail import's
+        (#91); otherwise the graph is the measures'."""
         if new.owner is None or new.owner == who.person:
             owner = Owner(kind=OwnerKind.PERSON, id=who.person, name=who.name)
         else:
@@ -544,7 +552,7 @@ class Modules:
         module = uuid.uuid4()
         with self.db.transaction() as conn:
             gables = self._checked(conn, who, new.scale, new.shape, list(new.gables), owner.id)
-            built = graph.from_measures(new.shape, gables)
+            built = drawn[0] if drawn is not None else graph.from_measures(new.shape, gables)
             conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (str(owner.id),))
             number = conn.execute(
                 "SELECT coalesce(max(number), 0) + 1 AS next FROM module WHERE owner_id = %s",
@@ -568,7 +576,16 @@ class Modules:
                 ),
             )
             self._insert_version(
-                conn, who, module, 1, new.name, new.scale, new.shape, gables, built
+                conn,
+                who,
+                module,
+                1,
+                new.name,
+                new.scale,
+                new.shape,
+                gables,
+                built,
+                drawn[1] if drawn is not None else None,
             )
             self._event(conn, who, module, ModuleEventKind.CREATED, 1, made_from)
         return self._answer(who, module, Right.EDIT)

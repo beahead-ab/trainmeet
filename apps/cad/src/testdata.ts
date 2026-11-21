@@ -100,7 +100,7 @@ export const CURVE: Module = {
         end: "n3",
         segments: [{ kind: "arc", start: [0, 200], end: [1000, 267.95], center: [0, 2200], radius: 2000, clockwise: true }],
         track: null,
-        origin: { source: "measures", certainty: "probable" },
+        origin: { source: "measures", certainty: "probable", ref: null },
       },
       {
         id: "s6",
@@ -108,7 +108,7 @@ export const CURVE: Module = {
         end: "n4",
         segments: [{ kind: "arc", start: [0, 250], end: [975, 274.65], center: [0, 2200], radius: 1950, clockwise: true }],
         track: null,
-        origin: { source: "measures", certainty: "probable" },
+        origin: { source: "measures", certainty: "probable", ref: null },
       },
     ],
     switches: [],

@@ -9379,6 +9379,12 @@ export interface components {
         "trainmeet.tkl-1.upload.GraphOrigin": {
             source: components["schemas"]["trainmeet.tkl-1.upload.GraphSource"];
             certainty: components["schemas"]["trainmeet.tkl-1.upload.Certainty"];
+            /**
+             * Ref
+             * @description The part's own id in the source, kept as its origin: AnyRail's part ids (ANYRAIL-07), joined by + when one piece holds several.
+             * @default null
+             */
+            ref: string | null;
         } & {
             [key: string]: unknown;
         };

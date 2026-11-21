@@ -130,7 +130,8 @@ export const DRAWING: DrawingView = {
         "track": null,
         "origin": {
           "source": "drawn",
-          "certainty": "confirmed"
+          "certainty": "confirmed",
+          "ref": null
         }
       },
       {
@@ -153,7 +154,8 @@ export const DRAWING: DrawingView = {
         "track": null,
         "origin": {
           "source": "drawn",
-          "certainty": "confirmed"
+          "certainty": "confirmed",
+          "ref": null
         }
       },
       {
@@ -176,7 +178,8 @@ export const DRAWING: DrawingView = {
         "track": null,
         "origin": {
           "source": "drawn",
-          "certainty": "confirmed"
+          "certainty": "confirmed",
+          "ref": null
         }
       },
       {
@@ -216,7 +219,8 @@ export const DRAWING: DrawingView = {
         "track": null,
         "origin": {
           "source": "drawn",
-          "certainty": "confirmed"
+          "certainty": "confirmed",
+          "ref": null
         }
       }
     ],
@@ -232,7 +236,8 @@ export const DRAWING: DrawingView = {
         "angle": 3.05,
         "origin": {
           "source": "drawn",
-          "certainty": "confirmed"
+          "certainty": "confirmed",
+          "ref": null
         },
         "number": "1",
         "design": null,
@@ -373,7 +378,8 @@ export const DRAWING: DrawingView = {
       ],
       "origin": {
         "source": "drawn",
-        "certainty": "confirmed"
+        "certainty": "confirmed",
+        "ref": null
       }
     }
   ],

@@ -592,6 +592,21 @@
         },
         "certainty": {
           "$ref": "#/$defs/Certainty"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The part's own id in the source, kept as its origin: AnyRail's part ids (ANYRAIL-07), joined by + when one piece holds several.",
+          "title": "Ref"
         }
       },
       "required": [

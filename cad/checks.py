@@ -11,7 +11,10 @@ The rules, with the limits in cad/switches.py:
 - open_end: any other free end, not a buffer stop, and a gable track with no track behind it.
 - switch_radius: a switch's radius at or below the scale's lower limit.
 - switch_assumed: a switch of type Okänd whose radius matches no type within 10 %, antagen
-  (AR3), or with no radius.
+  (AR3), or with no radius. From the AnyRail import (#91): a switch assumed where a flex parts
+  without a switch, until it is confirmed; AnyRail's own turnouts are known switches.
+- drawing_fix: from the AnyRail import (#91), a piece where the track was drawn twice and read
+  as one (its origin uncertain), until it is confirmed.
 - tight_radius and kink: the AnyRail import's check (3.3): the tracks sampled every 10 mm, the
   smallest radius over 50 mm against the scale's minimum, and the largest angle jump against
   what the minimum radius turns over one step; also where two pieces meet and through a switch.
@@ -33,10 +36,12 @@ from cad.curves import Line, Seg
 from cad.editor import Drawing, EditError, Node
 from contracts.cad import (
     NORM_NAMES,
+    Certainty,
     CheckChoice,
     CheckItem,
     CheckKind,
     GableEnd,
+    GraphSource,
     ProfileKind,
 )
 from contracts.station_model import NodeType, Point
@@ -53,6 +58,10 @@ RADIUS_WINDOW = 5
 """Steps of 10 mm over which the radius is measured: 50 mm, as the AnyRail import."""
 
 CONFIRM = CheckChoice(id="stammer", text="Det stämmer")
+ANYRAIL_ASSUMED = "switch_assumed:anyrail:"
+"""The key of an AnyRail import's assumed switch, before the switch's id (AR3)."""
+ANYRAIL_DOUBLED = "drawing_fix:anyrail:"
+"""The key of an AnyRail import's track drawn twice and read as one, before the piece's id."""
 
 
 def find(drawing: Drawing) -> list[CheckItem]:
@@ -76,6 +85,7 @@ def _all(drawing: Drawing) -> Iterator[CheckItem]:
         yield item
     yield from _open_ends(drawing, short)
     yield from _switches(drawing)
+    yield from _doubled(drawing)
     yield from _curvature(drawing)
     yield from _gables(drawing)
     # The photo chain's questions, kept with the version (part c1).
@@ -175,6 +185,24 @@ def _switches(drawing: Drawing) -> Iterator[CheckItem]:
     for sw in drawing.switches.values():
         at = _p(drawing.nodes[sw.node].at)
         name = f"Växel {sw.number or sw.id}"
+        from_anyrail = sw.origin is not None and sw.origin.source == GraphSource.ANYRAIL
+        if from_anyrail and sw.origin is not None and sw.origin.certainty == Certainty.UNCERTAIN:
+            # The AnyRail import (#91, AR3): a flex that parts without a switch is an assumed
+            # switch, yellow until the owner confirms it.
+            yield CheckItem(
+                key=f"{ANYRAIL_ASSUMED}{sw.id}",
+                kind=CheckKind.SWITCH_ASSUMED,
+                at=at,
+                title=f"{name} är antagen",
+                text=(
+                    "I AnyRail delar sig spåret här utan någon växel. Bekräfta att det är en "
+                    "växel, eller välj växeltyp."
+                ),
+                refs=[sw.id, sw.node],
+                choices=[CheckChoice(id="vaxel", text="Det är en växel"), choose],
+                assumed=True,
+            )
+            continue
         if sw.radius is not None and sw.radius <= limits.switch_min_radius + 0.5:
             where = "vid" if sw.radius >= limits.switch_min_radius - 0.5 else "under"
             yield CheckItem(
@@ -191,7 +219,8 @@ def _switches(drawing: Drawing) -> Iterator[CheckItem]:
                 assumed=True,
             )
             continue
-        if sw.design is not None:
+        if sw.design is not None or from_anyrail:
+            # AnyRail's own turnout is a known switch: its radius is AnyRail's.
             continue
         if switches.match(sw.radius, sw.angle, drawing.scale) is not None:
             continue
@@ -206,6 +235,31 @@ def _switches(drawing: Drawing) -> Iterator[CheckItem]:
             ),
             refs=[sw.id, sw.node],
             choices=[choose, right],
+            assumed=True,
+        )
+
+
+def _doubled(drawing: Drawing) -> Iterator[CheckItem]:
+    """The AnyRail import (#91): a piece where the track was drawn twice, read as one, is yellow
+    until the owner confirms it."""
+    for piece in drawing.pieces.values():
+        origin = piece.origin
+        if origin is None or origin.source != GraphSource.ANYRAIL:
+            continue
+        if origin.certainty != Certainty.UNCERTAIN or not piece.segs:
+            continue
+        middle = curves.path_point(piece.segs, curves.path_length(piece.segs) / 2)
+        yield CheckItem(
+            key=f"{ANYRAIL_DOUBLED}{piece.id}",
+            kind=CheckKind.DRAWING_FIX,
+            at=_p(middle),
+            title="Två spår ritade ovanpå varandra lästes som ett",
+            text=(
+                "I AnyRail var spåret ritat två gånger här. Importen behöll det ena; bekräfta att "
+                "det är ett spår."
+            ),
+            refs=[piece.id],
+            choices=[CONFIRM],
             assumed=True,
         )
 

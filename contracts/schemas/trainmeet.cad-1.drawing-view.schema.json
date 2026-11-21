@@ -269,7 +269,13 @@
         "kink",
         "tight_radius",
         "gable_position",
-        "question"
+        "question",
+        "switch_joint",
+        "oblique_joint",
+        "drawing_fix",
+        "crossing_doubt",
+        "loose_part",
+        "removed"
       ],
       "title": "CheckKind",
       "type": "string"
@@ -409,7 +415,8 @@
         "measures",
         "drawn",
         "photo",
-        "sketch"
+        "sketch",
+        "anyrail"
       ],
       "title": "DrawingSource",
       "type": "string"
@@ -776,6 +783,21 @@
         },
         "certainty": {
           "$ref": "#/$defs/Certainty"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The part's own id in the source, kept as its origin: AnyRail's part ids (ANYRAIL-07), joined by + when one piece holds several.",
+          "title": "Ref"
         }
       },
       "required": [

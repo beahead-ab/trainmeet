@@ -127,7 +127,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -150,7 +151,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -173,7 +175,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -196,7 +199,8 @@
     "track": "1",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -219,7 +223,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -253,7 +258,8 @@
     "track": "3",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -276,7 +282,8 @@
     "track": "2",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -310,7 +317,8 @@
     "track": "4",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -344,7 +352,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -367,7 +376,8 @@
     "track": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    }
   ],
@@ -383,7 +393,8 @@
     "angle": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "number": "1",
     "design": null,
@@ -401,7 +412,8 @@
     "angle": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "number": "2",
     "design": null,
@@ -419,7 +431,8 @@
     "angle": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "number": "3",
     "design": null,
@@ -437,7 +450,8 @@
     "angle": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "number": "5",
     "design": null,
@@ -455,7 +469,8 @@
     "angle": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "number": "4",
     "design": null,
@@ -474,7 +489,8 @@
     "ref": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -488,7 +504,8 @@
     "ref": "s1",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -502,7 +519,8 @@
     "ref": "n4",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -516,7 +534,8 @@
     "ref": "n5",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -530,7 +549,8 @@
     "ref": "n3",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -544,7 +564,8 @@
     "ref": "s2",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -558,7 +579,8 @@
     "ref": "s3",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -572,7 +594,8 @@
     "ref": "s3",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -586,7 +609,8 @@
     "ref": "s4",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -600,7 +624,8 @@
     "ref": "p6",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -614,7 +639,8 @@
     "ref": "n6",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -628,7 +654,8 @@
     "ref": "p8",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -642,7 +669,8 @@
     "ref": "s5",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -656,7 +684,8 @@
     "ref": "s6",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -670,7 +699,8 @@
     "ref": "p7",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -684,7 +714,8 @@
     "ref": "n7",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -698,7 +729,8 @@
     "ref": "p4",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -712,7 +744,8 @@
     "ref": "s7",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -726,7 +759,8 @@
     "ref": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    },
@@ -740,7 +774,8 @@
     "ref": null,
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     },
     "read_by": "text_layer"
    }
@@ -763,7 +798,8 @@
     "shape": "signalfigur",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -783,7 +819,8 @@
     "shape": "signalfigur",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -803,7 +840,8 @@
     "shape": "signalfigur",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -823,7 +861,8 @@
     "shape": "text",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -843,7 +882,8 @@
     "shape": "text",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -863,7 +903,8 @@
     "shape": "signalfigur",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -883,7 +924,8 @@
     "shape": "signalfigur",
     "origin": {
      "source": "drawing",
-     "certainty": "probable"
+     "certainty": "probable",
+     "ref": null
     }
    },
    {
@@ -903,7 +945,8 @@
     "shape": "▲ gröna",
     "origin": {
      "source": "drawing",
-     "certainty": "uncertain"
+     "certainty": "uncertain",
+     "ref": null
     }
    },
    {
@@ -923,7 +966,8 @@
     "shape": "▲ gröna",
     "origin": {
      "source": "drawing",
-     "certainty": "uncertain"
+     "certainty": "uncertain",
+     "ref": null
     }
    },
    {
@@ -943,7 +987,8 @@
     "shape": "▲ gröna",
     "origin": {
      "source": "drawing",
-     "certainty": "uncertain"
+     "certainty": "uncertain",
+     "ref": null
     }
    }
   ],
@@ -960,7 +1005,8 @@
    "piece": "p2",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -972,7 +1018,8 @@
    "piece": "p4",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -984,7 +1031,8 @@
    "piece": "p4",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -996,7 +1044,8 @@
    "piece": "p1",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -1008,7 +1057,8 @@
    "piece": "p5",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -1020,7 +1070,8 @@
    "piece": "p10",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -1032,7 +1083,8 @@
    "piece": "p6",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -1044,7 +1096,8 @@
    "piece": "p9",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   },
   {
@@ -1056,7 +1109,8 @@
    "piece": "p8",
    "origin": {
     "source": "drawing",
-    "certainty": "probable"
+    "certainty": "probable",
+    "ref": null
    }
   }
  ],

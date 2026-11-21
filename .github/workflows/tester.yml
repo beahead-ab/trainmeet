@@ -1004,6 +1004,16 @@ jobs:
           # mätbild, med H0:s spårvidd.
           curl -fsS -b "$PROV/kakor" "http://localhost:8086/api/cad/1/studio/assembly/$ANL/images" \
             | jq -e '.images == [] and (.missing | length) == 2 and .gauge == 16.5' >/dev/null
+          # Import från AnyRail (#91): en syntetisk AnyRail 2.0-export (cad/tests/anyrail_syntetisk.py,
+          # bara standardbiblioteket) läses i bilden till sex moduler och fyra växlar, en antagen,
+          # och hela stationens DXF hämtas.
+          python3 -c 'import sys; sys.path.insert(0, "."); from cad.tests.anyrail_syntetisk import station_xml; open(sys.argv[1], "wb").write(station_xml())' "$PROV/anyrail.xml"
+          AR=$(curl -fsS -b "$PROV/kakor" -F 'data={"name":"Exempelstation.xml"};type=application/json' \
+            -F "file=@$PROV/anyrail.xml;type=application/xml" http://localhost:8086/api/cad/1/anyrail)
+          echo "$AR" | jq -e '(.modules | length) == 6 and .stats.switches == 4 and .stats.assumed == 1' >/dev/null
+          curl -fsS -b "$PROV/kakor" -o "$PROV/anyrail.dxf" \
+            "http://localhost:8086/api/cad/1/anyrail/$(echo "$AR" | jq -r .id)/files/anlaggning.dxf"
+          head -4 "$PROV/anyrail.dxf" | tr -d ' \r' | paste -sd, - | grep -qx '0,SECTION,2,HEADER'
           # CAD runs as its own user, never as root.
           CAD_USER=$(docker inspect --format '{{.Config.User}}' "$(docker compose -f "$PROV/compose.yaml" ps -q cad)")
           case "$CAD_USER" in ""|0|0:*|root|root:*) echo "CAD kör som root." >&2; exit 1;; esac
@@ -1077,8 +1087,9 @@ jobs:
           enable-cache: true
 
       # bibliotek.mjs kör också CAD i mobilen (#90, mobil.mjs): QR-koden på datorn och flödet i en
-      # telefon i en egen Chrome med en låtsad kamera (cad/prov_kamera.py), ungefär en minut till.
-      - name: Webbläsarprovet, med låtsad ID (#89) och CAD i mobilen (#90)
+      # telefon i en egen Chrome med en låtsad kamera (cad/prov_kamera.py), ungefär en minut till,
+      # och Import från AnyRail med en syntetisk fil (#91, anyrail.mjs), några sekunder.
+      - name: Webbläsarprovet, med låtsad ID (#89), CAD i mobilen (#90) och AnyRail (#91)
         timeout-minutes: 10
         env:
           CHROME_PATH: /usr/bin/google-chrome

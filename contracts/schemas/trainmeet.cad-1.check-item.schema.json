@@ -95,7 +95,13 @@
         "kink",
         "tight_radius",
         "gable_position",
-        "question"
+        "question",
+        "switch_joint",
+        "oblique_joint",
+        "drawing_fix",
+        "crossing_doubt",
+        "loose_part",
+        "removed"
       ],
       "title": "CheckKind",
       "type": "string"

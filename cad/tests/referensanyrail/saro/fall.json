@@ -1,0 +1,34 @@
+{
+  "kalla": "Särö: AnyRails egen fil »0-scale Särö stn.any« i specens ref/saro/underlag (inte i repot). Facit: trainmeet-cad-anyrail-import.md avsnitt 7 och prototypens filer från 8 november i ref/saro/filer.",
+  "fil": "underlag/0-scale-Saro-stn.any.zip",
+  "vaxellista": "filer/saro-vaxlar.csv",
+  "gavelprofiler": "filer/saro-gavelprofiler.csv",
+  "skala": "0",
+  "facit": {
+    "track_parts": 29,
+    "modules": 4,
+    "switches": 6,
+    "assumed": 0,
+    "crossings": 0,
+    "gaps": 0,
+    "overlaps": 0,
+    "backward_removed": 0,
+    "loose": 0,
+    "bridges_removed": 1,
+    "max_kink": [
+      0.0,
+      1.0
+    ]
+  },
+  "moduler": [
+    "1",
+    "2",
+    "3",
+    "4"
+  ],
+  "avvikelser": {
+    "gavelprofiler": {},
+    "vaxlar": {},
+    "lagen": "Atlas O:s växlar börjar sin båge en bit in från delens ände: importen sätter tungspetsen där benen skiljs, 83 mm in (Y-växeln 39 mm), prototypen vid delens ände. Prototypens koordinater räknas dessutom från ritytans hörn 10 cm in; importen anger ritningens egna mm. Testet jämför lägena efter förskjutningen."
+  }
+}
