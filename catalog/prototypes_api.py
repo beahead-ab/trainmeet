@@ -1,9 +1,11 @@
 """The prototype catalog's addresses (contracts/catalog.py, #53 del a, CAT-155–CAT-165).
 
 The catalog is for everyone who is logged in (CAT-155); the review queue only for the reviewers
-TrainMeet ID names (CAT-165). The vehicle's link is a change of the vehicle: an editor in a
-shared fleet links, someone who may only look does not (CAT-46, catalog/access.py), and
-?fleet=<owner> works in a shared fleet as for the vehicles.
+TrainMeet ID names (CAT-165). The web search (CAT-166–CAT-172) is for everyone who is logged in
+too, from the person's own balance: it waits for the meter in a worker thread, as a reading. The
+vehicle's link is a change of the vehicle: an editor in a shared fleet links, someone who may only
+look does not (CAT-46, catalog/access.py), and ?fleet=<owner> works in a shared fleet as for the
+vehicles.
 
 No `from __future__ import annotations` here: FastAPI reads the local dependencies from the
 annotations, which must then be real objects.
@@ -14,11 +16,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
+from fastapi.concurrency import run_in_threadpool
 
 from catalog.access import Access, Right, Work, shown
 from catalog.fleet import Refused
 from catalog.fleet_api import needs
 from catalog.prototype_fields import register
+from catalog.prototype_search import Searches
 from catalog.prototypes import Prototypes
 from contracts.catalog import (
     Account,
@@ -31,6 +35,9 @@ from contracts.catalog import (
     PrototypeProposal,
     PrototypeReview,
     PrototypeRevision,
+    PrototypeSearch,
+    PrototypeSearchAsk,
+    PrototypeSearchConsent,
     Vehicle,
     VehicleKind,
 )
@@ -39,7 +46,10 @@ API = "/api/catalog/1"
 
 
 def router(
-    prototypes: Prototypes, logged_in: Callable[..., Account | None], access: Access
+    prototypes: Prototypes,
+    logged_in: Callable[..., Account | None],
+    access: Access,
+    searches: Searches,
 ) -> APIRouter:
     def person(account: Annotated[Account | None, Depends(logged_in)]) -> UUID:
         if account is None:
@@ -78,6 +88,21 @@ def router(
     @routes.post("/prototypes/proposals/{revision}/review")
     def review(revision: UUID, body: PrototypeReview, me: Person) -> PrototypeRevision:
         return prototypes.review(me, revision, body)
+
+    @routes.get("/prototypes/search")
+    def search_consent(me: Person) -> PrototypeSearchConsent:
+        """What a web search sends and to whom, the price and the balance (CAT-142, CAT-219)."""
+        return searches.consent(me)
+
+    @routes.post("/prototypes/search")
+    async def search(body: PrototypeSearchAsk, me: Person) -> PrototypeSearch:
+        """Sök på webben: the type data for a marking, with sources (CAT-166–CAT-171). A
+        proposal for the person to send; nothing is written in the catalog or on a vehicle."""
+        return await run_in_threadpool(searches.search, me, body)
+
+    @routes.get("/prototypes/search/{search}")
+    def searched(search: UUID, me: Person) -> PrototypeSearch:
+        return searches.get(me, search)
 
     @routes.get("/prototypes/{prototype}")
     def prototype(prototype: UUID, me: Person) -> Prototype:

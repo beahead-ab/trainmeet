@@ -38,7 +38,13 @@ from contracts.id import (
     ResourceKind,
     Role,
 )
-from contracts.tokens import TOKENS_PER_PAGE, OwnerPage, TokenMonth, TokenSettings
+from contracts.tokens import (
+    TOKENS_PER_PAGE,
+    TOKENS_PER_SEARCH,
+    OwnerPage,
+    TokenMonth,
+    TokenSettings,
+)
 from id.db import Database
 from id.roles import Asker, Refused, initials
 
@@ -214,16 +220,34 @@ class Owner:
                 "TrainMeets AI har nått månadens budget. Använd egen AI, eller försök nästa månad.",
             )
 
-    def record(self, pages: int, input_tokens: int, output_tokens: int) -> None:
-        """What a reading cost, in kronor, as AWS counts the tokens."""
+    def record(
+        self,
+        pages: int,
+        input_tokens: int,
+        output_tokens: int,
+        *,
+        searches: int = 0,
+        extra_usd: float = 0.0,
+    ) -> None:
+        """What a reading cost, in kronor, as AWS counts the tokens; or a web search, as
+        Anthropic counts the tokens, with what the searches cost beside them (TOKEN-30)."""
         with self.db.transaction() as conn:
             found = self.settings(conn)
             usd = (input_tokens * found.price_in_usd + output_tokens * found.price_out_usd) / 1e6
+            usd += max(extra_usd, 0.0)
             month = self._month(conn)
             conn.execute(
-                "INSERT INTO meter_usage (at, month, pages, input_tokens, output_tokens, cost_sek) "
-                "VALUES (%s, %s, %s, %s, %s, %s)",
-                (self.clock(), month, pages, input_tokens, output_tokens, usd * found.usd_sek),
+                "INSERT INTO meter_usage (at, month, pages, searches, input_tokens, "
+                "output_tokens, cost_sek) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (
+                    self.clock(),
+                    month,
+                    pages,
+                    searches,
+                    input_tokens,
+                    output_tokens,
+                    usd * found.usd_sek,
+                ),
             )
             used = self._used(conn, month)
         if used >= 80:
@@ -278,14 +302,23 @@ class Owner:
             found = self.settings(conn)
             month = self._month(conn)
             last = self._month(conn, "1 month")
+            # A row is a reading's pages or a search's searches, never both.
             measured = conn.execute(
-                "SELECT coalesce(sum(cost_sek), 0) AS cost, coalesce(sum(pages), 0) AS pages "
+                "SELECT coalesce(sum(cost_sek) FILTER (WHERE pages > 0), 0) AS cost, "
+                "coalesce(sum(pages), 0) AS pages, "
+                "coalesce(sum(cost_sek) FILTER (WHERE searches > 0), 0) AS search_cost, "
+                "count(*) FILTER (WHERE searches > 0) AS searched "
                 "FROM meter_usage WHERE at >= %s::timestamptz - interval '30 days'",
                 (self.clock(),),
             ).fetchone()
             assert measured is not None
             per_page = (
                 float(measured["cost"]) / int(measured["pages"]) if measured["pages"] else None
+            )
+            per_search = (
+                float(measured["search_cost"]) / int(measured["searched"])
+                if measured["searched"]
+                else None
             )
             months = [self._month_out(conn, m) for m in (month, last)]
             used = self._used(conn, month)
@@ -296,6 +329,13 @@ class Owner:
             factor_page_tokens=(
                 max(1, math.ceil(per_page * found.ai_factor / TOKEN_VALUE_SEK))
                 if per_page is not None
+                else None
+            ),
+            search_tokens=TOKENS_PER_SEARCH,
+            cost_per_search_sek=round(per_search, 4) if per_search is not None else None,
+            factor_search_tokens=(
+                max(1, math.ceil(per_search * found.ai_factor / TOKEN_VALUE_SEK))
+                if per_search is not None
                 else None
             ),
             budget_used=used,
@@ -311,7 +351,10 @@ class Owner:
             (month,),
         ).fetchone()
         used = conn.execute(
-            "SELECT coalesce(sum(pages), 0) AS pages FROM meter_usage WHERE month = %s", (month,)
+            "SELECT coalesce(sum(pages), 0) AS pages, "
+            "count(*) FILTER (WHERE searches > 0) AS searches "
+            "FROM meter_usage WHERE month = %s",
+            (month,),
         ).fetchone()
         assert paid is not None and used is not None
         return TokenMonth(
@@ -320,6 +363,7 @@ class Owner:
             test_revenue_sek=float(paid["test"]),
             cost_sek=round(self._cost(conn, month), 2),
             pages=int(used["pages"]),
+            searches=int(used["searches"]),
         )
 
     def _month(self, conn: Connection[DictRow], back: str = "0 months") -> str:

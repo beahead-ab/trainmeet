@@ -34,10 +34,11 @@
       "type": "object"
     },
     "PrototypeSourceKind": {
-      "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+      "description": "Where the type data come from (CAT-163).",
       "enum": [
         "own",
-        "reference"
+        "reference",
+        "web_search"
       ],
       "title": "PrototypeSourceKind",
       "type": "string"
@@ -127,6 +128,20 @@
       "description": "The proposer confirms that the data may be shared under CC BY-SA 4.0.",
       "title": "May Share",
       "type": "boolean"
+    },
+    "search": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The web search the proposal is sent from (CAT-171): its evidence follows the fields, also the ones the proposer changed first, and its 24 tokens come back when the proposal is approved (CAT-172). The source's kind is then web_search, and Catalog writes its text. A search is sent once.",
+      "title": "Search"
     }
   },
   "required": [

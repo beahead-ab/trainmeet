@@ -17,6 +17,13 @@
 // Sist Utskrift och filer (#56): två filer i Tellurians format importeras som utkast och godkänns
 // (CAT-186), ett fordon går ut som en fil med EVN delat (CAT-185), kontoexporten är en ZIP
 // (CAT-188), och arket med QR-etiketter skrivs ut med littera och nummer under koden (CAT-184).
+//
+// Allra sist Sök på webben (#53 del b), med en låtsad sökning hos mätaren: Provkonto B söker på
+// litteran Hbis, ser priset, saldot och samtycket, och får AI:ns förslag med källor per fält,
+// där en påhittad källa och ett värde utan belägg är bortsållade (CAT-167, CAT-169). Förslaget
+// ändras först, skickas till granskning, och Provkonto C, som är granskare, ser värdet, källan,
+// utgivaren och utdraget per fält, och att belägget inte längre stämmer med det ändrade värdet
+// (CAT-170). C godkänner, och B ser sökningens 24 tokens komma tillbaka (CAT-172).
 import { chromium } from "playwright-core";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -348,6 +355,126 @@ async function files(page) {
   console.log("Utskrift och filer: två filer från Tellurian godkända, filen ut, kontoexporten och QR-etiketten.");
 }
 
+/** The person's balance, as Catalog's consent for the web search says it. */
+const balanceOf = async (page) => (await fromCatalog(page, "/api/catalog/1/prototypes/search")).balance;
+
+async function webSearch(page) {
+  // 1. Provkonto B, from the catalog: the search's page with the price and the balance.
+  await logIn(page, "Provkonto B");
+  await page.getByRole("link", { name: "Förebilder", exact: true }).first().click();
+  await heading(page, "Förebilder");
+  await page.getByRole("link", { name: "Sök på webben", exact: true }).click();
+  await heading(page, "Finns typen inte i katalogen än?");
+  const before = await balanceOf(page);
+  check(before >= 24, `Provkonto B har ${before} tokens, inte nog för en sökning.`);
+  const card = page.locator(".cat-sokkort");
+  await card.getByText("Sökningen görs med TrainMeets AI och kostar 24 tokens. De kommer tillbaka när förebilden godkänns.", { exact: true }).waitFor();
+  await card.getByText(`Saldo: ${before} tokens · Provkonto`, { exact: true }).waitFor();
+  check(await card.getByRole("button", { name: "Sök · 24 tokens", exact: true }).isDisabled(), "Det går att söka utan littera.");
+  await page.getByLabel("Littera eller typ", { exact: true }).fill("Hbis");
+  await page.getByLabel("Bolag", { exact: true }).fill("Green Cargo");
+  await page.getByLabel("Slag", { exact: true }).selectOption("freight_wagon");
+  await screenshot(page, "sok-fore");
+
+  // 2. The first time: what is sent and to whom (CAT-142, C40).
+  await card.getByRole("button", { name: "Sök · 24 tokens", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Innan webbsökningen" });
+  await dialog.waitFor();
+  await dialog.getByText("Bara märkningen skickas: littera, bolag, slag och fältprofil.", { exact: false }).waitFor();
+  await dialog.getByText("Sökningen kostar 24 tokens, som kommer tillbaka när förebilden godkänns.", { exact: true }).waitFor();
+  await screenshot(page, "sok-samtycke");
+  await dialog.getByRole("button", { name: "Ja, sök", exact: true }).click();
+
+  // 3. The AI's proposal, with each field's sources (CAT-169), and what was taken away.
+  await heading(page, "Hbis finns inte i katalogen än");
+  await page.waitForURL(/\/forebilder\/sok\/[0-9a-f-]{36}$/);
+  const proposal = page.locator(".cat-forslag");
+  await proposal.getByText("3 fält med källa av 2 sidor i sökningen.", { exact: false }).waitFor();
+  const rows = proposal.locator(".cat-belaggtabell tbody tr");
+  const labels = await rows.locator("th").allInnerTexts();
+  check(JSON.stringify(labels) === JSON.stringify(["Littera", "Bolag", "Längd över buffertar", "Största hastighet", "Axlar"]), `Fälten är ${labels.join(", ")}.`);
+  // A row by its field: the rows move when a field is filled in below.
+  const row = (name) => rows.filter({ has: page.getByRole("rowheader", { name, exact: true }) });
+  const length = row("Längd över buffertar");
+  await length.getByText("14020 mm", { exact: true }).waitFor();
+  await length.getByRole("link", { name: "Hbis – Museet (påhittad sida)", exact: true }).waitFor();
+  await length.getByText("Museum", { exact: true }).waitFor();
+  await length.getByText("Längd över buffertar 14 020 mm", { exact: true }).waitFor();
+  const speed = row("Största hastighet");
+  await speed.getByText("2 källor", { exact: true }).waitFor();
+  const publishers = await speed.locator(".cat-pill-utgivare").allInnerTexts();
+  check(JSON.stringify(publishers) === JSON.stringify(["Museum", "Okänd utgivare"]), `Utgivarna är ${publishers.join(", ")}.`);
+  check((await proposal.getByText("Belägget stämmer", { exact: true }).count()) === 4, "Alla belägg stämmer inte från början.");
+  for (const gone of ["Vikt: källan fanns inte i sökresultatet.", "Byggår: utdraget ur källan stämde inte med värdet.", "Broms: AI:n gav ingen källa."]) {
+    await proposal.getByText(gone, { exact: true }).waitFor();
+  }
+  const link = await length.getByRole("link").getAttribute("href");
+  check(link === "https://museum.example.org/fordon/hbis", `Källans adress är ${link}.`);
+  // The search is drawn, and nothing is in the catalog yet (CAT-171, CAT-172).
+  check((await balanceOf(page)) === before - 24, "Sökningen drog inte 24 tokens.");
+  await card.getByText(`Saldo: ${before - 24} tokens · Provkonto`, { exact: true }).waitFor();
+  check((await fromCatalog(page, "/api/catalog/1/prototypes")).prototypes.length === 0, "Sökningen skrev i katalogen.");
+  await screenshot(page, "sok-forslaget");
+
+  // 4. Ändra först: the speed is changed, and its evidence no longer agrees (CAT-170).
+  await proposal.getByRole("button", { name: "Ändra först", exact: true }).click();
+  await page.getByLabel("Största hastighet (km/h)", { exact: true }).fill("120");
+  await page.getByLabel("Beskrivning", { exact: true }).fill("Täckt godsvagn med skjutväggar");
+  await screenshot(page, "sok-andra-forst");
+  await proposal.getByRole("button", { name: "Klar med ändringarna", exact: true }).click();
+  await speed.getByText("120 km/h", { exact: true }).waitFor();
+  check((await speed.getByText("Belägget stämmer inte längre", { exact: true }).count()) === 2, "Det ändrade värdet har belägg som stämmer.");
+
+  // 5. Skicka till granskning: a proposal, seen only by the proposer and the reviewers.
+  const send = proposal.getByRole("button", { name: "Skicka till granskning", exact: true });
+  check(await send.isDisabled(), "Förslaget går att skicka utan ja till att dela.");
+  await proposal.getByRole("checkbox").check();
+  await send.click();
+  await page.waitForURL(/\/forebilder\/[0-9a-f-]{36}$/);
+  await heading(page, "Hbis Förslag");
+  await page.getByText("Webbsökning:", { exact: true }).waitFor();
+  await screenshot(page, "sok-skickat");
+
+  // 6. Provkonto C reviews: each field's value, source, publisher and excerpt.
+  await logIn(page, "Provkonto C");
+  await page.getByRole("link", { name: "Förebilder", exact: true }).first().click();
+  await heading(page, "Förebilder");
+  check((await page.locator(".cat-forebilder tbody tr").count()) === 0, "Förslaget syns för andra innan det är granskat.");
+  await page.getByRole("link", { name: "Att granska 1", exact: true }).click();
+  await heading(page, "Granskningskön");
+  const review = page.locator(".cat-granska");
+  await review.getByRole("heading", { name: "Hbis: ny förebild", exact: true }).waitFor();
+  await review.getByText("bidrag från Provkonto B", { exact: false }).waitFor();
+  await review.getByRole("heading", { name: "Belägg per fält", exact: true }).waitFor();
+  await review.getByText("Belägget stämmer inte längre: 1", { exact: true }).waitFor();
+  const evidence = review.locator(".cat-belaggtabell tbody tr");
+  check((await evidence.count()) === 3, "Granskaren ser inte belägget för de tre fälten.");
+  await evidence.nth(0).getByText("Längd över buffertar 14 020 mm", { exact: true }).waitFor();
+  await evidence.nth(1).getByText("Källan belade 100 km/h. Värdet har ändrats sedan dess.", { exact: true }).first().waitFor();
+  await evidence.nth(2).getByText("Okänd utgivare", { exact: true }).waitFor();
+  await screenshot(page, "sok-granskningen");
+  await review.getByRole("button", { name: "Godkänn", exact: true }).click();
+  await page.getByText("Inget väntar på granskning.", { exact: true }).waitFor();
+
+  // 7. Approved: the prototype is in the catalog, and B's 24 tokens are back (CAT-172).
+  await logIn(page, "Provkonto B");
+  check((await balanceOf(page)) === before, "Sökningens tokens kom inte tillbaka när förebilden godkändes.");
+  const listed = (await fromCatalog(page, "/api/catalog/1/prototypes")).prototypes;
+  check(listed.length === 1 && listed[0].status === "reviewed" && listed[0].source.kind === "web_search", "Förebilden är inte granskad i katalogen.");
+  check(listed[0].evidence.max_speed.every((each) => each.agrees === false), "Katalogen säger inte att belägget för hastigheten inte stämmer.");
+  await page.goto(`${BASE}/forebilder/sok`);
+  await heading(page, "Finns typen inte i katalogen än?");
+  await page.locator(".cat-sokkort").getByText(`Saldo: ${before} tokens · Provkonto`, { exact: true }).waitFor();
+  await page.goto(`${BASE}/forebilder/${listed[0].id}`);
+  await heading(page, "Hbis Granskad");
+  await page.getByRole("heading", { name: "Belägg per fält", exact: true }).waitFor();
+  await screenshot(page, "sok-forebilden");
+  // The search itself says that its tokens came back.
+  const mine = await fromCatalog(page, "/api/catalog/1/prototypes/proposals/mine");
+  check(mine.length === 1 && mine[0].status === "reviewed", "Förslaget står inte som granskat hos den som föreslog.");
+  console.log("Sök på webben: förslaget med källor, ändrat och skickat, granskat med belägg per fält, och tokens tillbaka.");
+}
+
 async function main() {
   check(CHROME, "CHROME_PATH saknas: sökvägen till Chrome eller Chromium.");
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
@@ -367,6 +494,7 @@ async function main() {
     await singlePhoto(page);
     await batch(page);
     await files(page);
+    await webSearch(page);
     check(problems.length === 0, problems.join("\n"));
     console.log("Webbläsarprovet gick igenom.");
   } catch (error) {

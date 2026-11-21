@@ -65,6 +65,7 @@ from catalog.db import Database, UnknownOwner
 from catalog.fleet import Fleet, Refused
 from catalog.id_roles import IdRoles
 from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store_for
+from catalog.prototype_search import Searches
 from catalog.reading import IdMeter, Readings
 from catalog.settings import Settings, from_env
 from catalog.storage import IdPayer
@@ -234,6 +235,9 @@ def create_app(
         except Exception as error:
             LOGGER.warning("Bildfilerna kunde inte städas vid starten: %s", type(error).__name__)
         rounds = asyncio.create_task(storage_rounds()) if pictures.payer is not None else None
+        # Searches whose proposals were approved while ID did not answer: the tokens go back
+        # now (CAT-172).
+        settling = asyncio.create_task(run_in_threadpool(catalog_of_prototypes.settle))
         # The batches' queue goes on where it was (CAT-151): reservations that ran out go back,
         # and photos that were cut off can be read again.
         stop = threading.Event()
@@ -252,6 +256,8 @@ def create_app(
                 rounds.cancel()
                 with contextlib.suppress(asyncio.CancelledError):
                     await rounds
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await settling
             db.close()
 
     # The interactive API pages load scripts from another site, so they are off. The
@@ -460,7 +466,10 @@ def create_app(
         prototypes=prototypes.linked,
     )
     # The prototype catalog (#53): the reviewers are a role in ID, asked at every call (CAT-165).
-    catalog_of_prototypes = prototypes.Prototypes(db, fleet, access.reviewer)
+    # The web search for the type data goes through ID's meter to Claude's web search (CAT-219,
+    # C40): only the marking is sent, and Catalog never holds a key.
+    searches = Searches(db, readings, IdMeter(roles) if roles is not None else None)
+    catalog_of_prototypes = prototypes.Prototypes(db, fleet, access.reviewer, searches)
     tags = Tags(
         db,
         base=settings.tag_base,
@@ -527,10 +536,11 @@ def create_app(
     app.include_router(trips_api.router(trips, logged_in, access))
     app.include_router(reading_api.router(readings, logged_in, access))
     app.include_router(batches_api.router(batches, logged_in, access, sweep=pictures.sweep))
-    app.include_router(prototypes_api.router(catalog_of_prototypes, logged_in, access))
+    app.include_router(prototypes_api.router(catalog_of_prototypes, logged_in, access, searches))
     # Printing and files (#56): Tellurian's format and the account export.
     exports = Exports(fleet, tags, trips, pictures)
     app.state.exports = exports
+    app.state.searches = searches
     app.include_router(files_api.router(fleet, batches, pictures, exports, logged_in, access))
 
     @app.api_route(

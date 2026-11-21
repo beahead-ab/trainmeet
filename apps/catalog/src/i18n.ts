@@ -1,9 +1,11 @@
 // Swedish and English from the start (ST10, CAT-199). Every text has both; the type makes
 // a missing English text a compile error. Product names are never translated.
 import { prototypeEn, prototypeSv } from "./prototypeTexts";
+import { searchEn, searchSv } from "./searchTexts";
 
 const sv = {
   ...prototypeSv,
+  ...searchSv,
   product: "TrainMeet Catalog",
   skip: "Hoppa till innehållet",
   mainNav: "Huvudmeny",
@@ -637,6 +639,7 @@ type Texts = { readonly [K in TextKey]: string };
 
 const en: Texts = {
   ...prototypeEn,
+  ...searchEn,
   product: "TrainMeet Catalog",
   skip: "Skip to content",
   mainNav: "Main menu",

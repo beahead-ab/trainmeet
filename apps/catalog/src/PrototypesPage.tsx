@@ -1,6 +1,7 @@
 // Förebildskatalogen (#53, CAT-03, CAT-155–CAT-165, CAT-173, CAT-213): the catalog with one
 // type per row, a prototype with its revisions, Föreslå förebild and Föreslå ändring, and the
-// review queue for the reviewers TrainMeet ID names. The web search (CAT-166–CAT-172) comes later.
+// review queue for the reviewers TrainMeet ID names. The web search (CAT-166–CAT-172) is in
+// SearchPage.tsx; its evidence per field is shown here, on the prototype's page and in the queue.
 import { linkClick } from "@trainmeet/design";
 import { useEffect, useId, useState } from "react";
 import {
@@ -19,6 +20,7 @@ import {
   type VehicleKind,
 } from "./api";
 import { Crumbs, dateText, ErrorLine, kindText, problemText, type Ctx, type T } from "./common";
+import { EvidenceTable, staleCount } from "./Evidence";
 import type { Language } from "./i18n";
 import { changePrototypePath, PATHS, prototypePath } from "./routes";
 
@@ -180,6 +182,9 @@ export function PrototypesView({ ctx, list, mine, q, group, error, onQ, onGroup 
               {t("protoToReview")} <span className="cat-antal">{list.to_review ?? 0}</span>
             </a>
           ) : null}
+          <a className="tm-knapp" href={PATHS.searchPrototype} onClick={linkClick(navigate, PATHS.searchPrototype)}>
+            {t("protoSearchWeb")}
+          </a>
           <a className="tm-knapp primar" href={PATHS.newPrototype} onClick={linkClick(navigate, PATHS.newPrototype)}>
             {t("protoNew")}
           </a>
@@ -295,6 +300,29 @@ export function PrototypesPage({ ctx }: { ctx: Ctx }) {
   return <PrototypesView ctx={ctx} list={list} mine={mine} q={q} group={group} error={error} onQ={setQ} onGroup={setGroup} />;
 }
 
+// --- Belägget per fält (CAT-169, CAT-170) ------------------------------------------------------
+
+/** The evidence of a prototype or a proposal from the web search: per field its sources, with
+ * the publisher's class and whether the excerpt still agrees with the value. Nothing without
+ * evidence. */
+export function EvidenceBlock({ ctx, fields, evidence, register, profile }: { ctx: Ctx; fields: TypeData; evidence: Prototype["evidence"]; register: FieldRegister | null; profile: FieldProfile }) {
+  const { t, language } = ctx;
+  if (!evidence || Object.keys(evidence).length === 0 || !register) return null;
+  const stale = staleCount(evidence);
+  return (
+    <div className="cat-belaggblock">
+      <h3>{t("evidenceTitle")}</h3>
+      <p className="cat-hjalp">{t("evidenceIntro")}</p>
+      {stale ? (
+        <p className="cat-varning" role="status">
+          {t("evidenceStale")}: {stale}
+        </p>
+      ) : null}
+      <EvidenceTable ctx={ctx} fields={profileFields(register, profile, language)} values={fields} evidence={evidence} onlyEvidence />
+    </div>
+  );
+}
+
 // --- One prototype, with its revisions (CAT-159) -------------------------------------------------
 
 function SourceLine({ t, source }: { t: T; source: Prototype["source"] }) {
@@ -334,6 +362,7 @@ export function PrototypeView({ ctx, prototype, register }: { ctx: Ctx; prototyp
             </div>
             <TypeDataTable ctx={ctx} fields={prototype.fields} register={register} profile={prototype.profile} />
             <SourceLine t={t} source={prototype.source} />
+            <EvidenceBlock ctx={ctx} fields={prototype.fields} evidence={prototype.evidence} register={register} profile={prototype.profile} />
             <p className="cat-hjalp">{t("protoVehicles", { n: prototype.vehicles })}</p>
           </section>
           <LicenseLine t={t} />
@@ -405,6 +434,7 @@ export function proposalOf(draft: Draft, register: FieldRegister, change: Protot
     fields,
     source: { kind: draft.sourceKind, text: draft.source.trim() },
     may_share: true,
+    search: null,
   };
 }
 
@@ -622,6 +652,7 @@ export function ReviewQueueView({ ctx, queue, register, comments, busy, error, o
               </p>
               <TypeDataTable ctx={ctx} fields={revision.fields} register={register} profile={revision.profile} />
               <SourceLine t={t} source={revision.source} />
+              <EvidenceBlock ctx={ctx} fields={revision.fields} evidence={revision.evidence} register={register} profile={revision.profile} />
               <div className="cat-falt">
                 <label htmlFor={`kommentar-${revision.id}`}>{t("protoComment")}</label>
                 <textarea id={`kommentar-${revision.id}`} value={comment} maxLength={1000} rows={2} onChange={(event) => onComment?.(revision.id, event.target.value)} />

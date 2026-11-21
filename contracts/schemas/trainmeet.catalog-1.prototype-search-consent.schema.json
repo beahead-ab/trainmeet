@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-search-consent.schema.json",
+  "title": "trainmeet.catalog-1.prototype-search-consent",
+  "$defs": {
+    "PrototypeSearchSummary": {
+      "additionalProperties": true,
+      "description": "One of the person's searches that is not sent as a proposal yet.",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "litt": {
+          "title": "Litt",
+          "type": "string"
+        },
+        "operator": {
+          "default": "",
+          "title": "Operator",
+          "type": "string"
+        },
+        "searched_at": {
+          "format": "date-time",
+          "title": "Searched At",
+          "type": "string"
+        },
+        "fields": {
+          "description": "How many fields the search found with evidence.",
+          "minimum": 0,
+          "title": "Fields",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "litt",
+        "searched_at",
+        "fields"
+      ],
+      "title": "PrototypeSearchSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What a web search sends and to whom, the price and the balance, before the first one\n(CAT-142, CAT-172, CAT-219).",
+  "properties": {
+    "available": {
+      "description": "The web search can be used here now.",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Why not, when it cannot: Webbsökningen är inte inkopplad här. (CAT-219)",
+      "title": "Message"
+    },
+    "given": {
+      "description": "The person has said yes before.",
+      "title": "Given",
+      "type": "boolean"
+    },
+    "version": {
+      "description": "The version of what the person says yes to.",
+      "title": "Version",
+      "type": "string"
+    },
+    "sent_to": {
+      "description": "Who searches: Claude's web search at Anthropic.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Sent To",
+      "type": "string"
+    },
+    "text": {
+      "description": "What is sent and to whom, as the person reads it.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Text",
+      "type": "string"
+    },
+    "price": {
+      "description": "24 tokens, which come back when the prototype is approved.",
+      "title": "Price",
+      "type": "integer"
+    },
+    "balance": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Tokens left on the person's balance, when ID says.",
+      "title": "Balance"
+    },
+    "payer": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Whose balance pays: the person's.",
+      "title": "Payer"
+    },
+    "own_ai": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The account's own AI, when it has one: it is not used for the web search.",
+      "title": "Own Ai"
+    },
+    "unsent": {
+      "description": "The person's searches of the last 30 days that are not sent yet, newest first: a search that was paid for can always be opened again.",
+      "items": {
+        "$ref": "#/$defs/PrototypeSearchSummary"
+      },
+      "title": "Unsent",
+      "type": "array"
+    }
+  },
+  "required": [
+    "available",
+    "given",
+    "version",
+    "sent_to",
+    "text",
+    "price"
+  ],
+  "type": "object"
+}

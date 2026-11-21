@@ -30,6 +30,12 @@
           "description": "Sidor och bilder som TrainMeets AI läste.",
           "title": "Pages",
           "type": "integer"
+        },
+        "searches": {
+          "default": 0,
+          "description": "Webbsökningar som mätaren gjorde (TOKEN-30).",
+          "title": "Searches",
+          "type": "integer"
         }
       },
       "required": [
@@ -151,6 +157,38 @@
       "default": null,
       "description": "Vad faktorn gör av den uppmätta kostnaden, i tokens per sida (TK6).",
       "title": "Factor Page Tokens"
+    },
+    "search_tokens": {
+      "default": 24,
+      "description": "Tokens per webbsökning nu (CAT-172).",
+      "title": "Search Tokens",
+      "type": "integer"
+    },
+    "cost_per_search_sek": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Uppmätt kostnad per webbsökning de senaste 30 dagarna, med sökavgiften.",
+      "title": "Cost Per Search Sek"
+    },
+    "factor_search_tokens": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Vad faktorn gör av den uppmätta kostnaden, i tokens per webbsökning (TK6): priset stäms av mot det (CAT-172).",
+      "title": "Factor Search Tokens"
     },
     "budget_used": {
       "description": "Hur mycket av månadens budget som är använd, %.",

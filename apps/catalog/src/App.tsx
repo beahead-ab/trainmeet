@@ -11,6 +11,7 @@ import { LendPage } from "./LendPage";
 import { PhotoFlowPage } from "./PhotoFlow";
 import { PlacesPage } from "./PlacesPage";
 import { ProposalPage, PrototypePage, PrototypesPage, ReviewQueuePage } from "./PrototypesPage";
+import { SearchPage } from "./SearchPage";
 import { TagPage } from "./TagPage";
 import { TapPage } from "./TapPage";
 import { MeetsPage, TripPage } from "./TripsPage";
@@ -69,6 +70,7 @@ const TITLES: Record<Page, TextKey> = {
   prototype: "prototypes",
   newPrototype: "protoNewTitle",
   changePrototype: "protoChangeTitle",
+  searchPrototype: "searchTitle",
   reviewQueue: "protoQueueTitle",
   tap: "tapTitle",
   login: "logIn",
@@ -372,6 +374,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
     case "prototype":
     case "newPrototype":
     case "changePrototype":
+    case "searchPrototype":
     case "reviewQueue":
       // Förebildskatalogen (#53): shared by everyone who is logged in (CAT-155).
       if (!account)
@@ -384,6 +387,7 @@ function PageContent(props: ShellProps & { t: T; account: Account | null }) {
       if (page === "prototype") return <PrototypePage key={id} ctx={ctx} id={id ?? ""} />;
       if (page === "newPrototype") return <ProposalPage ctx={ctx} />;
       if (page === "changePrototype") return <ProposalPage key={id} ctx={ctx} id={id ?? ""} />;
+      if (page === "searchPrototype") return <SearchPage key={id ?? "ny"} ctx={ctx} id={id} />;
       if (page === "reviewQueue") return <ReviewQueuePage ctx={ctx} />;
       return <PrototypesPage ctx={ctx} />;
     case "tap":

@@ -36,6 +36,7 @@
         "consent_required",
         "reading_busy",
         "reading_failed",
+        "search_off",
         "bad_type_data",
         "bad_form",
         "files_too_large"

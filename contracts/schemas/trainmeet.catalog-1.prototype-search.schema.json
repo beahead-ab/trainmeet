@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-search.schema.json",
+  "title": "trainmeet.catalog-1.prototype-search",
+  "$defs": {
+    "DroppedField": {
+      "additionalProperties": true,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/DroppedReason"
+        }
+      },
+      "required": [
+        "key",
+        "reason"
+      ],
+      "title": "DroppedField",
+      "type": "object"
+    },
+    "DroppedReason": {
+      "description": "Why a value the AI proposed was not kept.",
+      "enum": [
+        "no_source",
+        "invented_source",
+        "unsupported",
+        "bad_value"
+      ],
+      "title": "DroppedReason",
+      "type": "string"
+    },
+    "FieldEvidence": {
+      "additionalProperties": true,
+      "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+      "properties": {
+        "value": {
+          "description": "The value the excerpt was found to support.",
+          "maxLength": 1000,
+          "title": "Value",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Title",
+          "type": "string"
+        },
+        "publisher": {
+          "$ref": "#/$defs/PublisherKind"
+        },
+        "excerpt": {
+          "description": "Utdraget ur källan, as the search gave it.",
+          "maxLength": 2000,
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "searched_at": {
+          "format": "date-time",
+          "title": "Searched At",
+          "type": "string"
+        },
+        "agrees": {
+          "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+          "title": "Agrees",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "value",
+        "url",
+        "publisher",
+        "excerpt",
+        "searched_at",
+        "agrees"
+      ],
+      "title": "FieldEvidence",
+      "type": "object"
+    },
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "PrototypeSummary": {
+      "additionalProperties": true,
+      "description": "A prototype in short: what a suggestion names (CAT-141).",
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "revision": {
+          "description": "The reviewed revision, the version a link would get.",
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "revision"
+      ],
+      "title": "PrototypeSummary",
+      "type": "object"
+    },
+    "PublisherKind": {
+      "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+      "enum": [
+        "manufacturer",
+        "operator",
+        "museum",
+        "archive",
+        "unknown"
+      ],
+      "title": "PublisherKind",
+      "type": "string"
+    },
+    "ReadingStatus": {
+      "enum": [
+        "pending",
+        "done",
+        "failed",
+        "discarded"
+      ],
+      "title": "ReadingStatus",
+      "type": "string"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "What a web search found for a marking (CAT-166–CAT-171): the type data with valid\nevidence. A proposal for the person to send to the review queue, nothing more.",
+  "properties": {
+    "id": {
+      "description": "The client's id for the search (CAT-144).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "status": {
+      "$ref": "#/$defs/ReadingStatus"
+    },
+    "litt": {
+      "title": "Litt",
+      "type": "string"
+    },
+    "operator": {
+      "default": "",
+      "title": "Operator",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehicleKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profile": {
+      "$ref": "#/$defs/FieldProfile"
+    },
+    "fields": {
+      "description": "The litt and the operator as searched, and the values with valid evidence.",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "maxLength": 1000,
+          "type": "string"
+        }
+      },
+      "title": "Fields",
+      "type": "object"
+    },
+    "evidence": {
+      "description": "Belägget per fält (CAT-169).",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "items": {
+            "$ref": "#/$defs/FieldEvidence"
+          },
+          "type": "array"
+        }
+      },
+      "title": "Evidence",
+      "type": "object"
+    },
+    "dropped": {
+      "description": "Values the AI proposed that were not kept, and why.",
+      "items": {
+        "$ref": "#/$defs/DroppedField"
+      },
+      "title": "Dropped",
+      "type": "array"
+    },
+    "sources": {
+      "description": "Pages the real search found.",
+      "minimum": 0,
+      "title": "Sources",
+      "type": "integer"
+    },
+    "cost": {
+      "description": "Tokens drawn: 24 (CAT-172).",
+      "minimum": 0,
+      "title": "Cost",
+      "type": "integer"
+    },
+    "model": {
+      "description": "The AI that searched.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "searched_at": {
+      "format": "date-time",
+      "title": "Searched At",
+      "type": "string"
+    },
+    "revision": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The proposal the search was sent as, once it is sent.",
+      "title": "Revision"
+    },
+    "prototype": {
+      "anyOf": [
+        {
+          "format": "uuid",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "That proposal's prototype.",
+      "title": "Prototype"
+    },
+    "refunded": {
+      "default": false,
+      "description": "The tokens came back: the proposal was approved (CAT-172).",
+      "title": "Refunded",
+      "type": "boolean"
+    },
+    "existing": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PrototypeSummary"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "A reviewed prototype that already has this litt and operator (CAT-141)."
+    }
+  },
+  "required": [
+    "id",
+    "status",
+    "litt",
+    "profile",
+    "fields",
+    "evidence",
+    "sources",
+    "cost",
+    "model",
+    "searched_at"
+  ],
+  "type": "object"
+}

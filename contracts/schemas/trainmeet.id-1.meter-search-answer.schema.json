@@ -1,0 +1,328 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meter-search-answer.schema.json",
+  "title": "trainmeet.id-1.meter-search-answer",
+  "$defs": {
+    "MeterCitation": {
+      "additionalProperties": true,
+      "description": "Where Claude says a value stands: a page from the real search, and an excerpt of it.",
+      "properties": {
+        "url": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Title",
+          "type": "string"
+        },
+        "cited_text": {
+          "default": "",
+          "description": "Utdraget ur sidan, som sökningen gav det.",
+          "maxLength": 2000,
+          "title": "Cited Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "MeterCitation",
+      "type": "object"
+    },
+    "MeterSearchResult": {
+      "additionalProperties": true,
+      "description": "A page the real search found.",
+      "properties": {
+        "url": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Title",
+          "type": "string"
+        },
+        "page_age": {
+          "anyOf": [
+            {
+              "maxLength": 80,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page Age"
+        }
+      },
+      "required": [
+        "url"
+      ],
+      "title": "MeterSearchResult",
+      "type": "object"
+    },
+    "MeterSearchValue": {
+      "additionalProperties": true,
+      "description": "A value Claude proposes for one of the fields, with its citations.",
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/MeterCitation"
+          },
+          "maxItems": 20,
+          "title": "Citations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "key",
+        "value"
+      ],
+      "title": "MeterSearchValue",
+      "type": "object"
+    },
+    "TokenBalance": {
+      "additionalProperties": true,
+      "description": "Saldot som det ser ut nu (TOKEN-01, TOKEN-12).",
+      "properties": {
+        "owner": {
+          "$ref": "#/$defs/TokenOwner"
+        },
+        "title": {
+          "description": "Vems saldo, som det visas: personens namn eller klubbens.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "free_left": {
+          "description": "Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.",
+          "minimum": 0,
+          "title": "Free Left",
+          "type": "integer"
+        },
+        "free_monthly": {
+          "description": "Månadens gratiskvot: 100 per person, 300 per klubb.",
+          "minimum": 0,
+          "title": "Free Monthly",
+          "type": "integer"
+        },
+        "bought": {
+          "description": "Köpta tokens som är kvar. De förfaller inte.",
+          "minimum": 0,
+          "title": "Bought",
+          "type": "integer"
+        },
+        "reserved": {
+          "description": "Hålls av reservationer som inte är dragna eller tillbakalämnade än.",
+          "minimum": 0,
+          "title": "Reserved",
+          "type": "integer"
+        },
+        "available": {
+          "description": "Det som går att använda nu: gratis och köpt.",
+          "minimum": 0,
+          "title": "Available",
+          "type": "integer"
+        },
+        "month": {
+          "description": "Månaden gratiskvoten gäller, i svensk tid.",
+          "pattern": "^[0-9]{4}-[0-9]{2}$",
+          "title": "Month",
+          "type": "string"
+        },
+        "own_ai": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.",
+          "title": "Own Ai"
+        }
+      },
+      "required": [
+        "owner",
+        "title",
+        "free_left",
+        "free_monthly",
+        "bought",
+        "reserved",
+        "available",
+        "month"
+      ],
+      "title": "TokenBalance",
+      "type": "object"
+    },
+    "TokenOwner": {
+      "additionalProperties": true,
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/TokenOwnerKind"
+        },
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "id"
+      ],
+      "title": "TokenOwner",
+      "type": "object"
+    },
+    "TokenOwnerKind": {
+      "description": "Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för\nträffarnas import (TK16).",
+      "enum": [
+        "person",
+        "club"
+      ],
+      "title": "TokenOwnerKind",
+      "type": "string"
+    },
+    "TokenReservation": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "format": "uuid",
+          "title": "Id",
+          "type": "string"
+        },
+        "owner": {
+          "$ref": "#/$defs/TokenOwner"
+        },
+        "amount": {
+          "description": "Det reserverade.",
+          "title": "Amount",
+          "type": "integer"
+        },
+        "drawn": {
+          "default": 0,
+          "description": "Det dragna, när reservationen är dragen.",
+          "title": "Drawn",
+          "type": "integer"
+        },
+        "state": {
+          "$ref": "#/$defs/TokenReservationState"
+        },
+        "what": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "What",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "expires": {
+          "description": "När en reservation som ingen drar går tillbaka.",
+          "format": "date-time",
+          "title": "Expires",
+          "type": "string"
+        },
+        "balance": {
+          "$ref": "#/$defs/TokenBalance",
+          "description": "Saldot efter det här."
+        }
+      },
+      "required": [
+        "id",
+        "owner",
+        "amount",
+        "state",
+        "what",
+        "at",
+        "expires",
+        "balance"
+      ],
+      "title": "TokenReservation",
+      "type": "object"
+    },
+    "TokenReservationState": {
+      "enum": [
+        "held",
+        "drawn",
+        "returned"
+      ],
+      "title": "TokenReservationState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "values": {
+      "description": "Det Claude föreslår, per fält. Ett fält utan uppgift står inte med.",
+      "items": {
+        "$ref": "#/$defs/MeterSearchValue"
+      },
+      "title": "Values",
+      "type": "array"
+    },
+    "results": {
+      "description": "Allt de verkliga sökningarna gav: en källa som inte står här är påhittad.",
+      "items": {
+        "$ref": "#/$defs/MeterSearchResult"
+      },
+      "title": "Results",
+      "type": "array"
+    },
+    "searches": {
+      "description": "Hur många sökningar Claude gjorde.",
+      "minimum": 0,
+      "title": "Searches",
+      "type": "integer"
+    },
+    "cost": {
+      "description": "Det som drogs: 24 tokens (CAT-172). Med hold är inget draget än.",
+      "title": "Cost",
+      "type": "integer"
+    },
+    "model": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Model",
+      "type": "string"
+    },
+    "reservation": {
+      "$ref": "#/$defs/TokenReservation"
+    }
+  },
+  "required": [
+    "values",
+    "results",
+    "searches",
+    "cost",
+    "model",
+    "reservation"
+  ],
+  "type": "object"
+}

@@ -1800,3 +1800,163 @@
 .cat-filnamn {
   font-size: 14px;
 }
+
+/* Webbsökningen (#53 del b, CAT-166–CAT-172): the search with its price, the AI's proposal with
+   its sources, and the evidence per field in the review queue and on the prototype's page. */
+.cat-sokform,
+.cat-skicka,
+.cat-forslag,
+.cat-andraforst {
+  display: grid;
+  gap: 12px;
+}
+.cat-sokkort h3,
+.cat-belaggblock h3 {
+  margin: 8px 0 0;
+  font-size: 17px;
+}
+.cat-saldo {
+  font-weight: 600;
+}
+.cat-osanda {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tm-line);
+}
+.cat-sagardet {
+  margin: 0;
+  padding-left: 22px;
+  display: grid;
+  gap: 8px;
+}
+.cat-forslagsnamn {
+  margin: 0;
+}
+.cat-forslagsnamn span {
+  color: var(--tm-mute);
+}
+.cat-sokkort .cat-sokform,
+.cat-sokkort .cat-osanda,
+.cat-belaggblock {
+  justify-self: stretch;
+  width: 100%;
+  max-width: none;
+}
+.cat-sokform .cat-par {
+  grid-template-columns: 1fr;
+}
+.cat-belaggtabell th {
+  width: 26%;
+}
+.cat-belaggtabell td:nth-child(2) {
+  width: 22%;
+  padding-right: 12px;
+}
+.cat-belaggtabell td .cat-under {
+  display: block;
+  margin-top: 2px;
+}
+.cat-belagt {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: #fbf0dc;
+  color: #5c3300;
+  font-weight: 600;
+}
+.cat-belagg {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.cat-belagg-rad {
+  display: grid;
+  gap: 4px;
+  padding-left: 12px;
+  border-left: 3px solid #b9dcc1;
+}
+.cat-belagg-gammalt {
+  border-left-color: #e2a65a;
+}
+.cat-kalla {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  overflow-wrap: anywhere;
+}
+.cat-utdrag {
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+.cat-belagg-lage {
+  font-size: 15px;
+}
+.cat-pill-utgivare {
+  background: #e3f3e6;
+  color: #17672c;
+}
+.cat-pill-utgivare-unknown {
+  background: #eceae4;
+  color: #4a4740;
+}
+.cat-borttaget ul {
+  margin: 4px 0 0;
+  padding-left: 22px;
+  color: var(--tm-mute);
+  font-size: 15px;
+}
+.cat-borttaget p {
+  margin: 0;
+}
+.cat-belaggblock {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0;
+}
+.cat-belaggblock p {
+  margin: 0;
+}
+.cat-finns,
+.cat-skickad {
+  margin: 0;
+}
+@media (prefers-color-scheme: dark) {
+  .cat-belagt {
+    background: #3a2a0c;
+    color: #f5d9a8;
+  }
+  .cat-belagg-rad {
+    border-left-color: #2f6b41;
+  }
+  .cat-belagg-gammalt {
+    border-left-color: #a0661f;
+  }
+  .cat-pill-utgivare {
+    background: #163322;
+    color: #7fe0a0;
+  }
+  .cat-pill-utgivare-unknown {
+    background: #2e2c27;
+    color: #cfcabd;
+  }
+}
+@media (max-width: 720px) {
+  .cat-belaggtabell,
+  .cat-belaggtabell tbody,
+  .cat-belaggtabell tr,
+  .cat-belaggtabell th,
+  .cat-belaggtabell td {
+    display: block;
+    width: auto !important;
+  }
+  .cat-belaggtabell th {
+    padding-bottom: 0;
+  }
+  .cat-belaggtabell td {
+    border-top: 0;
+    padding-top: 6px;
+  }
+}

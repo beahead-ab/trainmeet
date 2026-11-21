@@ -64,8 +64,12 @@ from contracts.id import (
     Version,
 )
 from contracts.tokens import (
+    SEARCH_APPS,
     MeterAnswer,
     MeterRead,
+    MeterSearch,
+    MeterSearchAnswer,
+    MeterSearchState,
     OwnAiChange,
     OwnAiState,
     OwnerPage,
@@ -90,6 +94,8 @@ from id.meter import settings_from as meter_settings
 from id.own_ai import OwnAis, OwnReader, sealer
 from id.owner import Owner, owners_from
 from id.roles import Asker, Mailer, Refused, Roles
+from id.search import AnthropicSearch, Searcher
+from id.search import settings_from as search_settings
 from id.settings import Settings, from_env
 from id.shop import Shop, ShopSettings
 from id.shop import settings_from as stripe_settings
@@ -144,9 +150,10 @@ def create_app(
     claude: Claude | None = None,
     shop_settings: ShopSettings | None = None,
     owners_file: Path | None = None,
+    searcher: Searcher | None = None,
 ) -> FastAPI:
-    """The app. The tests give a pretend Keycloak (http), a pretend mail server and a pretend
-    Claude for the meter."""
+    """The app. The tests give a pretend Keycloak (http), a pretend mail server, a pretend
+    Claude for the meter and a pretend web search."""
     settings = settings if settings is not None else from_env()
     owners_file = owners_file if owners_file is not None else owners_from()
     db = Database(settings.database_url)
@@ -169,7 +176,11 @@ def create_app(
         found = own_ais.for_owner(owner)
         return OwnReader(found, http) if found else None
 
-    meter = Meter(db, tokens, claude, own_ai_for, budget=owner)
+    # The web search goes to Anthropic's own API with a key of its own (TOKEN-30, C40); without
+    # the key's file it is off, and says so (CAT-219).
+    if searcher is None and (searching := search_settings()) is not None:
+        searcher = AnthropicSearch(searching)
+    meter = Meter(db, tokens, claude, own_ai_for, budget=owner, searcher=searcher)
     shop = Shop(
         db,
         tokens,
@@ -524,10 +535,28 @@ def create_app(
     def return_tokens(reservation: UUID, app_name: App) -> TokenReservation:
         return tokens.give_back(app_name, reservation)
 
+    @app.post(API + "/apps/tokens/reservations/{reservation}/refund")
+    def refund_tokens(reservation: UUID, app_name: App) -> TokenReservation:
+        """What a web search drew comes back when its prototype is approved (CAT-172)."""
+        if app_name not in SEARCH_APPS:
+            raise Refused(403, ProblemCode.FORBIDDEN, "Bara Catalog lämnar tillbaka en sökning.")
+        return tokens.refund(app_name, reservation)
+
     @app.post(API + "/apps/meter")
     def read_with_meter(body: MeterRead, app_name: App) -> MeterAnswer:
         """TrainMeets AI through the meter (TOKEN-28): the transcription and what it cost."""
         return meter.read(app_name, body)
+
+    @app.get(API + "/apps/meter/search")
+    def search_state(_: App) -> MeterSearchState:
+        """Is the web search connected here, and what does it cost (CAT-219)?"""
+        return meter.search_state()
+
+    @app.post(API + "/apps/meter/search")
+    def search_with_meter(body: MeterSearch, app_name: App) -> MeterSearchAnswer:
+        """Claude's web search through the meter (TOKEN-30): the proposed type data with the
+        real results and citations, and what it cost."""
+        return meter.search(app_name, body)
 
     @app.api_route(
         "/api/{rest:path}",

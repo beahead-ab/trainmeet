@@ -365,6 +365,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.catalog-1.prototype-link": catalog.PrototypeLink,
     "trainmeet.catalog-1.prototype-overrides": catalog.PrototypeOverrides,
     "trainmeet.catalog-1.vehicle-prototype": catalog.VehiclePrototype,
+    "trainmeet.catalog-1.prototype-search-ask": catalog.PrototypeSearchAsk,
+    "trainmeet.catalog-1.prototype-search-consent": catalog.PrototypeSearchConsent,
+    "trainmeet.catalog-1.prototype-search": catalog.PrototypeSearch,
     "trainmeet.id-1.version": id_api.Version,
     "trainmeet.id-1.session": id_api.Session,
     "trainmeet.id-1.account": id_api.Account,
@@ -392,6 +395,9 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.id-1.meter-image": tokens.MeterImage,
     "trainmeet.id-1.meter-read": tokens.MeterRead,
     "trainmeet.id-1.meter-answer": tokens.MeterAnswer,
+    "trainmeet.id-1.meter-search": tokens.MeterSearch,
+    "trainmeet.id-1.meter-search-answer": tokens.MeterSearchAnswer,
+    "trainmeet.id-1.meter-search-state": tokens.MeterSearchState,
     "trainmeet.id-1.token-package": tokens.TokenPackage,
     "trainmeet.id-1.token-shop": tokens.TokenShop,
     "trainmeet.id-1.token-purchase": tokens.TokenPurchase,
@@ -1546,6 +1552,32 @@ def catalog_openapi() -> str:
         "prototype-review",
         problems=(401, 403, 404, 409, 422, 503),
     )
+    # The web search (#53 del b, CAT-166–CAT-172, CAT-219): the consent with the price, the
+    # search, and one's own search again. 402: the balance is short. 409: changed, or
+    # reading_busy. 422: consent_required. 429: ten an hour. 502: reading_failed. 503:
+    # search_off without the key at the meter, or unavailable.
+    route(
+        "get",
+        f + "/search",
+        "prototypeSearchConsent",
+        "prototype-search-consent",
+        problems=(401,),
+    )
+    route(
+        "post",
+        f + "/search",
+        "searchPrototype",
+        "prototype-search",
+        "prototype-search-ask",
+        problems=(401, 402, 409, 422, 429, 502, 503),
+    )
+    route(
+        "get",
+        f + "/search/{search}",
+        "prototypeSearch",
+        "prototype-search",
+        problems=(401, 404),
+    )
     route("get", f + "/{prototype}", "prototype", "prototype", problems=(401, 404))
     route(
         "post",
@@ -1974,6 +2006,16 @@ def id_openapi() -> str:
         problems=(401, 404, 409),
         app=True,
     )
+    # A web search's tokens come back when its prototype is approved (CAT-172): once, and only
+    # for a reservation that paid for a search (422 otherwise; 409 when it is not drawn yet).
+    route(
+        "post",
+        a + "/apps/tokens/reservations/{reservation}/refund",
+        "appRefundTokens",
+        "token-reservation",
+        problems=(401, 403, 404, 409, 422),
+        app=True,
+    )
     # Mätaren (TOKEN-28): TrainMeets AI with the reservation.
     route(
         "post",
@@ -1982,6 +2024,26 @@ def id_openapi() -> str:
         "meter-answer",
         "meter-read",
         problems=(401, 404, 409, 422, 502, 503),
+        app=True,
+    )
+    # Webbsökningen (TOKEN-30, C40): Claude's web search at Anthropic, only for Catalog (403).
+    # 503 without the key (CAT-219) or when the month's budget is used; 502 when the search
+    # failed, and nothing was drawn.
+    route(
+        "get",
+        a + "/apps/meter/search",
+        "appSearchState",
+        "meter-search-state",
+        problems=(401,),
+        app=True,
+    )
+    route(
+        "post",
+        a + "/apps/meter/search",
+        "appSearchWithMeter",
+        "meter-search-answer",
+        "meter-search",
+        problems=(401, 403, 404, 409, 422, 502, 503),
         app=True,
     )
     return (

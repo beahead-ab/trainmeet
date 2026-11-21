@@ -28,6 +28,12 @@
       "description": "Sidor och bilder som TrainMeets AI läste.",
       "title": "Pages",
       "type": "integer"
+    },
+    "searches": {
+      "default": 0,
+      "description": "Webbsökningar som mätaren gjorde (TOKEN-30).",
+      "title": "Searches",
+      "type": "integer"
     }
   },
   "required": [

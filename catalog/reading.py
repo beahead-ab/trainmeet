@@ -78,6 +78,9 @@ from contracts.tokens import (
     MeterAnswer,
     MeterImage,
     MeterRead,
+    MeterSearch,
+    MeterSearchAnswer,
+    MeterSearchState,
     TokenBalance,
     TokenOwner,
     TokenOwnerKind,
@@ -99,6 +102,9 @@ EXPIRES: Final = timedelta(minutes=10)
 when the call to it is made twice for a new token."""
 READ_TIMEOUT: Final = 150.0
 """How long Catalog waits for the meter, in seconds: longer than ID waits for the AI."""
+SEARCH_TIMEOUT: Final = 240.0
+"""How long Catalog waits for the meter's web search, in seconds: longer than ID waits for
+Anthropic, which searches several times (id/search.py)."""
 MAX_TOKENS: Final = 2048
 """The most the AI may write: the answer is a short JSON object."""
 MAX_ANSWER: Final = 20_000
@@ -317,17 +323,36 @@ class Meter(Protocol):
         ...
 
 
-def no_tokens(needed: int | None = None, left: int | None = None) -> Refused:
-    said = f": avläsningen kostar {needed} tokens och {left} finns kvar" if needed else ""
-    return Refused(
-        402,
-        ProblemCode.NO_TOKENS,
-        f"Saldot räcker inte{said}. Köp tokens i TrainMeet ID, eller koppla in egen AI.",
+def no_tokens(
+    needed: int | None = None,
+    left: int | None = None,
+    *,
+    what: str = "avläsningen",
+    own: bool = True,
+) -> Refused:
+    """The balance is short. own says whether own AI is a way out: it is for a reading, not for
+    the web search, which own AI does not have."""
+    said = f": {what} kostar {needed} tokens och {left} finns kvar" if needed else ""
+    out = (
+        "Köp tokens i TrainMeet ID, eller koppla in egen AI."
+        if own
+        else "Köp tokens i TrainMeet ID."
     )
+    return Refused(402, ProblemCode.NO_TOKENS, f"Saldot räcker inte{said}. {out}")
 
 
 def without_id() -> Refused:
     return Refused(503, ProblemCode.UNAVAILABLE, "AI-avläsningen kräver TrainMeet ID.")
+
+
+def search_off() -> Refused:
+    """The web search is not connected at the meter (CAT-219): the prototype is proposed by
+    hand."""
+    return Refused(
+        503,
+        ProblemCode.SEARCH_OFF,
+        "Webbsökningen är inte inkopplad här. Föreslå förebilden för hand.",
+    )
 
 
 def _failed(message: str = "Avläsningen kunde inte göras. Inget drogs. Försök igen.") -> Refused:
@@ -392,6 +417,50 @@ class IdMeter:
         if answer.status_code == 502:
             raise _failed("AI:n kunde inte läsa fotona just nu. Inget drogs. Försök igen.")
         raise _failed()
+
+    def search_state(self) -> MeterSearchState:
+        """Is the web search connected at the meter, and what does it cost (CAT-219)?"""
+        answer = self.roles.call("GET", "meter/search")
+        if answer.status_code != 200:
+            LOGGER.warning("ID svarade %s om webbsökningen.", answer.status_code)
+            raise unavailable()
+        return _read(MeterSearchState, answer)
+
+    def search(self, asked: MeterSearch) -> MeterSearchAnswer:
+        """The meter's web search for the marking (TOKEN-30). ID's own words are never passed
+        on: Catalog says what it means for the person."""
+        answer = self.roles.call(
+            "POST", "meter/search", body=asked.model_dump(mode="json"), timeout=SEARCH_TIMEOUT
+        )
+        if answer.status_code == 200:
+            return _read(MeterSearchAnswer, answer)
+        LOGGER.warning("Mätarens webbsökning svarade %s.", answer.status_code)
+        if answer.status_code == 503:
+            # Not connected here (CAT-219), or the month's budget is used: the meter says which.
+            if not self.search_state().available:
+                raise search_off()
+            raise Refused(
+                503,
+                ProblemCode.UNAVAILABLE,
+                "Webbsökningen går inte att använda just nu. Inget drogs. Försök igen senare.",
+            )
+        if answer.status_code == 502:
+            raise _failed("Webbsökningen gav inget svar just nu. Inget drogs. Försök igen.")
+        raise _failed("Webbsökningen kunde inte göras. Inget drogs. Försök igen.")
+
+    def refund(self, reservation: UUID) -> bool | None:
+        """Give back what a web search drew, when its prototype is approved (CAT-172). True
+        when the tokens are back, or were; None when ID says this reservation is not one to
+        refund. Refused with 503 when ID does not answer: tried again later."""
+        answer = self.roles.call("POST", f"tokens/reservations/{reservation}/refund")
+        if answer.status_code == 200:
+            return True
+        LOGGER.warning(
+            "ID svarade %s när webbsökningen skulle lämnas tillbaka.", answer.status_code
+        )
+        if answer.status_code in (403, 404, 409, 422):
+            return None
+        raise unavailable()
 
     def draw(self, reservation: UUID, amount: int) -> None:
         answer = self.roles.call(
@@ -646,10 +715,15 @@ class Readings:
         limit = self.per_batch_hour if batch else self.per_hour
         with self.db.owner_transaction(person) as conn:
             same = conn.execute(
-                "SELECT person_id, basis, status, result FROM reading WHERE id = %s", (ask.id,)
+                "SELECT person_id, basis, status, result, kind FROM reading WHERE id = %s",
+                (ask.id,),
             ).fetchone()
             if same is not None:
-                if same["person_id"] != person or same["basis"] != basis:
+                if (
+                    same["person_id"] != person
+                    or same["basis"] != basis
+                    or same["kind"] != "image"  # a web search's id is never a photo's
+                ):
                     raise _changed(
                         "Avläsningens id används redan för andra foton. Starta en ny avläsning."
                     )
@@ -675,7 +749,7 @@ class Readings:
             hour = conn.execute(
                 "SELECT count(*) AS started, ceil(extract(epoch FROM "
                 "min(created_at) + interval '1 hour' - now())) AS wait "
-                "FROM reading WHERE person_id = %s AND batch = %s "
+                "FROM reading WHERE person_id = %s AND batch = %s AND kind = 'image' "
                 "AND created_at > now() - interval '1 hour'",
                 (person, batch),
             ).fetchone()
@@ -818,6 +892,21 @@ class Readings:
                 (result.model_dump_json(), reading),
             )
         return result
+
+    # --- For the web search, which is a reading record too (catalog/prototype_search.py) --------
+
+    def give_up_old(self, person: UUID) -> int:
+        """The person's readings and searches that never finished: failed, and given back."""
+        return self._give_up_old(person)
+
+    def note(self, reading: UUID, reservation: UUID) -> None:
+        self._note(reading, reservation)
+
+    def end(self, reading: UUID, status: ReadingStatus) -> None:
+        self._end(reading, status)
+
+    def give_back(self, reservation: UUID) -> bool:
+        return self._give_back(reservation)
 
     def _still_current(self, person: UUID, reading: UUID) -> bool:
         """Under the person's lock: is the reading still pending, on the vehicle as it was? If

@@ -1283,6 +1283,7 @@ jobs:
           TEM_SECRET_KEY: ${{ secrets.TEM_SECRET_KEY }}
           BEDROCK_KEY_ID: ${{ secrets.BEDROCK_KEY_ID }}
           BEDROCK_SECRET_KEY: ${{ secrets.BEDROCK_SECRET_KEY }}
+          ANTHROPIC_API_KEY_SEARCH: ${{ secrets.ANTHROPIC_API_KEY_SEARCH }}
           STRIPE_TEST_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
           STRIPE_TEST_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
           ID_OWNERS: ${{ secrets.ID_OWNERS }}
@@ -1316,6 +1317,11 @@ jobs:
           # Utan den är mätaren avstängd.
           if [ -n "$BEDROCK_KEY_ID" ] && [ -n "$BEDROCK_SECRET_KEY" ]; then
             printf '%s\n%s\n' "$BEDROCK_KEY_ID" "$BEDROCK_SECRET_KEY" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_bedrock-key'
+          fi
+          # Nyckeln till Claudes webbsökning i Anthropics API (#53, TOKEN-30, C40) går samma väg
+          # och skrivs aldrig ut. Utan den är webbsökningen inte inkopplad, och Catalog säger det.
+          if [ -n "$ANTHROPIC_API_KEY_SEARCH" ]; then
+            printf '%s\n' "$ANTHROPIC_API_KEY_SEARCH" | $SSH "$TARGET" 'umask 077; mkdir -p /srv/trainmeet/id-vault && cat > /srv/trainmeet/id-vault/trainmeet_search-key'
           fi
           # Stripes testnycklar för köpen (#79, TOKEN-02) går samma väg och skrivs aldrig ut.
           # Utan dem är köpen stängda.

@@ -984,6 +984,7 @@ function OwnerView({
                 <strong>{month.month}</strong>
                 <span className="id-detalj">
                   {t("ownerMonth", { cost: number.format(month.cost_sek), pages: number.format(month.pages), revenue: number.format(month.revenue_sek), test: number.format(month.test_revenue_sek) })}
+                  {month.searches ? ` · ${t("ownerMonthSearches", { n: number.format(month.searches) })}` : ""}
                 </span>
               </li>
             ))}
@@ -993,6 +994,17 @@ function OwnerView({
               ? t("ownerNoCost", { tokens: number.format(page.page_tokens) })
               : t("ownerCost", { cost: number.format(page.cost_per_page_sek), factor: number.format(page.settings.ai_factor), implied: number.format(page.factor_page_tokens ?? 0), tokens: number.format(page.page_tokens) })}
           </p>
+          {/* The web search (TOKEN-30, CAT-172): its price is checked against what it has cost. */}
+          {typeof page.cost_per_search_sek === "number" ? (
+            <p className="id-detalj">
+              {t("ownerSearchCost", {
+                cost: number.format(page.cost_per_search_sek),
+                factor: number.format(page.settings.ai_factor),
+                implied: number.format(page.factor_search_tokens ?? 0),
+                tokens: number.format(page.search_tokens ?? 24),
+              })}
+            </p>
+          ) : null}
         </section>
         <ReviewersCard t={t} reviewers={reviewers} give={give} take={take} />
       </div>
