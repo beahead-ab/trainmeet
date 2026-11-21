@@ -77,6 +77,18 @@ export type PrototypeSourceKind = PrototypeRevision["source"]["kind"];
 export type VehiclePrototype = Schemas["trainmeet.catalog-1.vehicle-prototype"];
 /** Typuppgifter: the values by the field register's keys (CAT-156). */
 export type TypeData = Record<string, string>;
+/** Webbsökningen (#53 del b, CAT-166–CAT-172, CAT-219): the search, its consent and the evidence. */
+export type PrototypeSearch = Schemas["trainmeet.catalog-1.prototype-search"];
+export type PrototypeSearchAsk = Schemas["trainmeet.catalog-1.prototype-search-ask"];
+export type PrototypeSearchConsent = Schemas["trainmeet.catalog-1.prototype-search-consent"];
+export type PrototypeSearchSummary = NonNullable<PrototypeSearchConsent["unsent"]>[number];
+/** Belägget för ett fält (CAT-169, CAT-170): the source, its publisher and the excerpt. */
+export type FieldEvidence = NonNullable<PrototypeRevision["evidence"]>[string][number];
+export type Evidence = Record<string, FieldEvidence[]>;
+export type PublisherKind = FieldEvidence["publisher"];
+export type DroppedField = NonNullable<PrototypeSearch["dropped"]>[number];
+/** Tokens for a web search (CAT-172): SEARCH_PRICE in contracts/catalog.py. */
+export const SEARCH_PRICE = 24;
 
 export const KINDS: VehicleKind[] = ["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"];
 export const STATES: VehicleState[] = ["home", "packed", "at_meet", "lent"];
@@ -315,6 +327,13 @@ export const api = {
   /** Granskningskön, only for the reviewers TrainMeet ID names (CAT-165). */
   reviewQueue: () => call<PrototypeRevision[]>("GET", `${F}/proposals/queue`),
   review: (revision: string, review: PrototypeReview) => call<PrototypeRevision>("POST", `${F}/proposals/${revision}/review`, review),
+  /** What a web search sends and to whom, the price and the balance (CAT-142, CAT-172, CAT-219). */
+  searchConsent: () => call<PrototypeSearchConsent>("GET", `${F}/search`),
+  /** Sök på webben: the type data for a marking, with sources. The same id and marking again
+   * give the same search, without searching or drawing again (CAT-144). */
+  searchPrototype: (ask: PrototypeSearchAsk) => call<PrototypeSearch>("POST", `${F}/search`, ask),
+  /** One's own search again, as it is now: sent or not, the tokens back or not. */
+  prototypeSearch: (id: string) => call<PrototypeSearch>("GET", `${F}/search/${id}`),
   /** Koppla förebild, or Uppdatera to a newer revision (CAT-160, CAT-161). */
   linkPrototype: (vehicle: string, link: PrototypeLink) => call<Vehicle>("POST", inFleet(`${V}/${vehicle}/prototype`), link),
   /** The type data as the owner wants them on the vehicle: equal values inherit (CAT-162). */

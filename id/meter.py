@@ -10,6 +10,11 @@ a day under the reservation, with its price. If Claude does not answer, the rese
 and nothing is drawn. The AI is asked outside the database transaction, so a slow answer holds no
 lock.
 
+The web search (TOKEN-30, C40) is the one thing that does not go to Bedrock: Meter.search() asks
+Claude's web search in Anthropic's own API (id/search.py) with the marking of a vehicle type, for
+24 tokens (CAT-172), with the same reservation, hold, kept answer and give-back as a reading.
+Only Catalog may search, and always with TrainMeet's key: an account's own AI has no web search.
+
 With hold (MeterRead.hold) the meter reads and keeps the answer but draws nothing: the reservation
 stays held, MeterAnswer.cost says what the app is to draw, and the app draws it, or gives it all
 back when the answer came too late to be used (Catalog's reading, CAT-145). A held reservation
@@ -53,9 +58,16 @@ from botocore.credentials import Credentials
 from contracts.id import ProblemCode
 from contracts.tokens import (
     HARD_APPS,
+    SEARCH_APPS,
     TOKENS_PER_PAGE,
+    TOKENS_PER_SEARCH,
     MeterAnswer,
     MeterRead,
+    MeterSearch,
+    MeterSearchAnswer,
+    MeterSearchResult,
+    MeterSearchState,
+    MeterSearchValue,
     TokenDraw,
     TokenOwner,
     TokenReservation,
@@ -63,6 +75,7 @@ from contracts.tokens import (
 )
 from id.db import Database
 from id.roles import Refused
+from id.search import NOT_CONNECTED, SENT_TO, Searched, Searcher, SearchFailed
 from id.tokens import Tokens
 
 LOGGER = logging.getLogger("id.meter")
@@ -157,7 +170,18 @@ class Claude(Protocol):
 class Budget(Protocol):
     def allow(self) -> None: ...
 
-    def record(self, pages: int, input_tokens: int, output_tokens: int) -> None: ...
+    def record(
+        self,
+        pages: int,
+        input_tokens: int,
+        output_tokens: int,
+        *,
+        searches: int = 0,
+        extra_usd: float = 0.0,
+    ) -> None:
+        """What a reading or a web search cost: the tokens at the owner's prices, and for a
+        search what the searches cost beside them."""
+        ...
 
 
 @dataclass
@@ -269,12 +293,14 @@ class Meter:
         claude: Claude | None,
         own_ai: OwnAiLookup = lambda owner: None,
         budget: Budget | None = None,
+        searcher: Searcher | None = None,
     ) -> None:
         self.db = db
         self.tokens = tokens
         self.claude = claude
         self.own_ai = own_ai
         self.budget = budget
+        self.searcher = searcher
 
     def read(self, app: str, asked: MeterRead) -> MeterAnswer:
         held = self.tokens.reservation(app, asked.reservation)
@@ -373,27 +399,153 @@ class Meter:
             reservation = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
         return MeterAnswer(text=kept.text, cost=cost, model=kept.model, reservation=reservation)
 
-    def _keep(self, reservation: UUID, text: str, model: str, cost: int) -> Kept:
-        """The first answer for the reservation is the one: two at once give the same."""
+    def _keep(
+        self, reservation: UUID, text: str, model: str, cost: int, kind: str = "read"
+    ) -> Kept:
+        """The first answer for the reservation is the one: two at once give the same. A
+        search's answer also marks its reservation as one that paid for a web search, the only
+        kind that can be refunded (CAT-172)."""
         now = datetime.now(UTC)
         with self.db.transaction() as conn:
             conn.execute("DELETE FROM meter_answer WHERE at < %s", (now - KEPT,))
             conn.execute(
-                "INSERT INTO meter_answer (reservation_id, text, model, cost, at) "
-                "VALUES (%s, %s, %s, %s, %s) ON CONFLICT (reservation_id) DO NOTHING",
-                (reservation, text, model, cost, now),
+                "INSERT INTO meter_answer (reservation_id, text, model, cost, at, kind) "
+                "VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT (reservation_id) DO NOTHING",
+                (reservation, text, model, cost, now, kind),
             )
             row = conn.execute(
-                "SELECT text, model, cost FROM meter_answer WHERE reservation_id = %s",
+                "SELECT text, model, cost, kind FROM meter_answer WHERE reservation_id = %s",
                 (reservation,),
             ).fetchone()
-        assert row is not None
+            assert row is not None
+            if row["kind"] != kind:
+                raise _other_use()
+            if kind == "search":
+                conn.execute(
+                    "UPDATE token_reservation SET search = true WHERE id = %s", (reservation,)
+                )
         return Kept(str(row["text"]), str(row["model"]), row["cost"])
 
-    def _kept(self, reservation: UUID) -> Kept | None:
+    def _kept(self, reservation: UUID, kind: str = "read") -> Kept | None:
         with self.db.transaction() as conn:
             row = conn.execute(
-                "SELECT text, model, cost FROM meter_answer WHERE reservation_id = %s AND at >= %s",
+                "SELECT text, model, cost, kind FROM meter_answer "
+                "WHERE reservation_id = %s AND at >= %s",
                 (reservation, datetime.now(UTC) - KEPT),
             ).fetchone()
-        return Kept(str(row["text"]), str(row["model"]), row["cost"]) if row else None
+        if row is None:
+            return None
+        if row["kind"] != kind:
+            raise _other_use()
+        return Kept(str(row["text"]), str(row["model"]), row["cost"])
+
+    # --- The web search (TOKEN-30, CAT-166, CAT-172, C40) --------------------------------------
+
+    def search_state(self) -> MeterSearchState:
+        """Can the web search be used here, and what does it cost (CAT-219)?"""
+        on = self.searcher is not None
+        return MeterSearchState(
+            available=on,
+            price=TOKENS_PER_SEARCH,
+            sent_to=SENT_TO,
+            message=None if on else NOT_CONNECTED,
+        )
+
+    def search(self, app: str, asked: MeterSearch) -> MeterSearchAnswer:
+        """Search the web for the marking's type data: 24 tokens, the same reservation twice
+        gives the same answer and draws nothing twice (TOKEN-28)."""
+        if app not in SEARCH_APPS:
+            raise Refused(403, ProblemCode.FORBIDDEN, "Bara Catalog söker på webben här.")
+        held = self.tokens.reservation(app, asked.reservation)
+        if not self.tokens.has_person(app, asked.reservation):
+            raise Refused(
+                422, ProblemCode.INVALID, "Reservationen gäller lagring och söker inte med AI."
+            )
+        if held.state == TokenReservationState.DRAWN:
+            drawn = self._kept(asked.reservation, "search")
+            if drawn is None:
+                raise Refused(409, ProblemCode.CONFLICT, "Reservationen är redan dragen.")
+            return self._searched(drawn, held.drawn, held)
+        if held.state == TokenReservationState.RETURNED:
+            raise Refused(
+                409,
+                ProblemCode.CONFLICT,
+                "Reservationen är tillbakalämnad, eller har gått ut. Reservera igen.",
+            )
+        kept = self._kept(asked.reservation, "search")
+        if kept is None:
+            kept = self._search(app, asked, held)
+        cost = kept.cost if kept.cost is not None else TOKENS_PER_SEARCH
+        if asked.hold:
+            reservation = self.tokens.reservation(app, asked.reservation)
+        else:
+            reservation = self.tokens.draw(app, asked.reservation, TokenDraw(amount=cost))
+        return self._searched(kept, cost, reservation)
+
+    def _search(self, app: str, asked: MeterSearch, held: TokenReservation) -> Kept:
+        """Ask Claude's web search, always with TrainMeet's own key, and keep the answer with
+        its price. Whatever fails gives the reservation back, and nothing is drawn."""
+        if self.searcher is None:
+            self.tokens.give_back(app, asked.reservation)
+            raise Refused(503, ProblemCode.UNAVAILABLE, NOT_CONNECTED)
+        if held.amount < TOKENS_PER_SEARCH:
+            raise Refused(
+                422,
+                ProblemCode.INVALID,
+                f"Reservationen räcker inte: {TOKENS_PER_SEARCH} tokens behövs för en webbsökning.",
+            )
+        if self.budget is not None:
+            try:
+                self.budget.allow()
+            except Refused:
+                self.tokens.give_back(app, asked.reservation)
+                raise
+        try:
+            found = self.searcher.search(asked)
+        except SearchFailed as error:
+            self.tokens.give_back(app, asked.reservation)
+            raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
+        if self.budget is not None:
+            self.budget.record(
+                0,
+                found.input_tokens,
+                found.output_tokens,
+                searches=max(found.searches, 1),
+                extra_usd=found.searches * self.searcher.price_usd / 1000,
+            )
+        return self._keep(
+            asked.reservation, _packed(found), self.searcher.model, TOKENS_PER_SEARCH, "search"
+        )
+
+    @staticmethod
+    def _searched(kept: Kept, cost: int, reservation: TokenReservation) -> MeterSearchAnswer:
+        try:
+            found = json.loads(kept.text)
+            return MeterSearchAnswer(
+                values=[MeterSearchValue.model_validate(value) for value in found["values"]],
+                results=[MeterSearchResult.model_validate(each) for each in found["results"]],
+                searches=int(found["searches"]),
+                cost=cost,
+                model=kept.model,
+                reservation=reservation,
+            )
+        except (ValueError, KeyError, TypeError) as error:
+            raise Refused(
+                409, ProblemCode.CONFLICT, "Det sparade svaret går inte att läsa."
+            ) from error
+
+
+def _other_use() -> Refused:
+    return Refused(409, ProblemCode.CONFLICT, "Reservationen är redan använd för något annat.")
+
+
+def _packed(found: Searched) -> str:
+    """A search's answer as it is kept under its reservation."""
+    return json.dumps(
+        {
+            "values": [value.model_dump(mode="json") for value in found.values],
+            "results": [each.model_dump(mode="json") for each in found.results],
+            "searches": found.searches,
+        },
+        ensure_ascii=False,
+    )

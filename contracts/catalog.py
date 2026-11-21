@@ -467,6 +467,9 @@ class ProblemCode(StrEnum):
     READING_FAILED = "reading_failed"
     """The AI could not read the photos, or its answer could not be read. Nothing was changed
     and nothing was drawn; try again with a new reading (CAT-20)."""
+    SEARCH_OFF = "search_off"
+    """The web search is not connected at this Catalog: the meter in TrainMeet ID has no key for
+    it (CAT-219). The prototype is proposed by hand."""
     BAD_TYPE_DATA = "bad_type_data"
     """The type data do not follow the field register: an unknown key, a key outside the
     prototype's field profile, or a value that is not of the field's kind, such as a number
@@ -1442,8 +1445,7 @@ class BatchApproval(Contract):
 # - When a reading or a batch card has a litt and an operator, a reviewed prototype with the
 #   same litt and operator, regardless of case and spaces, is suggested (CAT-141). It is linked
 #   only when the owner says so (CAT-136).
-# - The web search for the type data (CAT-166–CAT-172) is not here yet. It will be a source
-#   kind of its own (PrototypeSourceKind).
+# - The web search for the type data (CAT-166–CAT-172, CAT-219) is below: Webbsökningen.
 
 PROTOTYPE_LICENSE = "CC BY-SA 4.0"
 """The licence the catalog's data are published under (CAT-213, C23)."""
@@ -1523,17 +1525,59 @@ class PrototypeStatus(StrEnum):
 
 
 class PrototypeSourceKind(StrEnum):
-    """Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own."""
+    """Where the type data come from (CAT-163)."""
 
     OWN = "own"
     """Own measurement or knowledge."""
     REFERENCE = "reference"
     """A reference: a book, a magazine, a drawing or a web page."""
+    WEB_SEARCH = "web_search"
+    """The web search (CAT-166–CAT-172): the sources stand per field, in the evidence. Only a
+    proposal sent from a search (PrototypeProposal.search) has it."""
 
 
 class PrototypeSource(Contract):
     kind: PrototypeSourceKind
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=1000)]
+
+
+class PublisherKind(StrEnum):
+    """Who published a source, classed against Catalog's small, reviewed list of publishers
+    (CAT-168): exact hosts only. The class says who stands behind the page, never that a fact
+    is right."""
+
+    MANUFACTURER = "manufacturer"
+    """Tillverkare: the builder of the vehicles, or of the model."""
+    OPERATOR = "operator"
+    """Järnvägsbolag."""
+    MUSEUM = "museum"
+    ARCHIVE = "archive"
+    """Arkiv eller myndighet."""
+    UNKNOWN = "unknown"
+    """Okänd utgivare: not on the list. The reviewer looks at the source."""
+
+
+class FieldEvidence(Contract):
+    """Belägget för ett fält (CAT-169): the source the web search found the value in, with its
+    address and an excerpt of it. The source was in the real search result (CAT-167), and the
+    excerpt held the value when it was searched."""
+
+    value: TypeValue = Field(description="The value the excerpt was found to support.")
+    url: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    title: Annotated[str, StringConstraints(max_length=500)] = ""
+    publisher: PublisherKind
+    excerpt: Annotated[str, StringConstraints(max_length=2000)] = Field(
+        description="Utdraget ur källan, as the search gave it."
+    )
+    searched_at: datetime
+    agrees: bool = Field(
+        description="Stämmer belägget fortfarande med värdet som står där (CAT-170)? False "
+        "when the value was changed after the search, so that the excerpt no longer holds it."
+    )
+
+
+Evidence = dict[TypeKey, list[FieldEvidence]]
+"""The evidence per field: at most three sources each, a known publisher's first."""
 
 
 PrototypeName = Annotated[
@@ -1559,6 +1603,13 @@ class PrototypeProposal(Contract):
     source: PrototypeSource
     may_share: Literal[True] = Field(
         description="The proposer confirms that the data may be shared under CC BY-SA 4.0."
+    )
+    search: UUID | None = Field(
+        default=None,
+        description="The web search the proposal is sent from (CAT-171): its evidence follows "
+        "the fields, also the ones the proposer changed first, and its 24 tokens come back "
+        "when the proposal is approved (CAT-172). The source's kind is then web_search, and "
+        "Catalog writes its text. A search is sent once.",
     )
 
 
@@ -1603,6 +1654,12 @@ class PrototypeRevision(Contract):
     created_at: datetime
     comment: str = Field(default="", description="The reviewer's comment.")
     reviewed_at: datetime | None = None
+    evidence: Evidence = Field(
+        default_factory=dict,
+        description="Belägget per fält, from the web search (CAT-169). A change of a prototype "
+        "keeps the evidence of the fields it keeps; agrees says whether each still holds the "
+        "value that stands there (CAT-170).",
+    )
 
 
 class PrototypeSummary(Contract):
@@ -1628,6 +1685,10 @@ class Prototype(Contract):
     profile: FieldProfile
     fields: TypeData
     source: PrototypeSource
+    evidence: Evidence = Field(
+        default_factory=dict,
+        description="Belägget per fält for the revision shown (CAT-169, CAT-170).",
+    )
     reviewed_at: datetime | None = None
     vehicles: int = Field(description="Används: how many vehicles in Catalog are linked to it.")
     waiting: int = Field(
@@ -1684,6 +1745,154 @@ class VehiclePrototype(Contract):
     )
     latest: int = Field(description="The prototype's newest reviewed revision.")
     newer: bool = Field(description="Ny version finns: latest is newer than the snapshot.")
+
+
+# --- Webbsökningen (#53 del b, CAT-166–CAT-172, CAT-219, C40) ----------------------------------
+#
+#     GET    /api/catalog/1/prototypes/search             PrototypeSearchConsent
+#     POST   /api/catalog/1/prototypes/search             PrototypeSearchAsk -> PrototypeSearch
+#     GET    /api/catalog/1/prototypes/search/{id}        PrototypeSearch, one's own
+#
+# Rules:
+# - The web search fills the prototype catalog, never a vehicle (CAT-171): it gives a proposal
+#   with sources, which the person sends to the review queue as it is or after changing it
+#   (PrototypeProposal.search). Nothing is written in the catalog or on a vehicle by the search.
+# - Only the marking leaves Catalog: the litt, the operator, the kind and the field profile
+#   (CAT-166). Never a picture, the person's name or account, a vehicle's number or notes. The
+#   search is made by TrainMeet ID's meter with Claude's web search in Anthropic's API, outside
+#   the EU (C40, CAT-219); Catalog never holds the key. The first time, the person sees what is
+#   sent and to whom, and the yes is kept as a privacy event of its own (CAT-142).
+# - Catalog checks the answer with its own code. A source must be in the real search result: an
+#   invented one is refused (CAT-167). The publisher is classed against a small, reviewed list
+#   (CAT-168). An excerpt of the source must hold the value: numbers with units are compared as
+#   numbers, 1 435 mm = 1435 mm = 1,435 m, and text after normalising (CAT-169). A field
+#   without valid evidence is dropped, never proposed. The evidence and the address are kept
+#   per field.
+# - A search costs 24 tokens from the person's own balance (CAT-172), reserved before and given
+#   back when the search fails. They come back when the proposal sent from the search is
+#   approved, not when it is rejected. The search uses TrainMeet's key also for an account
+#   with own AI, which has no web search.
+# - A search is a reading record of the kind web search (CAT-143): the id comes from the client
+#   (CAT-144), so the same id and marking again give the same search without searching or
+#   drawing again; one at a time per person and at most 10 an hour (CAT-146).
+# - Without the key at the meter the search is not connected (503 search_off, and
+#   PrototypeSearchConsent.available false): the prototype is proposed by hand (CAT-219).
+
+SEARCH_PRICE = 24
+"""Tokens for a web search (CAT-172, C22)."""
+
+MarkingText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, pattern=r"^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$"),
+]
+"""A litt or an operator as it is marked on a vehicle: letters, digits and a few signs."""
+
+
+class PrototypeSearchAsk(Contract):
+    """Sök på webben: the marking to search for (CAT-166). Nothing else is sent on."""
+
+    id: UUID = Field(description="Made by the client, new for each search (CAT-144).")
+    litt: MarkingText = Field(
+        min_length=1, max_length=40, description="Littera eller UIC-typ: Hbis, Rc6."
+    )
+    operator: MarkingText = Field(default="", max_length=80, description="Bolag: SJ.")
+    kind: VehicleKind | None = None
+    profile: FieldProfile = FieldProfile.SE
+    consent: bool = Field(
+        default=False,
+        description="The person has seen what is sent and to whom, and says yes (CAT-142).",
+    )
+
+
+class PrototypeSearchSummary(Contract):
+    """One of the person's searches that is not sent as a proposal yet."""
+
+    id: UUID
+    litt: str
+    operator: str = ""
+    searched_at: datetime
+    fields: int = Field(ge=0, description="How many fields the search found with evidence.")
+
+
+class PrototypeSearchConsent(Contract):
+    """What a web search sends and to whom, the price and the balance, before the first one
+    (CAT-142, CAT-172, CAT-219)."""
+
+    available: bool = Field(description="The web search can be used here now.")
+    message: str | None = Field(
+        default=None,
+        description="Why not, when it cannot: Webbsökningen är inte inkopplad här. (CAT-219)",
+    )
+    given: bool = Field(description="The person has said yes before.")
+    version: str = Field(description="The version of what the person says yes to.")
+    sent_to: Text = Field(description="Who searches: Claude's web search at Anthropic.")
+    text: Text = Field(description="What is sent and to whom, as the person reads it.")
+    price: int = Field(description="24 tokens, which come back when the prototype is approved.")
+    balance: int | None = Field(
+        default=None, description="Tokens left on the person's balance, when ID says."
+    )
+    payer: Text | None = Field(default=None, description="Whose balance pays: the person's.")
+    own_ai: Text | None = Field(
+        default=None,
+        description="The account's own AI, when it has one: it is not used for the web search.",
+    )
+    unsent: list[PrototypeSearchSummary] = Field(
+        default_factory=list,
+        description="The person's searches of the last 30 days that are not sent yet, newest "
+        "first: a search that was paid for can always be opened again.",
+    )
+
+
+class DroppedReason(StrEnum):
+    """Why a value the AI proposed was not kept."""
+
+    NO_SOURCE = "no_source"
+    """The AI gave no source for it."""
+    INVENTED_SOURCE = "invented_source"
+    """Its sources were not in the real search result (CAT-167)."""
+    UNSUPPORTED = "unsupported"
+    """No excerpt of its sources held the value (CAT-169)."""
+    BAD_VALUE = "bad_value"
+    """Not a value the field register takes: not a number, or too long."""
+
+
+class DroppedField(Contract):
+    key: TypeKey
+    reason: DroppedReason
+
+
+class PrototypeSearch(Contract):
+    """What a web search found for a marking (CAT-166–CAT-171): the type data with valid
+    evidence. A proposal for the person to send to the review queue, nothing more."""
+
+    id: UUID = Field(description="The client's id for the search (CAT-144).")
+    status: ReadingStatus
+    litt: str
+    operator: str = ""
+    kind: VehicleKind | None = None
+    profile: FieldProfile
+    fields: TypeData = Field(
+        description="The litt and the operator as searched, and the values with valid evidence."
+    )
+    evidence: Evidence = Field(description="Belägget per fält (CAT-169).")
+    dropped: list[DroppedField] = Field(
+        default_factory=list, description="Values the AI proposed that were not kept, and why."
+    )
+    sources: int = Field(ge=0, description="Pages the real search found.")
+    cost: int = Field(ge=0, description="Tokens drawn: 24 (CAT-172).")
+    model: Text = Field(description="The AI that searched.")
+    searched_at: datetime
+    revision: UUID | None = Field(
+        default=None, description="The proposal the search was sent as, once it is sent."
+    )
+    prototype: UUID | None = Field(default=None, description="That proposal's prototype.")
+    refunded: bool = Field(
+        default=False, description="The tokens came back: the proposal was approved (CAT-172)."
+    )
+    existing: PrototypeSummary | None = Field(
+        default=None,
+        description="A reviewed prototype that already has this litt and operator (CAT-141).",
+    )
 
 
 # --- Utskrift och filer (#56, CAT-184–CAT-188) ------------------------------------------------

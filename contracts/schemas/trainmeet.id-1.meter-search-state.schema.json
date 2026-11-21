@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meter-search-state.schema.json",
+  "title": "trainmeet.id-1.meter-search-state",
+  "additionalProperties": true,
+  "description": "Går webbsökningen att använda här, och vad kostar den (CAT-219)?",
+  "properties": {
+    "available": {
+      "description": "False utan nyckeln till Anthropics API hos mätaren.",
+      "title": "Available",
+      "type": "boolean"
+    },
+    "price": {
+      "description": "24 tokens (CAT-172).",
+      "title": "Price",
+      "type": "integer"
+    },
+    "sent_to": {
+      "description": "Vem som söker, som personen läser det före första gången.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Sent To",
+      "type": "string"
+    },
+    "message": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Varför inte, när den inte går.",
+      "title": "Message"
+    }
+  },
+  "required": [
+    "available",
+    "price",
+    "sent_to"
+  ],
+  "type": "object"
+}

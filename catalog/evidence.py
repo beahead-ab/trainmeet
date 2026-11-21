@@ -1,0 +1,360 @@
+"""Belägget: does a source hold a value (#53 del b, CAT-167–CAT-170)? Ported from TrainCatalog's
+catalog/research_provider.py (validate_result) and catalog/research_sources.py
+(excerpt_supports), for the web search through TrainMeet ID's meter.
+
+The meter gives what the AI proposes with the citations the AI put on it, and every result of
+the real searches (contracts/tokens.py). Nothing of that is trusted here:
+
+- A source must be in the real search result (CAT-167): a citation whose address is not one of
+  the results is invented, and is refused.
+- The publisher is classed against the small reviewed list (CAT-168, catalog/publishers.py),
+  never by what the AI says.
+- An excerpt of the source must hold the value (CAT-169). A number with a unit is compared as a
+  number: 1 435 mm, 1435 mm and 1,435 m are the same length. Text is compared after
+  normalising: case, spaces and the kind of dash do not matter. An excerpt that tells when
+  something was ordered or presented does not hold a year of building.
+- A value without such evidence is dropped, never proposed. What is kept is the evidence and
+  the address per field.
+
+supports() is also what says, later, whether the evidence still agrees with the value that
+stands in the field (CAT-170): after a change of the value, the same excerpt may not hold it.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import datetime
+from decimal import Decimal, InvalidOperation
+from typing import Any, Final
+
+from catalog.prototype_fields import BY_KEY, INTEGER, TEXT, BadTypeData, clean
+from catalog.publishers import publisher_kind, safe_url
+from contracts.catalog import (
+    DroppedField,
+    DroppedReason,
+    Evidence,
+    FieldEvidence,
+    FieldProfile,
+    PublisherKind,
+)
+from contracts.tokens import MeterCitation, MeterSearchResult, MeterSearchValue
+
+MOST_PER_FIELD: Final = 3
+"""Sources kept per field: a known publisher's first."""
+SHORTEST_EXCERPT: Final = 5
+"""An excerpt shorter than this says nothing."""
+
+_D = Decimal
+UNITS: Final[dict[str, dict[str, Decimal]]] = {
+    # The field's unit, and what one of each written unit is in it. Only within one system:
+    # metric is never made into US units or the other way round.
+    "mm": {
+        "mm": _D(1),
+        "millimeter": _D(1),
+        "millimetre": _D(1),
+        "millimetres": _D(1),
+        "millimeters": _D(1),
+        "cm": _D(10),
+        "centimeter": _D(10),
+        "m": _D(1000),
+        "meter": _D(1000),
+        "meters": _D(1000),
+        "metre": _D(1000),
+        "metres": _D(1000),
+    },
+    "t": {
+        "t": _D(1),
+        "ton": _D(1),
+        "tonne": _D(1),
+        "tonnes": _D(1),
+        "tonnen": _D(1),
+        "kg": _D("0.001"),
+        "kilogram": _D("0.001"),
+    },
+    "km/h": {"km/h": _D(1), "kmh": _D(1), "km/tim": _D(1), "km/t": _D(1), "kph": _D(1)},
+    "ft": {"ft": _D(1), "feet": _D(1), "foot": _D(1)},
+    "lbs": {"lbs": _D(1), "lb": _D(1), "pounds": _D(1), "pound": _D(1)},
+    "mph": {"mph": _D(1), "miles per hour": _D(1)},
+}
+COUNTED: Final[dict[str, tuple[str, ...]]] = {
+    # A whole number without a unit is still a number of something: the words that say what.
+    "axles": (
+        "axlar",
+        "axliga",
+        "axlig",
+        "axel",
+        "axl",
+        "axles",
+        "axle",
+        "achsen",
+        "achsig",
+        "achse",
+    ),
+}
+_WORDS: Final = {
+    "två": 2,
+    "tva": 2,
+    "tre": 3,
+    "fyr": 4,
+    "fyra": 4,
+    "sex": 6,
+    "åtta": 8,
+    "two": 2,
+    "three": 3,
+    "four": 4,
+    "six": 6,
+    "eight": 8,
+    "zwei": 2,
+    "drei": 3,
+    "vier": 4,
+    "sechs": 6,
+    "acht": 8,
+}
+_NUMBER: Final = (
+    r"(?<![\w.,])"
+    r"(\d{1,3}(?:[ \u00a0\u202f'\u2019.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)"
+)
+_AFTER: Final = r"(?![0-9A-Za-zÀ-ÖØ-öø-ÿ/])"
+_FEET_INCHES: Final = re.compile(
+    r"(?<![\w.,])(\d+)\s*(?:ft|feet|foot|['\u2019\u2032])\s*-?\s*"
+    r"(\d+(?:\.\d+)?)\s*(?:in\b|inch(?:es)?\b|[\"\u201d\u2033])",
+    re.IGNORECASE,
+)
+_NOT_BUILT: Final = re.compile(
+    r"\b(ordered|beställ\w*|bestellt\w*|introduced|presented|presentera\w*)\b", re.IGNORECASE
+)
+"""When something was ordered or presented is not when it was built."""
+_DASHES: Final = re.compile(r"\s*[\u2010-\u2015\u2212-]\s*")
+
+
+def _unit_pattern(names: Iterable[str]) -> str:
+    return "|".join(re.escape(name) for name in sorted(names, key=len, reverse=True))
+
+
+def numbers(written: str) -> set[Decimal]:
+    """What a written number may be: 1 435 and 1435 are one number, 14,5 is 14.5, and 1.435 is
+    1.435 or 1 435, since some write the thousands with a point."""
+    plain = re.sub(r"[ \u00a0\u202f'\u2019]", "", written)
+    signs = [c for c in plain if c in ".,"]
+    found: set[str] = set()
+    if not signs:
+        found.add(plain)
+    elif "." in signs and "," in signs:
+        decimal = signs[-1]
+        thousands = "," if decimal == "." else "."
+        found.add(plain.replace(thousands, "").replace(decimal, "."))
+    elif len(signs) > 1:
+        found.add(plain.replace(signs[0], ""))  # 1.435.000: only thousands are written so
+    else:
+        whole, _, rest = plain.partition(signs[0])
+        found.add(f"{whole}.{rest}")
+        if len(rest) == 3 and whole != "0":
+            found.add(whole + rest)
+    result: set[Decimal] = set()
+    for each in found:
+        try:
+            result.add(Decimal(each))
+        except InvalidOperation:
+            continue
+    return result
+
+
+def _in_unit(excerpt: str, unit: str) -> set[Decimal]:
+    """Every number with a unit in the excerpt, as numbers in the field's unit."""
+    names = UNITS[unit]
+    pattern = re.compile(rf"{_NUMBER}\s*-?\s*({_unit_pattern(names)}){_AFTER}", re.IGNORECASE)
+    found: set[Decimal] = set()
+    for match in pattern.finditer(excerpt):
+        factor = names[match[2].lower()]
+        found |= {number * factor for number in numbers(match[1])}
+    if unit == "ft":
+        for match in _FEET_INCHES.finditer(excerpt):
+            found.add(Decimal(match[1]) + Decimal(match[2]) / 12)
+    return found
+
+
+def _counted(excerpt: str, words: Sequence[str]) -> set[Decimal]:
+    """Every count of the thing in the excerpt: 4 axlar, 2-axlig, tvåaxlig."""
+    what = _unit_pattern(words)
+    found = {
+        Decimal(match[1])
+        for match in re.finditer(rf"(?<![\w.,])(\d+)\s*-?\s*(?:{what})", excerpt, re.IGNORECASE)
+    }
+    spelled = _unit_pattern(_WORDS)
+    for match in re.finditer(rf"\b({spelled})[\s-]*(?:{what})", excerpt, re.IGNORECASE):
+        found.add(Decimal(_WORDS[match[1].lower()]))
+    return found
+
+
+def normalized(text: str) -> str:
+    """Text as it is compared: the same letters whatever the case, the spaces and the dashes."""
+    text = unicodedata.normalize("NFKC", text).casefold()
+    return " ".join(_DASHES.sub("-", text).split())
+
+
+def _text_in(value: str, excerpt: str) -> bool:
+    """The value stands in the excerpt as words of its own, not as a part of another word."""
+    wanted, within = normalized(value), normalized(excerpt)
+    if not wanted:
+        return False
+    start = within.find(wanted)
+    while start >= 0:
+        end = start + len(wanted)
+        before = within[start - 1] if start else " "
+        after = within[end] if end < len(within) else " "
+        if not before.isalnum() and not after.isalnum():
+            return True
+        start = within.find(wanted, start + 1)
+    return False
+
+
+def supports(key: str, value: str, excerpt: str) -> bool:
+    """Does the excerpt hold the value for the field (CAT-169, CAT-170)? The value is as the
+    field register writes it: a number with a point, in the field's unit."""
+    known = BY_KEY.get(key)
+    value = value.strip()
+    if known is None or not value or len(excerpt.strip()) < SHORTEST_EXCERPT:
+        return False
+    if key == "built" and _NOT_BUILT.search(excerpt):
+        return False
+    if known.kind is TEXT:
+        return _text_in(value, excerpt)
+    try:
+        wanted = Decimal(value)
+    except InvalidOperation:
+        return False
+    if known.unit in UNITS:
+        found = _in_unit(excerpt, known.unit)
+        if known.unit == "ft":  # inches make thirds of a foot: near enough is the same
+            return any(abs(each - wanted) <= Decimal("0.01") for each in found)
+        return wanted in found
+    if key in COUNTED and known.kind is INTEGER:
+        return wanted in _counted(excerpt, COUNTED[key])
+    return False
+
+
+# --- The meter's answer, checked (CAT-167–CAT-169) ---------------------------------------------
+
+
+@dataclass(frozen=True)
+class Checked:
+    """What is left of the AI's proposal after the source rules: the values with valid
+    evidence, the evidence as it is stored, and what was dropped and why."""
+
+    fields: dict[str, str] = field(default_factory=dict)
+    evidence: dict[str, list[dict[str, str]]] = field(default_factory=dict)
+    dropped: list[DroppedField] = field(default_factory=list)
+
+
+def _plain(text: str, most: int) -> str:
+    """Text from a web page, for keeping: on one line, without control characters."""
+    return " ".join("".join(c if c.isprintable() else " " for c in text).split())[:most]
+
+
+def check(
+    profile: FieldProfile,
+    wanted: Sequence[str],
+    values: Sequence[MeterSearchValue],
+    results: Sequence[MeterSearchResult],
+    searched_at: datetime,
+) -> Checked:
+    """The AI's values for the wanted keys, each kept only with a source from the real search
+    whose excerpt holds it. Everything else is dropped, with the reason."""
+    real = {safe: result for result in results if (safe := safe_url(result.url)) is not None}
+    found = Checked()
+    seen: set[str] = set()
+    for proposed in values:
+        key = proposed.key
+        if key not in wanted or key in seen:
+            continue
+        seen.add(key)
+        try:
+            value = clean(profile, {key: proposed.value}).get(key, "")
+        except BadTypeData:
+            value = ""
+        if not value:
+            found.dropped.append(DroppedField(key=key, reason=DroppedReason.BAD_VALUE))
+            continue
+        if not proposed.citations:
+            found.dropped.append(DroppedField(key=key, reason=DroppedReason.NO_SOURCE))
+            continue
+        cited = [
+            (safe, citation)
+            for citation in proposed.citations
+            if (safe := safe_url(citation.url)) is not None and safe in real
+        ]
+        if not cited:
+            found.dropped.append(DroppedField(key=key, reason=DroppedReason.INVENTED_SOURCE))
+            continue
+        kept = _holding(key, value, cited, real, searched_at)
+        if not kept:
+            found.dropped.append(DroppedField(key=key, reason=DroppedReason.UNSUPPORTED))
+            continue
+        found.fields[key] = value
+        found.evidence[key] = kept
+    return found
+
+
+def _holding(
+    key: str,
+    value: str,
+    cited: Sequence[tuple[str, MeterCitation]],
+    real: Mapping[str, MeterSearchResult],
+    searched_at: datetime,
+) -> list[dict[str, str]]:
+    """The sources whose excerpt holds the value, one per address, a known publisher's first."""
+    holding: dict[str, dict[str, str]] = {}
+    for url, citation in cited:
+        if url in holding or not supports(key, value, citation.cited_text):
+            continue
+        holding[url] = {
+            "value": value,
+            "url": url,
+            "title": _plain(citation.title or real[url].title, 500),
+            "excerpt": _plain(citation.cited_text, 2000),
+            "searched_at": searched_at.isoformat(),
+        }
+    ordered = sorted(
+        holding.values(), key=lambda each: publisher_kind(each["url"]) is PublisherKind.UNKNOWN
+    )
+    return ordered[:MOST_PER_FIELD]
+
+
+# --- The evidence as it is shown, with whether it still agrees (CAT-170) -----------------------
+
+
+def shown(stored: Mapping[str, Any] | None, fields: Mapping[str, str]) -> Evidence:
+    """The stored evidence for the fields that have a value now, each with its publisher's class
+    by the list as it is now, and whether its excerpt still holds the value that stands there."""
+    found: Evidence = {}
+    for key, items in (stored or {}).items():
+        now = fields.get(key, "")
+        if not now or not isinstance(items, list):
+            continue
+        evidence = []
+        for item in items[:MOST_PER_FIELD]:
+            try:
+                evidence.append(
+                    FieldEvidence(
+                        value=item["value"],
+                        url=item["url"],
+                        title=item.get("title", ""),
+                        publisher=publisher_kind(item["url"]),
+                        excerpt=item["excerpt"],
+                        searched_at=datetime.fromisoformat(item["searched_at"]),
+                        agrees=supports(key, now, item["excerpt"]),
+                    )
+                )
+            except (KeyError, TypeError, ValueError):
+                continue
+        if evidence:
+            found[key] = evidence
+    return found
+
+
+def carried(stored: Mapping[str, Any] | None, fields: Mapping[str, str]) -> dict[str, Any]:
+    """The evidence a new revision takes with it: that of the fields it still has a value for."""
+    return {key: items for key, items in (stored or {}).items() if fields.get(key)}

@@ -3,6 +3,59 @@
   "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype.schema.json",
   "title": "trainmeet.catalog-1.prototype",
   "$defs": {
+    "FieldEvidence": {
+      "additionalProperties": true,
+      "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+      "properties": {
+        "value": {
+          "description": "The value the excerpt was found to support.",
+          "maxLength": 1000,
+          "title": "Value",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Title",
+          "type": "string"
+        },
+        "publisher": {
+          "$ref": "#/$defs/PublisherKind"
+        },
+        "excerpt": {
+          "description": "Utdraget ur källan, as the search gave it.",
+          "maxLength": 2000,
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "searched_at": {
+          "format": "date-time",
+          "title": "Searched At",
+          "type": "string"
+        },
+        "agrees": {
+          "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+          "title": "Agrees",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "value",
+        "url",
+        "publisher",
+        "excerpt",
+        "searched_at",
+        "agrees"
+      ],
+      "title": "FieldEvidence",
+      "type": "object"
+    },
     "FieldProfile": {
       "description": "The field profiles from the start (CAT-158, C31).",
       "enum": [
@@ -122,6 +175,19 @@
           ],
           "default": null,
           "title": "Reviewed At"
+        },
+        "evidence": {
+          "description": "Belägget per fält, from the web search (CAT-169). A change of a prototype keeps the evidence of the fields it keeps; agrees says whether each still holds the value that stands there (CAT-170).",
+          "patternProperties": {
+            "^[a-z][a-z0-9_]{0,39}$": {
+              "items": {
+                "$ref": "#/$defs/FieldEvidence"
+              },
+              "type": "array"
+            }
+          },
+          "title": "Evidence",
+          "type": "object"
         }
       },
       "required": [
@@ -159,10 +225,11 @@
       "type": "object"
     },
     "PrototypeSourceKind": {
-      "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+      "description": "Where the type data come from (CAT-163).",
       "enum": [
         "own",
-        "reference"
+        "reference",
+        "web_search"
       ],
       "title": "PrototypeSourceKind",
       "type": "string"
@@ -175,6 +242,18 @@
         "rejected"
       ],
       "title": "PrototypeStatus",
+      "type": "string"
+    },
+    "PublisherKind": {
+      "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+      "enum": [
+        "manufacturer",
+        "operator",
+        "museum",
+        "archive",
+        "unknown"
+      ],
+      "title": "PublisherKind",
       "type": "string"
     },
     "VehicleKind": {
@@ -245,6 +324,19 @@
     },
     "source": {
       "$ref": "#/$defs/PrototypeSource"
+    },
+    "evidence": {
+      "description": "Belägget per fält for the revision shown (CAT-169, CAT-170).",
+      "patternProperties": {
+        "^[a-z][a-z0-9_]{0,39}$": {
+          "items": {
+            "$ref": "#/$defs/FieldEvidence"
+          },
+          "type": "array"
+        }
+      },
+      "title": "Evidence",
+      "type": "object"
     },
     "reviewed_at": {
       "anyOf": [

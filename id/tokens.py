@@ -244,6 +244,33 @@ class Tokens:
             row = self._return(conn, account, row)
             return self._out(conn, self._account_by_id(conn, account["id"]), row)
 
+    def refund(self, app: str, reservation: UUID) -> TokenReservation:
+        """What a web search drew comes back, when the prototype it led to is approved
+        (CAT-172). Only a reservation that paid for a search, and only once: asked again, the
+        answer is the same and nothing more comes back. What was taken from a month's free
+        quota goes back within that month only (TK2)."""
+        with self.db.transaction() as conn:
+            row, account = self._held(conn, app, reservation)
+            if not row["search"]:
+                raise Refused(
+                    422,
+                    ProblemCode.INVALID,
+                    "Bara en webbsökning lämnas tillbaka efter att den har dragits.",
+                )
+            if row["state"] == TokenReservationState.HELD.value:
+                raise Refused(409, ProblemCode.CONFLICT, "Reservationen är inte dragen än.")
+            if row["state"] == TokenReservationState.RETURNED.value:
+                return self._out(conn, account, row)  # refunded before, or never drawn
+            free_drawn = min(row["drawn"], row["from_free"])
+            self._give_back(conn, account, row, free_drawn, row["drawn"] - free_drawn)
+            settled = conn.execute(
+                "UPDATE token_reservation SET state = 'returned', refunded = drawn, drawn = 0, "
+                "refunded_at = %s WHERE id = %s RETURNING *",
+                (self.clock(), row["id"]),
+            ).fetchone()
+            assert settled is not None
+            return self._out(conn, self._account_by_id(conn, account["id"]), settled)
+
     def may_manage(self, conn: Connection[DictRow], person: UUID, owner: TokenOwner) -> None:
         """Who changes an account's own AI: the person their own, the club's admin the club's."""
         if owner.kind == TokenOwnerKind.PERSON:

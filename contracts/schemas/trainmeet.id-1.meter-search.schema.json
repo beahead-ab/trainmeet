@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.id-1.meter-search.schema.json",
+  "title": "trainmeet.id-1.meter-search",
+  "$defs": {
+    "MeterSearchField": {
+      "additionalProperties": true,
+      "description": "A field the search should fill: the key and what it means, from the app's own register,\nnever from a person.",
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,39}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "label": {
+          "description": "What the field is, in English: Length over buffers.",
+          "maxLength": 60,
+          "minLength": 1,
+          "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+          "title": "Label",
+          "type": "string"
+        },
+        "unit": {
+          "default": "",
+          "description": "The unit the value is given in: mm, t, km/h. Empty without one.",
+          "maxLength": 10,
+          "pattern": "^[A-Za-z/]*$",
+          "title": "Unit",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "number",
+            "integer"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "kind"
+      ],
+      "title": "MeterSearchField",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Sök förebildens typuppgifter på webben. Bara märkningen skickas (CAT-166): litteran,\nbolaget, slaget och fältprofilen. Reservationen ska räcka till 24 tokens.",
+  "properties": {
+    "reservation": {
+      "format": "uuid",
+      "title": "Reservation",
+      "type": "string"
+    },
+    "litt": {
+      "description": "Litteran eller UIC-typen, som den står på fordonet: Hbis, Rc6.",
+      "maxLength": 40,
+      "minLength": 1,
+      "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+      "title": "Litt",
+      "type": "string"
+    },
+    "operator": {
+      "default": "",
+      "description": "Bolaget fordonet är märkt för: SJ, Green Cargo. Får vara tomt.",
+      "maxLength": 80,
+      "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+      "title": "Operator",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "enum": [
+            "locomotive",
+            "freight_wagon",
+            "passenger_coach",
+            "multiple_unit",
+            "other"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Kind"
+    },
+    "profile": {
+      "description": "Fältprofilen: var i världen typen hör hemma, och vilka enheter som gäller.",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "Profile",
+      "type": "string"
+    },
+    "fields": {
+      "items": {
+        "$ref": "#/$defs/MeterSearchField"
+      },
+      "maxItems": 20,
+      "minItems": 1,
+      "title": "Fields",
+      "type": "array"
+    },
+    "hold": {
+      "default": false,
+      "description": "Håll reservationen: mätaren söker och behåller svaret, men drar inget. Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används.",
+      "title": "Hold",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "reservation",
+    "litt",
+    "kind",
+    "profile",
+    "fields"
+  ],
+  "type": "object"
+}

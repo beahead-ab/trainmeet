@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.catalog-1.prototype-search-ask.schema.json",
+  "title": "trainmeet.catalog-1.prototype-search-ask",
+  "$defs": {
+    "FieldProfile": {
+      "description": "The field profiles from the start (CAT-158, C31).",
+      "enum": [
+        "SE",
+        "EU",
+        "US"
+      ],
+      "title": "FieldProfile",
+      "type": "string"
+    },
+    "VehicleKind": {
+      "description": "The kinds of vehicle (CAT-54).",
+      "enum": [
+        "locomotive",
+        "freight_wagon",
+        "passenger_coach",
+        "multiple_unit",
+        "other"
+      ],
+      "title": "VehicleKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Sök på webben: the marking to search for (CAT-166). Nothing else is sent on.",
+  "properties": {
+    "id": {
+      "description": "Made by the client, new for each search (CAT-144).",
+      "format": "uuid",
+      "title": "Id",
+      "type": "string"
+    },
+    "litt": {
+      "description": "Littera eller UIC-typ: Hbis, Rc6.",
+      "maxLength": 40,
+      "minLength": 1,
+      "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+      "title": "Litt",
+      "type": "string"
+    },
+    "operator": {
+      "default": "",
+      "description": "Bolag: SJ.",
+      "maxLength": 80,
+      "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+      "title": "Operator",
+      "type": "string"
+    },
+    "kind": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/VehicleKind"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "profile": {
+      "$ref": "#/$defs/FieldProfile",
+      "default": "SE"
+    },
+    "consent": {
+      "default": false,
+      "description": "The person has seen what is sent and to whom, and says yes (CAT-142).",
+      "title": "Consent",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "id",
+    "litt"
+  ],
+  "type": "object"
+}

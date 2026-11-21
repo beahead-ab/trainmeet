@@ -14,6 +14,14 @@ The catalog:
 - Nothing about who proposed is shown to others than the reviewers; the catalog shows the type
   data and the source.
 
+The evidence (#53 del b, CAT-169, CAT-170):
+- A proposal sent from a web search (PrototypeProposal.search, catalog/prototype_search.py)
+  keeps the search's evidence per field: the source, its address and the excerpt. A change of a
+  prototype takes the evidence of the fields it keeps with it. Shown, each piece of evidence
+  says who published it by the reviewed list, and whether its excerpt still holds the value
+  that stands in the field: a value changed since may no longer be held.
+- When a proposal from a search is approved, the search's tokens come back (CAT-172).
+
 The vehicle:
 - A link keeps a snapshot of the revision's type data, name, kind and profile (CAT-160). A new
   revision never changes it: the card says that a newer one exists, and the owner updates by
@@ -27,15 +35,17 @@ The vehicle:
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections.abc import Callable, Mapping, Sequence
-from typing import Any, Final
+from typing import Any, Final, Protocol
 from uuid import UUID
 
 from psycopg import Connection
 from psycopg.rows import DictRow
 from psycopg.types.json import Jsonb
 
+from catalog import evidence
 from catalog.access import Work
 from catalog.db import Database
 from catalog.fleet import Fleet, Refused, changed, not_found
@@ -51,6 +61,7 @@ from contracts.catalog import (
     PrototypeReview,
     PrototypeRevision,
     PrototypeSource,
+    PrototypeSourceKind,
     PrototypeStatus,
     PrototypeSummary,
     ReviewDecision,
@@ -59,9 +70,33 @@ from contracts.catalog import (
     VehiclePrototype,
 )
 
+LOGGER = logging.getLogger("catalog.prototypes")
+
 Reviewer = Callable[[UUID], bool]
 """Is the person a reviewer, as TrainMeet ID says now (CAT-165)? Refused with 503 when ID does
 not answer."""
+
+
+class SearchSent(Protocol):
+    """What a proposal takes from the web search it is sent from."""
+
+    evidence: dict[str, Any]
+    source: str
+
+
+class Searches(Protocol):
+    """The web searches, as the catalog uses them (catalog/prototype_search.py)."""
+
+    def evidence_for(self, conn: Connection[DictRow], person: UUID, search: UUID) -> SearchSent:
+        """The person's own search, done and not sent before, locked. Refused otherwise."""
+        ...
+
+    def sent(self, conn: Connection[DictRow], search: UUID, revision: UUID) -> None: ...
+
+    def settle(self) -> int:
+        """Give back the tokens of the searches whose proposals are approved (CAT-172)."""
+        ...
+
 
 MOST: Final = 500
 """Rows in one answer. The catalog is searched, not paged, until it grows past it."""
@@ -69,7 +104,7 @@ MOST: Final = 500
 _REVISION: Final = (
     "r.id, r.prototype_id, r.number, r.base, r.review, r.name, r.kind, r.profile, r.fields, "
     "r.source_kind, r.source, r.created_by, r.created_at, r.comment, r.reviewed_at, "
-    "o.name AS proposer"
+    "r.evidence, o.name AS proposer"
 )
 _REVISIONS: Final = "prototype_revision r LEFT JOIN owner o ON o.id = r.created_by"
 _SQUEEZED: Final = "lower(regexp_replace(coalesce(r.fields->>'{0}', ''), '[[:space:]]', '', 'g'))"
@@ -115,6 +150,7 @@ def _revision(row: Mapping[str, Any], person: UUID, *, named: bool = False) -> P
         created_at=row["created_at"],
         comment=row["comment"],
         reviewed_at=row["reviewed_at"],
+        evidence=evidence.shown(row["evidence"], row["fields"]),
     )
 
 
@@ -168,10 +204,15 @@ def linked(conn: Connection[DictRow], vehicles: list[UUID]) -> dict[UUID, Vehicl
 
 
 class Prototypes:
-    def __init__(self, db: Database, fleet: Fleet, reviewer: Reviewer) -> None:
+    def __init__(
+        self, db: Database, fleet: Fleet, reviewer: Reviewer, searches: Searches | None = None
+    ) -> None:
+        """searches are the web searches a proposal can be sent from; None where there are
+        none, as before TrainMeet ID's API is there."""
         self.db = db
         self.fleet = fleet
         self.reviewer = reviewer
+        self.searches = searches
 
     def _may_review(self, person: UUID) -> bool:
         """For what is only shown to reviewers: no when ID does not answer."""
@@ -184,7 +225,7 @@ class Prototypes:
 
     _PROTOTYPE: Final = (
         "SELECT p.id, p.status, p.current_revision, p.created_at, r.name, r.kind, r.profile, "
-        "r.fields, r.source_kind, r.source, r.reviewed_at, r.created_by, "
+        "r.fields, r.source_kind, r.source, r.reviewed_at, r.created_by, r.evidence, "
         "(SELECT count(*) FROM vehicle v WHERE v.prototype_id = p.id) AS vehicles, "
         "(SELECT count(*) FROM prototype_revision w WHERE w.prototype_id = p.id "
         "AND w.review = 'proposed' AND (w.created_by = %(person)s OR %(reviewer)s)) AS waiting "
@@ -203,6 +244,7 @@ class Prototypes:
             profile=FieldProfile(row["profile"]),
             fields=row["fields"],
             source=PrototypeSource(kind=row["source_kind"], text=row["source"]),
+            evidence=evidence.shown(row["evidence"], row["fields"]),
             reviewed_at=row["reviewed_at"] if row["current_revision"] is not None else None,
             vehicles=row["vehicles"],
             waiting=row["waiting"],
@@ -281,7 +323,21 @@ class Prototypes:
             fields = clean(proposal.profile, proposal.fields)
         except BadTypeData as error:
             raise _bad(error) from None
+        from_search = proposal.source.kind is PrototypeSourceKind.WEB_SEARCH
+        if from_search != (proposal.search is not None) or (from_search and not self.searches):
+            raise Refused(
+                422,
+                ProblemCode.BAD_TYPE_DATA,
+                "Källan Webbsökning gäller bara ett förslag som skickas från en webbsökning.",
+            )
+        source, kept = proposal.source.text, {}
         with self.db.owner_transaction(person) as conn:
+            if proposal.search is not None:
+                # The evidence is Catalog's own, from the stored search: the browser only names
+                # the search. The source's text is written here too (CAT-169, CAT-171).
+                assert self.searches is not None
+                sent = self.searches.evidence_for(conn, person, proposal.search)
+                source, kept = sent.source, sent.evidence
             if proposal.prototype is None:
                 if proposal.base is not None:
                     raise no_prototype()
@@ -308,11 +364,20 @@ class Prototypes:
                 ).fetchone()
                 assert last is not None
                 number = int(last["n"]) + 1
+                # A change keeps the evidence of the revision it builds on, for the fields it
+                # keeps; a search's own evidence goes over it. Whether each still holds the
+                # value that stands there now is said when it is shown (CAT-170).
+                based = conn.execute(
+                    "SELECT evidence FROM prototype_revision WHERE prototype_id = %s "
+                    "AND number = %s",
+                    (prototype, proposal.base),
+                ).fetchone()
+                kept = (based["evidence"] if based is not None else {}) | kept
             revision = uuid.uuid4()
             conn.execute(
                 "INSERT INTO prototype_revision (id, prototype_id, number, base, name, kind, "
-                "profile, fields, source_kind, source, created_by) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                "profile, fields, source_kind, source, created_by, evidence) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 (
                     revision,
                     prototype,
@@ -323,10 +388,14 @@ class Prototypes:
                     proposal.profile.value,
                     Jsonb(fields),
                     proposal.source.kind.value,
-                    proposal.source.text,
+                    source,
                     person,
+                    Jsonb(evidence.carried(kept, fields)),
                 ),
             )
+            if proposal.search is not None:
+                assert self.searches is not None
+                self.searches.sent(conn, proposal.search, revision)
             return self._read_revision(conn, person, revision)
 
     @staticmethod
@@ -406,7 +475,21 @@ class Prototypes:
                 conn.execute(
                     "UPDATE prototype SET status = 'rejected' WHERE id = %s", (found["id"],)
                 )
-            return self._read_revision(conn, person, revision, named=True)
+            reviewed = self._read_revision(conn, person, revision, named=True)
+        if approve:
+            self.settle()
+        return reviewed
+
+    def settle(self) -> None:
+        """The tokens of a web search come back when its proposal is approved (CAT-172). Done
+        after the review is written, so that a slow or silent TrainMeet ID never holds the
+        review up: what did not go back now is given back at the next review, or at start."""
+        if self.searches is None:
+            return
+        try:
+            self.searches.settle()
+        except Exception:
+            LOGGER.exception("Sökningarnas tokens kunde inte lämnas tillbaka nu.")
 
     # --- The vehicle's link (CAT-160, CAT-161, CAT-162) -----------------------------------------
 

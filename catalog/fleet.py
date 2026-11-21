@@ -229,7 +229,7 @@ def _suggested(
         return {}
     row = conn.execute(
         "SELECT result FROM reading WHERE id = %s AND owner_id = %s AND person_id = %s "
-        "AND status = 'done' AND NOT batch",
+        "AND status = 'done' AND NOT batch AND kind = 'image'",
         (reading, owner, person),
     ).fetchone()
     found = row["result"].get("suggestions") if row is not None and row["result"] else None

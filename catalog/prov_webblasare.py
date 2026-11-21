@@ -1,7 +1,7 @@
 """Startar Catalog för webbläsarprovet, med en låtsad TrainMeet ID och en låtsad AI (#52 del d).
 
     python -m catalog.prov_webblasare --databas <PostgreSQL> [--ny] [--port 8090]
-        [--webb apps/catalog/dist] [--tokens 36]
+        [--webb apps/catalog/dist] [--tokens 36] [--utan-webbsokning]
 
 Catalog körs på riktigt: sin riktiga kö för flera foton i en worker-tråd, sin riktiga databas, som
 migreras när den startar, och den byggda webbappen, som Catalogs bild serverar den
@@ -14,6 +14,14 @@ Mätarens AI är låtsad: den svarar med ett färdigt förslag per foto, valt ef
 webbläsarprovet vet vad varje foto ska bli. Inget anropar en AI-leverantör på riktigt (CAT-154).
 Provkonto A har --tokens tokens, 36 från början: tre foton, så att tokens tar slut på det fjärde i
 en omgång om fyra (CAT-152). Provkonto B har 120, för ett foto i Lägg till med foto.
+
+Webbsökningen (#53 del b) är låtsad på samma sätt: mätarens sökning svarar med färdiga värden och
+källor för litteran Hbis, också en påhittad källa och ett värde utan belägg, som Catalogs egna
+regler ska sålla bort (CAT-167, CAT-169). Källorna är påhittade sidor hos låtsade utgivare
+(example.org), och det låtsade museet läggs på utgivarlistan bara i det här programmet.
+Provkonto C är granskare, så att provet kan godkänna förslaget och se sökningens tokens komma
+tillbaka (CAT-172). Ingen sökning görs på riktigt. Med --utan-webbsokning säger mätaren att
+webbsökningen inte är inkopplad, som utan nyckeln (CAT-219).
 
 Med --ny skapas en egen databas på servern i --databas, och den tas bort när programmet stannar,
 så att provet alltid börjar från en tom vagnpark.
@@ -52,11 +60,13 @@ from psycopg import conninfo
 
 from catalog.app import create_app
 from catalog.login import TRIAL_ACCOUNTS
+from catalog.publishers import PUBLISHERS
 from catalog.reading import FIELDS
 from catalog.settings import DEFAULT_WEB_DIR, IdSettings, Settings, package_version
-from contracts.catalog import CatalogVersion
+from contracts.catalog import CatalogVersion, PublisherKind
 from contracts.tokens import (
     MeterAnswer,
+    MeterSearchAnswer,
     TokenBalance,
     TokenOwner,
     TokenOwnerKind,
@@ -66,9 +76,71 @@ from contracts.tokens import (
 
 LOGGER = logging.getLogger("catalog.prov")
 
-PERSON_A, PERSON_B = (account.id for account in TRIAL_ACCOUNTS[:2])
+PERSON_A, PERSON_B, PERSON_C = (account.id for account in TRIAL_ACCOUNTS[:3])
 MODEL = "låtsad AI för webbläsarprovet"
 """The model the pretend meter says it is: never a real provider's."""
+
+# --- The pretend web search (#53 del b) ---------------------------------------------------------
+
+MUSEUM = "https://museum.example.org/fordon/hbis"
+"""A made-up page at a pretend museum, which this program puts on the list of publishers."""
+PAGE = "https://tagsidor.example.org/godsvagnar/hbis"
+"""A made-up page at a publisher nobody has reviewed."""
+NO_PAGE = "https://museum.example.org/fordon/finns-inte"
+"""A page the pretend search never found: the AI's own invention (CAT-167)."""
+
+
+def _cited(url: str, title: str, text: str) -> dict[str, str]:
+    return {"url": url, "title": title, "cited_text": text}
+
+
+SEARCHES: dict[str, dict[str, Any]] = {
+    # By the litt, in lower case: what the pretend search proposes, and what it found.
+    "hbis": {
+        "values": [
+            {
+                "key": "length_over_buffers",
+                "value": "14020",
+                "citations": [
+                    _cited(
+                        MUSEUM, "Hbis – Museet (påhittad sida)", "Längd över buffertar 14 020 mm"
+                    )
+                ],
+            },
+            {
+                "key": "max_speed",
+                "value": "100",
+                "citations": [
+                    _cited(PAGE, "Hbis – Tågsidor (påhittad sida)", "Största hastighet 100 km/h"),
+                    _cited(MUSEUM, "Hbis – Museet (påhittad sida)", "sth 100 km/tim"),
+                ],
+            },
+            {
+                "key": "axles",
+                "value": "2",
+                "citations": [_cited(PAGE, "Hbis – Tågsidor (påhittad sida)", "En tvåaxlig vagn")],
+            },
+            # What Catalog's own rules take away: a source the search never found, an excerpt
+            # that tells when the wagons were ordered, and a value without a source.
+            {
+                "key": "weight",
+                "value": "14.5",
+                "citations": [_cited(NO_PAGE, "Finns inte", "Egenvikt 14,5 ton")],
+            },
+            {
+                "key": "built",
+                "value": "1970",
+                "citations": [_cited(MUSEUM, "Hbis – Museet (påhittad sida)", "Beställdes 1970")],
+            },
+            {"key": "brake", "value": "KE-GP", "citations": []},
+        ],
+        "results": [
+            {"url": MUSEUM, "title": "Hbis – Museet (påhittad sida)"},
+            {"url": PAGE, "title": "Hbis – Tågsidor (påhittad sida)"},
+        ],
+    }
+}
+"""The pretend search's answers. A litt that is not here finds nothing."""
 
 
 def _said(value: str, basis: str = "visible_text", confidence: str = "high") -> dict[str, str]:
@@ -130,6 +202,12 @@ class PretendId:
     balances: dict[UUID, int] = field(default_factory=dict)
     reservations: dict[str, dict[str, Any]] = field(default_factory=dict)
     reads: int = 0
+    searches: int = 0
+    refunds: int = 0
+    reviewers: frozenset[UUID] = frozenset({PERSON_C})
+    """Who reviews the prototypes, as ID's role reviewer on catalog:prototypes (CAT-165)."""
+    search_connected: bool = True
+    """False as when the meter has no key for the web search (CAT-219)."""
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     def handle(self, request: httpx.Request) -> httpx.Response:
@@ -144,7 +222,10 @@ class PretendId:
             return httpx.Response(401, json={"code": "login", "message": "Ingen token."})
         params = request.url.params
         if path.endswith("/apps/access"):
-            return httpx.Response(200, json={"roles": []})
+            reviews = params.get("resource") == "catalog:prototypes" and params.get("person") in {
+                str(person) for person in self.reviewers
+            }
+            return httpx.Response(200, json={"roles": ["reviewer"] if reviews else []})
         if path.endswith("/apps/switcher"):
             return httpx.Response(200, json={"apps": ["catalog", "id"]})
         if path.endswith("/apps/fleets"):
@@ -156,6 +237,11 @@ class PretendId:
             return self._reserve(body)
         if path.endswith("/apps/meter"):
             return self._read(body)
+        if path.endswith("/apps/meter/search"):
+            if request.method == "GET":
+                state = {"available": self.search_connected, "price": 24, "sent_to": MODEL}
+                return httpx.Response(200, json=state)
+            return self._search(body)
         if "/apps/tokens/reservations/" in path:
             found = self.reservations.get(path.split("/")[-2])
             if found is None:
@@ -164,6 +250,8 @@ class PretendId:
                 return self._draw(found, int(body.get("amount", found["amount"])))
             if path.endswith("/return"):
                 return self._give_back(found)
+            if path.endswith("/refund"):
+                return self._refund(found)
         return httpx.Response(404, json={"code": "not_found", "message": "Finns inte."})
 
     def _owner(self, owner: str) -> UUID | None:
@@ -226,6 +314,44 @@ class PretendId:
             reservation=self._made(found),
         )
         return httpx.Response(200, json=meter.model_dump(mode="json"))
+
+    def _search(self, body: dict[str, Any]) -> httpx.Response:
+        """The meter's web search (contracts/tokens.py), with a ready answer for the litt. As
+        ID's meter it searches only with a reservation that covers the price."""
+        found = self.reservations.get(str(body.get("reservation")))
+        if found is None or found["state"] is not TokenReservationState.HELD:
+            return httpx.Response(409, json={"code": "conflict", "message": "Ingen reservation."})
+        if not self.search_connected:
+            self._give_back(found)
+            return httpx.Response(503, json={"code": "unavailable", "message": "Inte inkopplad."})
+        if found["amount"] < 24:
+            return httpx.Response(422, json={"code": "invalid", "message": "Räcker inte."})
+        self.searches += 1
+        found["search"] = True
+        answer = SEARCHES.get(str(body.get("litt", "")).strip().lower(), {})
+        meter = MeterSearchAnswer.model_validate(
+            {
+                "values": answer.get("values", []),
+                "results": answer.get("results", []),
+                "searches": 2,
+                "cost": 24,
+                "model": MODEL,
+                "reservation": self._made(found).model_dump(mode="json"),
+            }
+        )
+        return httpx.Response(200, json=meter.model_dump(mode="json"))
+
+    def _refund(self, found: dict[str, Any]) -> httpx.Response:
+        """What a search drew comes back when its prototype is approved (CAT-172): once."""
+        if not found.get("search"):
+            return httpx.Response(422, json={"code": "invalid", "message": "Inte en sökning."})
+        if found["state"] is TokenReservationState.HELD:
+            return httpx.Response(409, json={"code": "conflict", "message": "Inte dragen."})
+        if found["state"] is TokenReservationState.DRAWN:
+            self.balances[found["person"]] += found["drawn"]
+            found.update(state=TokenReservationState.RETURNED, drawn=0)
+            self.refunds += 1
+        return self._reservation(found)
 
     def _draw(self, found: dict[str, Any], amount: int) -> httpx.Response:
         if found["state"] is TokenReservationState.HELD:
@@ -321,12 +447,20 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--port", type=int, default=8090)
     parser.add_argument("--webb", type=Path, default=DEFAULT_WEB_DIR, help="den byggda webbappen")
     parser.add_argument("--tokens", type=int, default=36, help="Provkonto A:s saldo")
+    parser.add_argument(
+        "--utan-webbsokning", action="store_true", help="webbsökningen är inte inkopplad"
+    )
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)  # every call to the pretend ID
     if not (args.webb / "index.html").is_file():
         parser.error(f"Webbappen är inte byggd i {args.webb}: kör npm run build -w apps/catalog.")
-    pretend = PretendId(balances={PERSON_A: args.tokens, PERSON_B: 120})
+    pretend = PretendId(
+        balances={PERSON_A: args.tokens, PERSON_B: 120, PERSON_C: 0},
+        search_connected=not args.utan_webbsokning,
+    )
+    # The pretend search's known publisher is a pretend museum: on the list in this program only.
+    PUBLISHERS["museum.example.org"] = PublisherKind.MUSEUM
     # uvicorn stops on SIGTERM and then raises it again: as an exit, so that the fresh database
     # and the pictures are removed below.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
@@ -343,7 +477,13 @@ def main(argv: list[str] | None = None) -> None:
                     app, host="127.0.0.1", port=args.port, log_level="warning", access_log=False
                 )
             finally:
-                LOGGER.info("Den låtsade AI:n läste %d foton.", pretend.reads)
+                LOGGER.info(
+                    "Den låtsade AI:n läste %d foton och sökte %d gånger; %d sökningar kom "
+                    "tillbaka.",
+                    pretend.reads,
+                    pretend.searches,
+                    pretend.refunds,
+                )
     finally:
         shutil.rmtree(pictures, ignore_errors=True)
 

@@ -677,6 +677,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/id/1/apps/tokens/reservations/{reservation}/refund": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["appRefundTokens"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/id/1/apps/meter": {
         parameters: {
             query?: never;
@@ -687,6 +703,22 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["appReadWithMeter"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/id/1/apps/meter/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["appSearchState"];
+        put?: never;
+        post: operations["appSearchWithMeter"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1868,6 +1900,297 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.id-1.meter-answer.TokenReservationState": "held" | "drawn" | "returned";
+        /**
+         * MeterSearch
+         * @description Sök förebildens typuppgifter på webben. Bara märkningen skickas (CAT-166): litteran,
+         *     bolaget, slaget och fältprofilen. Reservationen ska räcka till 24 tokens.
+         */
+        "trainmeet.id-1.meter-search": {
+            /**
+             * Reservation
+             * Format: uuid
+             */
+            reservation: string;
+            /**
+             * Litt
+             * @description Litteran eller UIC-typen, som den står på fordonet: Hbis, Rc6.
+             */
+            litt: string;
+            /**
+             * Operator
+             * @description Bolaget fordonet är märkt för: SJ, Green Cargo. Får vara tomt.
+             * @default
+             */
+            operator: string;
+            /** Kind */
+            kind: ("locomotive" | "freight_wagon" | "passenger_coach" | "multiple_unit" | "other") | null;
+            /**
+             * Profile
+             * @description Fältprofilen: var i världen typen hör hemma, och vilka enheter som gäller.
+             * @enum {string}
+             */
+            profile: "SE" | "EU" | "US";
+            /** Fields */
+            fields: components["schemas"]["trainmeet.id-1.meter-search.MeterSearchField"][];
+            /**
+             * Hold
+             * @description Håll reservationen: mätaren söker och behåller svaret, men drar inget. Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används.
+             * @default false
+             */
+            hold: boolean;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeterSearchField
+         * @description A field the search should fill: the key and what it means, from the app's own register,
+         *     never from a person.
+         */
+        "trainmeet.id-1.meter-search.MeterSearchField": {
+            /** Key */
+            key: string;
+            /**
+             * Label
+             * @description What the field is, in English: Length over buffers.
+             */
+            label: string;
+            /**
+             * Unit
+             * @description The unit the value is given in: mm, t, km/h. Empty without one.
+             * @default
+             */
+            unit: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "text" | "number" | "integer";
+        } & {
+            [key: string]: unknown;
+        };
+        /** MeterSearchAnswer */
+        "trainmeet.id-1.meter-search-answer": {
+            /**
+             * Values
+             * @description Det Claude föreslår, per fält. Ett fält utan uppgift står inte med.
+             */
+            values: components["schemas"]["trainmeet.id-1.meter-search-answer.MeterSearchValue"][];
+            /**
+             * Results
+             * @description Allt de verkliga sökningarna gav: en källa som inte står här är påhittad.
+             */
+            results: components["schemas"]["trainmeet.id-1.meter-search-answer.MeterSearchResult"][];
+            /**
+             * Searches
+             * @description Hur många sökningar Claude gjorde.
+             */
+            searches: number;
+            /**
+             * Cost
+             * @description Det som drogs: 24 tokens (CAT-172). Med hold är inget draget än.
+             */
+            cost: number;
+            /** Model */
+            model: string;
+            reservation: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenReservation"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeterCitation
+         * @description Where Claude says a value stands: a page from the real search, and an excerpt of it.
+         */
+        "trainmeet.id-1.meter-search-answer.MeterCitation": {
+            /** Url */
+            url: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Cited Text
+             * @description Utdraget ur sidan, som sökningen gav det.
+             * @default
+             */
+            cited_text: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeterSearchResult
+         * @description A page the real search found.
+         */
+        "trainmeet.id-1.meter-search-answer.MeterSearchResult": {
+            /** Url */
+            url: string;
+            /**
+             * Title
+             * @default
+             */
+            title: string;
+            /**
+             * Page Age
+             * @default null
+             */
+            page_age: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * MeterSearchValue
+         * @description A value Claude proposes for one of the fields, with its citations.
+         */
+        "trainmeet.id-1.meter-search-answer.MeterSearchValue": {
+            /** Key */
+            key: string;
+            /** Value */
+            value: string;
+            /** Citations */
+            citations?: components["schemas"]["trainmeet.id-1.meter-search-answer.MeterCitation"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenBalance
+         * @description Saldot som det ser ut nu (TOKEN-01, TOKEN-12).
+         */
+        "trainmeet.id-1.meter-search-answer.TokenBalance": {
+            owner: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenOwner"];
+            /**
+             * Title
+             * @description Vems saldo, som det visas: personens namn eller klubbens.
+             */
+            title: string;
+            /**
+             * Free Left
+             * @description Det som är kvar av månadens gratiskvot. Sparas inte till nästa månad.
+             */
+            free_left: number;
+            /**
+             * Free Monthly
+             * @description Månadens gratiskvot: 100 per person, 300 per klubb.
+             */
+            free_monthly: number;
+            /**
+             * Bought
+             * @description Köpta tokens som är kvar. De förfaller inte.
+             */
+            bought: number;
+            /**
+             * Reserved
+             * @description Hålls av reservationer som inte är dragna eller tillbakalämnade än.
+             */
+            reserved: number;
+            /**
+             * Available
+             * @description Det som går att använda nu: gratis och köpt.
+             */
+            available: number;
+            /**
+             * Month
+             * @description Månaden gratiskvoten gäller, i svensk tid.
+             */
+            month: string;
+            /**
+             * Own Ai
+             * @description Modellen i kontots egen AI, om den är inkopplad: då dras inga AI-tokens.
+             * @default null
+             */
+            own_ai: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** TokenOwner */
+        "trainmeet.id-1.meter-search-answer.TokenOwner": {
+            kind: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenOwnerKind"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenOwnerKind
+         * @description Vems saldo (TK1): personens, för egna fordon och moduler, eller klubbens, för
+         *     träffarnas import (TK16).
+         * @enum {string}
+         */
+        "trainmeet.id-1.meter-search-answer.TokenOwnerKind": "person" | "club";
+        /** TokenReservation */
+        "trainmeet.id-1.meter-search-answer.TokenReservation": {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            owner: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenOwner"];
+            /**
+             * Amount
+             * @description Det reserverade.
+             */
+            amount: number;
+            /**
+             * Drawn
+             * @description Det dragna, när reservationen är dragen.
+             * @default 0
+             */
+            drawn: number;
+            state: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenReservationState"];
+            /** What */
+            what: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Expires
+             * Format: date-time
+             * @description När en reservation som ingen drar går tillbaka.
+             */
+            expires: string;
+            /** @description Saldot efter det här. */
+            balance: components["schemas"]["trainmeet.id-1.meter-search-answer.TokenBalance"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * TokenReservationState
+         * @enum {string}
+         */
+        "trainmeet.id-1.meter-search-answer.TokenReservationState": "held" | "drawn" | "returned";
+        /**
+         * MeterSearchState
+         * @description Går webbsökningen att använda här, och vad kostar den (CAT-219)?
+         */
+        "trainmeet.id-1.meter-search-state": {
+            /**
+             * Available
+             * @description False utan nyckeln till Anthropics API hos mätaren.
+             */
+            available: boolean;
+            /**
+             * Price
+             * @description 24 tokens (CAT-172).
+             */
+            price: number;
+            /**
+             * Sent To
+             * @description Vem som söker, som personen läser det före första gången.
+             */
+            sent_to: string;
+            /**
+             * Message
+             * @description Varför inte, när den inte går.
+             * @default null
+             */
+            message: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /** TokenPackage */
         "trainmeet.id-1.token-package": {
             /**
@@ -2087,6 +2410,12 @@ export interface components {
              * @description Sidor och bilder som TrainMeets AI läste.
              */
             pages: number;
+            /**
+             * Searches
+             * @description Webbsökningar som mätaren gjorde (TOKEN-30).
+             * @default 0
+             */
+            searches: number;
         } & {
             [key: string]: unknown;
         };
@@ -2110,6 +2439,24 @@ export interface components {
              * @default null
              */
             factor_page_tokens: number | null;
+            /**
+             * Search Tokens
+             * @description Tokens per webbsökning nu (CAT-172).
+             * @default 24
+             */
+            search_tokens: number;
+            /**
+             * Cost Per Search Sek
+             * @description Uppmätt kostnad per webbsökning de senaste 30 dagarna, med sökavgiften.
+             * @default null
+             */
+            cost_per_search_sek: number | null;
+            /**
+             * Factor Search Tokens
+             * @description Vad faktorn gör av den uppmätta kostnaden, i tokens per webbsökning (TK6): priset stäms av mot det (CAT-172).
+             * @default null
+             */
+            factor_search_tokens: number | null;
             /**
              * Budget Used
              * @description Hur mycket av månadens budget som är använd, %.
@@ -2147,6 +2494,12 @@ export interface components {
              * @description Sidor och bilder som TrainMeets AI läste.
              */
             pages: number;
+            /**
+             * Searches
+             * @description Webbsökningar som mätaren gjorde (TOKEN-30).
+             * @default 0
+             */
+            searches: number;
         } & {
             [key: string]: unknown;
         };
@@ -6173,6 +6526,73 @@ export interface operations {
             };
         };
     };
+    appRefundTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reservation: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.token-reservation"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
     appReadWithMeter: {
         parameters: {
             query?: never;
@@ -6197,6 +6617,122 @@ export interface operations {
             };
             /** @description ID säger nej */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appSearchState: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meter-search-state"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+        };
+    };
+    appSearchWithMeter: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.id-1.meter-search"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.meter-search-answer"];
+                };
+            };
+            /** @description ID säger nej */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.id-1.problem"];
+                };
+            };
+            /** @description ID säger nej */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

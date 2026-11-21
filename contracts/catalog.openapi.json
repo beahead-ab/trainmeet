@@ -5346,6 +5346,175 @@
         ]
       }
     },
+    "/api/catalog/1/prototypes/search": {
+      "get": {
+        "operationId": "prototypeSearchConsent",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search-consent"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "searchPrototype",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search-ask"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/catalog/1/prototypes/search/{search}": {
+      "get": {
+        "operationId": "prototypeSearch",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Catalog säger nej",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.problem"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "search",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
     "/api/catalog/1/prototypes/{prototype}": {
       "get": {
         "operationId": "prototype",
@@ -8076,6 +8245,7 @@
           "consent_required",
           "reading_busy",
           "reading_failed",
+          "search_off",
           "bad_type_data",
           "bad_form",
           "files_too_large"
@@ -14573,6 +14743,19 @@
           "source": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PrototypeSource"
           },
+          "evidence": {
+            "description": "Belägget per fält for the revision shown (CAT-169, CAT-170).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
+          },
           "reviewed_at": {
             "anyOf": [
               {
@@ -14616,6 +14799,59 @@
           "vehicles"
         ],
         "title": "Prototype",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype.FieldEvidence": {
+        "additionalProperties": true,
+        "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+        "properties": {
+          "value": {
+            "description": "The value the excerpt was found to support.",
+            "maxLength": 1000,
+            "title": "Value",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Title",
+            "type": "string"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.PublisherKind"
+          },
+          "excerpt": {
+            "description": "Utdraget ur källan, as the search gave it.",
+            "maxLength": 2000,
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "agrees": {
+            "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+            "title": "Agrees",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "url",
+          "publisher",
+          "excerpt",
+          "searched_at",
+          "agrees"
+        ],
+        "title": "FieldEvidence",
         "type": "object"
       },
       "trainmeet.catalog-1.prototype.FieldProfile": {
@@ -14737,6 +14973,19 @@
             ],
             "default": null,
             "title": "Reviewed At"
+          },
+          "evidence": {
+            "description": "Belägget per fält, from the web search (CAT-169). A change of a prototype keeps the evidence of the fields it keeps; agrees says whether each still holds the value that stands there (CAT-170).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
           }
         },
         "required": [
@@ -14774,10 +15023,11 @@
         "type": "object"
       },
       "trainmeet.catalog-1.prototype.PrototypeSourceKind": {
-        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "description": "Where the type data come from (CAT-163).",
         "enum": [
           "own",
-          "reference"
+          "reference",
+          "web_search"
         ],
         "title": "PrototypeSourceKind",
         "type": "string"
@@ -14790,6 +15040,18 @@
           "rejected"
         ],
         "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype.PublisherKind": {
+        "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+        "enum": [
+          "manufacturer",
+          "operator",
+          "museum",
+          "archive",
+          "unknown"
+        ],
+        "title": "PublisherKind",
         "type": "string"
       },
       "trainmeet.catalog-1.prototype.VehicleKind": {
@@ -14843,6 +15105,59 @@
           "reviewer"
         ],
         "title": "PrototypeList",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-list.FieldEvidence": {
+        "additionalProperties": true,
+        "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+        "properties": {
+          "value": {
+            "description": "The value the excerpt was found to support.",
+            "maxLength": 1000,
+            "title": "Value",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Title",
+            "type": "string"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PublisherKind"
+          },
+          "excerpt": {
+            "description": "Utdraget ur källan, as the search gave it.",
+            "maxLength": 2000,
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "agrees": {
+            "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+            "title": "Agrees",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "url",
+          "publisher",
+          "excerpt",
+          "searched_at",
+          "agrees"
+        ],
+        "title": "FieldEvidence",
         "type": "object"
       },
       "trainmeet.catalog-1.prototype-list.FieldProfile": {
@@ -14911,6 +15226,19 @@
           },
           "source": {
             "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.PrototypeSource"
+          },
+          "evidence": {
+            "description": "Belägget per fält for the revision shown (CAT-169, CAT-170).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
           },
           "reviewed_at": {
             "anyOf": [
@@ -15066,6 +15394,19 @@
             ],
             "default": null,
             "title": "Reviewed At"
+          },
+          "evidence": {
+            "description": "Belägget per fält, from the web search (CAT-169). A change of a prototype keeps the evidence of the fields it keeps; agrees says whether each still holds the value that stands there (CAT-170).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-list.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
           }
         },
         "required": [
@@ -15103,10 +15444,11 @@
         "type": "object"
       },
       "trainmeet.catalog-1.prototype-list.PrototypeSourceKind": {
-        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "description": "Where the type data come from (CAT-163).",
         "enum": [
           "own",
-          "reference"
+          "reference",
+          "web_search"
         ],
         "title": "PrototypeSourceKind",
         "type": "string"
@@ -15119,6 +15461,18 @@
           "rejected"
         ],
         "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-list.PublisherKind": {
+        "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+        "enum": [
+          "manufacturer",
+          "operator",
+          "museum",
+          "archive",
+          "unknown"
+        ],
+        "title": "PublisherKind",
         "type": "string"
       },
       "trainmeet.catalog-1.prototype-list.VehicleKind": {
@@ -15242,6 +15596,19 @@
             ],
             "default": null,
             "title": "Reviewed At"
+          },
+          "evidence": {
+            "description": "Belägget per fält, from the web search (CAT-169). A change of a prototype keeps the evidence of the fields it keeps; agrees says whether each still holds the value that stands there (CAT-170).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
           }
         },
         "required": [
@@ -15256,6 +15623,59 @@
           "created_at"
         ],
         "title": "PrototypeRevision",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-revision.FieldEvidence": {
+        "additionalProperties": true,
+        "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+        "properties": {
+          "value": {
+            "description": "The value the excerpt was found to support.",
+            "maxLength": 1000,
+            "title": "Value",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Title",
+            "type": "string"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-revision.PublisherKind"
+          },
+          "excerpt": {
+            "description": "Utdraget ur källan, as the search gave it.",
+            "maxLength": 2000,
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "agrees": {
+            "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+            "title": "Agrees",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "url",
+          "publisher",
+          "excerpt",
+          "searched_at",
+          "agrees"
+        ],
+        "title": "FieldEvidence",
         "type": "object"
       },
       "trainmeet.catalog-1.prototype-revision.FieldProfile": {
@@ -15289,10 +15709,11 @@
         "type": "object"
       },
       "trainmeet.catalog-1.prototype-revision.PrototypeSourceKind": {
-        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "description": "Where the type data come from (CAT-163).",
         "enum": [
           "own",
-          "reference"
+          "reference",
+          "web_search"
         ],
         "title": "PrototypeSourceKind",
         "type": "string"
@@ -15305,6 +15726,18 @@
           "rejected"
         ],
         "title": "PrototypeStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-revision.PublisherKind": {
+        "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+        "enum": [
+          "manufacturer",
+          "operator",
+          "museum",
+          "archive",
+          "unknown"
+        ],
+        "title": "PublisherKind",
         "type": "string"
       },
       "trainmeet.catalog-1.prototype-revision.VehicleKind": {
@@ -15392,6 +15825,20 @@
             "description": "The proposer confirms that the data may be shared under CC BY-SA 4.0.",
             "title": "May Share",
             "type": "boolean"
+          },
+          "search": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The web search the proposal is sent from (CAT-171): its evidence follows the fields, also the ones the proposer changed first, and its 24 tokens come back when the proposal is approved (CAT-172). The source's kind is then web_search, and Catalog writes its text. A search is sent once.",
+            "title": "Search"
           }
         },
         "required": [
@@ -15433,10 +15880,11 @@
         "type": "object"
       },
       "trainmeet.catalog-1.prototype-proposal.PrototypeSourceKind": {
-        "description": "Where the type data come from (CAT-163). The web search (CAT-166–CAT-172) adds its own.",
+        "description": "Where the type data come from (CAT-163).",
         "enum": [
           "own",
-          "reference"
+          "reference",
+          "web_search"
         ],
         "title": "PrototypeSourceKind",
         "type": "string"
@@ -15666,6 +16114,544 @@
         "type": "string"
       },
       "trainmeet.catalog-1.vehicle-prototype.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search-ask": {
+        "additionalProperties": true,
+        "description": "Sök på webben: the marking to search for (CAT-166). Nothing else is sent on.",
+        "properties": {
+          "id": {
+            "description": "Made by the client, new for each search (CAT-144).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "litt": {
+            "description": "Littera eller UIC-typ: Hbis, Rc6.",
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+            "title": "Litt",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "description": "Bolag: SJ.",
+            "maxLength": 80,
+            "pattern": "^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$",
+            "title": "Operator",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search-ask.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search-ask.FieldProfile",
+            "default": "SE"
+          },
+          "consent": {
+            "default": false,
+            "description": "The person has seen what is sent and to whom, and says yes (CAT-142).",
+            "title": "Consent",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "litt"
+        ],
+        "title": "PrototypeSearchAsk",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search-ask.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search-ask.VehicleKind": {
+        "description": "The kinds of vehicle (CAT-54).",
+        "enum": [
+          "locomotive",
+          "freight_wagon",
+          "passenger_coach",
+          "multiple_unit",
+          "other"
+        ],
+        "title": "VehicleKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search-consent": {
+        "additionalProperties": true,
+        "description": "What a web search sends and to whom, the price and the balance, before the first one\n(CAT-142, CAT-172, CAT-219).",
+        "properties": {
+          "available": {
+            "description": "The web search can be used here now.",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Why not, when it cannot: Webbsökningen är inte inkopplad här. (CAT-219)",
+            "title": "Message"
+          },
+          "given": {
+            "description": "The person has said yes before.",
+            "title": "Given",
+            "type": "boolean"
+          },
+          "version": {
+            "description": "The version of what the person says yes to.",
+            "title": "Version",
+            "type": "string"
+          },
+          "sent_to": {
+            "description": "Who searches: Claude's web search at Anthropic.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Sent To",
+            "type": "string"
+          },
+          "text": {
+            "description": "What is sent and to whom, as the person reads it.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "price": {
+            "description": "24 tokens, which come back when the prototype is approved.",
+            "title": "Price",
+            "type": "integer"
+          },
+          "balance": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Tokens left on the person's balance, when ID says.",
+            "title": "Balance"
+          },
+          "payer": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Whose balance pays: the person's.",
+            "title": "Payer"
+          },
+          "own_ai": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The account's own AI, when it has one: it is not used for the web search.",
+            "title": "Own Ai"
+          },
+          "unsent": {
+            "description": "The person's searches of the last 30 days that are not sent yet, newest first: a search that was paid for can always be opened again.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search-consent.PrototypeSearchSummary"
+            },
+            "title": "Unsent",
+            "type": "array"
+          }
+        },
+        "required": [
+          "available",
+          "given",
+          "version",
+          "sent_to",
+          "text",
+          "price"
+        ],
+        "title": "PrototypeSearchConsent",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search-consent.PrototypeSearchSummary": {
+        "additionalProperties": true,
+        "description": "One of the person's searches that is not sent as a proposal yet.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "litt": {
+            "title": "Litt",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "title": "Operator",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "fields": {
+            "description": "How many fields the search found with evidence.",
+            "minimum": 0,
+            "title": "Fields",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "litt",
+          "searched_at",
+          "fields"
+        ],
+        "title": "PrototypeSearchSummary",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search": {
+        "additionalProperties": true,
+        "description": "What a web search found for a marking (CAT-166–CAT-171): the type data with valid\nevidence. A proposal for the person to send to the review queue, nothing more.",
+        "properties": {
+          "id": {
+            "description": "The client's id for the search (CAT-144).",
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.ReadingStatus"
+          },
+          "litt": {
+            "title": "Litt",
+            "type": "string"
+          },
+          "operator": {
+            "default": "",
+            "title": "Operator",
+            "type": "string"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.VehicleKind"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "profile": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.FieldProfile"
+          },
+          "fields": {
+            "description": "The litt and the operator as searched, and the values with valid evidence.",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "maxLength": 1000,
+                "type": "string"
+              }
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "evidence": {
+            "description": "Belägget per fält (CAT-169).",
+            "patternProperties": {
+              "^[a-z][a-z0-9_]{0,39}$": {
+                "items": {
+                  "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.FieldEvidence"
+                },
+                "type": "array"
+              }
+            },
+            "title": "Evidence",
+            "type": "object"
+          },
+          "dropped": {
+            "description": "Values the AI proposed that were not kept, and why.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.DroppedField"
+            },
+            "title": "Dropped",
+            "type": "array"
+          },
+          "sources": {
+            "description": "Pages the real search found.",
+            "minimum": 0,
+            "title": "Sources",
+            "type": "integer"
+          },
+          "cost": {
+            "description": "Tokens drawn: 24 (CAT-172).",
+            "minimum": 0,
+            "title": "Cost",
+            "type": "integer"
+          },
+          "model": {
+            "description": "The AI that searched.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Model",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "revision": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "The proposal the search was sent as, once it is sent.",
+            "title": "Revision"
+          },
+          "prototype": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "That proposal's prototype.",
+            "title": "Prototype"
+          },
+          "refunded": {
+            "default": false,
+            "description": "The tokens came back: the proposal was approved (CAT-172).",
+            "title": "Refunded",
+            "type": "boolean"
+          },
+          "existing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.PrototypeSummary"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "A reviewed prototype that already has this litt and operator (CAT-141)."
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "litt",
+          "profile",
+          "fields",
+          "evidence",
+          "sources",
+          "cost",
+          "model",
+          "searched_at"
+        ],
+        "title": "PrototypeSearch",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search.DroppedField": {
+        "additionalProperties": true,
+        "properties": {
+          "key": {
+            "pattern": "^[a-z][a-z0-9_]{0,39}$",
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.DroppedReason"
+          }
+        },
+        "required": [
+          "key",
+          "reason"
+        ],
+        "title": "DroppedField",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search.DroppedReason": {
+        "description": "Why a value the AI proposed was not kept.",
+        "enum": [
+          "no_source",
+          "invented_source",
+          "unsupported",
+          "bad_value"
+        ],
+        "title": "DroppedReason",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search.FieldEvidence": {
+        "additionalProperties": true,
+        "description": "Belägget för ett fält (CAT-169): the source the web search found the value in, with its\naddress and an excerpt of it. The source was in the real search result (CAT-167), and the\nexcerpt held the value when it was searched.",
+        "properties": {
+          "value": {
+            "description": "The value the excerpt was found to support.",
+            "maxLength": 1000,
+            "title": "Value",
+            "type": "string"
+          },
+          "url": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Url",
+            "type": "string"
+          },
+          "title": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Title",
+            "type": "string"
+          },
+          "publisher": {
+            "$ref": "#/components/schemas/trainmeet.catalog-1.prototype-search.PublisherKind"
+          },
+          "excerpt": {
+            "description": "Utdraget ur källan, as the search gave it.",
+            "maxLength": 2000,
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "searched_at": {
+            "format": "date-time",
+            "title": "Searched At",
+            "type": "string"
+          },
+          "agrees": {
+            "description": "Stämmer belägget fortfarande med värdet som står där (CAT-170)? False when the value was changed after the search, so that the excerpt no longer holds it.",
+            "title": "Agrees",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "value",
+          "url",
+          "publisher",
+          "excerpt",
+          "searched_at",
+          "agrees"
+        ],
+        "title": "FieldEvidence",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search.FieldProfile": {
+        "description": "The field profiles from the start (CAT-158, C31).",
+        "enum": [
+          "SE",
+          "EU",
+          "US"
+        ],
+        "title": "FieldProfile",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search.PrototypeSummary": {
+        "additionalProperties": true,
+        "description": "A prototype in short: what a suggestion names (CAT-141).",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "revision": {
+            "description": "The reviewed revision, the version a link would get.",
+            "title": "Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PrototypeSummary",
+        "type": "object"
+      },
+      "trainmeet.catalog-1.prototype-search.PublisherKind": {
+        "description": "Who published a source, classed against Catalog's small, reviewed list of publishers\n(CAT-168): exact hosts only. The class says who stands behind the page, never that a fact\nis right.",
+        "enum": [
+          "manufacturer",
+          "operator",
+          "museum",
+          "archive",
+          "unknown"
+        ],
+        "title": "PublisherKind",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search.ReadingStatus": {
+        "enum": [
+          "pending",
+          "done",
+          "failed",
+          "discarded"
+        ],
+        "title": "ReadingStatus",
+        "type": "string"
+      },
+      "trainmeet.catalog-1.prototype-search.VehicleKind": {
         "description": "The kinds of vehicle (CAT-54).",
         "enum": [
           "locomotive",

@@ -19,6 +19,7 @@ export type Page =
   | "prototype"
   | "newPrototype"
   | "changePrototype"
+  | "searchPrototype"
   | "reviewQueue"
   | "tap"
   | "login"
@@ -44,6 +45,8 @@ export const PATHS = {
   prototypes: "/forebilder",
   /** Föreslå förebild (CAT-163). */
   newPrototype: "/forebilder/ny",
+  /** Sök på webben: the type data for a marking, with sources (CAT-166–CAT-172). */
+  searchPrototype: "/forebilder/sok",
   /** Granskningskön, for the reviewers (CAT-164). */
   reviewQueue: "/forebilder/granska",
   tap: "/blippa",
@@ -59,6 +62,8 @@ export const meetPath = (id: string) => `/traffar/${id}`;
 export const prototypePath = (id: string) => `/forebilder/${id}`;
 /** Föreslå ändring of a reviewed prototype (CAT-163). */
 export const changePrototypePath = (id: string) => `/forebilder/${id}/andra`;
+/** One's own web search again: a search that is paid for is never lost (CAT-144). */
+export const searchPath = (id: string) => `/forebilder/sok/${id}`;
 /** A batch of photos and its drafts (CAT-147–CAT-153). */
 export const batchPath = (id: string) => `/fordon/omgangar/${id}`;
 /** The label sheet with these vehicles chosen (CAT-184). */
@@ -72,6 +77,7 @@ const PATTERNS: [RegExp, Page][] = [
   [new RegExp(`^/traffar/(${UUID})$`), "meet"],
   [new RegExp(`^/forebilder/(${UUID})$`), "prototype"],
   [new RegExp(`^/forebilder/(${UUID})/andra$`), "changePrototype"],
+  [new RegExp(`^/forebilder/sok/(${UUID})$`), "searchPrototype"],
   [new RegExp(`^/fordon/omgangar/(${UUID})$`), "batch"],
   [/^\/t\/([^/]{1,80})$/, "tag"],
 ];
@@ -99,7 +105,7 @@ export function routeFor(address: string): Route {
 export function tabOf(page: Page): Page {
   if (page === "tag") return "tap";
   if (page === "meet") return "meets";
-  if (["prototype", "newPrototype", "changePrototype", "reviewQueue"].includes(page)) return "prototypes";
+  if (["prototype", "newPrototype", "changePrototype", "searchPrototype", "reviewQueue"].includes(page)) return "prototypes";
   return ["newVehicle", "newPhoto", "newBatch", "batch", "labels", "importFiles", "vehicle", "editVehicle", "lend", "places"].includes(page) ? "vehicles" : page;
 }
 

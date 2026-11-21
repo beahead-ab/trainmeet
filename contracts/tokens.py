@@ -18,7 +18,10 @@ För apparna, med en token från Keycloaks client credentials (KONTO-34):
                                                           (utan person: lagring, CAT-132)
     POST   /api/id/1/apps/tokens/reservations/{id}/draw   TokenDraw -> TokenReservation
     POST   /api/id/1/apps/tokens/reservations/{id}/return TokenReservation
+    POST   /api/id/1/apps/tokens/reservations/{id}/refund TokenReservation (CAT-172)
     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer (TOKEN-28)
+    GET    /api/id/1/apps/meter/search                    MeterSearchState (TOKEN-30)
+    POST   /api/id/1/apps/meter/search                    MeterSearch -> MeterSearchAnswer
 
 Egen AI på kontot (TOKEN-03), för personen eller klubbens administratör:
     GET    /api/id/1/tokens/own-ai?owner=                 OwnAiState, or null
@@ -41,15 +44,18 @@ from __future__ import annotations
 
 from datetime import datetime
 from enum import StrEnum
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, Self
 from uuid import UUID
 
-from pydantic import Field, StringConstraints
+from pydantic import Field, StringConstraints, model_validator
 
 from contracts.common import Contract, Text
 
 TOKENS_PER_PAGE = 12
 """En sida eller bild som AI skriver av eller läser (TK10, TOKEN-14)."""
+TOKENS_PER_SEARCH = 24
+"""En webbsökning efter förebildsfakta i Catalog (CAT-172, C22). De kommer tillbaka när
+förebilden godkänns."""
 
 
 class TokenOwnerKind(StrEnum):
@@ -96,7 +102,8 @@ class TokenReservationState(StrEnum):
     DRAWN = "drawn"
     """Dragen: det som arbetet kostade är draget, och resten tillbakalämnat."""
     RETURNED = "returned"
-    """Tillbakalämnad: arbetet blev inte av, eller misslyckades, eller tiden gick ut."""
+    """Tillbakalämnad: arbetet blev inte av, eller misslyckades, eller tiden gick ut. Också en
+    webbsökning vars förebild godkändes: det dragna kom tillbaka (CAT-172)."""
 
 
 ReservationKey = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$")]
@@ -202,6 +209,141 @@ class MeterAnswer(Contract):
     )
     model: Text
     reservation: TokenReservation
+
+
+# --- Webbsökningen (TOKEN-30, CAT-166–CAT-172, CAT-219, C40) ----------------------------------
+#
+#     GET    /api/id/1/apps/meter/search                    MeterSearchState
+#     POST   /api/id/1/apps/meter/search                    MeterSearch -> MeterSearchAnswer
+#     POST   /api/id/1/apps/tokens/reservations/{id}/refund TokenReservation
+#
+# The web search is the one exception from Bedrock (TK14): the meter asks Claude's web search in
+# Anthropic's own API, outside the EU, with a key of its own that the apps never see (C40). Only
+# Catalog may search (SEARCH_APPS), and only for a prototype's type data.
+#
+# The app sends the marking as data, never a prompt: the litt, the operator, the kind, the field
+# profile and the fields it wants. The meter writes the prompt itself from that, so nothing else
+# can leave: no pictures, no names, no vehicle numbers, no notes (CAT-166). The answer holds the
+# values Claude proposes, each with the citations Claude gave for it, and every result of the
+# real searches. Whether a source and its excerpt hold is for the app to check (CAT-167–CAT-169).
+#
+# A search costs 24 tokens (CAT-172), reserved before and drawn when the search is done; the same
+# reservation twice gives the same answer and draws nothing twice (TOKEN-28), and a search that
+# fails gives it all back. hold works as for a reading. The search always uses TrainMeet's key
+# and costs the same with own AI on the account: an own AI has no web search of this kind. The
+# caps per day and the month's budget count the search too (TOKEN-05, TK15).
+#
+# When the prototype the search led to is approved, the app gives the tokens back with refund
+# (CAT-172): only a reservation that paid for a search can be refunded, and only once. What
+# came from a month's free quota goes back within that month only (TK2).
+
+SEARCH_APPS: Final = frozenset({"catalog"})
+"""The apps that may search the web through the meter: only Catalog, for the prototypes."""
+
+_MARKING = r"^[0-9A-Za-zÀ-ÖØ-öø-ÿ .,'()/+&-]*$"
+"""What a marking is written with: letters, digits, spaces and a few signs. No line breaks,
+no @, nothing that makes an address or a sentence of instructions."""
+
+
+def _digits(text: str) -> int:
+    return sum(1 for sign in text if sign.isdigit())
+
+
+class MeterSearchField(Contract):
+    """A field the search should fill: the key and what it means, from the app's own register,
+    never from a person."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
+    label: Annotated[str, StringConstraints(min_length=1, max_length=60, pattern=_MARKING)] = Field(
+        description="What the field is, in English: Length over buffers."
+    )
+    unit: Annotated[str, StringConstraints(max_length=10, pattern=r"^[A-Za-z/]*$")] = Field(
+        default="", description="The unit the value is given in: mm, t, km/h. Empty without one."
+    )
+    kind: Literal["text", "number", "integer"]
+
+
+class MeterSearch(Contract):
+    """Sök förebildens typuppgifter på webben. Bara märkningen skickas (CAT-166): litteran,
+    bolaget, slaget och fältprofilen. Reservationen ska räcka till 24 tokens."""
+
+    reservation: UUID
+    litt: Annotated[str, StringConstraints(min_length=1, max_length=40, pattern=_MARKING)] = Field(
+        description="Litteran eller UIC-typen, som den står på fordonet: Hbis, Rc6."
+    )
+    operator: Annotated[str, StringConstraints(max_length=80, pattern=_MARKING)] = Field(
+        default="", description="Bolaget fordonet är märkt för: SJ, Green Cargo. Får vara tomt."
+    )
+    kind: Literal["locomotive", "freight_wagon", "passenger_coach", "multiple_unit", "other"] | None
+    profile: Literal["SE", "EU", "US"] = Field(
+        description="Fältprofilen: var i världen typen hör hemma, och vilka enheter som gäller."
+    )
+    fields: list[MeterSearchField] = Field(min_length=1, max_length=20)
+    hold: bool = Field(
+        default=False,
+        description="Håll reservationen: mätaren söker och behåller svaret, men drar inget. "
+        "Appen drar sedan cost, eller lämnar tillbaka allt när svaret inte används.",
+    )
+
+    @model_validator(mode="after")
+    def _only_a_marking(self) -> Self:
+        """A litt or an operator is never a vehicle's own number (CAT-155, CAT-166): a type has
+        a few digits, an individual many."""
+        if _digits(self.litt) > 5 or _digits(self.operator) > 4:
+            raise ValueError("Märkningen är en littera och ett bolag, aldrig ett fordonsnummer.")
+        if len({each.key for each in self.fields}) != len(self.fields):
+            raise ValueError("Ett fält frågas bara en gång.")
+        return self
+
+
+class MeterCitation(Contract):
+    """Where Claude says a value stands: a page from the real search, and an excerpt of it."""
+
+    url: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    title: Annotated[str, StringConstraints(max_length=500)] = ""
+    cited_text: Annotated[str, StringConstraints(max_length=2000)] = Field(
+        default="", description="Utdraget ur sidan, som sökningen gav det."
+    )
+
+
+class MeterSearchValue(Contract):
+    """A value Claude proposes for one of the fields, with its citations."""
+
+    key: Annotated[str, StringConstraints(pattern=r"^[a-z][a-z0-9_]{0,39}$")]
+    value: Annotated[str, StringConstraints(min_length=1, max_length=1000)]
+    citations: list[MeterCitation] = Field(default_factory=list, max_length=20)
+
+
+class MeterSearchResult(Contract):
+    """A page the real search found."""
+
+    url: Annotated[str, StringConstraints(min_length=1, max_length=2000)]
+    title: Annotated[str, StringConstraints(max_length=500)] = ""
+    page_age: Annotated[str, StringConstraints(max_length=80)] | None = None
+
+
+class MeterSearchAnswer(Contract):
+    values: list[MeterSearchValue] = Field(
+        description="Det Claude föreslår, per fält. Ett fält utan uppgift står inte med."
+    )
+    results: list[MeterSearchResult] = Field(
+        description="Allt de verkliga sökningarna gav: en källa som inte står här är påhittad."
+    )
+    searches: int = Field(ge=0, description="Hur många sökningar Claude gjorde.")
+    cost: int = Field(
+        description="Det som drogs: 24 tokens (CAT-172). Med hold är inget draget än."
+    )
+    model: Text
+    reservation: TokenReservation
+
+
+class MeterSearchState(Contract):
+    """Går webbsökningen att använda här, och vad kostar den (CAT-219)?"""
+
+    available: bool = Field(description="False utan nyckeln till Anthropics API hos mätaren.")
+    price: int = Field(description="24 tokens (CAT-172).")
+    sent_to: Text = Field(description="Vem som söker, som personen läser det före första gången.")
+    message: str | None = Field(default=None, description="Varför inte, när den inte går.")
 
 
 # --- Köp (TOKEN-02, TOKEN-11, TK10) ---------------------------------------------------------
@@ -311,6 +453,7 @@ class TokenMonth(Contract):
     test_revenue_sek: float = Field(description="Köp i Stripes testläge, utan riktiga pengar.")
     cost_sek: float = Field(description="Vad TrainMeets AI kostade, uppmätt.")
     pages: int = Field(description="Sidor och bilder som TrainMeets AI läste.")
+    searches: int = Field(default=0, description="Webbsökningar som mätaren gjorde (TOKEN-30).")
 
 
 class OwnerPage(Contract):
@@ -322,6 +465,18 @@ class OwnerPage(Contract):
     factor_page_tokens: int | None = Field(
         default=None,
         description="Vad faktorn gör av den uppmätta kostnaden, i tokens per sida (TK6).",
+    )
+    search_tokens: int = Field(
+        default=TOKENS_PER_SEARCH, description="Tokens per webbsökning nu (CAT-172)."
+    )
+    cost_per_search_sek: float | None = Field(
+        default=None,
+        description="Uppmätt kostnad per webbsökning de senaste 30 dagarna, med sökavgiften.",
+    )
+    factor_search_tokens: int | None = Field(
+        default=None,
+        description="Vad faktorn gör av den uppmätta kostnaden, i tokens per webbsökning (TK6): "
+        "priset stäms av mot det (CAT-172).",
     )
     budget_used: int = Field(ge=0, description="Hur mycket av månadens budget som är använd, %.")
     months: list[TokenMonth] = Field(description="Den här månaden och förra.")

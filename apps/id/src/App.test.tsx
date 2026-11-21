@@ -113,10 +113,13 @@ describe("TrainMeet ID's web app", () => {
       page_tokens: 12,
       cost_per_page_sek: 0.43,
       factor_page_tokens: 11,
+      search_tokens: 24,
+      cost_per_search_sek: null,
+      factor_search_tokens: null,
       budget_used: 85,
       months: [
-        { month: "2026-11", revenue_sek: 0, test_revenue_sek: 129, cost_sek: 1.29, pages: 3 },
-        { month: "2026-10", revenue_sek: 0, test_revenue_sek: 0, cost_sek: 0, pages: 0 },
+        { month: "2026-11", revenue_sek: 0, test_revenue_sek: 129, cost_sek: 1.29, pages: 3, searches: 0 },
+        { month: "2026-10", revenue_sek: 0, test_revenue_sek: 0, cost_sek: 0, pages: 0, searches: 0 },
       ],
     };
     const html = render({ route: { page: "owner" }, data: { owner: page }, actions: { changeOwner: async () => null } });
@@ -125,6 +128,12 @@ describe("TrainMeet ID's web app", () => {
     expect(html).toContain("AI kostade 1,29 kr för 3 sidor · köp 0 kr · i testläge 129 kr");
     expect(html).toContain("En sida har kostat 0,43 kr de senaste 30 dagarna. Med faktorn ×2 blir det 11 tokens per sida; nu kostar den 12.");
     expect(html).toContain("Tak per dygn för en klubb, tokens");
+    // The web search (TOKEN-30, CAT-172): nothing about it before one is made, then its cost.
+    expect(html).not.toContain("webbsökning");
+    const searched = { ...page, cost_per_search_sek: 0.69, factor_search_tokens: 18, months: [{ ...page.months[0]!, searches: 2 }] };
+    const withSearches = render({ route: { page: "owner" }, data: { owner: searched }, actions: { changeOwner: async () => null } });
+    expect(withSearches).toContain("i testläge 129 kr · 2 webbsökningar");
+    expect(withSearches).toContain("En webbsökning har kostat 0,69 kr de senaste 30 dagarna, med sökavgiften. Med faktorn ×2 blir det 18 tokens per sökning; nu kostar den 24.");
     expect(routeFor("/agare")).toEqual({ page: "owner" });
     const tokens = render({ route: { page: "tokens" }, session: { ...loggedIn, owner: true }, data: { tokens: [] } });
     expect(tokens).toContain('href="/agare"');
@@ -137,6 +146,9 @@ describe("TrainMeet ID's web app", () => {
       page_tokens: 12,
       cost_per_page_sek: null,
       factor_page_tokens: null,
+      search_tokens: 24,
+      cost_per_search_sek: null,
+      factor_search_tokens: null,
       budget_used: 0,
       months: [],
     };
