@@ -16,6 +16,16 @@ leave it. A ladder, a strand with nothing but switches of its own, gives each sw
 track that leaves it, so the switches stand on one diagonal. Each strand with a node of its own
 gets a row; a connector between two others gets none.
 
+A track holds its row without signals too, as in a station from CAD's track graph, which has
+none (CAD-09). A strand between two others with nothing of its own but switches and joints, a
+ladder or a connector by the rules above, is a track all the same where it carries a numbered
+station track: it lies on a row of its own from its first node on the station track to its
+last, as it would between signals (one row per station track, at least 14 cells, §3.2–3.3). So
+is a connector, with no switch of its own either, that the drawing shows running level
+east–west for at least as far as a station track is long against the rows it goes sideways (14
+cells to 3): a track, not a crossover, held on its row by the ends of that stretch. A ladder
+stays a ladder, its crossovers exact.
+
 The drawing order comes from the real geometry (TrackPiece.geometry) where the model has it:
 which of two strands side by side lies above the other, compared at the same places east–west
 (so a curved station keeps its order), and which side a leg leaves on where they do not run
@@ -92,6 +102,11 @@ ALIGN_MM = 80.0
 """Signals facing the same way within this many millimetres east–west line up."""
 HORIZONTAL = 0.97
 """A turntable track this close to east–west (|cos|) carries the table on its row."""
+LEVEL = 0.02
+"""A piece runs level in the drawing when it rises or falls less than this per mm along."""
+ALONG = STATION_TRACK / ROW
+"""A connector that runs level this many times as far as it goes sideways is a track: on the
+panel that is a station track's 14 cells against the 3 of a row."""
 
 SOFT = frozenset({NodeType.JOINT, NodeType.MODULE_JOINT, NodeType.BLOCK_BOUNDARY})
 JUNCTIONS = frozenset({NodeType.SWITCH, NodeType.CROSSING})
@@ -210,6 +225,8 @@ class Shape:
     """The pieces whose shape in the drawing meets their nodes."""
     reach: _Reach | None = None
     """Which nodes lie west of which: set once the strands are made."""
+    held: set[str] = field(default_factory=set)
+    """Soft nodes that hold a track on its row, as its signals would."""
 
     def shape_of(self, piece: str) -> list[Point]:
         """A piece's shape in the drawing, if it can be trusted for the order."""
@@ -524,11 +541,12 @@ def shape(model: StationModel) -> Shape:
         attached = ((run[0], nodes[0]) in attaches, (run[-1], nodes[-1]) in attaches)
         strands.append(Strand(len(strands), run, nodes, attached))
 
+    held, tracks = _held(graph, strands, model, trusted if usable else set())
     owner: dict[str, int] = {}
     for strand in strands:
         for node in strand.own():
             owner.setdefault(node, strand.id)
-    _ladders(graph, strands, owner)
+    _ladders(graph, strands, owner, held, tracks)
     tables: dict[str, int] = {}
     for table in model.turntables:
         if table.node in owner:
@@ -547,7 +565,17 @@ def shape(model: StationModel) -> Shape:
                     owner[node] = strand.id
                     break
     made = Shape(
-        model, graph, eastward, strands, owner, stall, real, usable, tables, trusted=trusted
+        model,
+        graph,
+        eastward,
+        strands,
+        owner,
+        stall,
+        real,
+        usable,
+        tables,
+        trusted=trusted,
+        held=held,
     )
     if usable:
         for strand in strands:
@@ -568,12 +596,96 @@ def shape(model: StationModel) -> Shape:
     return made
 
 
-def _ladders(graph: Graph, strands: list[Strand], owner: dict[str, int]) -> None:
+def _between(graph: Graph, strand: Strand, switches: bool = True) -> bool:
+    """A strand between two others with nothing of its own but soft nodes, and switches where
+    they may count: a ladder, or a connector."""
+    own = strand.own()
+    allowed = SOFT | {NodeType.SWITCH} if switches else SOFT
+    return (
+        strand.kind == "track"
+        and strand.attached == (True, True)
+        and bool(own)
+        and all(graph.node_type.get(n) in allowed for n in own)
+    )
+
+
+def _held(
+    graph: Graph, strands: list[Strand], model: StationModel, trusted: set[str]
+) -> tuple[set[str], set[int]]:
+    """Tracks without signals (§3.2): a strand between two others, with nothing of its own but
+    switches and soft nodes, is a track all the same, and no ladder or connector, where it
+    carries a numbered station track (one row per station track), or, with no switch of its own
+    either, where the drawing shows it running level beside the others (rows follow the
+    drawing). Soft nodes of its own then hold it on a row, as signals would: the first and the
+    last on the station track, or the ends of its level stretch. Returns those nodes and the
+    tracks."""
+    found: set[str] = set()
+    tracks: set[int] = set()
+    for track in model.station_tracks:
+        pieces = set(track.pieces)
+        carriers = [s for s in strands if pieces & set(s.pieces)]
+        if not carriers:
+            continue
+        # The track is on the strand that carries most of it.
+        strand = max(
+            carriers,
+            key=lambda s: (sum(length(graph.pieces[p]) for p in s.pieces if p in pieces), -s.id),
+        )
+        if not _between(graph, strand):
+            continue
+        tracks.add(strand.id)
+        on = [
+            node
+            for i, node in enumerate(strand.nodes[1:-1], start=1)
+            if pieces & {strand.pieces[i - 1], strand.pieces[i]}
+        ]
+        found.update(n for n in on[:1] + on[-1:] if graph.node_type.get(n) in SOFT)
+    for strand in strands:
+        if strand.id in tracks or not _between(graph, strand, switches=False):
+            continue
+        level = _level(graph, strand, trusted)
+        if level:
+            found.update(level)
+            tracks.add(strand.id)
+    return found, tracks
+
+
+def _level(graph: Graph, strand: Strand, trusted: set[str]) -> tuple[str, ...]:
+    """Where a connector runs level east–west in the drawing between two nodes of its own, for
+    at least ALONG times as far as it goes sideways over its whole length: the two nodes that
+    end its longest such stretch. Nothing where a piece has no shape that can be trusted."""
+    if any(p not in trusted for p in strand.pieces):
+        return ()
+    sideways = 0.0
+    best: tuple[float, int, int] | None = None
+    start: int | None = None
+    run = 0.0
+    for i, piece in enumerate(strand.pieces):
+        steps = list(pairwise(graph.pieces[piece].geometry))
+        sideways += sum(abs(b[1] - a[1]) for a, b in steps)
+        level = all(abs(b[1] - a[1]) <= LEVEL * math.dist(a, b) for a, b in steps)
+        if level and 0 < i < len(strand.pieces) - 1:
+            if start is None:
+                start, run = i, 0.0
+            run += length(graph.pieces[piece])
+            if best is None or run > best[0]:
+                best = (run, start, i + 1)
+        else:
+            start = None
+    if best is None or best[0] < ALONG * sideways:
+        return ()
+    return strand.nodes[best[1]], strand.nodes[best[2]]
+
+
+def _ladders(
+    graph: Graph, strands: list[Strand], owner: dict[str, int], held: set[str], tracks: set[int]
+) -> None:
     """A ladder: a strand that leaves one track and joins another with nothing but switches of
     its own on the way. Its switches stand on the rows of the tracks that leave them, on one
-    diagonal, as on a drawn panel; the ladder itself gets no row."""
+    diagonal, as on a drawn panel; the ladder itself gets no row. A track without signals
+    (_held) is no ladder, and a switch may stand on its row."""
     for ladder in strands:
-        if ladder.kind != "track" or ladder.attached != (True, True):
+        if ladder.kind != "track" or ladder.attached != (True, True) or ladder.id in tracks:
             continue
         own = [n for n in ladder.own() if owner.get(n) == ladder.id]
         if not own or any(graph.node_type.get(n) not in SOFT | {NodeType.SWITCH} for n in own):
@@ -591,7 +703,7 @@ def _ladders(graph: Graph, strands: list[Strand], owner: dict[str, int]) -> None
                     end = 1
                 else:
                     continue
-                others = [n for n in side.own() if graph.node_type.get(n) not in SOFT]
+                others = [n for n in side.own() if graph.node_type.get(n) not in SOFT or n in held]
                 if not others:
                     break
                 attached = list(side.attached)
@@ -608,6 +720,12 @@ def _hard(shape: Shape, node: str) -> bool:
     return shape.graph.node_type.get(node) not in SOFT
 
 
+def _holds(shape: Shape, node: str) -> bool:
+    """A node that holds its strand on a row: a hard one, or one that holds a track without
+    signals."""
+    return _hard(shape, node) or node in shape.held
+
+
 def _owned(shape: Shape, strand: Strand) -> list[str]:
     """The nodes this strand places on its row."""
     return [n for n in strand.nodes if shape.owner.get(n) == strand.id]
@@ -616,7 +734,7 @@ def _owned(shape: Shape, strand: Strand) -> list[str]:
 def _needs_row(shape: Shape, strand: Strand) -> bool:
     if strand.kind == "table":
         return True
-    if any(_hard(shape, n) for n in _owned(shape, strand)):
+    if any(_holds(shape, n) for n in _owned(shape, strand)):
         return True
     # A connector that leaves one strand and comes back to it is a loop: it needs a row.
     ends = [shape.owner.get(strand.west), shape.owner.get(strand.east)]
@@ -1277,7 +1395,7 @@ def _sections(shape: Shape) -> _Plan:
             i
             for i, n in enumerate(nodes)
             if i in (0, last)
-            or (n in node_row and (_hard(shape, n) or shape.owner[n] != strand.id))
+            or (n in node_row and (_holds(shape, n) or shape.owner[n] != strand.id))
         ]
         for i, j in pairwise(fixed):
             a, b = nodes[i], nodes[j]
