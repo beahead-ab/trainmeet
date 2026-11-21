@@ -26,6 +26,7 @@ from pydantic import ValidationError
 from contracts.common import checksum
 from contracts.meet import MeetPackage
 from contracts.planning import Version
+from core.sqlite import connect, prepare
 
 # The same table Planering kept before Synk came (step 4a), so the versions in a hub's file
 # stay where they are.
@@ -69,20 +70,15 @@ def newer(needed: str | None, running: str) -> bool:
 class Versions:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses Planering's file, which the stores share (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     # --- Reading -----------------------------------------------------------------------------
 

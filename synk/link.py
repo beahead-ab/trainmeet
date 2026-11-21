@@ -23,6 +23,7 @@ from typing import Final
 
 from contracts.drift import ProposalStatus
 from contracts.sync import CloudLink, Follower, Hello, LinkCode
+from core.sqlite import connect, prepare
 
 CODE_LIFETIME: Final = timedelta(minutes=15)
 MAX_FAILURES: Final = 10  # wrong codes within FAILURE_WINDOW before the cloud waits
@@ -84,20 +85,15 @@ class Reach:
 class Links:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses Planering's file, which the stores share (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     def hub_id(self) -> str:
         """This hub's id in the protocol: made at first use, not a secret."""

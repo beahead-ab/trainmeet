@@ -6,8 +6,9 @@ from __future__ import annotations
 
 import logging
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
+from threading import Event, Thread
 from typing import Any
 
 import pytest
@@ -16,6 +17,7 @@ from fastapi.testclient import TestClient
 from contracts import drift, planning, sync
 from hub.app import create_app
 from hub.build_info import BuildInfo
+from hub.tests.test_forarna import PDF
 from hub.tests.test_planering import API, DRIFT, MEET, PIN, upload
 from synk.follower import Call, Follower, check_address
 from synk.link import LinkError
@@ -194,6 +196,51 @@ def test_a_version_that_does_not_come_whole_is_not_kept(cloud: TestClient, tmp_p
     assert link(pi, cloud).status_code == 200
     [seen] = pi.get("/api/hub/cloud").json()
     assert "kom inte hel" in seen["problem"] and seen["versions"] == 0
+
+
+def _in_use(read: Callable[[], object], stop: Event) -> None:
+    """A thread that uses Planering's file while the hub runs, as Synk's do: the push loop asks
+    for the links every second (Follower.push and pull), and the versions are read. Here without
+    a pause, so that the file is nearly always in use."""
+    while not stop.is_set():
+        read()
+
+
+def test_the_pi_links_while_synk_uses_the_shared_file(cloud: TestClient, tmp_path: Path) -> None:
+    """Planering's file is shared with Synk's stores (SYNK-20), and Synk's threads use it while the
+    Pi links. The link once answered 500 now and then ("database is locked"): Planering was first
+    used in it, for the version's attachment, and only then turned the file to write-ahead
+    logging, which SQLite refuses at once while another connection writes. Now every store's
+    file is ready before any thread runs. Three Pis link, each while its file is in use."""
+    sent = cloud.post(f"{API}/meets/{MEET}/instructions.pdf?name=Allmänt.pdf", content=PDF)
+    assert sent.status_code == 200, sent.text
+    assert cloud.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    for n in range(3):
+        app = create_app(
+            BuildInfo(version="0.1.0"),
+            preview_db=tmp_path / f"pi-{n}" / "p.db",
+            sync_call=wire(cloud),
+        )
+        pi = set_up(TestClient(app), f"Pi:n {n}")
+        stop = Event()
+        users = [
+            Thread(target=_in_use, args=(read, stop))
+            for read in (follower(pi).links.reaches, follower(pi).versions.meets)
+        ]
+        for user in users:
+            user.start()
+        try:
+            linked = link(pi, cloud)
+        finally:
+            stop.set()
+            for user in users:
+                user.join()
+        assert linked.status_code == 200, linked.text
+        [seen] = [sync.CloudLink.model_validate(c) for c in linked.json()]
+        assert (seen.versions, seen.problem) == (2, None)
+        [pdf] = pi.get(f"{API}/meets/{MEET}/versions/2").json()["attachments"]
+        kept = pi.get(f"{API}/meets/{MEET}/versions/2/attachments/{pdf['id']}")
+        assert (kept.status_code, kept.content) == (200, PDF)
 
 
 def test_the_protocol_is_said_and_a_newer_one_refused(cloud: TestClient) -> None:

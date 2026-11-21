@@ -11,7 +11,7 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from secrets import randbelow, token_hex, token_urlsafe
-from threading import Lock, local
+from threading import local
 from typing import Any, Final, TypeVar
 
 from contracts import drift as events
@@ -21,6 +21,7 @@ from contracts.meet import DriverLevel, MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.station_outside import ReceiverKind, StationOutside
 from contracts.terminal import DisplaySize
+from core.sqlite import connect, prepare
 from drift.automatik import Automatik
 from drift.copy import EventCopy
 from drift.drivers import messages_here
@@ -55,7 +56,6 @@ MAX_PAPER_PAGES: Final = 400
 T = TypeVar("T")
 
 _SCHEMA = """
-PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS preview_run (
     id TEXT PRIMARY KEY, expires REAL NOT NULL, package TEXT NOT NULL, boot TEXT NOT NULL
 );
@@ -306,27 +306,21 @@ class PreviewStore:
         # Provbanan's runs per browser have no one ticking the automation, so it starts off.
         self.automation_on = automation
         self.boot = token_hex(16)
-        self._ready = False
-        self._lock = Lock()
         # The USB copy of the hub's meet (DRIFT-21); Provbanan's runs have none.
         self.copy = copy
         self._local = local()
         # The automation of each run (F14): what it knows of contact lives in memory.
         self._automatik: dict[str, Automatik] = {}
+        # Ready before any thread uses the file (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
         # The events saved in this transaction, for the USB copy once they are committed.
         saved: list[tuple[str, list[events.DriftEvent]]] = []
         self._local.saved = saved
         try:
-            with closing(sqlite3.connect(self.path)) as db, db:
+            with closing(connect(self.path)) as db, db:
                 db.execute("PRAGMA foreign_keys=ON")
                 db.execute("BEGIN IMMEDIATE")
                 yield db

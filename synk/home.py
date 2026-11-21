@@ -18,6 +18,7 @@ from threading import Lock
 from typing import Final
 
 from contracts.sync import Home
+from core.sqlite import connect, prepare
 
 _SCHEMA: Final = """
 CREATE TABLE IF NOT EXISTS sync_home (
@@ -36,20 +37,15 @@ class HomeError(Exception):
 class Homes:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses Planering's file, which the stores share (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     def home(self, meet: str, me: str, my_name: str) -> Home:
         """The meet's home, as this hub (me) sees it."""
