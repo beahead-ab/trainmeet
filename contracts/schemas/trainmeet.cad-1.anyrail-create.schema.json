@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.anyrail-create.schema.json",
+  "title": "trainmeet.cad-1.anyrail-create",
+  "$defs": {
+    "AnyRailChoice": {
+      "additionalProperties": true,
+      "description": "A proposed module the owner approves, with the name it gets (AR1: they may rename it).",
+      "properties": {
+        "key": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "name"
+      ],
+      "title": "AnyRailChoice",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Skapa modulerna: the approved proposals of revision base, the assumed switches confirmed\n(their Att kolla keys), and the assembly's name.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/AnyRailChoice"
+      },
+      "maxItems": 200,
+      "minItems": 1,
+      "title": "Modules",
+      "type": "array"
+    },
+    "confirmed": {
+      "items": {
+        "maxLength": 120,
+        "type": "string"
+      },
+      "maxItems": 2000,
+      "title": "Confirmed",
+      "type": "array"
+    },
+    "assembly": {
+      "anyOf": [
+        {
+          "maxLength": 80,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Assembly"
+    }
+  },
+  "required": [
+    "base",
+    "modules"
+  ],
+  "type": "object"
+}

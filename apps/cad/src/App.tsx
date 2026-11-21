@@ -31,6 +31,7 @@ import {
   type Visibility,
 } from "./api";
 import { Assemblies } from "./Anlaggningar";
+import { AnyRailPage } from "./AnyRail";
 import { push, redo, startEditor, undo, type Editor } from "./editor";
 import { ExportPage } from "./Export";
 import { PhotoPage, SketchPage, UploadPage } from "./Foto";
@@ -368,6 +369,7 @@ function Page(props: ShellProps) {
       />
     );
   }
+  if (route.page === "anyrail") return <AnyRailPage key={route.id ?? "ny"} id={route.id} navigate={navigate} />;
   if (route.page === "profiles") {
     return props.profiles ? <ProfilesPage list={props.profiles} clubs={session.clubs ?? []} onCreate={props.onNewProfile} /> : <p className="cad-sida">Hämtar gavelprofilerna …</p>;
   }

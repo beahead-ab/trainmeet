@@ -43,6 +43,8 @@ from cad import (
     smoothing,
     store,
 )
+from cad.anyrail import api as anyrail_api
+from cad.anyrail.service import AnyRailImports
 from cad.assemblies import Assemblies
 from cad.db import Database
 from cad.drawings import Drawings
@@ -199,6 +201,8 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     matbilder = Matbilder(db, photo_store, assemblies)
     # CAD i mobilen (#90): Fota med mobilen's QR code and the phone's own session.
     handoffs = mobile.Handoffs(db, modules)
+    # Import från AnyRail (#91): the file in CAD only, the modules and the assembly.
+    anyrail = AnyRailImports(db, modules, assemblies)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -532,6 +536,7 @@ def create_app(settings: Settings | None = None, *, id_http: httpx.Client | None
     app.include_router(assemblies_api.router(assemblies, who, drawing_asker))
     app.include_router(matbilder_api.router(matbilder, drawing_asker))
     app.include_router(meet_api.router(assemblies, hub_asker))
+    app.include_router(anyrail_api.router(anyrail, who))
 
     def public_origin(request: Request) -> str:
         """CAD's own address for the QR code: as ID knows it, else as the browser asked."""

@@ -488,6 +488,12 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.cad-1.mobile-exchange": cad.MobileExchange,
     "trainmeet.cad-1.mobile-flow": cad.MobileFlow,
     "trainmeet.cad-1.mobile-progress": cad.MobileProgress,
+    "trainmeet.cad-1.anyrail-measures": cad.AnyRailMeasures,
+    "trainmeet.cad-1.anyrail-settings": cad.AnyRailSettings,
+    "trainmeet.cad-1.anyrail-start": cad.AnyRailStart,
+    "trainmeet.cad-1.anyrail-import": cad.AnyRailImport,
+    "trainmeet.cad-1.anyrail-create": cad.AnyRailCreate,
+    "trainmeet.cad-1.anyrail-created": cad.AnyRailCreated,
 }
 
 
@@ -2784,6 +2790,53 @@ def cad_openapi() -> str:
         problems=(401, 404, 422),
     )
     route("delete", mb + "/flow", "cadMobileEnd", "mobile-flow", problems=(401,))
+    # Import från AnyRail (#91): the file stays in CAD, read with the measures given.
+    ar = a + "/anyrail"
+    anyrail_problems = (401, 413, 422, 503)
+    route("post", ar, "cadAnyRailUpload", "anyrail-import", created=True, problems=anyrail_problems)
+    paths[ar]["post"]["requestBody"] = {
+        "required": True,
+        "description": "The JSON in the part data, and AnyRail's own file (.any) or its XML "
+        "export in the part file, or a ZIP with one of them, at most 20 MB.",
+        "content": {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "data": openapi_ref(c + "anyrail-start"),
+                        "file": {"type": "string", "format": "binary"},
+                    },
+                    "required": ["file"],
+                }
+            }
+        },
+    }
+    route("get", ar + "/{import}", "cadAnyRailImport", "anyrail-import", problems=read)
+    route(
+        "put",
+        ar + "/{import}",
+        "cadAnyRailSettings",
+        "anyrail-import",
+        "anyrail-settings",
+        problems=(401, 404, 409, 422),
+    )
+    route(
+        "post",
+        ar + "/{import}/create",
+        "cadAnyRailCreate",
+        "anyrail-created",
+        "anyrail-create",
+        problems=write,
+    )
+    route("get", ar + "/{import}/files/{name}", "cadAnyRailFile", "anyrail-import", problems=read)
+    paths[ar + "/{import}/files/{name}"]["get"]["responses"]["200"] = {
+        "description": "The export: anlaggning.dxf, modul-<key>.dxf, gavelprofiler.csv or "
+        "vaxlar.csv.",
+        "content": {
+            "application/dxf": {"schema": {"type": "string", "format": "binary"}},
+            "text/csv": {"schema": {"type": "string"}},
+        },
+    }
     paths[mb + "/exchange"]["post"]["security"] = []
     for method in ("get", "put", "delete"):
         paths[mb + "/flow"][method]["security"] = [{"phone": []}]

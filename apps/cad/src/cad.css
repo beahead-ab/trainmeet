@@ -1896,3 +1896,74 @@
 .cad-anl-foljer ul + h2 {
   margin-top: 18px;
 }
+
+/* Import från AnyRail (#91): the drawing with AnyRail's own thin lines, the proposed modules, the
+   track, the switches (an assumed one yellow, AR3) and the crossings; and the page's lists. */
+.cad-anyrail-linje {
+  fill: none;
+  stroke: var(--tm-mute);
+  opacity: 0.6;
+}
+.cad-anyrail-utanfor {
+  fill: none;
+  stroke: var(--tm-mute);
+  stroke-dasharray: 8 8;
+}
+.cad-anyrail-vaxel {
+  fill: var(--cad-track);
+}
+.cad-anyrail-vaxel.antagen {
+  fill: var(--cad-yellow-soft);
+  stroke: var(--cad-yellow);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.cad-anyrail-korsning {
+  fill: none;
+  stroke: var(--cad-track);
+  stroke-width: 2px;
+  vector-effect: non-scaling-stroke;
+}
+.cad-anyrail-sammanfattning {
+  font-weight: 600;
+}
+.cad-anyrail-falt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin: 8px 0;
+}
+.cad-anyrail-fler summary,
+.cad-anyrail-kontroll summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.cad-anyrail-moduler {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.cad-anyrail-moduler li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--tm-line);
+}
+.cad-anyrail-namn {
+  min-width: 14em;
+}
+.cad-anyrail-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.cad-anyrail-filer {
+  columns: 2;
+}
+.cad-anyrail-fil {
+  display: grid;
+  gap: 8px;
+  max-width: 40em;
+}

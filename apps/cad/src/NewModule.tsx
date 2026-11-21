@@ -1,8 +1,8 @@
 // Ny modul: four ways in (CAD-01): Fota med mobilen with a QR code (#90), Ladda upp ett foto, Från
-// en skiss and Bara mått.
+// en skiss and Bara mått; and a file: AnyRail (#91, TKL16).
 import { linkClick, type Navigate } from "@trainmeet/design";
 import { MobileHandoffPanel } from "./Mobilkod";
-import { formPath, PATHS, SKETCH_PATH, UPLOAD_PATH } from "./routes";
+import { ANYRAIL_PATH, formPath, PATHS, SKETCH_PATH, UPLOAD_PATH } from "./routes";
 
 export function NewModulePage({ tokens, navigate }: { tokens?: number | null; navigate?: Navigate }) {
   return (
@@ -90,13 +90,14 @@ export function NewModulePage({ tokens, navigate }: { tokens?: number | null; na
           <button type="button" className="tm-knapp" disabled>
             DXF-ritning
           </button>
-          <button type="button" className="tm-knapp" disabled>
+          <a className="tm-knapp" href={ANYRAIL_PATH} onClick={linkClick(navigate, ANYRAIL_PATH)}>
             AnyRail
-          </button>
+          </a>
         </div>
         <p className="cad-dampad">
           TrainMeet-modul och DXF kommer med exporten och anläggningarna (del d). DXF läses in med modulramen och spårmitten på ett
-          eget lager, som i FREMO:s ritningar. AnyRail kommer med AnyRail-importen (ärende 91).
+          eget lager, som i FREMO:s ritningar. AnyRail läses här i CAD: AnyRails egen fil eller exporten som XML blir moduler och en
+          anläggning, och filen stannar i CAD.
         </p>
       </div>
     </section>

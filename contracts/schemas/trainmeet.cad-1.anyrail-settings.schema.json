@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.cad-1.anyrail-settings.schema.json",
+  "title": "trainmeet.cad-1.anyrail-settings",
+  "$defs": {
+    "AnyRailMeasures": {
+      "additionalProperties": true,
+      "description": "Måtten för filen (AR5, AR6): the interpretation's limits, defaults the owner may change\nper file when a file is read wrongly. The first three are shown; the rest are under Fler\nmått. Lengths in mm.",
+      "properties": {
+        "track_width": {
+          "default": 16.5,
+          "description": "Spårbredd: a part about this wide is track.",
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Track Width",
+          "type": "number"
+        },
+        "join_distance": {
+          "default": 40.0,
+          "description": "Skarvavstånd: free ends this close are joined.",
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Join Distance",
+          "type": "number"
+        },
+        "lateral": {
+          "default": 6.0,
+          "description": "Sidledsfel: joined ends lie less apart sideways.",
+          "maximum": 100,
+          "minimum": 0,
+          "title": "Lateral",
+          "type": "number"
+        },
+        "crossing_node": {
+          "default": 30.0,
+          "description": "A crossing lies at least this far from a node.",
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Crossing Node",
+          "type": "number"
+        },
+        "crossing_angle": {
+          "default": 5.0,
+          "description": "A crossing under this many degrees is flagged.",
+          "maximum": 45,
+          "minimum": 0,
+          "title": "Crossing Angle",
+          "type": "number"
+        },
+        "backward_length": {
+          "default": 200.0,
+          "description": "A backward piece is shorter than this.",
+          "maximum": 2000,
+          "minimum": 0,
+          "title": "Backward Length",
+          "type": "number"
+        },
+        "tight_radius": {
+          "default": 400.0,
+          "description": "A flex curve tighter than this is redrawn.",
+          "maximum": 5000,
+          "minimum": 10,
+          "title": "Tight Radius",
+          "type": "number"
+        }
+      },
+      "title": "AnyRailMeasures",
+      "type": "object"
+    },
+    "Scale": {
+      "description": "The module's scale (CAD10, CAD12).",
+      "enum": [
+        "H0",
+        "N",
+        "0"
+      ],
+      "title": "Scale",
+      "type": "string"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Läs om: the scale and the measures to read the file with; base is the revision the\nperson saw.",
+  "properties": {
+    "base": {
+      "minimum": 1,
+      "title": "Base",
+      "type": "integer"
+    },
+    "scale": {
+      "$ref": "#/$defs/Scale"
+    },
+    "measures": {
+      "$ref": "#/$defs/AnyRailMeasures"
+    }
+  },
+  "required": [
+    "base",
+    "scale",
+    "measures"
+  ],
+  "type": "object"
+}

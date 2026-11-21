@@ -11,6 +11,7 @@ export type Route =
   | { page: "form"; kind: FormKind; id?: string }
   | { page: "upload" }
   | { page: "sketch" }
+  | { page: "anyrail"; id?: string }
   | { page: "module"; id: string; tab: Tab; version?: number }
   | { page: "drawing"; id: string }
   | { page: "lock"; id: string }
@@ -39,6 +40,12 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 export const UPLOAD_PATH = `${PATHS.new}/foto`;
 /** Ny modul ur en skiss (part c2). */
 export const SKETCH_PATH = `${PATHS.new}/skiss`;
+/** Import från AnyRail (#91): the upload, and an import's page. */
+export const ANYRAIL_PATH = `${PATHS.new}/anyrail`;
+
+export function anyrailPath(id?: string): string {
+  return id ? `${ANYRAIL_PATH}/${id}` : ANYRAIL_PATH;
+}
 
 export function formPath(kind: FormKind): string {
   return `${PATHS.new}/${FORM_PATHS[kind]}`;
@@ -95,6 +102,10 @@ export function routeFor(pathname: string, search = ""): Route {
   const parts = path.split("/").slice(1);
   if (path === UPLOAD_PATH) return { page: "upload" };
   if (path === SKETCH_PATH) return { page: "sketch" };
+  if (path === ANYRAIL_PATH) return { page: "anyrail" };
+  if (parts[0] === "moduler" && parts[1] === "ny" && parts[2] === "anyrail" && parts.length === 4 && parts[3] && UUID.test(parts[3])) {
+    return { page: "anyrail", id: parts[3] };
+  }
   if (parts[0] === "moduler" && parts[1] === "ny" && parts.length === 3) {
     const kind = (Object.keys(FORM_PATHS) as FormKind[]).find((k) => FORM_PATHS[k] === parts[2]);
     if (kind) return { page: "form", kind };
@@ -135,7 +146,7 @@ function withVersion(route: Extract<Route, { page: "module" }>, search: string):
 export function tabOf(route: Route): "library" | "assemblies" | "profiles" | null {
   if (route.page === "assemblies" || route.page === "assembly" || route.page === "studio") return "assemblies";
   if (route.page === "profiles") return "profiles";
-  if (["library", "new", "form", "upload", "sketch", "module", "drawing", "lock", "photo", "export"].includes(route.page)) return "library";
+  if (["library", "new", "form", "upload", "sketch", "anyrail", "module", "drawing", "lock", "photo", "export"].includes(route.page)) return "library";
   return null;
 }
 

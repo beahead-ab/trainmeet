@@ -584,6 +584,12 @@ class ReadBy(StrEnum):
 class GraphOrigin(Contract):
     source: GraphSource
     certainty: Certainty
+    ref: Text | None = Field(
+        default=None,
+        max_length=200,
+        description="The part's own id in the source, kept as its origin: AnyRail's part ids "
+        "(ANYRAIL-07), joined by + when one piece holds several.",
+    )
 
 
 class GraphNode(Contract):
@@ -848,6 +854,21 @@ class CheckKind(StrEnum):
     """A gable track that does not meet its gable's measure or profile."""
     QUESTION = "question"
     """A question with fixed answers from the photo chain's AI (part c)."""
+    SWITCH_JOINT = "switch_joint"
+    """A switch that lies over a module joint (the AnyRail import, 4. Kontroller)."""
+    OBLIQUE_JOINT = "oblique_joint"
+    """A track that crosses a module joint at an angle, or a module's long side."""
+    DRAWING_FIX = "drawing_fix"
+    """An overlap, a gap or a backward piece the AnyRail import mended in the drawing, or a
+    flex curve it drew again; with the millimetres."""
+    CROSSING_DOUBT = "crossing_doubt"
+    """A crossing under the angle a drawing error is likely below, or two tracks drawn nearly
+    on top of each other (they meet twice): no crossing."""
+    LOOSE_PART = "loose_part"
+    """Track that does not hang together with the layout, left out."""
+    REMOVED = "removed"
+    """A loop behind an end module, a turntable's bridge or a stall's back wall drawn as track,
+    taken away by the AnyRail import."""
 
 
 class CheckSource(StrEnum):
@@ -905,6 +926,8 @@ class DrawingSource(StrEnum):
     """AI-förslag from the photo (part c)."""
     SKETCH = "sketch"
     """Förslag from a hand-drawn sketch, ± 20 mm (part c2)."""
+    ANYRAIL = "anyrail"
+    """Ur AnyRail: read from an AnyRail file in the import (#91)."""
 
 
 class DrawnLine(Contract):
@@ -2982,3 +3005,223 @@ class MobileProgress(Contract):
     step: MobileStep
     module: UUID | None = None
     job: UUID | None = None
+
+
+# --- Import från AnyRail (#91, TKL16, ANYRAIL-01–22) --------------------------------------
+#
+#     POST   /api/cad/1/anyrail                         form: data AnyRailStart, file the AnyRail
+#                                                       file -> AnyRailImport, 201
+#     GET    /api/cad/1/anyrail/{import}                AnyRailImport
+#     PUT    /api/cad/1/anyrail/{import}                AnyRailSettings -> AnyRailImport: the same
+#                                                       file read again with other measures
+#     POST   /api/cad/1/anyrail/{import}/create         AnyRailCreate -> AnyRailCreated: Skapa
+#                                                       modulerna, and the assembly
+#     GET    /api/cad/1/anyrail/{import}/files/{name}   an export: anlaggning.dxf, modul-<key>.dxf,
+#                                                       gavelprofiler.csv, vaxlar.csv
+#
+# AnyRail is a way into Studio, read in CAD (TKL16, ANYRAIL-10): the file stays in CAD with its
+# measures and never leaves it (ANYRAIL-08); Studio gets the track graph through the assembly
+# Skapa modulerna makes, as Från CAD offers any assembly (ANYRAIL-06). Only the person who
+# uploaded a file sees it. The interpretation is deterministic: the same file with the same
+# measures gives the same answer (AR5). Everything is a proposal: the modules are drafts, and an
+# assumed switch stands yellow until it is confirmed (AR3). Coordinates are the drawing's own,
+# in mm with y down, as AnyRail's cm times ten; a module's graph is in its own mm.
+
+ANYRAIL_SAMPLE_STEP: Final = 10.0
+"""The kink check samples the tracks every 10 mm: fixed, not a measure (ANYRAIL-17, AR6)."""
+
+
+class AnyRailMeasures(Contract):
+    """Måtten för filen (AR5, AR6): the interpretation's limits, defaults the owner may change
+    per file when a file is read wrongly. The first three are shown; the rest are under Fler
+    mått. Lengths in mm."""
+
+    track_width: float = Field(
+        default=16.5, ge=1, le=100, description="Spårbredd: a part about this wide is track."
+    )
+    join_distance: float = Field(
+        default=40.0, ge=0, le=500, description="Skarvavstånd: free ends this close are joined."
+    )
+    lateral: float = Field(
+        default=6.0, ge=0, le=100, description="Sidledsfel: joined ends lie less apart sideways."
+    )
+    crossing_node: float = Field(
+        default=30.0, ge=0, le=500, description="A crossing lies at least this far from a node."
+    )
+    crossing_angle: float = Field(
+        default=5.0, ge=0, le=45, description="A crossing under this many degrees is flagged."
+    )
+    backward_length: float = Field(
+        default=200.0, ge=0, le=2000, description="A backward piece is shorter than this."
+    )
+    tight_radius: float = Field(
+        default=400.0, ge=10, le=5000, description="A flex curve tighter than this is redrawn."
+    )
+
+
+class AnyRailSettings(Contract):
+    """Läs om: the scale and the measures to read the file with; base is the revision the
+    person saw."""
+
+    base: int = Field(ge=1)
+    scale: Scale
+    measures: AnyRailMeasures
+
+
+class AnyRailStart(Contract):
+    """The upload's data part: the file's name, and the scale and the measures, when other than
+    the file's own."""
+
+    name: Text | None = Field(default=None, max_length=200)
+    scale: Scale | None = None
+    measures: AnyRailMeasures | None = None
+
+
+class AnyRailModule(Contract):
+    """A module the import proposes (ANYRAIL-02, ANYRAIL-14): built from the drawing's thin lines,
+    checked against the standard sizes, numbered from the west (AR1). Placed in the drawing at
+    at (gable A at Kant 1) turned angle degrees counterclockwise, as an assembly places it; its
+    shape, gables and graph are in its own mm, ready to be a module."""
+
+    key: Id = Field(description="m1, m2 … from the west: the same for the same file.")
+    number: Text = Field(max_length=20, description='"1", "2a", "Ä1": the owner may rename it.')
+    name: Name
+    end: bool = Field(description="An end module (Ä).")
+    at: Point
+    angle: float
+    outline: list[Point] = Field(min_length=3, description="The board as drawn, in the drawing.")
+    shape: Straight
+    standard: Text | None = Field(
+        default=None, description='The standard size it matches: "1500 × 700"; null: none.'
+    )
+    gables: list[Gable] = Field(min_length=2, max_length=2)
+    graph: TrackGraph
+    switches: int = Field(ge=0)
+    assumed: int = Field(ge=0)
+    checks: list[CheckItem] = Field(
+        default_factory=list, description="Att kolla as the module will have it, in its own mm."
+    )
+
+
+class AnyRailSwitch(Contract):
+    """A row of the switch list (ANYRAIL-05): numbered from the west, with AnyRail's id kept as
+    its origin; an assumed one has none, and confirm is the module's Att kolla key that confirms
+    it (AR3)."""
+
+    number: int = Field(ge=1)
+    anyrail: Text | None = Field(default=None, max_length=40, description="AnyRail's part id.")
+    side: Literal["left", "right", "y"]
+    radius: float | None = None
+    angle: float | None = None
+    module: Id | None = Field(default=None, description="The module's key.")
+    assumed: bool
+    over_joint: bool = False
+    at: Point = Field(description="The points (tungspetsen), in the drawing.")
+    confirm: Text | None = Field(default=None, max_length=120)
+
+
+class AnyRailStats(Contract):
+    """What the interpretation found, as the specification reports it (ANYRAIL-19)."""
+
+    parts: int = Field(ge=0)
+    track_parts: int = Field(ge=0)
+    modules: int = Field(ge=0)
+    switches: int = Field(ge=0)
+    assumed: int = Field(ge=0)
+    crossings: int = Field(ge=0)
+    switches_over_joint: int = Field(ge=0)
+    backward_removed: int = Field(ge=0)
+    gaps: int = Field(ge=0, description="Glapp sammanfogade.")
+    overlaps: int = Field(ge=0, description="Överlapp sammanfogade.")
+    smoothed: int = Field(ge=0, description="Flexbågar ritade om.")
+    loops_removed: int = Field(ge=0)
+    bridges_removed: int = Field(ge=0)
+    walls_removed: int = Field(ge=0)
+    doubled_removed: int = Field(
+        ge=0, description="Spår ritade ovanpå ett annat, borttagna: ett spår ritat två gånger."
+    )
+    loose: int = Field(ge=0, description="Lösa delar, utanför.")
+    side_drawings: int = Field(ge=0, description="Delar utanför ritytan, utanför.")
+    max_kink: float | None = Field(default=None, description="Största vinkelhopp på 10 mm, °.")
+    min_radius: float | None = Field(default=None, description="Minsta radie över 50 mm, mm.")
+    station_tracks: int = Field(ge=0)
+    station_middle: float | None = Field(
+        default=None, description="x of the line the station tracks are numbered on, mm."
+    )
+    arcs: int = Field(ge=0)
+    arcs_other_way: int = Field(
+        ge=0, description="Arcs that would bulge the other way without their direction."
+    )
+
+
+class AnyRailFile(Contract):
+    name: Text = Field(description="DXF, hela stationen …")
+    file: Text = Field(description="The name it is saved as.")
+    url: str
+    media_type: str
+
+
+class AnyRailCreated(Contract):
+    """What Skapa modulerna made: the modules, as drafts, and the assembly that places them."""
+
+    modules: list[ModuleBrief]
+    assembly: UUID
+    assembly_name: Name
+    at: datetime
+
+
+class AnyRailImport(Contract):
+    """Import från AnyRail: the file read with its measures, the proposed modules on the drawing,
+    the switches, the checks, the exports, and what was made from it."""
+
+    id: UUID
+    name: Text = Field(max_length=200, description="The file's name.")
+    format: Literal["xml", "any"]
+    library: Text | None = Field(default=None, description="AnyRail's track library (.any).")
+    revision: int = Field(ge=1, description="Every reading with other measures is the next.")
+    scale: Scale
+    measures: AnyRailMeasures
+    defaults: AnyRailMeasures = Field(default_factory=AnyRailMeasures)
+    area: Point = Field(description="The drawing's work area, mm.")
+    modules: list[AnyRailModule] = Field(default_factory=list)
+    switches: list[AnyRailSwitch] = Field(default_factory=list)
+    checks: list[CheckItem] = Field(default_factory=list, description="In the drawing's mm.")
+    stats: AnyRailStats
+    graph: TrackGraph = Field(
+        default_factory=TrackGraph, description="The whole station in the drawing's mm."
+    )
+    drawing: list[list[Point]] = Field(
+        default_factory=list, description="AnyRail's own drawing, the thin lines, not read."
+    )
+    left_out: list[list[Point]] = Field(
+        default_factory=list, description="Track left out: loose parts, loops, bridges, walls."
+    )
+    files: list[AnyRailFile] = Field(default_factory=list)
+    created: AnyRailCreated | None = None
+    created_at: datetime
+
+
+class AnyRailChoice(Contract):
+    """A proposed module the owner approves, with the name it gets (AR1: they may rename it)."""
+
+    key: Id
+    name: Name
+
+
+class AnyRailCreate(Contract):
+    """Skapa modulerna: the approved proposals of revision base, the assumed switches confirmed
+    (their Att kolla keys), and the assembly's name."""
+
+    base: int = Field(ge=1)
+    modules: list[AnyRailChoice] = Field(min_length=1, max_length=MAX_ASSEMBLY_MODULES)
+    confirmed: list[Annotated[str, StringConstraints(max_length=120)]] = Field(
+        default_factory=list, max_length=2000
+    )
+    assembly: Name | None = None
+
+    @model_validator(mode="after")
+    def _once(self) -> Self:
+        keys = [m.key for m in self.modules]
+        if len(keys) != len(set(keys)):
+            raise ValueError("En modul godkänns en gång.")
+        return self

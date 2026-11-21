@@ -9,11 +9,19 @@ module the person no longer sees stays as an outline, and keeps the assembly fro
 
 The rights on the modules are the library's own (cad/library.py), so that the rules stay in one
 place. The placement, the joint checks and the graph are cad/assembly.py's.
+
+The AnyRail import (#91) makes an assembly of the drafts it made, placed as in the drawing: it
+pins their first versions, and each draft is a problem that keeps the assembly from Studio until
+the module is approved (AR3). Where its gables lie against each other without a joint (an a/b
+pair against one wide gable, an end module at an angle), the tracks that meet within
+JOINT_TOLERANCE are joined in the graph as at a joint (_contacts).
 """
 
 from __future__ import annotations
 
+import itertools
 import json
+import math
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -29,6 +37,7 @@ from cad.db import Database
 from cad.errors import Refused, invalid
 from cad.library import MODULE_COLUMNS, SHAPE, Modules, Right, Who
 from contracts.cad import (
+    JOINT_TOLERANCE,
     Assembly,
     AssemblyBrief,
     AssemblyChange,
@@ -53,6 +62,7 @@ from contracts.cad import (
     TrackGraph,
     UsedIn,
 )
+from contracts.station_model import NodeType
 
 COLUMNS = "id, owner_kind, owner_id, owner_name, name, scale, revision, modules, joints, changed_at"
 
@@ -147,12 +157,12 @@ class Assemblies:
 
     def _members(
         self, conn: Connection[DictRow], who: Who, placed: Sequence[PlacedModule]
-    ) -> list[tuple[assembly.Member, int | None, str]]:
+    ) -> list[tuple[assembly.Member, int | None, str, bool]]:
         """Each pinned module as the assembly uses it, the newer approved version it may take,
-        and its owner's name."""
+        its owner's name, and whether the pinned version is approved."""
         rows = self._versions(conn, [(p.module, p.version) for p in placed])
         known = self.modules._profiles_for(conn, [r["gables"] for r in rows.values()])
-        found: list[tuple[assembly.Member, int | None, str]] = []
+        found: list[tuple[assembly.Member, int | None, str, bool]] = []
         for part in placed:
             row = rows.get((part.module, part.version))
             if row is None:
@@ -174,7 +184,7 @@ class Assemblies:
             )
             approved = row["approved_version"]
             newer = int(approved) if seen and approved and int(approved) > part.version else None
-            found.append((member, newer, str(row["owner_name"])))
+            found.append((member, newer, str(row["owner_name"]), row["approved_at"] is not None))
         return found
 
     def _stations(
@@ -202,17 +212,25 @@ class Assemblies:
         placed = [PlacedModule.model_validate(m) for m in row["modules"]]
         joints = [Joint.model_validate(j) for j in row["joints"]]
         found = self._members(conn, who, placed)
-        members = [m for m, _, _ in found]
+        members = [m for m, _, _, _ in found]
         placement = assembly.place(members, [assembly.Pose(p.at, p.angle) for p in placed], joints)
         by_id = {m.module: m for m in members}
         checks = [assembly.check(k, j, by_id, placement) for k, j in enumerate(joints)]
         problems = self._problems(Scale(row["scale"]), members, joints, checks, by_id)
+        # An assembly the AnyRail import made pins its modules' drafts (#91): each is approved
+        # before the assembly goes to Studio (AR3: an assumed switch is confirmed first).
+        problems += [
+            f"{m.title} är ett utkast i version {m.version}. Godkänn modulen, eller ta den "
+            "godkända versionen."
+            for m, _, _, approved in found
+            if m.seen and not approved
+        ]
         joined: dict[UUID, list[GableEnd]] = {}
         for joint in joints:
             joined.setdefault(joint.a.module, []).append(joint.a.gable)
             joined.setdefault(joint.b.module, []).append(joint.b.gable)
         parts: list[AssemblyModule] = []
-        for member, newer, owner in found:
+        for member, newer, owner, _ in found:
             pose = placement.poses[member.module]
             gables = assembly.gables_at(member, pose, joined.get(member.module, []))
             if not member.seen:
@@ -256,7 +274,7 @@ class Assemblies:
             parts=parts,
             checks=checks,
             problems=problems,
-            graph=assembly.graph(members, placement, joints, checks),
+            graph=_contacts(assembly.graph(members, placement, joints, checks)),
             stations=self._stations(conn, StudioSourceKind.ASSEMBLY, row["id"]),
         )
         return Built(answer=answer, members=members)
@@ -361,9 +379,12 @@ class Assemblies:
         with self.db.transaction() as conn:
             return self._build(conn, who, self._row(conn, ident)).answer
 
-    def save(self, who: Who, ident: UUID, change: AssemblyChange) -> Assembly:
+    def save(
+        self, who: Who, ident: UUID, change: AssemblyChange, *, drafts: bool = False
+    ) -> Assembly:
         """Spara: the whole assembly on top of the newest revision, the versions pinned and the
-        placement worked out from the joints."""
+        placement worked out from the joints. drafts: the AnyRail import (#91) pins the drafts
+        it made, at the versions it names."""
         with self.db.transaction() as conn:
             row = self._row(conn, ident, lock=True)
             self._seen(who, row, Right.EDIT)
@@ -372,7 +393,9 @@ class Assemblies:
             scale = Scale(row["scale"])
             pinned = [PlacedModule.model_validate(m) for m in row["modules"]]
             before = {p.module: p.version for p in pinned}
-            placed = [self._pin(conn, who, scale, part, before) for part in change.modules]
+            placed = [
+                self._pin(conn, who, scale, part, before, drafts=drafts) for part in change.modules
+            ]
             draft = {**row, "modules": [p.model_dump(mode="json") for p in placed]}
             draft["joints"] = [j.model_dump(mode="json") for j in change.joints]
             built = self._build(conn, who, draft).answer
@@ -403,6 +426,8 @@ class Assemblies:
         scale: Scale,
         part: Any,
         before: dict[UUID, int],
+        *,
+        drafts: bool = False,
     ) -> PlacedModule:
         """The version a module in the change pins: as before, or an approved one it may take;
         null for its newest approved version."""
@@ -427,7 +452,7 @@ class Assemblies:
         ).fetchone()
         if pinned is None:
             raise invalid(f"{number} har ingen version {version}.")
-        if not kept and pinned["approved_at"] is None:
+        if not kept and not drafts and pinned["approved_at"] is None:
             raise invalid(f"Version {version} av {number} är inte godkänd.")
         if pinned["scale"] != scale.value:
             raise invalid(
@@ -485,7 +510,7 @@ class Assemblies:
     ) -> tuple[StudioSource, TrackGraph]:
         """A single module, as an assembly of one at the origin."""
         placed = PlacedModule(module=row["id"], version=int(row["version"]), at=(0, 0), angle=0)
-        member, _, owner = self._members(conn, who, [placed])[0]
+        member, _, owner, _ = self._members(conn, who, [placed])[0]
         placement = assembly.place([member], [assembly.Pose()], [])
         made = assembly.graph([member], placement, [], [])
         problems = (
@@ -586,3 +611,34 @@ class Assemblies:
                     for s in self._stations(conn, kind, ident)
                 ]
         return found
+
+
+def _contacts(graph: TrackGraph) -> TrackGraph:
+    """Gables that lie against each other without a joint (one wide gable against two narrow
+    ones, or an end module at an angle, as AnyRail draws them, #91): their tracks that meet within
+    JOINT_TOLERANCE become one node, as at a joint (cad/assembly.py). Only module joints that no
+    joint has joined, of two different modules, each used once."""
+    free = [
+        n
+        for n in graph.nodes
+        if n.type == NodeType.MODULE_JOINT
+        and sum(1 for p in graph.pieces if n.id in (p.start, p.end)) == 1
+    ]
+    nodes = {n.id: n for n in graph.nodes}
+    pieces = {p.id: p for p in graph.pieces}
+    used: set[str] = set()
+    pairs: list[tuple[float, str, str]] = []
+    for a, b in itertools.combinations(sorted(free, key=lambda n: n.id), 2):
+        if a.id.split(":", 1)[0] == b.id.split(":", 1)[0]:
+            continue
+        apart = math.dist(a.at, b.at)
+        if apart <= JOINT_TOLERANCE:
+            pairs.append((apart, a.id, b.id))
+    for _, a_id, b_id in sorted(pairs):
+        if a_id in used or b_id in used:
+            continue
+        used.update((a_id, b_id))
+        assembly._merge(nodes, pieces, a_id, b_id)
+    if not used:
+        return graph
+    return graph.model_copy(update={"nodes": list(nodes.values()), "pieces": list(pieces.values())})

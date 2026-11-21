@@ -24,12 +24,13 @@ describe("Ny modul", () => {
     expect(html).toContain("◎ 86 tokens kvar");
   });
 
-  it("says when the files come: TrainMeet-modul and DXF in part d, AnyRail with #91", () => {
+  it("says when the files come: TrainMeet-modul and DXF in part d; AnyRail is read here (#91)", () => {
     const html = renderToStaticMarkup(<NewModulePage />);
     expect(html).toContain("TrainMeet-modul från Exportera");
     expect(html).toContain("DXF-ritning");
-    expect(html).toMatch(/<button type="button" class="tm-knapp" disabled="">AnyRail<\/button>/);
+    expect(html).toContain('<a class="tm-knapp" href="/moduler/ny/anyrail">AnyRail</a>');
+    expect(html).not.toContain("ärende 91");
     expect(html).toContain("kommer med exporten och anläggningarna (del d)");
-    expect(html).toContain("AnyRail-importen (ärende 91)");
+    expect(html).toContain("filen stannar i CAD");
   });
 });
