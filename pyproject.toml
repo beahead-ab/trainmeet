@@ -74,6 +74,9 @@ dev = [
     "jsonschema>=4.23",
     "mypy>=1.13",
     "pytest>=8.3",
+    # Runs the tests in four processes in the check "Tester": a file stays in one process, so
+    # what a file reads once (CAD's photos) is read once.
+    "pytest-xdist>=3.8",
     "ruff>=0.8",
     # Scaleway's official SDK, for the test environment (deploy/testmiljo.py).
     "scaleway>=2.12",

@@ -291,7 +291,10 @@ def test_a_search_sends_only_the_marking_to_the_meter(cat: Searching) -> None:
         "unit": "mm",
         "kind": "number",
     }
-    whole = json.dumps(body, ensure_ascii=False)
+    # The reservation is the id ID made for it, a random UUID that may hold "450" by chance, so
+    # it is checked as that id and the rest of what is sent is searched for the private words.
+    assert list(cat.id.reservations) == [body["reservation"]]
+    whole = json.dumps({**body, "reservation": "reservationen"}, ensure_ascii=False)
     for private in ("Provkonto", A, "114-9", "Kim", "Västby", "450", "image", "notes"):
         assert private not in whole, private
     # The reservation says what it is for, for the person's own account page in ID: no more.
