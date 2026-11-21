@@ -71,6 +71,7 @@ from contracts.planning import (
 from contracts.reasons import TEXT_SV
 from contracts.station_outside import StationOutside
 from core import changes as driftchanges
+from core.sqlite import connect, prepare
 from planering import assembly, compare
 from planering.check import review
 from planering.sanity import deviations
@@ -81,7 +82,6 @@ MAX_MEETS: Final = 200
 
 _TIME: Final = re.compile(r"^([01][0-9]|2[0-3]):[0-5][0-9]$")
 _SCHEMA = """
-PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS meet (
     id TEXT PRIMARY KEY, created REAL NOT NULL, summary TEXT NOT NULL, draft TEXT NOT NULL
 );
@@ -141,21 +141,16 @@ def slug(name: str) -> str:
 class Planning:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses the file, which Synk's stores share (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("PRAGMA foreign_keys=ON")
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("PRAGMA foreign_keys=ON")
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     # --- Reading -----------------------------------------------------------------------------
 

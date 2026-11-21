@@ -7,8 +7,12 @@ example package, so the part is tested without Integrationer (the boundaries).
 from __future__ import annotations
 
 import json
+import sqlite3
+import time
+from contextlib import closing
 from datetime import UTC, date, datetime
 from pathlib import Path
+from threading import Event, Thread
 
 import pytest
 
@@ -338,3 +342,33 @@ def test_a_preview_counts_what_would_change_and_changes_nothing(planning: Planni
     assert draft.package is not None and len(draft.package.trains) == 9
     with pytest.raises(PlanningError, match="väntar inte"):
         planning.apply(meet.id, second.id)
+
+
+def _synk_writes(path: Path, held: Event) -> None:
+    with closing(sqlite3.connect(path)) as db:
+        db.execute("BEGIN IMMEDIATE")
+        db.execute("INSERT INTO sync_self VALUES ('hub-1')")
+        held.set()
+        time.sleep(0.3)
+        db.commit()
+
+
+def test_planerings_file_waits_for_synks_write(tmp_path: Path) -> None:
+    """Planering's file is shared with Synk's stores (SYNK-20), whose threads write to it when
+    Planning is first used in a Pi's link (SYNK-10). Planning waits for the write: it used to
+    turn on write-ahead logging there, at its first use, which SQLite refuses at once while
+    another connection writes ("database is locked")."""
+    path = tmp_path / "planering.sqlite3"
+    # Synk made the file first, without write-ahead logging, as on a Pi from before.
+    with closing(sqlite3.connect(path)) as db:
+        db.execute("CREATE TABLE sync_self (hub_id TEXT NOT NULL)")
+    planning = Planning(path)
+    held = Event()
+    synk = Thread(target=_synk_writes, args=(path, held))
+    synk.start()
+    try:
+        assert held.wait(5)
+        assert planning.file("0" * 64) is None
+    finally:
+        synk.join()
+    assert planning.meets() == []

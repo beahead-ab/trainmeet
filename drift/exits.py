@@ -22,6 +22,7 @@ from threading import Lock
 
 from contracts import station
 from contracts.station_outside import Exit, StationOutside
+from core.sqlite import connect, prepare
 
 
 def neighbour_key(name: str) -> str:
@@ -111,19 +112,16 @@ class ExitMemory:
     def __init__(self, path: Path) -> None:
         self.path = path
         self._lock = Lock()
-        self._ready = False
+        # Ready before any thread uses the file (core/sqlite.py).
+        prepare(
+            path,
+            "CREATE TABLE IF NOT EXISTS exit_answer (station_id TEXT NOT NULL, "
+            "neighbour TEXT NOT NULL, exit TEXT NOT NULL, "
+            "PRIMARY KEY (station_id, neighbour))",
+        )
 
     def _db(self) -> sqlite3.Connection:
-        if not self._ready:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute(
-                    "CREATE TABLE IF NOT EXISTS exit_answer (station_id TEXT NOT NULL, "
-                    "neighbour TEXT NOT NULL, exit TEXT NOT NULL, "
-                    "PRIMARY KEY (station_id, neighbour))"
-                )
-            self._ready = True
-        return sqlite3.connect(self.path)
+        return connect(self.path)
 
     def remembered(self, station_id: str) -> dict[str, str]:
         with self._lock, closing(self._db()) as db:

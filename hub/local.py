@@ -25,6 +25,7 @@ from secrets import randbelow, token_bytes, token_urlsafe
 from threading import Lock
 from typing import Final
 
+from core.sqlite import connect, prepare
 from integrationer import fastclock
 
 SESSION_LIFETIME: Final = timedelta(hours=12)
@@ -265,31 +266,27 @@ class LocalLogin:
     def __init__(self, path: Path, default_name: str) -> None:
         self.path = path
         self.default_name = default_name
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses the file (core/sqlite.py).
+        prepare(path, _SCHEMA)
+        with closing(connect(path)) as db:
+            # A hub from before #78 has sessions without a role: they are the local
+            # administrator's. Later columns are added the same way, one at a time.
+            columns = {row[1] for row in db.execute("PRAGMA table_info(session)")}
+            for column, kind in _SESSION_COLUMNS:
+                if column not in columns:
+                    db.execute(f"ALTER TABLE session ADD COLUMN {column} {kind}")
+            columns = {row[1] for row in db.execute("PRAGMA table_info(id_login)")}
+            for column, kind in _ID_LOGIN_COLUMNS:
+                if column not in columns:
+                    db.execute(f"ALTER TABLE id_login ADD COLUMN {column} {kind}")
+            db.commit()
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                    # A hub from before #78 has sessions without a role: they are the local
-                    # administrator's. Later columns are added the same way, one at a time.
-                    columns = {row[1] for row in db.execute("PRAGMA table_info(session)")}
-                    for column, kind in _SESSION_COLUMNS:
-                        if column not in columns:
-                            db.execute(f"ALTER TABLE session ADD COLUMN {column} {kind}")
-                    columns = {row[1] for row in db.execute("PRAGMA table_info(id_login)")}
-                    for column, kind in _ID_LOGIN_COLUMNS:
-                        if column not in columns:
-                            db.execute(f"ALTER TABLE id_login ADD COLUMN {column} {kind}")
-                    db.commit()
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     def state(self) -> HubState:
         with self._transaction() as db:

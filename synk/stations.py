@@ -23,6 +23,7 @@ from typing import Final, Protocol
 
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage, StationVersionInfo
+from core.sqlite import connect, prepare
 
 MAX_BYTES: Final = 2 * 1024 * 1024
 MAX_VERSIONS: Final = 500
@@ -74,20 +75,15 @@ class NoOwners:
 class Stations:
     def __init__(self, path: Path) -> None:
         self.path = path
-        self._ready = False
         self._lock = Lock()
+        # Ready before any thread uses Planering's file, which the stores share (core/sqlite.py).
+        prepare(path, _SCHEMA)
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        with self._lock:
-            if not self._ready:
-                self.path.parent.mkdir(parents=True, exist_ok=True)
-                with closing(sqlite3.connect(self.path)) as db:
-                    db.executescript(_SCHEMA)
-                self._ready = True
-            with closing(sqlite3.connect(self.path)) as db, db:
-                db.execute("BEGIN IMMEDIATE")
-                yield db
+        with self._lock, closing(connect(self.path)) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            yield db
 
     @staticmethod
     def _owned(db: sqlite3.Connection, station: str, owner: str) -> int:
