@@ -13,8 +13,10 @@ Rows follow the station's drawing (STD-10). The model is cut into strands: runs 
 go straight through joints, signals, a switch's trunk and straight leg and one of a crossing's
 two ways (the longer run keeps the crossing). A Y switch ends its trunk's strand, and both legs
 leave it. A ladder, a strand with nothing but switches of its own, gives each switch to the
-track that leaves it, so the switches stand on one diagonal. Each strand with a node of its own
-gets a row; a connector between two others gets none.
+track that leaves it, so the switches stand on one diagonal. A switch where only a connector
+leaves stays on the ladder's own row, at one end of the diagonal; one at the other end stands
+on the row of its neighbour, trunk to trunk, so that the diagonal goes one way. Each strand with
+a node of its own gets a row; a connector between two others gets none.
 
 A track holds its row without signals too, as in a station from CAD's track graph, which has
 none (CAD-09). A strand between two others with nothing of its own but switches and joints, a
@@ -23,8 +25,10 @@ station track: it lies on a row of its own from its first node on the station tr
 last, as it would between signals (one row per station track, at least 14 cells, §3.2–3.3). So
 is a connector, with no switch of its own either, that the drawing shows running level
 east–west for at least as far as a station track is long against the rows it goes sideways (14
-cells to 3): a track, not a crossover, held on its row by the ends of that stretch. A ladder
-stays a ladder, its crossovers exact.
+cells to 3): a track, not a crossover, held on its row by the ends of that stretch. A stub that
+carries a numbered station track to a buffer stop is held the same way, so that it leaves its
+track at once and lies on its row for a station track's 14 cells. A ladder stays a ladder, its
+crossovers exact.
 
 The drawing order comes from the real geometry (TrackPiece.geometry) where the model has it:
 which of two strands side by side lies above the other, compared at the same places east–west
@@ -609,6 +613,18 @@ def _between(graph: Graph, strand: Strand, switches: bool = True) -> bool:
     )
 
 
+def _stub(graph: Graph, strand: Strand) -> bool:
+    """A strand that leaves another at one end and ends at a buffer stop at the other, with
+    nothing of its own but soft nodes on the way."""
+    if strand.kind != "track" or strand.attached not in ((True, False), (False, True)):
+        return False
+    stop = strand.east if strand.attached[0] else strand.west
+    own = [n for n in strand.own() if n != stop]
+    return graph.node_type.get(stop) == NodeType.BUFFER_STOP and all(
+        graph.node_type.get(n) in SOFT for n in own
+    )
+
+
 def _held(
     graph: Graph, strands: list[Strand], model: StationModel, trusted: set[str]
 ) -> tuple[set[str], set[int]]:
@@ -616,9 +632,11 @@ def _held(
     switches and soft nodes, is a track all the same, and no ladder or connector, where it
     carries a numbered station track (one row per station track), or, with no switch of its own
     either, where the drawing shows it running level beside the others (rows follow the
-    drawing). Soft nodes of its own then hold it on a row, as signals would: the first and the
-    last on the station track, or the ends of its level stretch. Returns those nodes and the
-    tracks."""
+    drawing). So is a stub that carries a numbered station track to a buffer stop with nothing
+    but soft nodes on the way: its row holds the station track, at least 14 cells (§3.3), and
+    not only the buffer stop. Soft nodes of its own then hold it on a row, as signals would: the
+    first and the last on the station track, or the ends of its level stretch. Returns those
+    nodes and the tracks."""
     found: set[str] = set()
     tracks: set[int] = set()
     for track in model.station_tracks:
@@ -631,7 +649,7 @@ def _held(
             carriers,
             key=lambda s: (sum(length(graph.pieces[p]) for p in s.pieces if p in pieces), -s.id),
         )
-        if not _between(graph, strand):
+        if not _between(graph, strand) and not _stub(graph, strand):
             continue
         tracks.add(strand.id)
         on = [
@@ -683,34 +701,70 @@ def _ladders(
     """A ladder: a strand that leaves one track and joins another with nothing but switches of
     its own on the way. Its switches stand on the rows of the tracks that leave them, on one
     diagonal, as on a drawn panel; the ladder itself gets no row. A track without signals
-    (_held) is no ladder, and a switch may stand on its row."""
+    (_held) is no ladder, and a switch may stand on its row.
+
+    A switch where only a connector leaves (a line with nothing of its own) stays on the
+    ladder's row. Where the ladder keeps switches at both ends of the diagonal, past those it
+    gave away, its row can hold only one end: the diagonal would come back to it. The switches
+    at the other end stand on the row of the nearest switch it gave away, when that one's track
+    leaves the other way, as with two switches trunk to trunk. Where both ends could, it is the
+    end where the ladder runs the shorter way before its first switch on another row."""
     for ladder in strands:
         if ladder.kind != "track" or ladder.attached != (True, True) or ladder.id in tracks:
             continue
         own = [n for n in ladder.own() if owner.get(n) == ladder.id]
         if not own or any(graph.node_type.get(n) not in SOFT | {NodeType.SWITCH} for n in own):
             continue
+        kept: list[int] = []
+        given: list[int] = []
         for node in own:
-            switch = graph.switch_at.get(node)
-            if switch is None or switch.type != SwitchType.ORDINARY:
+            leaving = _leaving(graph, strands, ladder, node)
+            if leaving is None:
                 continue
-            for side in strands:
-                if side is ladder or not side.pieces:
-                    continue
-                if side.west == node and side.pieces[0] == switch.diverging:
-                    end = 0
-                elif side.east == node and side.pieces[-1] == switch.diverging:
-                    end = 1
-                else:
-                    continue
-                others = [n for n in side.own() if graph.node_type.get(n) not in SOFT or n in held]
-                if not others:
-                    break
-                attached = list(side.attached)
-                attached[end] = False
-                side.attached = (attached[0], attached[1])
-                owner[node] = side.id
-                break
+            side, end = leaving
+            others = [n for n in side.own() if graph.node_type.get(n) not in SOFT or n in held]
+            if not others:
+                kept.append(ladder.nodes.index(node))
+                continue
+            attached = list(side.attached)
+            attached[end] = False
+            side.attached = (attached[0], attached[1])
+            owner[node] = side.id
+            given.append(ladder.nodes.index(node))
+        west = [i for i in kept if given and i < given[0]]
+        east = [i for i in kept if given and i > given[-1]]
+        if not west or not east:
+            continue
+        first, last = ladder.nodes[given[0]], ladder.nodes[given[-1]]
+        # The nearest given switch's track must leave away from the switches that join its row.
+        east_free = strands[owner[last]].east == last
+        west_free = strands[owner[first]].west == first
+        run_west = sum(length(graph.pieces[p]) for p in ladder.pieces[: given[0]])
+        run_east = sum(length(graph.pieces[p]) for p in ladder.pieces[given[-1] :])
+        if east_free and (not west_free or run_west >= run_east):
+            for i in east:
+                owner[ladder.nodes[i]] = owner[last]
+        elif west_free:
+            for i in west:
+                owner[ladder.nodes[i]] = owner[first]
+
+
+def _leaving(
+    graph: Graph, strands: list[Strand], ladder: Strand, node: str
+) -> tuple[Strand, int] | None:
+    """The strand that leaves the ladder's ordinary switch at the node on its diverging leg, and
+    which of its ends is there: 0 west, 1 east."""
+    switch = graph.switch_at.get(node)
+    if switch is None or switch.type != SwitchType.ORDINARY:
+        return None
+    for side in strands:
+        if side is ladder or not side.pieces:
+            continue
+        if side.west == node and side.pieces[0] == switch.diverging:
+            return side, 0
+        if side.east == node and side.pieces[-1] == switch.diverging:
+            return side, 1
+    return None
 
 
 # --- The order of the rows --------------------------------------------------------------
