@@ -11,9 +11,11 @@ from types import SimpleNamespace
 from unittest.mock import Mock, call
 
 import pytest
+from requests import Response
 from scaleway.iam.v1alpha1.types import LocalityType, Quotum, QuotumLimit
 from scaleway.instance.v1.custom_api import InstanceUtilsV1API
 from scaleway.instance.v1.types import Server, ServerAction, ServerState
+from scaleway_core.api import ScalewayException
 
 from deploy import testmiljo
 from deploy.testmiljo import Keys, cloud_init, known_hosts_line
@@ -652,13 +654,49 @@ def test_the_pictures_get_a_key_that_only_reaches_object_storage_in_the_project(
     ]
     assert "hemlig" not in repr(key)
     assert key.key_file() == "SCWNYCKEL\nhemlig\n"
-    # The second deploy reads the key back and makes nothing new.
-    iam.list_applications_all.return_value = [iam.create_application.return_value]
-    iam.list_policies_all.return_value = [SimpleNamespace(name=testmiljo.PICTURES_NAME)]
+    # The second deploy reads the key back, makes nothing new and does not ask IAM at all.
     assert testmiljo.ensure_picture_key(iam, secrets, "proj-1", "org-1") == key
+    assert iam.list_applications_all.call_count == 1
+    assert iam.list_policies_all.call_count == 1
     assert iam.create_application.call_count == 1
     assert iam.create_policy.call_count == 1
     assert iam.create_api_key.call_count == 1
+
+
+def _refused(status: int) -> ScalewayException:
+    """Scaleway's answer when the key lacks the right."""
+    response = Response()
+    response.status_code = status
+    return ScalewayException(response)
+
+
+def test_a_stored_pictures_key_needs_no_iam_rights() -> None:
+    """Once the key is in Secret Manager, the right to make IAM applications can be taken
+    from the deploy's key again: IAM is never asked."""
+    secrets = _secrets()
+    stored = testmiljo.PictureKey(access_key="SCWNYCKEL", secret_key="hemlig")
+    testmiljo.ensure_secret(secrets, "proj-1", testmiljo.PICTURES_SECRET_NAME, "", stored.to_json)
+    iam = Mock()
+    iam.list_applications_all.side_effect = _refused(403)
+
+    def send(method: str, url: str, given: testmiljo.PictureKey) -> int:
+        assert given == stored
+        return 200
+
+    found = testmiljo.ensure_pictures(iam, secrets, "proj-1", "org-1", send)
+    assert found == (testmiljo.bucket_name("proj-1"), stored)
+    assert iam.method_calls == []
+
+
+def test_without_iam_rights_the_notice_says_which_right_and_for_how_long(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    iam = Mock()
+    iam.list_applications_all.side_effect = _refused(403)
+    assert testmiljo.ensure_pictures(iam, _secrets(), "proj-1", "org-1") is None
+    said = capsys.readouterr().out
+    assert "ligger på serverns disk" in said and "HTTP 403" in said
+    assert "IAMManager i organisationen för en körning" in said
 
 
 def test_the_bucket_is_made_once_and_a_new_policy_is_waited_for() -> None:
