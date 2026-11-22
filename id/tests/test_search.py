@@ -917,6 +917,13 @@ def test_the_github_job_runs_the_trial_only_when_started_by_hand() -> None:
         if "ANTHROPIC_API_KEY_SEARCH" in line and "secrets." not in line:
             assert "echo" not in line or "saknas" in line, line
     assert "python -m catalog.prov_webbsokning prov --rapport prov/rapport.md" in job
+    # An earlier run's cases are checked again without a search, and so without the key.
+    search = job.split("- name: Sök\n")[1].split("\n\n")[0]
+    assert "if: ${{ inputs.korning == '' }}" in search
+    again = job.split("- name: Hämta fallen från en tidigare körning\n")[1].split("\n\n")[0]
+    assert "if: ${{ inputs.korning != '' }}" in again and "ANTHROPIC" not in again
+    assert 'KORNING: ${{ inputs.korning }}' in again and '=~ ^[0-9]{1,20}$' in again
+    assert '"${{ inputs.korning }}"' not in again.split("run: |")[1]
 
 
 def test_the_trial_runs_the_cases_and_saves_each_answer_without_the_key(
