@@ -751,6 +751,21 @@ def test_catalog_reads_the_pictures_key_from_its_vault_and_keeps_disk_pictures()
     assert 'catalog-vault/trainmeet_pictures-key\' < "$PICTURES_KEY"' in workflow
 
 
+def test_every_file_the_deploy_sends_reaches_the_deploy_step() -> None:
+    """Each file the deploy step sends to the server (`< "$NAME"`) is in the step's own env or
+    was put in GITHUB_ENV by an earlier step. The pictures' key was neither, so the key never
+    reached catalog-vault, and Catalog stopped once the bucket existed (22 november)."""
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    step = workflow.split("      - name: Lägg ut hubben, Catalog och ID\n", 1)[1]
+    step = step.split("\n      - name: ", 1)[0]
+    env, run = step.split("        run: |\n", 1)
+    own = set(re.findall(r"^          ([A-Z_]+): ", env, re.M))
+    exported = set(re.findall(r'echo "([A-Z_]+)=\$', workflow))
+    sent = set(re.findall(r'< "\$([A-Z_]+)"', run))
+    assert {"CATALOG_ENV", "ID_ENV", "CAD_ENV", "PICTURES_KEY"} <= sent
+    assert sent <= own | exported, sorted(sent - own - exported)
+
+
 # --- CAD:s modulfoton (#89 del c1, CAD-19) ---------------------------------------------------
 
 
