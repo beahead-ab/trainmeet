@@ -159,6 +159,19 @@ def test_the_budget_raises_the_alarm_at_80_and_stops_at_100(owned: Owned) -> Non
     assert page.factor_page_tokens == 11, "0.427 kr × 2 / 7.84 öre"
 
 
+def test_the_eu_profiles_ten_percent_is_counted_in_the_budget(owned: Owned) -> None:
+    """TK14, CAD19: Claude in Bedrock with the EU profile costs 10 % above the list prices the
+    owner's prices build on, so a reading of 7 000 tokens in and 3 000 out counts as 0.47 kr
+    in the month's budget, not 0.43."""
+    owned.claude.profile_factor = 1.1
+    kim = log_in(owned.world, "Kim Ek", "kim@example.com")
+    kim.id = kim.client.get("/api/id/1/session").json()["account"]["id"]
+    me = owned.as_(kim)
+    assert owned.read(kim.id, f"person:{kim.id}", "eu1").status_code == 200
+    page = OwnerPage.model_validate(me.get("/api/id/1/owner").json())
+    assert page.months[0].pages == 1 and round(page.months[0].cost_sek, 2) == 0.47
+
+
 def test_the_owner_gives_and_takes_the_reviewer_role_in_catalog(owned: Owned) -> None:
     """KONTO-30, ID6, CAT-165: Granskare i Catalog is given and taken on the owner page, to
     someone who has logged in to ID, and Catalog sees it at once through the apps' question."""
