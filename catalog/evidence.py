@@ -11,10 +11,12 @@ the real searches (contracts/tokens.py). Nothing of that is trusted here:
   never by what the AI says.
 - An excerpt of the source must hold the value (CAT-169). A number with a unit is compared as a
   number: 1 435 mm, 1435 mm and 1,435 m are the same length. The unit may stand after the
-  number or in the label before it, as in a company's table: Maximum speed (km/h) 120. A count
-  of axles may be written 4 axlar, tvåaxlig, Number of axles 2 or two wheelsets. Text is
-  compared after normalising: case, spaces and the kind of dash do not matter. An excerpt that
-  tells when something was ordered or presented does not hold a year of building.
+  number or in the label before it, as in a company's table: Maximum speed (km/h) 120, also
+  with the middle dot a table leaves: Maximum speed (km/h) · 120. A count of axles may be
+  written 4 axlar, tvåaxlig, Number of axles 2, two wheelsets or as the wheel arrangement after
+  its label, Achsfolge Bo'Bo'. Text is compared after normalising: case, spaces and the kind
+  of dash do not matter. An excerpt that tells when something was ordered or presented does not
+  hold a year of building.
 - A value without such evidence is dropped, never proposed. What is kept is the evidence and
   the address per field.
 
@@ -109,6 +111,20 @@ COUNT_LABELS: Final[dict[str, tuple[str, ...]]] = {
     # A label that is the count itself, so that the number stands after it: Achszahl 4.
     "axles": ("achszahl", "achsanzahl", "axelantal", "axle count"),
 }
+ARRANGEMENT_LABELS: Final[dict[str, tuple[str, ...]]] = {
+    # A label after which the wheel arrangement stands, which counts the axles: Bo'Bo' is four.
+    "axles": (
+        "achsfolge",
+        "axelföljd",
+        "hjulföljd",
+        "axle arrangement",
+        "wheel arrangement",
+        "uic axles",
+    ),
+}
+_ARRANGEMENT: Final = re.compile(r"(?:(?:[A-D]o?|[1-4])['\u2019\u2032]?[-+]?)+")
+"""Bo'Bo', Co'Co', B-B, 1'D1': groups of a letter, or a digit, each with a prime or not."""
+_AXLES_IN: Final = {"A": 1, "B": 2, "C": 3, "D": 4, "1": 1, "2": 2, "3": 3, "4": 4}
 _WORDS: Final = {
     "två": 2,
     "tva": 2,
@@ -140,6 +156,9 @@ _GLUED: Final = (
 Read beside _NUMBER, never instead of it: BR185 120 km/h is still 120 km/h."""
 _AFTER: Final = r"(?![0-9A-Za-zÀ-ÖØ-öø-ÿ/])"
 _NOT_A_DIGIT_AFTER: Final = r"(?![.,]?\d)"
+_SEPARATOR: Final = r"(?:\s*[:=\u00b7])*\s*"
+"""Between a label and its number: nothing, a colon, or the middle dot a table leaves when it
+loses its columns, Average tare weight (kg) · 15,500 and Achsen: · 4."""
 _COUNT_OF: Final = r"(?:number\s+of|no\.?\s+of|antal|anzahl(?:\s+der)?)"
 """Words before the counted thing that make the label a count: Number of axles 2."""
 _EACH: Final = r"(?!\s+(?:per|pro|je)\b)"
@@ -201,7 +220,7 @@ def _in_unit(excerpt: str, unit: str) -> set[Decimal]:
             factor = names[match[2].lower()]
             found |= {number * factor for number in numbers(match[1])}
     before = re.compile(
-        rf"[(\[]\s*({units})\s*[)\]]\s*[:=]?\s*{_NUMBER}{_NOT_A_DIGIT_AFTER}", re.IGNORECASE
+        rf"[(\[]\s*({units})\s*[)\]]{_SEPARATOR}{_NUMBER}{_NOT_A_DIGIT_AFTER}", re.IGNORECASE
     )
     for match in before.finditer(excerpt):
         factor = names[match[1].lower()]
@@ -229,14 +248,29 @@ def _counted(excerpt: str, words: Sequence[str], labels: Sequence[str] = ()) -> 
     ):
         found.add(Decimal(_WORDS[match[1].lower()]))
     counts = [
-        rf"\b{_COUNT_OF}\s+(?:{what})\s*[:=]?",  # Number of axles 2, Antal axlar 2
-        rf"\b(?:{what})\s*[:=]",  # Achsen: 4
+        rf"\b{_COUNT_OF}\s+(?:{what})",  # Number of axles 2, Antal axlar 2
+        rf"\b(?:{what})\s*[:=\u00b7]",  # Achsen: 4
     ]
     if labels:
-        counts.append(rf"\b(?:{_unit_pattern(labels)})\s*[:=]?")  # Achszahl 4
+        counts.append(rf"\b(?:{_unit_pattern(labels)})")  # Achszahl 4
     for label in counts:
-        for match in re.finditer(rf"{label}\s*(\d+){_NOT_A_DIGIT_AFTER}", excerpt, re.IGNORECASE):
+        for match in re.finditer(
+            rf"{label}{_SEPARATOR}(\d+){_NOT_A_DIGIT_AFTER}", excerpt, re.IGNORECASE
+        ):
             found.add(Decimal(match[1]))
+    return found
+
+
+def _arranged(excerpt: str, labels: Sequence[str]) -> set[Decimal]:
+    """The axles in a wheel arrangement after its label, UIC axles: · Bo'Bo' or Achsfolge
+    Co'Co': a letter is driven axles, A one to D four, and a digit is that many axles that are
+    not. Only after the label, since a letter and a prime alone can be anything."""
+    label = rf"(?i:\b(?:{_unit_pattern(labels)}))"
+    found: set[Decimal] = set()
+    for match in re.finditer(rf"{label}{_SEPARATOR}([\w'\u2019\u2032+-]{{2,20}})", excerpt):
+        written = match[1].strip("-+")
+        if _ARRANGEMENT.fullmatch(written) and re.search("[A-D]", written):
+            found.add(Decimal(sum(_AXLES_IN[c] for c in written if c in _AXLES_IN)))
     return found
 
 
@@ -283,7 +317,10 @@ def supports(key: str, value: str, excerpt: str) -> bool:
             return any(abs(each - wanted) <= Decimal("0.01") for each in found)
         return wanted in found
     if key in COUNTED and known.kind is INTEGER:
-        return wanted in _counted(excerpt, COUNTED[key], COUNT_LABELS.get(key, ()))
+        counted = _counted(excerpt, COUNTED[key], COUNT_LABELS.get(key, ()))
+        if key in ARRANGEMENT_LABELS:
+            counted |= _arranged(excerpt, ARRANGEMENT_LABELS[key])
+        return wanted in counted
     return False
 
 

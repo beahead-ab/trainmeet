@@ -23,6 +23,7 @@ from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
 from contracts.tokens import (
+    MeterCitation,
     MeterSearch,
     MeterSearchAnswer,
     MeterSearchField,
@@ -42,6 +43,7 @@ from id.db import Database
 from id.roles import Refused
 from id.search import (
     ADDRESS,
+    SYSTEM,
     AnthropicSearch,
     Searched,
     SearchFailed,
@@ -49,6 +51,7 @@ from id.search import (
     prompt,
     settings_from,
     understand,
+    value_only,
 )
 from id.settings import Settings
 from id.tests.test_api import API, INTERNAL, ISSUER, PUBLIC, SECRET, World, log_in
@@ -324,6 +327,83 @@ def test_the_fields_own_unit_after_a_number_is_left_out() -> None:
         ("length_over_buffers", "14,02 m")
     ]
     assert understand(blocks, asked()).text.startswith("length_over_buffers: 14 020 mm")
+
+
+DB = "https://wagon-catalogue.example/Hbis-tt-293"
+WRITTEN_AFTER_THE_VALUE = [
+    # What Claude wrote on its lines in the first real searches (22 November), with the address
+    # made up, and the value the app reads: the kind of field, its unit, written, read.
+    ("number", "km/h", "135 (https://en.wikipedia.example/wiki/SJ_Rc)", "135"),
+    ("integer", "", "4 (https://example.org/model/605/, which gives it as Bo'Bo')", "4"),
+    ("number", "mm", "18900 (Udo Krupp data sheet)", "18900"),
+    ("number", "mm", '13000 (data sheet, "Gesamtradsatzstand")', "13000"),
+    (
+        "number",
+        "km/h",
+        "200 Största tillåtna hastighet: 200 km/h (https://sv.x/X2_(t%C3%A5g))",
+        "200",
+    ),
+    ("number", "mm", "2900 Axelavstånd: 2 900 mm (https://sv.x/X2_(t%C3%A5g))", "2900"),
+    ("number", "t", f"15.5 Average tare weight (kg) · 15,500 ({DB})", "15.5"),
+    ("integer", "", f"2 Freight wagon with two wheelsets ({DB})", "2"),
+    ("text", "", "1979-1990 https://en.wikipedia.example/wiki/SJ_B7", "1979-1990"),
+    ("text", "", "2000-2008 (Udo Krupp data sheet)", "2000-2008"),
+    ("text", "", "1989–1998 Tågsätten byggdes mellan 1989 och 1998 (https://sv.x/X2)", "1989–1998"),
+    ("text", "", f"KE-GP-A Brake type · KE-GP-A ({DB})", "KE-GP-A"),
+    (
+        "text",
+        "",
+        "1976 (oldest wagons; converted 1998) First year of delivery · 1976; Conversion year · "
+        f"1998 (from Hbills-x 295) ({DB})",
+        "1976",
+    ),
+    # What is not plainly the value stays as written, and the app refuses it or holds it to the
+    # excerpt: a number with a digit or another unit after it, a word first, a range.
+    ("number", "mm", "14 020 (https://example.org)", "14 020"),
+    ("number", "mm", "1.435 m (https://example.org)", "1.435 m"),
+    ("number", "km/h", "about 100 (https://example.org)", "about 100"),
+    ("number", "km/h", "160-200 (https://example.org)", "160-200"),
+    (
+        "text",
+        "",
+        "Power car: tread brake Bromsar: Blockbroms",
+        "Power car: tread brake Bromsar: Blockbroms",
+    ),
+    ("text", "", "(okänt)", "(okänt)"),
+]
+
+
+@pytest.mark.parametrize(("kind", "unit", "written", "read"), WRITTEN_AFTER_THE_VALUE)
+def test_what_claude_writes_after_a_value_is_not_the_value(
+    kind: str, unit: str, written: str, read: str
+) -> None:
+    """In the first real searches Claude wrote its source after the value, on the same line, and
+    Catalog refused every value as the wrong format. The value is what stands first; the
+    citation is still the evidence, and the app still holds the value to the excerpt."""
+    assert value_only(written, kind, unit) == read
+
+
+def test_claude_is_told_to_write_the_value_alone_and_cite_it_with_the_tool() -> None:
+    rule = " ".join(SYSTEM.split("key: value")[1].split())
+    assert "write the value and nothing more" in rule
+    for left_out in ("no address", "no name of a source", "no quote", "no explanation"):
+        assert left_out in rule, left_out
+    assert "search tool's citation" in rule
+    blocks: list[dict[str, Any]] = [
+        {"type": "text", "text": "max_speed: 120 "},
+        {
+            "type": "text",
+            "text": "Maximum speed (km/h) · 120",
+            "citations": [citation(DB, "Hbis-tt 293", "Maximum speed (km/h) · 120")],
+        },
+        {"type": "text", "text": f" ({DB})\nbuilt: 1976 First year · 1976"},
+    ]
+    found = understand(blocks, asked())
+    assert [(value.key, value.value) for value in found.values] == [
+        ("max_speed", "120"),
+        ("built", "1976"),
+    ]
+    assert [c.url for c in found.values[0].citations] == [DB]
 
 
 def test_a_search_that_itself_failed_is_no_answer() -> None:
@@ -922,7 +1002,8 @@ def test_the_github_job_runs_the_trial_only_when_started_by_hand() -> None:
     assert "if: ${{ inputs.korning == '' }}" in search
     again = job.split("- name: Hämta fallen från en tidigare körning\n")[1].split("\n\n")[0]
     assert "if: ${{ inputs.korning != '' }}" in again and "ANTHROPIC" not in again
-    assert 'KORNING: ${{ inputs.korning }}' in again and '=~ ^[0-9]{1,20}$' in again
+    assert "python -m id.prov_webbsokning --igen prov" in again, "read with the meter of today"
+    assert "KORNING: ${{ inputs.korning }}" in again and "=~ ^[0-9]{1,20}$" in again
     assert '"${{ inputs.korning }}"' not in again.split("run: |")[1]
 
 
@@ -970,3 +1051,53 @@ def test_the_trial_runs_the_cases_and_saves_each_answer_without_the_key(
     for wrong in (["--fall", "0"], ["--fall", "10"], ["--fall", "en"], []):
         assert prov_webbsokning.main([*wrong, "--nyckelfil", str(key)], http=http) == 2
     assert len(sent) == 11, "a wrong choice searches nothing"
+
+
+def test_the_saved_cases_are_read_again_without_a_search_or_the_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """--igen reads the values of saved cases again with the meter's reading as it is now, so
+    that a change there is tried on the same answers for nothing: no key, no search."""
+    monkeypatch.delenv("ID_SEARCH_KEY_FILE", raising=False)
+    folder = tmp_path / "prov"
+    folder.mkdir()
+    cited = MeterCitation(url=DB, title="Hbis-tt 293", cited_text="Maximum speed (km/h) · 120")
+    trial = MeterSearchTrial(
+        asked=asked(),
+        model="claude-sonnet-5-5",
+        tool="web_search_20260318",
+        text="max_speed: 120 (…)",
+        values=[
+            MeterSearchValue(key="max_speed", value=f"120 ({DB})", citations=[cited]),
+            MeterSearchValue(key="axles", value="2"),
+            MeterSearchValue(key="built", value="1979-1990 https://example.org/B7"),
+        ],
+        results=[MeterSearchResult(url=DB, title="Hbis-tt 293")],
+        searches=1,
+        input_tokens=15_000,
+        output_tokens=200,
+        cost_usd=0.04,
+        cost_sek=0.4,
+        tokens=11,
+    )
+    path = folder / "01-hbis.json"
+    path.write_text(trial.model_dump_json())
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        raise AssertionError("no search")
+
+    http = httpx.Client(transport=httpx.MockTransport(refuse))
+    assert prov_webbsokning.main(["--igen", str(folder)], http=http) == 0
+    assert "1 fall lästa igen med mätarens läsning, 2 värden ändrades." in capsys.readouterr().out
+    again = MeterSearchTrial.model_validate_json(path.read_text())
+    assert [(value.key, value.value) for value in again.values] == [
+        ("max_speed", "120"),
+        ("axles", "2"),
+        ("built", "1979-1990"),
+    ]
+    assert again.values[0].citations == [cited] and again.text == trial.text
+    assert again.tokens == 11 and again.cost_sek == 0.4, "what the search cost is kept"
+
+    (folder / "02-trasig.json").write_text("{}")
+    assert prov_webbsokning.main(["--igen", str(folder)]) == 2
+    assert prov_webbsokning.main(["--igen", str(tmp_path / "tom")]) == 2

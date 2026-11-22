@@ -11,8 +11,11 @@ The call is the Messages API with the server tool web_search, called directly
 (allowed_callers: direct), so that every search's results and every citation come back in the
 answer: Claude is asked to answer with one line per field, `key: value`, and the citations on
 the text of a line (web_search_result_location: url, title, cited_text) are that value's
-evidence. What Claude says without a citation is passed on without one, and it is for the app
-to refuse it (Catalog: CAT-167–CAT-169). The results of the real searches are passed on too, so
+evidence. What Claude writes after a value is not the value (value_only): an address, a source
+or an explanation in brackets, or the source's own words, 135 (https://…) or 200 Största
+tillåtna hastighet: 200 km/h, as the first real searches did (beslut 22 november). What Claude
+says without a citation is passed on without one, and it is for the app to refuse it (Catalog:
+CAT-167–CAT-169). The results of the real searches are passed on too, so
 that the app can tell a real source from an invented one.
 
 Called with httpx, as the meter calls Bedrock (id/meter.py) and for the same reason: Anthropic's
@@ -163,7 +166,10 @@ t), never between metric and US units.
 
 Answer with one line per field you found and nothing else, exactly like this:
 key: value
-Each line must cite the page the value was read from. Leave out every field you did not find."""
+After the colon write the value and nothing more: no address, no name of a source, no quote and \
+no explanation. Cite the page the value was read from with the search tool's citation on the \
+value itself, never by writing the address or the page's words. Leave out every field you did \
+not find."""
 
 _KINDS: Final = {
     "locomotive": "locomotive",
@@ -232,6 +238,92 @@ def _without_unit(value: str, unit: str) -> str:
     return number if number[-1:].isdigit() else value
 
 
+_ADDRESS_AT_END: Final = re.compile(r"\s+<?https?://\S+$", re.IGNORECASE)
+_LEADING_NUMBER: Final = re.compile(r"[+-]?\d+(?:[.,]\d+)?(?=\s|$)")
+_UNITS: Final = frozenset(
+    {
+        "mm", "cm", "dm", "m", "km", "km/h", "kmh", "kph", "mph", "t", "ton", "tons", "tonne",
+        "tonnes", "kg", "g", "lb", "lbs", "ft", "feet", "foot", "in", "inch", "inches", "kn",
+        "kw", "hp", "ps", "m2", "m²", "m3", "m³", "%", "'", '"',
+    }
+)  # fmt: skip
+"""Units a number may be written with. Another unit than the field's own after the number keeps
+the value as written, 1.435 m for a field in mm, so that the app refuses it."""
+_WORD_SEPARATORS: Final = re.compile(r"[\s\u00b7;:,()\[\]]+")
+
+
+def _opening(value: str) -> int:
+    """Where the brackets that end the value open, or -1."""
+    depth = 0
+    for index in range(len(value) - 1, -1, -1):
+        if value[index] == ")":
+            depth += 1
+        elif value[index] == "(":
+            depth -= 1
+            if depth == 0:
+                return index
+    return -1
+
+
+def _notes_removed(value: str) -> str:
+    """Claude's own notes at the end of a value: an address, 1979-1990 https://…, or a source or
+    an explanation in brackets, 135 (https://…) or 2000-2008 (data sheet). Never the whole
+    value, and brackets in an address are counted, X2_(tåg)."""
+    while True:
+        before = value
+        value = _ADDRESS_AT_END.sub("", value).rstrip(" ,;")
+        if value.endswith(")") and (opening := _opening(value)) > 0:
+            value = value[:opening].rstrip(" ,;")
+        if value == before:
+            return value
+
+
+def _quote_removed(value: str) -> str:
+    """A text value that Claude followed with the source's own words, which say the value again:
+    KE-GP-A Brake type · KE-GP-A, or 1989–1998 Tågsätten byggdes mellan 1989 och 1998. The value
+    is then the first word. Anything else stays as written, and the app holds it to the
+    excerpt."""
+    first, _, rest = value.partition(" ")
+    first = first.rstrip(",;:")
+    if not rest or not first:
+        return value
+    words = set(_WORD_SEPARATORS.split(rest.casefold()))
+    if first.casefold() in words:
+        return first
+    years, said = re.findall(r"\d+", first), re.findall(r"\d+", rest)
+    only_years = re.fullmatch(r"[\d\u2010-\u2015\u2212./-]+", first) is not None
+    if years and only_years and all(year in said for year in years):
+        return first
+    return value
+
+
+def _number_only(value: str, unit: str) -> str:
+    """A number that Claude followed with words, 200 Största tillåtna hastighet: 200 km/h or
+    2 Freight wagon with two wheelsets, is the number. Not when a digit or another unit follows:
+    14 020 and 1.435 m stay as written, and the app refuses them."""
+    match = _LEADING_NUMBER.match(value)
+    if match is None:
+        return value
+    rest = value[match.end() :].split()
+    if not rest:
+        return match[0]
+    word = rest[0].casefold().rstrip(".,;:")
+    if word == unit.casefold():
+        return match[0]
+    if rest[0][0].isdigit() or word in _UNITS:
+        return value
+    return match[0]
+
+
+def value_only(written: str, kind: str, unit: str) -> str:
+    """The value on Claude's line as the app reads it: without quotes, the field's own unit,
+    Claude's notes and the source's words after it. It is still held to the excerpt."""
+    value = _notes_removed(_clean(written))
+    if kind == "text":
+        return _quote_removed(value)
+    return _number_only(_without_unit(value, unit), unit)
+
+
 def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
     """The proposed values, the citations on each and the real results, from the content of
     Claude's turn. A key that is given twice with different values is left out: nothing tells
@@ -276,7 +368,7 @@ def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
     if failed and not succeeded:
         raise SearchFailed("Webbsökningen kunde inte söka just nu.")
     pattern = _line(frozenset(each.key for each in asked.fields))
-    units = {each.key: each.unit for each in asked.fields if each.kind != "text"}
+    kinds = {each.key: (each.kind, each.unit) for each in asked.fields}
     found_values: dict[str, tuple[str, list[MeterCitation]]] = {}
     conflicting: set[str] = set()
     start = 0
@@ -284,7 +376,8 @@ def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
         end = start + len(line)
         match = pattern.match(line)
         if match is not None:
-            key, value = match[1], _without_unit(_clean(match[2]), units.get(match[1], ""))
+            key = match[1]
+            value = value_only(match[2], *kinds[key])
             if value.casefold() not in _NOTHING and len(value) <= 1000:
                 citations = _citations(spans, start, end)
                 if key in found_values and found_values[key][0] != value:

@@ -9,8 +9,8 @@
 # och i filen prov-webbsokning. Det är bara det sökningen hittade på öppna sidor och märkningen.
 #
 # Med korning (numret i en tidigare körnings adress) söks inget: fallen hämtas från den
-# körningen och kontrolleras igen, till exempel efter en ändring i Catalogs regler. Det kostar
-# ingenting.
+# körningen, värdena läses om med mätarens läsning som den är nu och kontrolleras igen, till
+# exempel efter en ändring i mätaren eller i Catalogs regler. Det kostar ingenting.
 name: Prov av webbsökningen
 
 on:
@@ -76,6 +76,7 @@ jobs:
           fi
           gh run download "$KORNING" --repo "$GITHUB_REPOSITORY" --name prov-webbsokning --dir prov
           rm -f prov/rapport.md
+          uv run python -m id.prov_webbsokning --igen prov
 
       - name: Catalogs kontroll av belägget
         if: ${{ !cancelled() && hashFiles('prov/*.json') != '' }}

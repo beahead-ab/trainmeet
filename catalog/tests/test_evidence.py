@@ -271,6 +271,19 @@ def test_numbers_with_units_are_compared_as_numbers_and_text_after_normalising(
         ("axles", "2", "Number of axles 2"),
         # A table whose cells lost the space between them.
         ("length_over_buffers", "14040", "Length over buffers14 040 mm"),
+        # The nine cases (22 November): the excerpts as the search gave them, with a middle dot
+        # where the table had a cell, and the axles as a wheel arrangement.
+        ("weight", "15.5", "Average tare weight (kg) · 15,500 Maximum s..."),
+        ("max_speed", "120", "Average tare weight (kg) · 15,500 Maximum speed (km/h) · 120"),
+        ("brake", "KE-GP-A", "Brake type · KE-GP-A"),
+        ("built", "2000-2008", "Datenblatt Baureihe 185 - Baujahre: · 2000-2008 - Betriebsnummern"),
+        (
+            "length_over_buffers",
+            "15520",
+            "Gauge: · 1435 mm - UIC axles: · Bo'Bo' - Length: · 15.52 m",
+        ),
+        ("axles", "4", "Gauge: · 1435 mm - UIC axles: · Bo'Bo' - Length: · 15.52 m"),
+        ("axles", "4", "The TRAXX F140 AC is a four-axle locomotive with an output of 5600 kW"),
     ],
 )
 def test_a_primary_sources_table_holds_its_values(key: str, said: str, excerpt: str) -> None:
@@ -304,6 +317,16 @@ def test_a_primary_sources_table_holds_its_values(key: str, said: str, excerpt: 
         ("axles", "2", "4 axles 2 bogies", False),
         ("axles", "2", "Number of axles 24", False),
         ("axles", "2", "Axle load: 22.5 t", False),
+        # The wheel arrangement counts the axles, a letter its driven ones and a digit the
+        # others, but only after its label.
+        ("axles", "6", "Achsfolge Co'Co'", True),
+        ("axles", "6", "Axle arrangement: 1'D1'", True),
+        ("axles", "4", "Wheel arrangement · B-B", True),
+        ("axles", "4", "Bo'Bo' locomotive", False),
+        ("axles", "4", "Achsfolge: Bobby", False),
+        ("axles", "4", "UIC axles: · Bo'Bo'", True),
+        ("axles", "2", "UIC axles: · Bo'Bo'", False),
+        ("axles", "4", "Achsen: · 4", True),
         # So many per bogie is not the vehicle's count.
         ("axles", "2", "2 axlar per boggi", False),
         ("axles", "2", "två hjulpar per boggi", False),
