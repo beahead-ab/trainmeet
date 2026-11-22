@@ -1,5 +1,6 @@
-"""The hub's SQLite files (core/sqlite.py): made ready when the store is made, and a file another
-connection writes to is waited for, never refused at once."""
+"""The hub's SQLite files (core/sqlite.py): made ready when the store is made, a file another
+connection writes to is waited for, never refused at once, and a transaction that only reads
+does not wait for a write at all."""
 
 from __future__ import annotations
 
@@ -11,7 +12,7 @@ from threading import Event, Thread
 
 import pytest
 
-from core.sqlite import BUSY_SECONDS, add_columns, connect, prepare
+from core.sqlite import BUSY_SECONDS, add_columns, connect, prepare, reading
 
 SCHEMA = "CREATE TABLE IF NOT EXISTS thing (id TEXT PRIMARY KEY);"
 
@@ -114,3 +115,31 @@ def test_processes_starting_on_a_new_file_add_each_column_once(tmp_path: Path) -
     with closing(sqlite3.connect(path)) as db:
         present = [str(row[1]) for row in db.execute("PRAGMA table_info(thing)")]
     assert present == ["id", *(c for c, _ in columns)]
+
+
+def test_a_transaction_that_only_reads_does_not_wait_for_a_write(tmp_path: Path) -> None:
+    """With write-ahead logging a deferred read goes on while another connection holds the write,
+    and sees the file as it was before that write."""
+    path = tmp_path / "planering.sqlite3"
+    prepare(path, SCHEMA)
+    with closing(connect(path)) as db, db:
+        db.execute("INSERT INTO thing VALUES ('a')")
+    thread = holding(path, seconds=2.0)
+    try:
+        start = time.monotonic()
+        with reading(path) as db:
+            found = [row[0] for row in db.execute("SELECT id FROM thing")]
+        assert time.monotonic() - start < 1
+    finally:
+        thread.join()
+    assert found == ["a"]
+
+
+def test_a_transaction_that_only_reads_may_not_write(tmp_path: Path) -> None:
+    path = tmp_path / "planering.sqlite3"
+    prepare(path, SCHEMA)
+    with reading(path) as db, pytest.raises(sqlite3.OperationalError, match="readonly"):
+        db.execute("INSERT INTO thing VALUES ('a')")
+    with closing(connect(path)) as db:
+        assert db.execute("SELECT count(*) FROM thing").fetchone()[0] == 0
+

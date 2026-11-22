@@ -14,14 +14,18 @@ stand in each other's way:
   (add_columns), so that two processes starting on a new file at once never add the same one.
 - A transaction waits up to BUSY_SECONDS for another connection's write (connect), rather than
   sqlite3's five seconds: a big import on a Pi can hold the write that long.
+- A transaction that only reads (reading) takes no write lock. With write-ahead logging it then
+  neither waits for a write nor holds one up: the hub's check of a session on every request
+  goes on while an import writes. It sees the file as it was when it first read, to the end,
+  and SQLite refuses it a write.
 """
 
 from __future__ import annotations
 
 import sqlite3
 import time
-from collections.abc import Iterable
-from contextlib import closing
+from collections.abc import Iterable, Iterator
+from contextlib import closing, contextmanager
 from pathlib import Path
 from typing import Final
 
@@ -33,6 +37,19 @@ def connect(path: Path) -> sqlite3.Connection:
     """A connection to the file, whose transactions wait up to BUSY_SECONDS for another
     connection's write before they say that the database is locked."""
     return sqlite3.connect(path, timeout=BUSY_SECONDS)
+
+
+@contextmanager
+def reading(path: Path) -> Iterator[sqlite3.Connection]:
+    """A transaction that only reads: deferred, without the write lock that BEGIN IMMEDIATE
+    takes, and on a connection that may not write (query_only)."""
+    with closing(connect(path)) as db:
+        db.execute("PRAGMA query_only=ON")
+        db.execute("BEGIN")
+        try:
+            yield db
+        finally:
+            db.rollback()
 
 
 def prepare(path: Path, schema: str) -> None:

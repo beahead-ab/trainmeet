@@ -26,7 +26,7 @@ from pydantic import ValidationError
 from contracts.common import checksum
 from contracts.meet import MeetPackage
 from contracts.planning import Version
-from core.sqlite import connect, prepare
+from core.sqlite import connect, prepare, reading
 
 # The same table Planering kept before Synk came (step 4a), so the versions in a hub's file
 # stay where they are.
@@ -80,24 +80,31 @@ class Versions:
             db.execute("BEGIN IMMEDIATE")
             yield db
 
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
+            yield db
+
     # --- Reading -----------------------------------------------------------------------------
 
     def meets(self) -> dict[str, list[Version]]:
         """Every meet's versions, in order."""
         found: dict[str, list[Version]] = {}
-        with self._transaction() as db:
+        with self._reading() as db:
             for meet, info in db.execute("SELECT meet_id, info FROM version ORDER BY number"):
                 found.setdefault(meet, []).append(Version.model_validate_json(info))
         return found
 
     def versions(self, meet: str) -> list[Version]:
-        with self._transaction() as db:
+        with self._reading() as db:
             return _versions(db, meet)
 
     def stored(self, meet: str, number: int) -> tuple[Version, bytes]:
         """The version and its package as the bytes it was published as, checked against the
         checksum. Raises UnknownVersion or Damaged."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT info, package FROM version WHERE meet_id=? AND number=?", (meet, number)
             ).fetchone()

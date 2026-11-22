@@ -23,7 +23,7 @@ from typing import Final, Protocol
 
 from contracts.station_outside import StationOutside
 from contracts.sync import StationPackage, StationVersionInfo
-from core.sqlite import connect, prepare
+from core.sqlite import connect, prepare, reading
 
 MAX_BYTES: Final = 2 * 1024 * 1024
 MAX_VERSIONS: Final = 500
@@ -85,6 +85,13 @@ class Stations:
             db.execute("BEGIN IMMEDIATE")
             yield db
 
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
+            yield db
+
     @staticmethod
     def _owned(db: sqlite3.Connection, station: str, owner: str) -> int:
         """The latest version, 0 for none. Raises NotOwner when someone else owns it."""
@@ -133,7 +140,7 @@ class Stations:
         return info
 
     def versions(self, owner: str, station: str) -> list[StationVersionInfo]:
-        with self._transaction() as db:
+        with self._reading() as db:
             self._owned(db, station, owner)
             rows = db.execute(
                 "SELECT version, saved, checksum, name FROM sync_station "
@@ -154,7 +161,7 @@ class Stations:
     def owned(self, owner: str) -> list[StationVersionInfo]:
         """Dina stationer (TKL5): the latest version of each station the owner has, by name.
         Only the owner's; another owner's stations are never listed."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT s.station_id, s.version, s.saved, s.checksum, s.name FROM sync_station s "
                 "JOIN (SELECT station_id, max(version) AS latest FROM sync_station "
@@ -176,7 +183,7 @@ class Stations:
 
     def package(self, owner: str, station: str, version: int) -> bytes:
         """The whole package of a version, as it came: only to its owner."""
-        with self._transaction() as db:
+        with self._reading() as db:
             self._owned(db, station, owner)
             row = db.execute(
                 "SELECT body FROM sync_station WHERE station_id=? AND version=?",
@@ -189,7 +196,7 @@ class Stations:
     def outside(self, station: str, version: int | None = None) -> tuple[int, StationOutside]:
         """Only the outside, for a meet or a Pi (SYNK-12): the latest version, or the one
         asked for. The inside never leaves Synk."""
-        with self._transaction() as db:
+        with self._reading() as db:
             if version is None:
                 row = db.execute(
                     "SELECT version, body FROM sync_station WHERE station_id=? "

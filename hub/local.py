@@ -25,7 +25,7 @@ from secrets import randbelow, token_bytes, token_urlsafe
 from threading import Lock
 from typing import Final
 
-from core.sqlite import add_columns, connect, prepare
+from core.sqlite import add_columns, connect, prepare, reading
 from integrationer import fastclock
 
 SESSION_LIFETIME: Final = timedelta(hours=12)
@@ -280,8 +280,15 @@ class LocalLogin:
             db.execute("BEGIN IMMEDIATE")
             yield db
 
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
+            yield db
+
     def state(self) -> HubState:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT name FROM hub WHERE id=1").fetchone()
         return HubState(set_up=row is not None, name=row[0] if row else self.default_name)
 
@@ -444,7 +451,7 @@ class LocalLogin:
         """The session's role: the administrator's anywhere, a let-in role only in its meet."""
         if not token or len(token) > 120:
             return None
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT role, run FROM session WHERE token_hash=? AND expires>?",
                 (_token_hash(token), _now().timestamp()),
@@ -458,7 +465,7 @@ class LocalLogin:
 
     def let_in(self, run: str) -> list[LetIn]:
         """Who was let in to the meet with a code, and still is."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT token_hash, name, role, since, expires FROM session "
                 "WHERE run=? AND expires>? ORDER BY since",
@@ -490,7 +497,7 @@ class LocalLogin:
         return self.role(token) == ADMIN
 
     def ai(self) -> AiSetting | None:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT format, address, model, key, checked FROM ai").fetchone()
         if row is None:
             return None
@@ -513,7 +520,7 @@ class LocalLogin:
     def tellurian(self, meet: str) -> tuple[str, str, bool]:
         """Tellurian Dispatch for a meet (IMPORT-06): mode, address and test instance. Off by
         default, and never sent to the cloud."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT mode, address, test_instance FROM tellurian WHERE meet=?", (meet,)
             ).fetchone()
@@ -531,7 +538,7 @@ class LocalLogin:
     def clock_source(self, meet: str) -> fastclock.Settings:
         """Träffens klocka (F12): per meet, so another meet never gets a clock's name or
         password. The password stays here and is never shown."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT source, clock_name, url, user, password, poll_interval FROM clock_source "
                 "WHERE meet=?",
@@ -565,7 +572,7 @@ class LocalLogin:
 
     def paper_reading(self, meet: str) -> PaperReading:
         """Who pays for reading a driver's paper at the meet (LOK-33): the driver by default."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT payer, person FROM paper_reading WHERE meet=?", (meet,)
             ).fetchone()
@@ -581,7 +588,7 @@ class LocalLogin:
             )
 
     def meet_wifi(self) -> MeetWifi | None:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT name, open, password FROM meet_wifi").fetchone()
         return None if row is None else MeetWifi(row[0], bool(row[1]), row[2])
 
@@ -674,7 +681,7 @@ class LocalLogin:
     def pi_attempt(self, attempt: str | None) -> PiAttempt | None:
         if not attempt or len(attempt) > 100:
             return None
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT meet, pi, back FROM pi_login WHERE attempt_hash=? AND expires>?",
                 (_token_hash(attempt), _now().timestamp()),
@@ -716,7 +723,7 @@ class LocalLogin:
         """The roles from the ticket the session was started with, or None for no ticket."""
         if not token or len(token) > 120:
             return None
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT ticket_roles FROM session WHERE token_hash=? AND expires>?",
                 (_token_hash(token), _now().timestamp()),
@@ -734,7 +741,7 @@ class LocalLogin:
             )
 
     def id_keys(self) -> str | None:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT jwks FROM id_keys WHERE id=1").fetchone()
         return str(row[0]) if row is not None else None
 
@@ -762,7 +769,7 @@ class LocalLogin:
         """The access token from ID the session holds for the person, if any."""
         if not token or len(token) > 120:
             return None
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT access, refresh, access_until FROM session WHERE token_hash=? "
                 "AND expires>? AND person IS NOT NULL AND access IS NOT NULL",
@@ -784,7 +791,7 @@ class LocalLogin:
         """Who the session is, if it is a login with ID."""
         if not token or len(token) > 120:
             return None
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT person, name FROM session WHERE token_hash=? AND expires>? "
                 "AND person IS NOT NULL",

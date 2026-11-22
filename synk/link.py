@@ -23,7 +23,7 @@ from typing import Final
 
 from contracts.drift import ProposalStatus
 from contracts.sync import CloudLink, Follower, Hello, LinkCode
-from core.sqlite import connect, prepare
+from core.sqlite import connect, prepare, reading
 
 CODE_LIFETIME: Final = timedelta(minutes=15)
 MAX_FAILURES: Final = 10  # wrong codes within FAILURE_WINDOW before the cloud waits
@@ -93,6 +93,13 @@ class Links:
     def _transaction(self) -> Iterator[sqlite3.Connection]:
         with self._lock, closing(connect(self.path)) as db, db:
             db.execute("BEGIN IMMEDIATE")
+            yield db
+
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
             yield db
 
     def hub_id(self) -> str:
@@ -183,7 +190,7 @@ class Links:
         )
 
     def followers(self, meet: str) -> list[Follower]:
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT hello, linked, heard FROM sync_follower WHERE meet_id=? ORDER BY linked",
                 (meet,),
@@ -228,13 +235,13 @@ class Links:
             )
 
     def reaches(self) -> list[Reach]:
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute("SELECT meet_id, address, key FROM sync_leader").fetchall()
         return [Reach(str(m), str(a), str(k)) for m, a, k in rows]
 
     def clouds(self, counts: dict[str, int]) -> list[CloudLink]:
         """The meets the Pi follows, as the administrator sees them: never the key."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT meet_id, address, meet_name, cloud, linked, heard, problem"
                 " FROM sync_leader ORDER BY linked"
@@ -273,7 +280,7 @@ class Links:
             )
 
     def answers(self, meet: str) -> dict[str, ProposalStatus]:
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT change_id, status FROM sync_answer WHERE meet_id=?", (meet,)
             ).fetchall()
