@@ -2,6 +2,7 @@
 
     python -m id.prov_webbsokning --litt Hbis --bolag "Green Cargo" --slag freight_wagon
     python -m id.prov_webbsokning --fall alla --spara prov
+    python -m id.prov_webbsokning --igen prov
     python -m catalog.prov_webbsokning prov --rapport prov/rapport.md
 
 Gör riktiga sökningar hos Anthropic, med nyckeln i filen som ID_SEARCH_KEY_FILE pekar på (eller
@@ -12,6 +13,10 @@ contracts/tokens.py) med Claudes svar, värdena med källhänvisningarna och kä
 prov (catalog/prov_webbsokning.py) kontrollerar sedan belägget per fält på samma svar, så att det
 syns om ett fält saknades i källorna eller föll i bearbetningen. Priset i Catalog, 24 tokens,
 stäms av mot verklig kostnad (CAT-172, C22): det här är provet.
+
+Med --igen söks inget: värdena i en mapp med sparade fall läses om med mätarens läsning som den
+är nu (id/search.py, value_only), så att en ändring där kan provas på samma svar utan att det
+kostar något. Ingen nyckel behövs.
 
 Programmet körs aldrig av testerna. I GitHub körs det bara av jobbet "Prov av webbsökningen"
 (.github/workflows/prov-webbsokning.yml), när någon startar det för hand (beslut 22 november).
@@ -38,10 +43,17 @@ from typing import Literal
 from uuid import uuid4
 
 import httpx
+from pydantic import ValidationError
 
-from contracts.tokens import TOKENS_PER_SEARCH, MeterSearch, MeterSearchField, MeterSearchTrial
+from contracts.tokens import (
+    TOKENS_PER_SEARCH,
+    MeterSearch,
+    MeterSearchField,
+    MeterSearchTrial,
+    MeterSearchValue,
+)
 from id.owner import TOKEN_VALUE_SEK
-from id.search import AnthropicSearch, Searched, SearchFailed, settings_from
+from id.search import AnthropicSearch, Searched, SearchFailed, settings_from, value_only
 
 FIELDS = [
     # The metric type data a search fills for a Swedish or European prototype (CAT-157), as
@@ -102,6 +114,31 @@ def _file_name(number: int, litt: str) -> str:
     return f"{number:02d}-{re.sub(r'[^a-z0-9]+', '-', litt.casefold()).strip('-') or 'fall'}.json"
 
 
+def read_again(folder: Path) -> tuple[int, int]:
+    """Every saved case's values read again with the meter's reading as it is now, written back
+    to the same file: the cases and the values that changed. Raises ValueError."""
+    cases = changed = 0
+    for path in sorted(folder.glob("*.json")):
+        try:
+            trial = MeterSearchTrial.model_validate_json(path.read_text(encoding="utf-8"))
+        except (OSError, ValidationError) as error:
+            raise ValueError(f"{path.name} är inte ett fall ur provet.") from error
+        fields = {each.key: each for each in trial.asked.fields}
+        values = []
+        for each in trial.values:
+            asked = fields.get(each.key)
+            value = value_only(each.value, asked.kind, asked.unit) if asked else each.value
+            changed += value != each.value
+            if value:
+                values.append(MeterSearchValue(key=each.key, value=value, citations=each.citations))
+        path.write_text(
+            trial.model_copy(update={"values": values}).model_dump_json(indent=2) + "\n",
+            encoding="utf-8",
+        )
+        cases += 1
+    return cases, changed
+
+
 def main(argv: list[str] | None = None, http: httpx.Client | None = None) -> int:
     """http is the tests' own, which answers instead of Anthropic."""
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
@@ -120,8 +157,22 @@ def main(argv: list[str] | None = None, http: httpx.Client | None = None) -> int
     parser.add_argument("--ut-usd", type=float, default=10.0, help="dollar per miljon tokens ut")
     parser.add_argument("--usd-sek", type=float, default=9.7, help="kronor per dollar")
     parser.add_argument("--faktor", type=float, default=2.0, help="påslaget för AI (TK6)")
+    parser.add_argument(
+        "--igen", default="", help="läs om de sparade fallen i mappen, utan sökning"
+    )
     args = parser.parse_args(argv)
 
+    if args.igen:
+        try:
+            read, changed = read_again(Path(args.igen))
+        except ValueError as error:
+            print(error, file=sys.stderr)
+            return 2
+        if not read:
+            print(f"Inga fall i {args.igen}.", file=sys.stderr)
+            return 2
+        print(f"{read} fall lästa igen med mätarens läsning, {changed} värden ändrades.")
+        return 0
     if args.fall:
         try:
             cases = [(number, FALL[number - 1]) for number in chosen(args.fall)]

@@ -5,7 +5,12 @@
 #
 # ID:s prov (id/prov_webbsokning.py) sparar varje fall, och Catalogs prov
 # (catalog/prov_webbsokning.py) kontrollerar belägget per fält på samma svar. Sammanfattningen
-# står under körningen, och allt, med värdena och källorna, ligger i filen prov-webbsokning.
+# står under körningen, och hela rapporten, med värdena, utdragen och adresserna, står i loggen
+# och i filen prov-webbsokning. Det är bara det sökningen hittade på öppna sidor och märkningen.
+#
+# Med korning (numret i en tidigare körnings adress) söks inget: fallen hämtas från den
+# körningen, värdena läses om med mätarens läsning som den är nu och kontrolleras igen, till
+# exempel efter en ändring i mätaren eller i Catalogs regler. Det kostar ingenting.
 name: Prov av webbsökningen
 
 on:
@@ -15,9 +20,14 @@ on:
         description: "Vilka fall: alla, eller numren med komma, till exempel 1,6"
         required: true
         default: alla
+      korning:
+        description: "Kontrollera igen fallen från en tidigare körning, utan att söka: körningens nummer"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: prov-webbsokning
@@ -29,9 +39,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -39,6 +49,7 @@ jobs:
         run: uv sync --locked
 
       - name: Sök
+        if: ${{ inputs.korning == '' }}
         env:
           ANTHROPIC_API_KEY_SEARCH: ${{ secrets.ANTHROPIC_API_KEY_SEARCH }}
           FALL: ${{ inputs.fall }}
@@ -53,13 +64,30 @@ jobs:
           printf '%s\n' "$ANTHROPIC_API_KEY_SEARCH" > "$key"
           uv run python -m id.prov_webbsokning --fall "$FALL" --spara prov --nyckelfil "$key"
 
+      - name: Hämta fallen från en tidigare körning
+        if: ${{ inputs.korning != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KORNING: ${{ inputs.korning }}
+        run: |
+          if ! [[ "$KORNING" =~ ^[0-9]{1,20}$ ]]; then
+            echo "::error::korning är numret i körningens adress, bara siffror."
+            exit 1
+          fi
+          gh run download "$KORNING" --repo "$GITHUB_REPOSITORY" --name prov-webbsokning --dir prov
+          rm -f prov/rapport.md
+          uv run python -m id.prov_webbsokning --igen prov
+
       - name: Catalogs kontroll av belägget
         if: ${{ !cancelled() && hashFiles('prov/*.json') != '' }}
         run: |
           uv run python -m catalog.prov_webbsokning prov --rapport prov/rapport.md \
             | tee -a "$GITHUB_STEP_SUMMARY"
+          echo
+          echo "Hela rapporten:"
+          cat prov/rapport.md
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: ${{ !cancelled() && hashFiles('prov/*.json') != '' }}
         with:
           name: prov-webbsokning

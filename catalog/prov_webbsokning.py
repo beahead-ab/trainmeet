@@ -19,7 +19,8 @@ varje fall värdena, utdragen med adresserna och Claudes svar som det skrevs. De
 sökningen hittade på webben, och märkningen. Kostnaden är den ID:s prov räknade.
 
 Programmet läser bara filer: ingen databas, ingen nyckel och ingen sökning. Körs för hand och av
-jobbet "Prov av webbsökningen" (.github/workflows/prov-webbsokning.yml).
+jobbet "Prov av webbsökningen" (.github/workflows/prov-webbsokning.yml), som också skriver
+rapporten i sin logg och kan kontrollera en tidigare körnings fall igen utan att söka.
 """
 
 from __future__ import annotations
