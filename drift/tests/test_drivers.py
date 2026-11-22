@@ -25,7 +25,7 @@ from contracts import station
 from contracts.meet import DriverLevel, Duty, MeetPackage
 from contracts.reasons import Reason
 from drift import drivers
-from drift.engine import Drift, Refused
+from drift.engine import Caller, Drift, Refused
 from drift.now import now as nu
 from drift.store import PreviewStore, UnknownDriver
 
@@ -273,6 +273,76 @@ def test_framme_is_off_by_default_and_counts_only_where_nobody_works(drift: Drif
     with pytest.raises(Refused) as elsewhere:
         drivers.framme(drift, "anna", "t102-mla", at(9))
     assert elsewhere.value.reason == Reason.NOT_IN_SERVICE
+
+
+def remote(drift: Drift, place: str, now: datetime, unseen: list[str]) -> None:
+    """The station's TKL hands the place to a remote interlocking, and says in route.state on
+    which tracks it cannot see a train come in (#36, beslut 22 november)."""
+    tkl, fjarr = f"tkl-{place}", "fjarr-1"
+    drift.man(place, tkl, now)
+    own = Caller(kind=station.ClientKind.TKL, receivers={fjarr: station.ClientKind.REMOTE},
+                 controllable=True)  # fmt: skip
+
+    def command(client: str, action: station.Action, **payload: object) -> station.Command:
+        return station.Command(message_id=uuid4().hex, client_id=client, place=place,
+                               context=drift.context, action=action, payload=payload)  # fmt: skip
+
+    drift.command(command(tkl, Action.PLACE_OFFER, to=fjarr), now, caller=own)
+    drift.command(
+        command(fjarr, Action.PLACE_OFFER_ANSWER, accept=True),
+        now,
+        caller=Caller(own=False, kind=station.ClientKind.REMOTE),
+    )
+    assert place in drift.remote
+    drift.command(command(tkl, Action.ROUTE_STATE, unseen=unseen), now, level=1, caller=own)
+
+
+def out_on_the_line_to_afar(drift: Drift, now: datetime) -> None:
+    """As out_on_the_line, with klart from the remote interlocking that works Åsen."""
+    clearance = f"clr-{uuid4().hex[:12]}"
+    send(drift, "nby", Action.CLEARANCE_REQUEST, now, call="t101-nby", section="s-nby-asn",
+         clearance_id=clearance)  # fmt: skip
+    drift.command(
+        station.Command(message_id=uuid4().hex, client_id="fjarr-1", place="asn",
+                        context=drift.context, action=Action.CLEARANCE_RESPONSE,
+                        payload={"clearance_id": clearance, "approved": True}),
+        now,
+        caller=Caller(own=False, kind=station.ClientKind.REMOTE),
+    )  # fmt: skip
+    send(drift, "nby", Action.TRAIN_DEPARTED, now, call="t101-nby")
+
+
+def test_framme_counts_at_a_remote_station_that_cannot_see_the_train_come_in(
+    drift: Drift,
+) -> None:
+    """LOK-39, beslut 22 november: on a remote-controlled station nobody presses Ankommit
+    either. Where its interlocking cannot see the train come in on the track, as its route.state
+    says, the driver's Framme counts as the arrival; where it can, the interlocking gives it,
+    and Framme is only a word. The körplan marks the same."""
+    drivers.set_settings(drift, events.DriverSettings(arrival=True), at(1))
+    drivers.claim(drift, D1, "anna", at(1))
+    track = drift.planned_track(drift.by_arrival["t101-asn"])
+    assert track is not None
+    remote(drift, "asn", at(2), unseen=[])
+    assert not drift.automatic("asn"), "worked from afar"
+    service = drivers.find(drift, D1)
+    assert service is not None
+    rows = drivers.korplan(drift, service, at(2), len(drift.history)).rows
+    assert not next(r for r in rows if r.call == "t101-asn").unmanned
+    out_on_the_line_to_afar(drift, at(3))
+    assert drivers.framme(drift, "anna", "t101-asn", at(4)) is False, "the station sees it"
+    assert "t101-nby" not in drift.arrived
+    send(drift, "asn", Action.ROUTE_STATE, at(5), unseen=[track])
+    rows = drivers.korplan(drift, service, at(5), len(drift.history)).rows
+    assert next(r for r in rows if r.call == "t101-asn").unmanned
+    assert drivers.framme(drift, "anna", "t101-asn", at(6)) is True
+    assert "t101-nby" in drift.arrived
+    arrival = next(e for e in drift.history if e.kind == events.EventKind.TRAIN_ARRIVED)
+    assert (arrival.actor.kind, arrival.place, arrival.data["track"]) == (
+        events.ActorKind.DRIVER,
+        "asn",
+        track,
+    )
 
 
 def test_framme_at_the_last_call_ends_the_service(drift: Drift) -> None:

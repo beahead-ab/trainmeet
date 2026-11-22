@@ -107,10 +107,11 @@ class Place:
         self.offer, self.controller, self.silent = None, REMOTE, 0
         self.mode = station.PlaceMode.REMOTE
 
-    def ask(self, request_id: str, route: str) -> None:
+    def ask(self, request_id: str, route: str, call: str | None = None) -> None:
         self.routes[request_id] = station.RemoteRouteHere(
             request_id=request_id,
             route=route,
+            call=call,
             state=station.RemoteRouteState.REQUESTED,
             by=REMOTE.client_id,
             asked_at="09:00",
@@ -369,6 +370,35 @@ def test_routes_asked_for_are_answered_and_the_state_reported(
     command(client, "place.take_back")
     step(client)
     assert [(r.route, r.by) for r in home.state.locked] == [("In-22", station.RouteBy.REMOTE)]
+
+
+def test_a_train_hubben_has_arrived_has_its_route_in_released(
+    client: TestClient, home: Place
+) -> None:
+    """Beslut 22 november: without LocoNet the station says in route.state that it cannot see a
+    train come in on its tracks, and the route laid from afar to bring a train in is released
+    when Hubben has the train's arrival: the driver's Framme or the controller's Ankommit."""
+    command(client, "place.offer", to=REMOTE.client_id)
+    home.accept()
+    home.ask("r1", "In-12", call="t101-exb")
+    home.ask("r2", "22-Ut2", call="t103-exb")
+    step(client)
+    assert home.state is not None
+    assert home.state.unseen == ["1", "2"]
+    assert [r.route for r in home.state.locked] == ["In-12", "22-Ut2"]
+    arrived = station.ArrivalState.ARRIVED
+    home.calls = [
+        station.CallHere(call="t101-exb", train="t101", train_number="101", revision=2,
+                         arrival_state=arrived),
+        station.CallHere(call="t103-exb", train="t103", train_number="103", revision=2,
+                         arrival_state=arrived),
+    ]  # fmt: skip
+    step(client)
+    assert [r.route for r in home.state.locked] == ["22-Ut2"], "a route out is no arrival's"
+    assert any(
+        e.text == "Tåg 101 har kommit fram till spår 1 enligt Hubben. Vägen In → 12 är utlöst."
+        for e in interlocking(client).events
+    )
 
 
 def test_45_seconds_without_the_controller_no_new_routes_and_90_the_default_automat(

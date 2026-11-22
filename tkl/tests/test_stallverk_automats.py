@@ -107,6 +107,44 @@ def test_a_remote_request_is_laid_and_locked_as_the_controllers() -> None:
     assert state.occupied == [], "only level 3 reports occupied tracks"
 
 
+def test_hubbens_arrival_releases_the_route_in_laid_for_the_train() -> None:
+    """Beslut 22 november: without LocoNet the interlocking cannot see a train come in on any
+    track, and route.state says so. When Hubben has the train's arrival, by the driver's Framme
+    or the controller's Ankommit, the route laid from afar to bring it in is released as at
+    Ankommit on the spot. A route out is laid for no arrival, and only once."""
+    station = Station()
+    station.it.set_remote("Fjärr Västra")
+    assert automat.route_state(station.it, station.catalogue, SPECS).unseen == ["1", "2"]
+    assert automat.request(station.it, station.route("In", "12"), "r1", "t101-p").locked
+    assert automat.request(station.it, station.route("22", "Ut2"), "r2", "t103-p").locked
+    assert [(r.start, r.call) for r in station.it.view().routes] == [
+        ("In", "t101-p"),
+        ("22", None),
+    ]
+    [in_12] = [r.id for r in station.it.view().routes if r.start == "In"]
+    assert station.it.put_train("101", exit="V").accepted
+    assert station.it.step(in_12).accepted, "Kör once: the train is in the route"
+    assert station.it.hub_arrival("t102-p") is None, "another train"
+    arrived = station.it.hub_arrival("t101-p", "101")
+    assert arrived is not None and arrived.accepted
+    assert arrived.message == (
+        "Tåg 101 har kommit fram till spår 1 enligt Hubben. Vägen In → 12 är utlöst."
+    )
+    assert [(r.start, r.end) for r in station.it.view().routes] == [("22", "Ut2")]
+    assert [t.section for t in station.it.view().trains] == ["Spår 1"]
+    assert station.it.hub_arrival("t101-p", "101") is None, "once"
+    assert station.it.hub_arrival("t103-p", "103") is None, "a route out stays"
+    # Nobody pressed Kör at all: the route in is released all the same.
+    station.free("22", "Ut2")
+    assert automat.request(station.it, station.route("In2", "21"), "r3", "t105-p").locked
+    later = station.it.hub_arrival("t105-p")
+    assert later is not None
+    assert (
+        later.message
+        == "Tåget har kommit fram till spår 2 enligt Hubben. Vägen In2 → 21 är utlöst."
+    )
+
+
 def test_a_remote_request_is_refused_with_the_interlockings_reason() -> None:
     station = Station()
     assert automat.request(station.it, station.route("In", "22"), "r1").locked

@@ -277,6 +277,8 @@ class _Route:
     """Laid from afar or by a station automat; None on the spot (FR33)."""
     request_id: str | None = None
     """The remote request it answered."""
+    call: str | None = None
+    """The train it was laid for, by its call in Hubben (beslut 22 november)."""
     automat: str | None = None
     """The station automat that laid it."""
 
@@ -751,16 +753,18 @@ class Interlocking:
         by: RouteBy | None,
         request_id: str | None = None,
         automat: str | None = None,
+        call: str | None = None,
     ) -> None:
         """The set route, with the rest of its chain, is the catalogue's route, laid by the
-        controller, an automat or on the spot (#36 del b, FR13, FR33)."""
+        controller, an automat or on the spot (#36 del b, FR13, FR33), for a train in Hubben's
+        picture when there is one."""
         first = self._route(route_id)
         if first is None:
             return
         parts = [r for r in self.routes if r.chain == first.id] or [first]
         for route in parts:
             route.catalogue, route.by = catalogue, by
-            route.request_id, route.automat = request_id, automat
+            route.request_id, route.automat, route.call = request_id, automat, call
         self.revision += 1
 
     def switch_local(self, name: str, on: bool, *, empty: bool = False) -> Outcome:
@@ -1381,6 +1385,55 @@ class Interlocking:
                     "helt inne."
                 )
         return train, ""
+
+    def unseen_tracks(self) -> list[str]:
+        """The station tracks, by their id in the outside, where the interlocking cannot see a
+        train come in (beslut 22 november): every one without LocoNet, and with LocoNet those
+        whose track circuits have no sensor. There the driver's Framme counts as the arrival
+        while the station is remote-controlled."""
+        seen: dict[str, bool] = {}
+        for section, track in self.plant.track_of.items():
+            seen[track] = seen.get(track, False) or self._detects(section)
+        outside = self.plant.track_outside
+        return sorted({outside.get(track, track) for track, s in seen.items() if not s})
+
+    def hub_arrival(self, call: str, number: str | None = None) -> Outcome | None:
+        """Hubben says the train has arrived: the driver's Framme, or Ankommit by whoever
+        remote-controls the station (beslut 22 november). The routes laid to bring it in are
+        released as at Ankommit on the spot, where the interlocking cannot see the passage
+        itself: without LocoNet, or with LocoNet where `_by_hand` allows. With LocoNet and the
+        passage still to be seen, they are released after the passage, as always. Nothing goes
+        up: Hubben has the arrival. None when there is nothing to release now."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        mine = [r for r in self.routes if r.call == call]
+        if not mine:
+            return None
+        before = self.exit_aspects()
+        released: list[_Route] = []
+        for route in mine:
+            if self.field is not None:
+                train, _ = self._by_hand(route)
+                if train is None:
+                    continue
+            else:
+                train = self._train(route.train) if route.at >= 0 else None
+            if train is not None and route.way.leaves is None:
+                train.section, train.exit = route.way.sections[-1][0], None
+            self._complete(route)
+            released.append(route)
+        if not released:
+            return None
+        last = released[-1].way.sections[-1][0]
+        track = self.plant.track_of.get(last)
+        where = f"spår {track}" if track else self.plant.said(last)
+        who = f"Tåg {number}" if number else "Tåget"
+        names = _listed(r.name for r in released)
+        word = "Vägen" if len(released) == 1 else "Vägarna"
+        outcome = self._done(
+            f"{who} har kommit fram till {where} enligt Hubben. {word} {names} är utlöst."
+        )
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
 
     def depart(self, route_id: int) -> Outcome:
         """Avgått: the train on a route out has left on the line (STV-10)."""
@@ -3088,6 +3141,7 @@ class Interlocking:
             by=route.by,
             request_id=route.request_id,
             automat=route.automat,
+            call=route.call,
         )
 
     # --- a saved state ------------------------------------------------------------------------
@@ -3156,6 +3210,7 @@ class Interlocking:
                     by=shown.by,
                     request_id=shown.request_id,
                     automat=shown.automat,
+                    call=shown.call,
                 )
             )
         parts: dict[str, _PartState] = {p: _PartState() for p in plant.parts}

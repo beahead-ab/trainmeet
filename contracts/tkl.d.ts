@@ -3972,6 +3972,11 @@ export interface components {
              */
             occupied?: string[];
             /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
+            /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
              */
@@ -5649,6 +5654,11 @@ export interface components {
              * @description Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.
              */
             occupied?: string[];
+            /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
             /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
@@ -12895,6 +12905,11 @@ export interface components {
              * @description Automaten som lade den.
              */
             automat?: string | null;
+            /**
+             * Call
+             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).
+             */
+            call?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -14059,6 +14074,11 @@ export interface components {
              * @description Automaten som lade den.
              */
             automat?: string | null;
+            /**
+             * Call
+             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).
+             */
+            call?: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -20299,6 +20319,11 @@ export interface components {
              * @description Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.
              */
             occupied?: string[];
+            /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
             /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).

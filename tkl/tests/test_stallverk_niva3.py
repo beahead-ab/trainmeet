@@ -9,7 +9,7 @@ the old test named.
 
 from __future__ import annotations
 
-from contracts.station_model import Address, FeedbackType, Position, SwitchControl
+from contracts.station_model import Address, FeedbackType, Position, StationModel, SwitchControl
 from contracts.tkl import (
     AddressState,
     ObjectKind,
@@ -21,7 +21,9 @@ from contracts.tkl import (
 from tkl.loconet.objects import changed
 from tkl.loconet.simulator import PretendLoconet
 from tkl.stallverk import Interlocking, load, plant_of
+from tkl.stallverk import automats as automat
 from tkl.stallverk.interlocking import BY_CIRCUITS, KOPPLA_IN
+from tkl.studio import fjarr
 from tkl.tests.niva3 import Rig, level_3
 from tkl.tests.provstation import provby
 
@@ -245,6 +247,59 @@ def test_a_track_without_a_sensor_gets_its_arrival_with_ankommit() -> None:
     assert [(u.train_number, u.track) for u in up] == [("102", "1")]
     assert r.it.view().routes == []
     assert r.it.view().trains[0].section == "Spår 1"
+
+
+def brought_in(model: StationModel) -> Rig:
+    """The route In → 12 laid from afar for train 102, which is in the switch area."""
+    r = Rig(model)
+    r.connect()
+    r.it.set_remote("Fjärr Västra")
+    r.it.put_train("102", exit="V")
+    [route] = [
+        c.remote
+        for c in fjarr.candidates(r.it.plant)
+        if (c.remote.start, c.remote.end) == ("In", "12")
+    ]
+    assert automat.request(r.it, route, "r1", "t102-p").locked
+    r.send(r.it.take_orders())
+    r.run(0.5)
+    r.layout.occupy("Infart V")
+    r.layout.occupy("Vx1")
+    r.run(0.1)
+    return r
+
+
+def test_hubbens_arrival_releases_the_route_only_where_the_passage_cannot_be_seen() -> None:
+    """Beslut 22 november: on a remote-controlled station at level 3, route.state names the
+    tracks whose circuits have no sensor. There the arrival in Hubben, by the driver's Framme or
+    the controller's Ankommit, releases the route as Ankommit does on the spot, once the train
+    is wholly in. With a sensor, the interlocking sees the passage and releases it itself."""
+    seen = brought_in(level_3(provby()))
+    assert seen.it.unseen_tracks() == []
+    assert seen.it.hub_arrival("t102-p", "102") is None, "it waits for the passage"
+    seen.layout.occupy("Spår 1")
+    seen.layout.occupy("Infart V", False)
+    seen.layout.occupy("Vx1", False)
+    seen.run(0.2)
+    assert seen.it.view().routes == [], "released after the passage, as always"
+    assert seen.it.hub_arrival("t102-p", "102") is None
+
+    model = changed(level_3(provby()), ObjectKind.TRACK_CIRCUIT, "Spår 1", address="without")
+    blind = brought_in(model)
+    assert blind.it.unseen_tracks() == ["1"]
+    assert blind.it.hub_arrival("t102-p", "102") is None, "Vx1 is still occupied"
+    assert len(blind.it.view().routes) == 1
+    blind.layout.occupy("Infart V", False)
+    blind.layout.occupy("Vx1", False)
+    blind.run(0.1)
+    arrived = blind.it.hub_arrival("t102-p", "102")
+    assert arrived is not None and arrived.accepted
+    assert arrived.message == (
+        "Tåg 102 har kommit fram till spår 1 enligt Hubben. Vägen In → 12 är utlöst."
+    )
+    assert not [u for u in arrived.reports if u.kind == TklReportKind.ARRIVED], "Hubben has it"
+    assert blind.it.view().routes == []
+    assert blind.it.view().trains[0].section == "Spår 1"
 
 
 def test_a_sensor_far_along_the_track_gets_its_arrival_with_ankommit() -> None:

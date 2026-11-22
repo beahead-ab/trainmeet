@@ -7893,6 +7893,15 @@
             "title": "Occupied",
             "type": "array"
           },
+          "unseen": {
+            "description": "Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Unseen",
+            "type": "array"
+          },
           "part_requests": {
             "description": "Delarnas begäran, när stationen fjärrstyrs (FR50).",
             "items": {
@@ -11126,6 +11135,15 @@
               "type": "string"
             },
             "title": "Occupied",
+            "type": "array"
+          },
+          "unseen": {
+            "description": "Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Unseen",
             "type": "array"
           },
           "part_requests": {
@@ -25524,6 +25542,19 @@
             ],
             "description": "Automaten som lade den.",
             "title": "Automat"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).",
+            "title": "Call"
           }
         },
         "required": [
@@ -27890,6 +27921,19 @@
             ],
             "description": "Automaten som lade den.",
             "title": "Automat"
+          },
+          "call": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).",
+            "title": "Call"
           }
         },
         "required": [
@@ -40293,6 +40337,15 @@
               "type": "string"
             },
             "title": "Occupied",
+            "type": "array"
+          },
+          "unseen": {
+            "description": "Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).",
+            "items": {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            "title": "Unseen",
             "type": "array"
           },
           "part_requests": {

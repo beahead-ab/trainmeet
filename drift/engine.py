@@ -1237,16 +1237,16 @@ class Drift:
         return {legs[-1].arrival.place} if legs else set()
 
     def arrive_by_driver(self, call: str, now: datetime, actor: events.Actor) -> bool:
-        """Framme as the train's arrival (LOK-11, LOK-39): only at a place nobody works, where
-        no one presses Ankommit, and only once. A train still waiting for its clearance is not
-        taken in. True when the arrival was made."""
+        """Framme as the train's arrival (LOK-11, LOK-39): only where no one presses Ankommit,
+        and only once. A train still waiting for its clearance is not taken in. True when the
+        arrival was made."""
         leg = self.by_arrival.get(call)
         if leg is None or leg.departure.id in self.arrived:
             return False
-        if not self.automatic(leg.arrival.place):
+        track = self._arrival_track(leg, None)
+        if not self.framme_counts(leg.arrival.place, track):
             return False
         case = self.active_case(leg.departure.id)
-        track = self._arrival_track(leg, None)
         place = leg.arrival.place
         if case is None:
             data: dict[str, object] = {"track": track}
@@ -1261,6 +1261,21 @@ class Drift:
         self._record(kind, data, now, leg=leg, actor=actor, place=place)
         self._apply_if_waiting(now)
         return True
+
+    def framme_counts(self, place: str, track: str | None) -> bool:
+        """May the driver's Framme count as the arrival at the place (LOK-39)? Where no one
+        presses Ankommit: a place nobody works, or a place remote-controlled whose station
+        cannot see a train come in on the track, as its route.state says (`unseen`, beslut 22
+        november). Without a known track, it must be so on every track of the place. Whether
+        the game counts Framme at all is Trafikledningen's choice (drivers.settings)."""
+        if self.automatic(place):
+            return True
+        if place not in self.remote:
+            return False
+        unseen = set(self.route_states.get(place, station.RouteState()).unseen)
+        if track is not None:
+            return track in unseen
+        return bool(unseen) and all(name in unseen for name in self.track_names(place))
 
     # --- The automation's state (F14): who works a place --------------------------------
 

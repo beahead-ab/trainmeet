@@ -104,15 +104,30 @@ def reason_of(it: Interlocking, route: RemoteRoute, said: str) -> Reason:
     return Reason.ROUTE_REFUSED
 
 
-def request(it: Interlocking, route: RemoteRoute, request_id: str) -> Answer:
+def _bringing_in(route: RemoteRoute, call: str | None) -> str | None:
+    """The train a route in from the line is laid for, so that the station can release it when
+    Hubben has the train's arrival (beslut 22 november). None for a route out."""
+    return call if route.direction == RouteDirection.IN else None
+
+
+def request(
+    it: Interlocking, route: RemoteRoute, request_id: str, call: str | None = None
+) -> Answer:
     """route.request: the route tried in the station's own interlocking as a train route laid
-    by whoever controls the station (FR11, FR12). Already set for this request: locked again."""
+    by whoever controls the station (FR11, FR12), for the train asked for when there is one.
+    Already set for this request: locked again."""
     held = next((r for r in it.routes if r.request_id == request_id), None)
     if held is not None:
         return Answer(True, None, f"Tågvägen {route.start} → {route.end} ligger redan.")
     outcome = it.lay_route(route.start, route.end, RouteKind.TRAIN)
     if outcome.accepted and outcome.route is not None:
-        it.mark(outcome.route, route.id, RouteBy.REMOTE, request_id=request_id)
+        it.mark(
+            outcome.route,
+            route.id,
+            RouteBy.REMOTE,
+            request_id=request_id,
+            call=_bringing_in(route, call),
+        )
         return Answer(True, None, outcome.message)
     return Answer(False, reason_of(it, route, outcome.message), outcome.message)
 
@@ -230,7 +245,8 @@ def tick(
             continue
         outcome = it.lay_route(route.start, route.end, RouteKind.TRAIN)
         if outcome.accepted and outcome.route is not None:
-            it.mark(outcome.route, route.id, RouteBy.AUTOMAT, automat=chosen.code)
+            call = _bringing_in(route, want.call)
+            it.mark(outcome.route, route.id, RouteBy.AUTOMAT, automat=chosen.code, call=call)
             _record(it, chosen.code, want)
             said.append(f"{chosen.code}: {outcome.message}")
             continue
@@ -298,7 +314,8 @@ def _magazine(it: Interlocking, wants: Sequence[Want]) -> list[str]:
             continue
         outcome = it.lay_route(entry.start, entry.end, RouteKind.TRAIN)
         if outcome.accepted and outcome.route is not None:
-            it.mark(outcome.route, entry.route, RouteBy.AUTOMAT, automat=entry.automat)
+            call = _bringing_in(want.route, want.call)
+            it.mark(outcome.route, entry.route, RouteBy.AUTOMAT, automat=entry.automat, call=call)
             _record(it, entry.automat, want)
             said.append(f"{entry.automat}: ur magasinet: {outcome.message}")
             changed = True
@@ -338,7 +355,9 @@ def route_state(
     specs: Sequence[TklAutomatSpec],
 ) -> RouteState:
     """route.state (FR13): the catalogue routes the interlocking holds set and who laid them,
-    the automats that are on, the local areas and, at level 3, the occupied station tracks."""
+    the automats that are on, the local areas and, at level 3, the occupied station tracks; and
+    the station tracks where the interlocking cannot see a train come in, where the driver's
+    Framme counts as the arrival (beslut 22 november)."""
     routes = {r.id: r for r in it.routes}
     locked = []
     for route in catalogue:
@@ -366,6 +385,7 @@ def route_state(
         automats=[AutomatOn(code=a.code, by=a.by) for a in it.fjarr.automats],
         local_areas=areas,
         occupied=it.occupied_tracks() if it.level == 3 else [],
+        unseen=it.unseen_tracks(),
         part_requests=requests,
         ready_to_send=ready,
     )

@@ -2103,6 +2103,19 @@
           ],
           "description": "Automaten som lade den.",
           "title": "Automat"
+        },
+        "call": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).",
+          "title": "Call"
         }
       },
       "required": [
