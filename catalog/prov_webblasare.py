@@ -437,6 +437,8 @@ def settings_for(database_url: str, port: int, web: Path, pictures: Path) -> Set
         ),
         build=CatalogVersion(version=package_version()),
         pictures_dir=pictures,
+        # The pretend search's pages do not exist: nothing is read from the web in the trial.
+        source_pages=False,
     )
 
 

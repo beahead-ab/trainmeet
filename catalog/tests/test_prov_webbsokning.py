@@ -5,6 +5,7 @@ databas.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -87,6 +88,31 @@ def test_each_field_says_what_catalogs_check_did_with_it() -> None:
     assert (found.filled, found.answered) == (2, 6)
 
 
+class Pages:
+    """The cited pages as Catalog would read them, without the network."""
+
+    def __init__(self, texts: dict[str, str]) -> None:
+        self.texts = texts
+        self.asked: list[list[str]] = []
+
+    def read(self, urls: Sequence[str]) -> dict[str, str]:
+        self.asked.append(list(urls))
+        return {url: self.texts[url] for url in urls if url in self.texts}
+
+
+def test_a_value_further_on_in_the_cited_page_is_filled_from_the_page() -> None:
+    """The search's excerpt ends before the speed; the page goes on to it (CAT-169)."""
+    pages = Pages({URL: "Hbis\nLoaded 100 km/h · empty · Maximum speed (km/h) · 120\nBrake KE-GP"})
+    found = prov_webbsokning.outcome("01-hbis", trial(), pages)
+    assert found.fields["max_speed"] == "ur sidan"
+    assert found.fields["weight"] == "fylls", "the search's own excerpt still comes first"
+    assert pages.asked == [[URL]], "only the cited page whose excerpt fell short, once"
+    assert (found.filled, found.from_page) == (3, 1)
+    assert found.pages == {URL: "läst"}
+    assert "Catalog läste 1 av 1 citerade sidor" in "\n".join(prov_webbsokning.summary([found]))
+    assert f"- {URL}: läst" in prov_webbsokning.report([found])
+
+
 def test_the_report_has_the_counts_the_fields_and_each_cases_evidence(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -97,11 +123,13 @@ def test_the_report_has_the_counts_the_fields_and_each_cases_evidence(
         trial("Rc4", values=[], text="", cost_sek=0.53, tokens=14).model_dump_json()
     )
     rapport = tmp_path / "rapport.md"
-    assert prov_webbsokning.main([str(folder), "--rapport", str(rapport)]) == 0
+    assert prov_webbsokning.main([str(folder), "--rapport", str(rapport), "--utan-sidor"]) == 0
     printed = capsys.readouterr().out
     assert "| 01-hbis | Hbis, Green Cargo | 2 av 7 | 6 | 1 | 3 | 58642 | 1.47 | 38 |" in printed
     assert "| 02-rc4 | Rc4, Green Cargo | 0 av 7 | 0 |" in printed
-    assert "2 fall. 2 av 14 fält fylls, och 6 hade ett värde i svaret." in printed
+    assert (
+        "2 fall. 2 av 14 fält fylls, 0 av dem ur den citerade sidan, och 6 hade ett värde i svaret."
+    ) in printed
     assert "i medel 1.00 kr och 26.0 tokens med faktorn per sökning" in printed
     assert "| max_speed | håller inte | saknas |" in printed
     for hidden in ("Average tare weight", URL, "15,500"):

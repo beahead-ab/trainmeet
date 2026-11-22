@@ -22,6 +22,14 @@ the real searches (contracts/tokens.py). Nothing of that is trusted here:
 
 supports() is also what says, later, whether the evidence still agrees with the value that
 stands in the field (CAT-170): after a change of the value, the same excerpt may not hold it.
+
+The search's own excerpt is at most about 150 characters, and in a table the value often stands
+further in. When it does not hold the value, the page itself may (catalog/source_pages.py): the
+cited words are found in the page's text, and the excerpt is read on from there, at most
+READ_ON characters and never past the middle of a word, until it holds the value or not. The
+excerpt that is kept is then that part of the page, from the cited words to the value, and the
+same rules hold for it: the unit, the label, ordered is not built. A page where the cited words
+cannot be found is no evidence.
 """
 
 from __future__ import annotations
@@ -50,6 +58,14 @@ MOST_PER_FIELD: Final = 3
 """Sources kept per field: a known publisher's first."""
 SHORTEST_EXCERPT: Final = 5
 """An excerpt shorter than this says nothing."""
+READ_ON: Final = 1000
+"""How far into the page, from the cited words, a value may stand: a table's rows or an
+infobox's, never the rest of the page."""
+ANCHOR: Final = 80
+"""The cited words that are looked for in the page: the first letters and digits of them."""
+TAIL: Final = 32
+"""Or the last letters and digits of them, before the cut, when the first are not there."""
+SHORTEST_ANCHOR: Final = 12
 
 _D = Decimal
 UNITS: Final[dict[str, dict[str, Decimal]]] = {
@@ -324,6 +340,58 @@ def supports(key: str, value: str, excerpt: str) -> bool:
     return False
 
 
+# --- Further on in the page (CAT-169, beslut C42) ----------------------------------------------
+
+
+def _skeleton(text: str) -> tuple[str, list[int]]:
+    """The text's ASCII letters and digits in lower case, with where each stands: the search
+    and Catalog make a page into text differently, with other marks, spaces, and sometimes
+    without å, ä and ö, but the same letters and digits in the same order."""
+    kept: list[str] = []
+    where: list[int] = []
+    for index, char in enumerate(text):
+        if char.isascii() and char.isalnum():
+            kept.append(char.lower())
+            where.append(index)
+    return "".join(kept), where
+
+
+def anchored(cited: str, page: str) -> tuple[int, int] | None:
+    """Where the cited words stand in the page's text, or None when they are not there: their
+    first words, or, when the page has more between them than the search kept (a picture's
+    caption, a heading's links), their last words before the cut, where the value follows."""
+    letters_cited, _ = _skeleton(cited)
+    if len(letters_cited) < SHORTEST_ANCHOR:
+        return None
+    letters, where = _skeleton(page)
+    for wanted in dict.fromkeys((letters_cited[:ANCHOR], letters_cited[-TAIL:])):
+        found = letters.find(wanted)
+        if found >= 0:
+            start = where[found]
+            while start > 0 and not page[start - 1].isspace():
+                start -= 1  # from the start of the word, never inside a number
+            return start, where[found + len(wanted) - 1] + 1
+    return None
+
+
+def read_on(key: str, value: str, cited: str, page: str) -> str | None:
+    """The part of the page from the cited words on that holds the value, as short as it can be
+    without ending inside a word, or None."""
+    found = anchored(cited, page)
+    if found is None:
+        return None
+    start, end = found
+    last = min(len(page), start + READ_ON)
+    ends = [match.start() for match in re.finditer(r"\s", page[end:last])]
+    for stop in [end + each for each in ends] + [last]:
+        if last < len(page) and stop == last and not page[last].isspace():
+            continue  # never a number cut off at the end of the reach
+        excerpt = page[start:stop].strip()
+        if supports(key, value, excerpt):
+            return excerpt
+    return None
+
+
 # --- The meter's answer, checked (CAT-167–CAT-169) ---------------------------------------------
 
 
@@ -335,6 +403,11 @@ class Checked:
     fields: dict[str, str] = field(default_factory=dict)
     evidence: dict[str, list[dict[str, str]]] = field(default_factory=dict)
     dropped: list[DroppedField] = field(default_factory=list)
+    unread: list[str] = field(default_factory=list)
+    """The cited pages whose excerpt did not hold the value, and that were not given: the
+    pages to read (catalog/source_pages.py) before checking again."""
+    from_page: set[str] = field(default_factory=set)
+    """The fields whose evidence was read further on in the page."""
 
 
 def _plain(text: str, most: int) -> str:
@@ -348,9 +421,11 @@ def check(
     values: Sequence[MeterSearchValue],
     results: Sequence[MeterSearchResult],
     searched_at: datetime,
+    pages: Mapping[str, str] | None = None,
 ) -> Checked:
     """The AI's values for the wanted keys, each kept only with a source from the real search
-    whose excerpt holds it. Everything else is dropped, with the reason."""
+    whose excerpt holds it, or whose page holds it further on from the cited words (pages, by
+    the safe address). Everything else is dropped, with the reason."""
     real = {safe: result for result in results if (safe := safe_url(result.url)) is not None}
     found = Checked()
     seen: set[str] = set()
@@ -377,12 +452,15 @@ def check(
         if not cited:
             found.dropped.append(DroppedField(key=key, reason=DroppedReason.INVENTED_SOURCE))
             continue
-        kept = _holding(key, value, cited, real, searched_at)
+        kept, read, unread = _holding(key, value, cited, real, searched_at, pages or {})
         if not kept:
             found.dropped.append(DroppedField(key=key, reason=DroppedReason.UNSUPPORTED))
+            found.unread.extend(url for url in unread if url not in found.unread)
             continue
         found.fields[key] = value
         found.evidence[key] = kept
+        if read:
+            found.from_page.add(key)
     return found
 
 
@@ -392,23 +470,37 @@ def _holding(
     cited: Sequence[tuple[str, MeterCitation]],
     real: Mapping[str, MeterSearchResult],
     searched_at: datetime,
-) -> list[dict[str, str]]:
-    """The sources whose excerpt holds the value, one per address, a known publisher's first."""
+    pages: Mapping[str, str],
+) -> tuple[list[dict[str, str]], bool, list[str]]:
+    """The sources whose excerpt holds the value, one per address, a known publisher's first;
+    whether any was read on in its page; and the cited pages that were not there to read."""
     holding: dict[str, dict[str, str]] = {}
+    read = False
+    unread: list[str] = []
     for url, citation in cited:
-        if url in holding or not supports(key, value, citation.cited_text):
+        if url in holding:
             continue
+        excerpt: str | None = citation.cited_text
+        if not supports(key, value, citation.cited_text):
+            excerpt = None
+            if url in pages:
+                excerpt = read_on(key, value, citation.cited_text, pages[url])
+            elif url not in unread:
+                unread.append(url)
+        if excerpt is None:
+            continue
+        read = read or excerpt != citation.cited_text
         holding[url] = {
             "value": value,
             "url": url,
             "title": _plain(citation.title or real[url].title, 500),
-            "excerpt": _plain(citation.cited_text, 2000),
+            "excerpt": _plain(excerpt, 2000),
             "searched_at": searched_at.isoformat(),
         }
     ordered = sorted(
         holding.values(), key=lambda each: publisher_kind(each["url"]) is PublisherKind.UNKNOWN
     )
-    return ordered[:MOST_PER_FIELD]
+    return ordered[:MOST_PER_FIELD], read, unread
 
 
 # --- The evidence as it is shown, with whether it still agrees (CAT-170) -----------------------

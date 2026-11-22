@@ -11,7 +11,18 @@ from typing import Any
 
 import pytest
 
-from catalog.evidence import MOST_PER_FIELD, carried, check, normalized, numbers, shown, supports
+from catalog.evidence import (
+    MOST_PER_FIELD,
+    READ_ON,
+    anchored,
+    carried,
+    check,
+    normalized,
+    numbers,
+    read_on,
+    shown,
+    supports,
+)
 from catalog.prototype_fields import BY_KEY
 from catalog.prototype_search import NOT_SEARCHED, fields_for, wanted
 from catalog.publishers import PUBLISHERS, publisher_kind, safe_url
@@ -452,3 +463,121 @@ def test_the_search_asks_for_the_profiles_type_data_with_the_registers_units(
         assert (each.unit, each.kind) == (known.unit, known.kind.value)
     labels = {f.key: f.label for f in fields_for(FieldProfile.US)}
     assert labels["epoch"] == "Era" and labels["length_ft"] == "Length"
+
+
+# --- Further on in the cited page (CAT-169, beslut C42) -----------------------------------------
+
+# A company's wagon catalogue as Claude's search cites it: about 150 characters, cut off before
+# the speed, the year and the brake, which stand further on in the same table.
+CUT = (
+    "Loading width (mm) · 2,590 Loading height (mm) · 3,050 Loading area (m2) · 33.0 Loading "
+    "space (m3) · 100.5 Average tare weight (kg) · 15,500 Maximum s..."
+)
+PAGE = (
+    "Hbis-tt 293\nTechnical data\nLength over buffers (mm) · 14,040\n"
+    "Loading width (mm) · 2,590\nLoading height (mm) · 3,050\nLoading area (m2) · 33.0\n"
+    "Loading space (m3) · 100.5\nAverage tare weight (kg) · 15,500\n"
+    "Maximum speed (km/h) · 120\nFirst year of delivery · 1976\nBrake type · KE-GP-A\n"
+    "Contact\nYour sales team"
+)
+
+
+@pytest.mark.parametrize(
+    ("key", "said", "ends"),
+    [
+        ("max_speed", "120", "Maximum speed (km/h) · 120"),
+        ("built", "1976", "First year of delivery · 1976"),
+        ("brake", "KE-GP-A", "Brake type · KE-GP-A"),
+    ],
+)
+def test_a_value_further_on_from_the_cited_words_is_held_by_the_page(
+    key: str, said: str, ends: str
+) -> None:
+    assert not supports(key, said, CUT), "the search's own excerpt ends too soon"
+    excerpt = read_on(key, said, CUT, PAGE)
+    assert excerpt is not None
+    assert excerpt.startswith("Loading width (mm)"), "from the cited words, not the page's top"
+    assert excerpt.endswith(ends), "and no further than the value"
+    assert supports(key, said, excerpt), "the kept excerpt holds the value by the same rules"
+
+
+def test_the_page_holds_only_what_it_says_from_the_cited_words_on() -> None:
+    assert read_on("max_speed", "140", CUT, PAGE) is None, "another value is not there"
+    assert read_on("length_over_buffers", "14040", CUT, PAGE) is None, "it stands before"
+    assert read_on("max_speed", "12", CUT, PAGE) is None, "120 is never cut into 12"
+    assert read_on("max_speed", "120", "Another page altogether, about wagons", PAGE) is None
+    assert read_on("max_speed", "120", "Hbis", PAGE) is None, "too few words to find"
+
+
+def test_the_page_is_read_only_a_short_way_on() -> None:
+    far = CUT.removesuffix("...") + " " + "x " * READ_ON + "Maximum speed (km/h) · 120"
+    assert read_on("max_speed", "120", CUT, far) is None
+
+
+def test_ordered_is_not_built_further_on_either() -> None:
+    page = CUT.removesuffix("...") + " Maximum speed (km/h) · 120 · Ordered in 1976"
+    assert read_on("built", "1976", CUT, page) is None
+
+
+def test_the_cited_words_are_found_whatever_marks_and_letters_the_search_left_out() -> None:
+    """The search makes a page into text its own way: other marks and spaces, Markdown, and at
+    times without å, ä and ö."""
+    cited = "B7 # Statens Jrnvgar (SJ) **Passenger Cars** **B7** SJ B7 class passenger coach..."
+    page = (
+        "B7\nStatens Järnvägar (SJ)\nPassenger Cars\nB7\nSJ B7 class passenger coach\n"
+        "Length over buffers · 26 400 mm\nWeight · 44 t"
+    )
+    assert anchored(cited, page) == (0, page.index("coach") + len("coach"))
+    assert read_on("length_over_buffers", "26400", cited, page) is not None
+    assert read_on("weight", "44", cited, page) is not None
+
+
+def test_the_last_cited_words_are_found_when_the_page_has_more_between_the_first() -> None:
+    """An infobox: the search keeps a picture's caption and the row it cuts off, while the page
+    has the rows between them too. The value follows the last words."""
+    cited = (
+        "- The train at the station in town - Interior - Train length: 139.31 m (457 ft) "
+        "(6 cars); 164.26 m (538 ft) (7 cars); 189.21 m..."
+    )
+    rows = (
+        "Train length · 139.31 m (457 ft) (6 cars); 164.26 m (538 ft) (7 cars); "
+        "189.21 m (621 ft) (8 cars)"
+    )
+    page = (
+        "The train at the station in town\nInterior\nIn service · 1990–\nManufacturer · Works\n"
+        f"Built · 1989 – 1998\n{rows}\nMaximum speed · 200 km/h (124 mph)\nPower supply · Line"
+    )
+    found = anchored(cited, page)
+    assert found is not None
+    assert page[found[0] :].startswith("(457 ft) (6 cars)"), "the last words, from a word's start"
+    excerpt = read_on("max_speed", "200", cited, page)
+    assert excerpt == rows.removeprefix("Train length · 139.31 m ") + "\nMaximum speed · 200 km/h"
+    assert read_on("built", "1989 – 1998", cited, page) is None, "it stands before the last words"
+
+
+def test_a_cited_page_is_asked_for_and_then_holds_the_value() -> None:
+    values = [value("max_speed", "120", (URL, CUT)), value("weight", "15.5", (URL, CUT))]
+    first = check(SE, WANTED, values, [result()], AT)
+    assert first.fields == {"weight": "15.5"}, "the search's excerpt holds the weight"
+    assert reasons(first) == {"max_speed": DroppedReason.UNSUPPORTED}
+    assert first.unread == [safe_url(URL)], "the page to read: the speed's, once"
+
+    again = check(SE, WANTED, values, [result()], AT, pages={str(safe_url(URL)): PAGE})
+    assert again.fields == {"weight": "15.5", "max_speed": "120"}
+    assert again.from_page == {"max_speed"}
+    assert again.unread == []
+    kept = again.evidence["max_speed"][0]
+    assert kept["excerpt"].endswith("Maximum speed (km/h) · 120")
+    assert kept["url"] == safe_url(URL)
+    assert again.evidence["weight"][0]["excerpt"] == CUT, "the search's own excerpt when it holds"
+    shown_now = shown(again.evidence, again.fields)
+    assert shown_now["max_speed"][0].agrees, "and it still agrees with the value (CAT-170)"
+
+
+def test_a_page_that_was_not_read_leaves_the_value_dropped() -> None:
+    values = [value("max_speed", "120", (URL, CUT))]
+    checked = check(SE, WANTED, values, [result()], AT, pages={})
+    assert reasons(checked) == {"max_speed": DroppedReason.UNSUPPORTED}
+    assert checked.unread == [safe_url(URL)]
+    invented = check(SE, WANTED, [value("max_speed", "120", (OTHER, CUT))], [result()], AT)
+    assert invented.unread == [], "a page the search never found is never read (CAT-167)"

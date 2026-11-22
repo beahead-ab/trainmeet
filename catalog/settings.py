@@ -45,6 +45,9 @@ CATALOG_FLYTT_PEPPER   The pepper for the hash of the old TrainCatalog owners' v
                        addresses (#57, CAT-204, catalog/waiting.py): at least 32 characters,
                        the same for the move and for Catalog. A secret: never written to the
                        log. Without it, no waiting fleet is taken over at the login.
+CATALOG_SOURCE_PAGES   "off" turns off the reading of the cited pages (catalog/source_pages.py,
+                       CAT-169): a value is then held only to the search's own short excerpt.
+                       Default on. Off in the browser trial, whose pages are made up.
 TRAINMEET_COMMIT, TRAINMEET_PR, TRAINMEET_TITLE, TRAINMEET_BUILT
                        Which change is running, set when the image is built.
 """
@@ -139,6 +142,7 @@ class Settings:
     pictures_s3: S3Settings | None = None
     background_model: Path = DEFAULT_BACKGROUND_MODEL
     flytt_pepper: bytes | None = field(default=None, repr=False)
+    source_pages: bool = True
     """The pepper for the waiting fleets' hash (catalog/waiting.py). A secret."""
 
     def __repr__(self) -> str:  # the database address may hold a password
@@ -285,4 +289,5 @@ def from_env(env: Mapping[str, str] | None = None) -> Settings:
         pictures_s3=s3_from_env(source),
         background_model=Path(background_model) if background_model else DEFAULT_BACKGROUND_MODEL,
         flytt_pepper=pepper_from_env(source),
+        source_pages=source.get("CATALOG_SOURCE_PAGES", "").strip().lower() != "off",
     )

@@ -7,6 +7,8 @@ MeterSearchTrial i contracts/tokens.py) och kör Catalogs egen kontroll av belä
 (catalog/evidence.py, check), som när en person söker. För varje fält syns då vad som hände:
 
     fylls       värdet har en källa ur sökningen vars utdrag håller det
+    ur sidan    värdet står längre in på den citerade sidan, från de citerade orden
+                (catalog/source_pages.py, CAT-169); räknas också som fylls
     saknas      Claude gav inget värde: det fanns inte i källorna, eller Claude lämnade det
     format      värdet är inte ett tal som fältregistret tar (BAD_VALUE)
     utan källa  Claude gav ingen källhänvisning (NO_SOURCE)
@@ -18,16 +20,17 @@ skrivs allt till en fil i Markdown: sammanfattningen, en tabell med fälten per 
 varje fall värdena, utdragen med adresserna och Claudes svar som det skrevs. Det är bara det
 sökningen hittade på webben, och märkningen. Kostnaden är den ID:s prov räknade.
 
-Programmet läser bara filer: ingen databas, ingen nyckel och ingen sökning. Körs för hand och av
-jobbet "Prov av webbsökningen" (.github/workflows/prov-webbsokning.yml), som också skriver
-rapporten i sin logg och kan kontrollera en tidigare körnings fall igen utan att söka.
+Programmet läser de citerade sidorna som Catalog gör, när sökningens eget utdrag inte håller
+värdet; med --utan-sidor bara filerna. Ingen databas, ingen nyckel och ingen sökning. Körs för
+hand och av jobbet "Prov av webbsökningen" (.github/workflows/prov-webbsokning.yml), som också
+skriver rapporten i sin logg och kan kontrollera en tidigare körnings fall igen utan att söka.
 """
 
 from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -35,10 +38,12 @@ from pydantic import ValidationError
 
 from catalog.evidence import check
 from catalog.prototype_search import wanted
+from catalog.source_pages import SourcePages, WebPages
 from contracts.catalog import DroppedReason, FieldProfile
 from contracts.tokens import TOKENS_PER_SEARCH, MeterSearchTrial
 
 FILLED = "fylls"
+FROM_PAGE = "ur sidan"
 MISSING = "saknas"
 SAID: dict[DroppedReason, str] = {
     DroppedReason.BAD_VALUE: "format",
@@ -55,33 +60,53 @@ class Outcome:
     name: str
     trial: MeterSearchTrial
     fields: dict[str, str]
+    pages: dict[str, str] = field(default_factory=dict)
+    """The cited pages Catalog tried to read, and how it went."""
 
     @property
     def filled(self) -> int:
-        return sum(1 for each in self.fields.values() if each == FILLED)
+        return sum(1 for each in self.fields.values() if each in (FILLED, FROM_PAGE))
+
+    @property
+    def from_page(self) -> int:
+        return sum(1 for each in self.fields.values() if each == FROM_PAGE)
 
     @property
     def answered(self) -> int:
         return sum(1 for each in self.fields.values() if each != MISSING)
 
 
-def outcome(name: str, trial: MeterSearchTrial) -> Outcome:
-    """Catalog's check of the evidence on the trial's answer, as for a person's search."""
+def outcome(name: str, trial: MeterSearchTrial, pages: SourcePages | None = None) -> Outcome:
+    """Catalog's check of the evidence on the trial's answer, as for a person's search: with
+    pages, the cited pages are read where the search's excerpt does not hold the value."""
     profile = FieldProfile(trial.asked.profile)
     asked = {each.key for each in trial.asked.fields}
     keys = [key for key in wanted(profile) if key in asked]
-    checked = check(profile, keys, trial.values, trial.results, datetime.now(UTC))
+    now = datetime.now(UTC)
+    checked = check(profile, keys, trial.values, trial.results, now)
+    tried: dict[str, str] = {}
+    if checked.unread and pages is not None:
+        if isinstance(pages, WebPages):
+            attempts = pages.tried(checked.unread)
+            texts = {url: each.text for url, each in attempts.items() if each.text}
+            tried = {url: each.why for url, each in attempts.items()}
+        else:
+            texts = pages.read(checked.unread)
+            tried = {
+                url: "läst" if url in texts else "gick inte att läsa" for url in checked.unread
+            }
+        checked = check(profile, keys, trial.values, trial.results, now, pages=texts)
     dropped = {each.key: SAID[each.reason] for each in checked.dropped}
-    return Outcome(
-        name=name,
-        trial=trial,
-        fields={
-            key: FILLED if key in checked.fields else dropped.get(key, MISSING) for key in keys
-        },
-    )
+
+    def said(key: str) -> str:
+        if key in checked.from_page:
+            return FROM_PAGE
+        return FILLED if key in checked.fields else dropped.get(key, MISSING)
+
+    return Outcome(name=name, trial=trial, fields={key: said(key) for key in keys}, pages=tried)
 
 
-def read(folder: Path) -> list[Outcome]:
+def read(folder: Path, pages: SourcePages | None = None) -> list[Outcome]:
     """Every case in the folder, in the order of their names. Raises ValueError."""
     found = []
     for path in sorted(folder.glob("*.json")):
@@ -89,7 +114,7 @@ def read(folder: Path) -> list[Outcome]:
             trial = MeterSearchTrial.model_validate_json(path.read_text(encoding="utf-8"))
         except (OSError, ValidationError) as error:
             raise ValueError(f"{path.name} är inte ett fall ur provet.") from error
-        found.append(outcome(path.stem, trial))
+        found.append(outcome(path.stem, trial, pages))
     return found
 
 
@@ -118,15 +143,24 @@ def summary(outcomes: list[Outcome]) -> list[str]:
         )
     asked = sum(len(each.fields) for each in outcomes)
     filled = sum(each.filled for each in outcomes)
+    from_page = sum(each.from_page for each in outcomes)
     answered = sum(each.answered for each in outcomes)
     sek = sum(each.trial.cost_sek for each in outcomes)
     lines += [
         "",
-        f"{len(outcomes)} fall. {filled} av {asked} fält fylls, och {answered} hade ett värde i "
-        f"svaret. Kostnaden var {sek:.2f} kr, i medel {sek / len(outcomes):.2f} kr och "
+        f"{len(outcomes)} fall. {filled} av {asked} fält fylls, {from_page} av dem ur den "
+        f"citerade sidan, och {answered} hade ett värde i svaret. Kostnaden var {sek:.2f} kr, "
+        f"i medel {sek / len(outcomes):.2f} kr och "
         f"{_mean_tokens(outcomes):.1f} tokens med faktorn per sökning. Priset i Catalog är "
         f"{TOKENS_PER_SEARCH} tokens (CAT-172).",
     ]
+    tried = [why for each in outcomes for why in each.pages.values()]
+    if tried:
+        read = sum(1 for why in tried if why.startswith("läst"))
+        lines.append(
+            f"Catalog läste {read} av {len(tried)} citerade sidor där sökningens utdrag inte "
+            "höll värdet."
+        )
     return lines
 
 
@@ -186,6 +220,9 @@ def report(outcomes: list[Outcome]) -> str:
                 for citation in value.citations
             )
             lines.append(f"| {key} | {happened} | {_cell(value.value)} | {cited} |")
+        if each.pages:
+            lines += ["", "Citerade sidor som Catalog läste:", ""]
+            lines += [f"- {_cell(url)}: {why}" for url, why in each.pages.items()]
         lines += ["", "Claudes svar:", "", "```text", trial.text.replace("```", "'''"), "```"]
     return "\n".join(lines) + "\n"
 
@@ -194,9 +231,14 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("mapp", help="mappen med fallen från id.prov_webbsokning --spara")
     parser.add_argument("--rapport", default="", help="filen där allt skrivs, i Markdown")
+    parser.add_argument(
+        "--utan-sidor",
+        action="store_true",
+        help="läs inte de citerade sidorna: bara sökningens eget utdrag",
+    )
     args = parser.parse_args(argv)
     try:
-        outcomes = read(Path(args.mapp))
+        outcomes = read(Path(args.mapp), None if args.utan_sidor else WebPages())
     except ValueError as error:
         print(error, file=sys.stderr)
         return 2
