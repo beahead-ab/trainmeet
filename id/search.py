@@ -30,7 +30,11 @@ ID_SEARCH_KEY_FILE     A file in ID's vault with the key to Anthropic's API, on 
 ID_SEARCH_MODEL        Default claude-sonnet-5-5: the meter's ordinary model, as Anthropic's API
                        names it. Never the strongest model (CAD18).
 ID_SEARCH_TOOL         Default web_search_20260318. One of Anthropic's versions of the tool.
-ID_SEARCH_MAX_USES     Default 5: the most searches Claude may make for one search here.
+ID_SEARCH_MAX_USES     Default 2: the most searches Claude may make for one search here. Each
+                       search is read on top of the ones before, so the cost grows fast: in the
+                       trial of nine cases a search cost about 12 tokens, two about 25, and five
+                       82. With two at most a search stays near its price (CAT-172, beslut 22
+                       november).
 ID_SEARCH_TIMEOUT      Default 180: seconds to wait for Anthropic.
 ID_SEARCH_PRICE_USD    Default 10: what Anthropic takes for 1 000 searches, in dollars, beside
                        the tokens, so that the owner's budget counts a search right (TK15).
@@ -81,7 +85,7 @@ class SearchSettings:
     key_file: Path = field(repr=False)
     model: str = "claude-sonnet-5-5"
     tool: str = TOOLS[0]
-    max_uses: int = 5
+    max_uses: int = 2
     timeout: float = 180.0
     price_usd: float = 10.0
     """Dollars per 1 000 searches, beside the tokens."""
@@ -106,7 +110,7 @@ def settings_from(env: Mapping[str, str] | None = None) -> SearchSettings | None
         key_file=Path(key_file),
         model=source.get("ID_SEARCH_MODEL", "").strip() or "claude-sonnet-5-5",
         tool=tool if tool in TOOLS else TOOLS[0],
-        max_uses=int(_number(source.get("ID_SEARCH_MAX_USES", ""), 5, 1, 20)),
+        max_uses=int(_number(source.get("ID_SEARCH_MAX_USES", ""), 2, 1, 20)),
         timeout=_number(source.get("ID_SEARCH_TIMEOUT", ""), 180.0, 10, 600),
         price_usd=_number(source.get("ID_SEARCH_PRICE_USD", ""), 10.0, 0, 1000),
     )

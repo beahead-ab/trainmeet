@@ -301,7 +301,7 @@ services:
       # not connected, and Catalog says so (CAT-219).
       ID_SEARCH_KEY_FILE: /vault/trainmeet_search-key
       ID_SEARCH_MODEL: ${ID_SEARCH_MODEL:-claude-sonnet-5-5}
-      ID_SEARCH_MAX_USES: ${ID_SEARCH_MAX_USES:-5}
+      ID_SEARCH_MAX_USES: ${ID_SEARCH_MAX_USES:-2}
       ID_SEARCH_TIMEOUT: ${ID_SEARCH_TIMEOUT:-180}
       # Köpen (#79, TOKEN-02): Stripe's test keys in id-vault. Without them buying is closed, and
       # a key that is not a test key is never used before MOMS is decided.

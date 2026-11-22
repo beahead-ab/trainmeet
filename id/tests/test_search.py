@@ -203,7 +203,7 @@ def test_only_the_marking_is_sent_to_anthropic(tmp_path: Path) -> None:
         {
             "type": "web_search_20260318",
             "name": "web_search",
-            "max_uses": 5,
+            "max_uses": 2,
             "allowed_callers": ["direct"],
         }
     ]
@@ -529,7 +529,7 @@ def test_the_search_is_on_only_with_its_key_in_the_vault(tmp_path: Path) -> None
     assert (found.model, found.tool, found.max_uses, found.timeout, found.price_usd) == (
         "claude-sonnet-5-5",
         "web_search_20260318",
-        5,
+        2,
         180.0,
         10.0,
     )
@@ -554,7 +554,7 @@ def test_the_search_is_on_only_with_its_key_in_the_vault(tmp_path: Path) -> None
     odd = settings_from(
         {"ID_SEARCH_KEY_FILE": str(key), "ID_SEARCH_TOOL": "annat", "ID_SEARCH_MAX_USES": "många"}
     )
-    assert odd is not None and (odd.tool, odd.max_uses) == ("web_search_20260318", 5)
+    assert odd is not None and (odd.tool, odd.max_uses) == ("web_search_20260318", 2)
     # An empty file is no key: the search says it is not connected, and asks nobody.
     key.write_text("\n")
     empty = AnthropicSearch(SearchSettings(key_file=key), http=httpx.Client())
