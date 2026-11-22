@@ -71,6 +71,14 @@ class SourcePages(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class Tried:
+    """One cited page as Catalog tried it: its text, or None, and why, for the trial's report."""
+
+    text: str | None
+    why: str
+
+
 # --- Only open web pages ------------------------------------------------------------------------
 
 
@@ -273,22 +281,34 @@ class WebPages:
         )
 
     def read(self, urls: Sequence[str]) -> dict[str, str]:
-        wanted = list(dict.fromkeys(url for url in urls if safe_url(url) == url))[:MOST_PAGES]
-        if not wanted:
-            return {}
-        with self._client() as client, ThreadPoolExecutor(max_workers=AT_ONCE) as threads:
-            texts = list(threads.map(lambda url: self.text(client, url), wanted))
-        return {url: text for url, text in zip(wanted, texts, strict=True) if text}
+        return {url: each.text for url, each in self.tried(urls).items() if each.text}
 
-    def text(self, client: httpx.Client, url: str) -> str | None:
-        """One page's text, or None. Never raises: an unreadable page is no evidence."""
+    def tried(self, urls: Sequence[str]) -> dict[str, Tried]:
+        """Every address asked for, with its text or why there is none."""
+        found: dict[str, Tried] = {}
+        wanted: list[str] = []
+        for url in dict.fromkeys(urls):
+            if safe_url(url) != url:
+                found[url] = Tried(None, "inte en öppen webbsida")
+            elif len(wanted) == MOST_PAGES:
+                found[url] = Tried(None, f"inte läst: högst {MOST_PAGES} sidor per sökning")
+            else:
+                wanted.append(url)
+        if wanted:
+            with self._client() as client, ThreadPoolExecutor(max_workers=AT_ONCE) as threads:
+                texts = list(threads.map(lambda url: self.text(client, url), wanted))
+            found |= dict(zip(wanted, texts, strict=True))
+        return found
+
+    def text(self, client: httpx.Client, url: str) -> Tried:
+        """One page's text, or why not. Never raises: an unreadable page is no evidence."""
         try:
             return self._text(client, url)
         except (httpx.HTTPError, httpcore.ConnectError, OSError, ValueError) as error:
             LOGGER.info("En källa gick inte att läsa: %s", type(error).__name__)
-            return None
+            return Tried(None, f"svarar inte ({type(error).__name__})")
 
-    def _text(self, client: httpx.Client, url: str) -> str | None:
+    def _text(self, client: httpx.Client, url: str) -> Tried:
         address = url
         until = time.monotonic() + WHOLE_SECONDS
         for _ in range(MOST_REDIRECTS + 1):
@@ -296,21 +316,28 @@ class WebPages:
                 if answer.is_redirect:
                     following = safe_url(urljoin(address, answer.headers.get("location", "")))
                     if following is None:
-                        return None
+                        return Tried(None, "skickas vidare till en adress som inte är öppen")
                     address = following
                     continue
                 if answer.status_code != 200:
-                    return None
+                    return Tried(None, f"svarar HTTP {answer.status_code}")
                 kind = answer.headers.get("content-type", "").split(";")[0].strip().lower()
                 if kind not in KINDS:
-                    return None
+                    return Tried(None, f"är {kind or 'utan typ'}")
                 data = bytearray()
                 for piece in answer.iter_bytes():
                     data += piece
-                    if len(data) > MOST_BYTES or time.monotonic() > until:
-                        return None
+                    if len(data) > MOST_BYTES:
+                        return Tried(None, f"är större än {MOST_BYTES // 1_000_000} MB")
+                    if time.monotonic() > until:
+                        return Tried(None, f"tog mer än {int(WHOLE_SECONDS)} sekunder")
                 if kind == "application/pdf":
-                    return pdf_text(bytes(data))
-                text = _decoded(bytes(data), answer.charset_encoding)
-                return html_text(text) if kind != "text/plain" else text[:MOST_TEXT]
-        return None
+                    text = pdf_text(bytes(data))
+                elif kind == "text/plain":
+                    text = _decoded(bytes(data), answer.charset_encoding)[:MOST_TEXT]
+                else:
+                    text = html_text(_decoded(bytes(data), answer.charset_encoding))
+                if not text or not text.strip():
+                    return Tried(None, "har ingen text som går att läsa")
+                return Tried(text, f"läst, {len(text)} tecken")
+        return Tried(None, f"skickas vidare mer än {MOST_REDIRECTS} gånger")

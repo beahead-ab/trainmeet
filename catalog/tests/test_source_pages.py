@@ -227,3 +227,32 @@ def test_a_page_in_another_encoding_is_read_by_its_own_word() -> None:
         lambda request: httpx.Response(200, headers={"content-type": "text/html"}, content=body)
     )
     assert reader.read([PAGE]) == {PAGE: "Längd över buffertar 14 020 mm"}
+
+
+def test_the_trial_is_told_why_a_page_was_not_read() -> None:
+    def answer(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/saknas":
+            return html("", 404)
+        if request.url.path == "/bild":
+            return httpx.Response(200, headers={"content-type": "image/png"}, content=b"\x89PNG")
+        if request.url.path == "/tom":
+            return html("<script>var x = 1;</script>")
+        return html("<p>Speed 120 km/h</p>")
+
+    reader, _ = pages(answer)
+    base = "https://www.example.org"
+    tried = reader.tried(
+        ["http://localhost/x", f"{base}/sida", f"{base}/saknas", f"{base}/bild", f"{base}/tom"]
+    )
+    assert {url: each.why for url, each in tried.items()} == {
+        "http://localhost/x": "inte en öppen webbsida",
+        f"{base}/sida": "läst, 14 tecken",
+        f"{base}/saknas": "svarar HTTP 404",
+        f"{base}/bild": "är image/png",
+        f"{base}/tom": "har ingen text som går att läsa",
+    }
+    assert tried[f"{base}/sida"].text == "Speed 120 km/h"
+    many = reader.tried([f"{base}/sida/{number}" for number in range(MOST_PAGES + 1)])
+    assert (
+        many[f"{base}/sida/{MOST_PAGES}"].why == f"inte läst: högst {MOST_PAGES} sidor per sökning"
+    )

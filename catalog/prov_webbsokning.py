@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -60,6 +60,8 @@ class Outcome:
     name: str
     trial: MeterSearchTrial
     fields: dict[str, str]
+    pages: dict[str, str] = field(default_factory=dict)
+    """The cited pages Catalog tried to read, and how it went."""
 
     @property
     def filled(self) -> int:
@@ -82,8 +84,17 @@ def outcome(name: str, trial: MeterSearchTrial, pages: SourcePages | None = None
     keys = [key for key in wanted(profile) if key in asked]
     now = datetime.now(UTC)
     checked = check(profile, keys, trial.values, trial.results, now)
+    tried: dict[str, str] = {}
     if checked.unread and pages is not None:
-        texts = pages.read(checked.unread)
+        if isinstance(pages, WebPages):
+            attempts = pages.tried(checked.unread)
+            texts = {url: each.text for url, each in attempts.items() if each.text}
+            tried = {url: each.why for url, each in attempts.items()}
+        else:
+            texts = pages.read(checked.unread)
+            tried = {
+                url: "läst" if url in texts else "gick inte att läsa" for url in checked.unread
+            }
         checked = check(profile, keys, trial.values, trial.results, now, pages=texts)
     dropped = {each.key: SAID[each.reason] for each in checked.dropped}
 
@@ -92,7 +103,7 @@ def outcome(name: str, trial: MeterSearchTrial, pages: SourcePages | None = None
             return FROM_PAGE
         return FILLED if key in checked.fields else dropped.get(key, MISSING)
 
-    return Outcome(name=name, trial=trial, fields={key: said(key) for key in keys})
+    return Outcome(name=name, trial=trial, fields={key: said(key) for key in keys}, pages=tried)
 
 
 def read(folder: Path, pages: SourcePages | None = None) -> list[Outcome]:
@@ -143,6 +154,13 @@ def summary(outcomes: list[Outcome]) -> list[str]:
         f"{_mean_tokens(outcomes):.1f} tokens med faktorn per sökning. Priset i Catalog är "
         f"{TOKENS_PER_SEARCH} tokens (CAT-172).",
     ]
+    tried = [why for each in outcomes for why in each.pages.values()]
+    if tried:
+        read = sum(1 for why in tried if why.startswith("läst"))
+        lines.append(
+            f"Catalog läste {read} av {len(tried)} citerade sidor där sökningens utdrag inte "
+            "höll värdet."
+        )
     return lines
 
 
@@ -202,6 +220,9 @@ def report(outcomes: list[Outcome]) -> str:
                 for citation in value.citations
             )
             lines.append(f"| {key} | {happened} | {_cell(value.value)} | {cited} |")
+        if each.pages:
+            lines += ["", "Citerade sidor som Catalog läste:", ""]
+            lines += [f"- {_cell(url)}: {why}" for url, why in each.pages.items()]
         lines += ["", "Claudes svar:", "", "```text", trial.text.replace("```", "'''"), "```"]
     return "\n".join(lines) + "\n"
 

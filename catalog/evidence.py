@@ -63,6 +63,8 @@ READ_ON: Final = 1000
 infobox's, never the rest of the page."""
 ANCHOR: Final = 80
 """The cited words that are looked for in the page: the first letters and digits of them."""
+TAIL: Final = 32
+"""Or the last letters and digits of them, before the cut, when the first are not there."""
 SHORTEST_ANCHOR: Final = 12
 
 _D = Decimal
@@ -355,17 +357,21 @@ def _skeleton(text: str) -> tuple[str, list[int]]:
 
 
 def anchored(cited: str, page: str) -> tuple[int, int] | None:
-    """Where the cited words stand in the page's text, from the first of them to the last that
-    was looked for, or None when they are not there."""
-    wanted, _ = _skeleton(cited.removesuffix("...").removesuffix("…"))
-    wanted = wanted[:ANCHOR]
-    if len(wanted) < SHORTEST_ANCHOR:
+    """Where the cited words stand in the page's text, or None when they are not there: their
+    first words, or, when the page has more between them than the search kept (a picture's
+    caption, a heading's links), their last words before the cut, where the value follows."""
+    letters_cited, _ = _skeleton(cited)
+    if len(letters_cited) < SHORTEST_ANCHOR:
         return None
     letters, where = _skeleton(page)
-    found = letters.find(wanted)
-    if found < 0:
-        return None
-    return where[found], where[found + len(wanted) - 1] + 1
+    for wanted in dict.fromkeys((letters_cited[:ANCHOR], letters_cited[-TAIL:])):
+        found = letters.find(wanted)
+        if found >= 0:
+            start = where[found]
+            while start > 0 and not page[start - 1].isspace():
+                start -= 1  # from the start of the word, never inside a number
+            return start, where[found + len(wanted) - 1] + 1
+    return None
 
 
 def read_on(key: str, value: str, cited: str, page: str) -> str | None:

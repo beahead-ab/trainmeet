@@ -465,7 +465,7 @@ def test_the_search_asks_for_the_profiles_type_data_with_the_registers_units(
     assert labels["epoch"] == "Era" and labels["length_ft"] == "Length"
 
 
-# --- Further on in the cited page (CAT-169, förslag 23 november) --------------------------------
+# --- Further on in the cited page (CAT-169, förslag 22 november) --------------------------------
 
 # A company's wagon catalogue as Claude's search cites it: about 150 characters, cut off before
 # the speed, the year and the brake, which stand further on in the same table.
@@ -530,6 +530,29 @@ def test_the_cited_words_are_found_whatever_marks_and_letters_the_search_left_ou
     assert anchored(cited, page) == (0, page.index("coach") + len("coach"))
     assert read_on("length_over_buffers", "26400", cited, page) is not None
     assert read_on("weight", "44", cited, page) is not None
+
+
+def test_the_last_cited_words_are_found_when_the_page_has_more_between_the_first() -> None:
+    """An infobox: the search keeps a picture's caption and the row it cuts off, while the page
+    has the rows between them too. The value follows the last words."""
+    cited = (
+        "- The train at the station in town - Interior - Train length: 139.31 m (457 ft) "
+        "(6 cars); 164.26 m (538 ft) (7 cars); 189.21 m..."
+    )
+    rows = (
+        "Train length · 139.31 m (457 ft) (6 cars); 164.26 m (538 ft) (7 cars); "
+        "189.21 m (621 ft) (8 cars)"
+    )
+    page = (
+        "The train at the station in town\nInterior\nIn service · 1990–\nManufacturer · Works\n"
+        f"Built · 1989 – 1998\n{rows}\nMaximum speed · 200 km/h (124 mph)\nPower supply · Line"
+    )
+    found = anchored(cited, page)
+    assert found is not None
+    assert page[found[0] :].startswith("(457 ft) (6 cars)"), "the last words, from a word's start"
+    excerpt = read_on("max_speed", "200", cited, page)
+    assert excerpt == rows.removeprefix("Train length · 139.31 m ") + "\nMaximum speed · 200 km/h"
+    assert read_on("built", "1989 – 1998", cited, page) is None, "it stands before the last words"
 
 
 def test_a_cited_page_is_asked_for_and_then_holds_the_value() -> None:

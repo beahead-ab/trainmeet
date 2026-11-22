@@ -108,6 +108,9 @@ def test_a_value_further_on_in_the_cited_page_is_filled_from_the_page() -> None:
     assert found.fields["weight"] == "fylls", "the search's own excerpt still comes first"
     assert pages.asked == [[URL]], "only the cited page whose excerpt fell short, once"
     assert (found.filled, found.from_page) == (3, 1)
+    assert found.pages == {URL: "läst"}
+    assert "Catalog läste 1 av 1 citerade sidor" in "\n".join(prov_webbsokning.summary([found]))
+    assert f"- {URL}: läst" in prov_webbsokning.report([found])
 
 
 def test_the_report_has_the_counts_the_fields_and_each_cases_evidence(
