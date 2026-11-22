@@ -13,7 +13,7 @@ read best with high-resolution crops), never the whole photo or sheet. The quest
 - Kil (wedge, a sketch): two tracks whose ink runs together: "Är detta en växel, två spår
   bredvid varandra eller något annat?"
 
-They are asked through ID's meter as hard questions (CAD18: the strongest model), inside the
+They are asked through ID's meter as hard questions (CAD18, CAD19: the strongest model), inside the
 measuring image's price: 12 tokens for the image or the sketch read, follow-up questions
 included (CAD-18, CAD-29). The answer is read failing closed, kept as a transcript per (the
 picture's checksum, CHOICE_VERSION), and the same question is never asked twice. Without AI

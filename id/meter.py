@@ -26,16 +26,24 @@ Settings, from the environment:
 
 ID_METER_KEY_FILE          A file in ID's vault with the AWS access key for Bedrock: its id on
                            the first line and its secret on the second. Without the file the
-                           meter is off.
-ID_METER_REGION            Default eu-north-1, Stockholm, where the data is processed.
-ID_METER_MODEL             Default anthropic.claude-sonnet-5-5, which the prices build on
-                           (TOKEN-22).
-ID_METER_MODEL_HARD        Default anthropic.claude-fable-5-2: the strongest model, for CAD's
-                           hard follow-up questions only (MeterRead.hard, CAD18). The price for
-                           the person is the same 12 tokens a picture; TrainMeet pays the rest.
-ID_METER_HARD_FACTOR       Default 4: what a hard question's tokens cost against the standard
-                           model's, at list prices (Fable 5.2 $8/$40 per million against Sonnet
+                           meter is off. The key may invoke the two EU profiles, and their
+                           models in every EU region a profile sends a call on to.
+ID_METER_REGION            Default eu-north-1, Stockholm, where the call is made. The EU profile
+                           sends it on to one of the EU's regions and never outside them (TK14).
+ID_METER_MODEL             Default eu.anthropic.claude-sonnet-5-5: Claude Sonnet 5.5 with the EU
+                           profile, which the prices build on (TOKEN-22).
+ID_METER_MODEL_HARD        Default eu.anthropic.claude-opus-5-5: Claude Opus 5.5 with the EU
+                           profile, the strongest model in the EU, for CAD's hard follow-up
+                           questions only (MeterRead.hard, CAD19). Claude Fable 5.2, which CAD18
+                           chose, is not in the EU. The price for the person is the same 12 tokens
+                           a picture; TrainMeet pays the rest.
+ID_METER_HARD_FACTOR       Default 2: what a hard question's tokens cost against the standard
+                           model's, at list prices (Opus 5.5 $4/$20 per million against Sonnet
                            5.5's $2/$10), so that the owner's budget (TK6, TK15) counts them right.
+ID_METER_PROFILE_FACTOR    Default 1.1: what the EU profile costs against the list prices the
+                           owner's prices build on. AWS takes 10 % more for it than for the global
+                           profile. The web search is priced at Anthropic's list prices and is not
+                           counted with it.
 """
 
 from __future__ import annotations
@@ -48,6 +56,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any, Final, Protocol
+from urllib.parse import quote
 from uuid import UUID
 
 import httpx
@@ -80,8 +89,8 @@ from id.tokens import Tokens
 
 LOGGER = logging.getLogger("id.meter")
 
-API_VERSION: Final = "2026-10-21"
-"""The Messages API's version, as Claude in Amazon Bedrock takes it."""
+API_VERSION: Final = "bedrock-2023-05-31"
+"""The Messages API's version in the body, as Bedrock's InvokeModel takes it for Claude."""
 KEPT: Final = timedelta(days=1)
 """How long an answer is kept, for an app that asks again with the same reservation."""
 
@@ -113,9 +122,10 @@ class MeterFailed(Exception):
 class MeterSettings:
     key_file: Path
     region: str = "eu-north-1"
-    model: str = "anthropic.claude-sonnet-5-5"
-    hard_model: str = "anthropic.claude-fable-5-2"
-    hard_factor: float = 4.0
+    model: str = "eu.anthropic.claude-sonnet-5-5"
+    hard_model: str = "eu.anthropic.claude-opus-5-5"
+    hard_factor: float = 2.0
+    profile_factor: float = 1.1
 
 
 def settings_from(env: Mapping[str, str] | None = None) -> MeterSettings | None:
@@ -126,18 +136,21 @@ def settings_from(env: Mapping[str, str] | None = None) -> MeterSettings | None:
     return MeterSettings(
         key_file=Path(key_file),
         region=source.get("ID_METER_REGION", "").strip() or "eu-north-1",
-        model=source.get("ID_METER_MODEL", "").strip() or "anthropic.claude-sonnet-5-5",
-        hard_model=source.get("ID_METER_MODEL_HARD", "").strip() or "anthropic.claude-fable-5-2",
-        hard_factor=_factor(source.get("ID_METER_HARD_FACTOR", "")),
+        model=source.get("ID_METER_MODEL", "").strip() or MeterSettings.model,
+        hard_model=source.get("ID_METER_MODEL_HARD", "").strip() or MeterSettings.hard_model,
+        hard_factor=_factor(source.get("ID_METER_HARD_FACTOR", ""), MeterSettings.hard_factor),
+        profile_factor=_factor(
+            source.get("ID_METER_PROFILE_FACTOR", ""), MeterSettings.profile_factor
+        ),
     )
 
 
-def _factor(given: str) -> float:
+def _factor(given: str, otherwise: float) -> float:
     try:
         factor = float(given.strip())
     except ValueError:
-        return 4.0
-    return factor if factor >= 1 else 4.0
+        return otherwise
+    return factor if factor >= 1 else otherwise
 
 
 class Claude(Protocol):
@@ -146,12 +159,17 @@ class Claude(Protocol):
 
     @property
     def hard_model(self) -> str:
-        """The strongest model, for CAD's hard follow-up questions (CAD18)."""
+        """The strongest model in the EU, for CAD's hard follow-up questions (CAD19)."""
         ...
 
     @property
     def hard_factor(self) -> float:
         """What the strongest model's tokens cost against the standard model's."""
+        ...
+
+    @property
+    def profile_factor(self) -> float:
+        """What the way to Claude costs against the list prices: the EU profile's 10 %."""
         ...
 
     def read(
@@ -186,9 +204,12 @@ class Budget(Protocol):
 
 @dataclass
 class BedrockClaude:
-    """Claude in Amazon Bedrock: the Messages API at bedrock-mantle in the region, signed with
-    AWS's own SigV4 (botocore). Called with httpx, as the rest of ID, rather than with
-    Anthropic's SDK, whose HTTP library would change the test client for the whole project."""
+    """Claude in Amazon Bedrock with the EU profile (TK14, TOKEN-20): InvokeModel at
+    bedrock-runtime in the region, which sends the call on to one of the EU's regions and never
+    outside them. Bedrock's Messages API at bedrock-mantle has these models only outside the EU.
+    Signed with AWS's own SigV4 (botocore). Called with httpx, as the rest of ID, rather than
+    with Anthropic's SDK, whose HTTP library would change the test client for the whole
+    project."""
 
     settings: MeterSettings
     http: httpx.Client = field(default_factory=lambda: httpx.Client(timeout=120.0), repr=False)
@@ -206,8 +227,15 @@ class BedrockClaude:
         return self.settings.hard_factor
 
     @property
-    def address(self) -> str:
-        return f"https://bedrock-mantle.{self.settings.region}.api.aws/anthropic/v1/messages"
+    def profile_factor(self) -> float:
+        return self.settings.profile_factor
+
+    def address(self, model: str) -> str:
+        """InvokeModel for the model or profile, in the region the call is made from."""
+        return (
+            f"https://bedrock-runtime.{self.settings.region}.amazonaws.com"
+            f"/model/{quote(model, safe='')}/invoke"
+        )
 
     def read(
         self,
@@ -226,11 +254,14 @@ class BedrockClaude:
             for kind, data in images
         ]
         content.append({"type": "text", "text": prompt})
+        model = self.settings.hard_model if hard else self.settings.model
+        address = self.address(model)
         body = json.dumps(
             {
-                "model": self.settings.hard_model if hard else self.settings.model,
-                # The strongest model always thinks, and its thinking counts in max_tokens: a
-                # short answer still needs room (CAD18).
+                # InvokeModel takes the model in the address and the version in the body.
+                "anthropic_version": API_VERSION,
+                # Claude Opus 5.5 always thinks, and its thinking counts in max_tokens: a short
+                # answer still needs room (CAD18, CAD19).
                 "max_tokens": max(max_tokens, 16_000) if hard else max_tokens,
                 # A transcription needs no long thinking; the price counts a page (TOKEN-22). A
                 # hard follow-up question is where the code was unsure: it reads carefully.
@@ -240,15 +271,13 @@ class BedrockClaude:
         ).encode()
         signed = AWSRequest(
             method="POST",
-            url=self.address,
+            url=address,
             data=body,
-            headers={"content-type": "application/json", "anthropic-version": API_VERSION},
+            headers={"content-type": "application/json", "accept": "application/json"},
         )
-        SigV4Auth(Credentials(key_id, secret), "bedrock-mantle", self.settings.region).add_auth(
-            signed
-        )
+        SigV4Auth(Credentials(key_id, secret), "bedrock", self.settings.region).add_auth(signed)
         try:
-            answer = self.http.post(self.address, content=body, headers=dict(signed.headers))
+            answer = self.http.post(address, content=body, headers=dict(signed.headers))
         except httpx.HTTPError as error:
             raise MeterFailed("TrainMeets AI svarar inte just nu.") from error
         if answer.status_code == 429:
@@ -364,10 +393,11 @@ class Meter:
         except MeterFailed as error:
             self.tokens.give_back(app, asked.reservation)
             raise Refused(502, ProblemCode.UNAVAILABLE, f"{error} Inget drogs.") from None
-        factor = self.claude.hard_factor if asked.hard else 1.0
+        factor = (self.claude.hard_factor if asked.hard else 1.0) * self.claude.profile_factor
         if self.budget is not None:
-            # The owner's budget is priced in the standard model's tokens: a hard question's
-            # count as many as they cost (CAD18).
+            # The owner's budget is priced in the standard model's tokens at list prices: a hard
+            # question's count as many as they cost (CAD18, CAD19), and the EU profile's 10 %
+            # with them (TK14).
             self.budget.record(
                 len(asked.images),
                 round(read.input_tokens * factor),
