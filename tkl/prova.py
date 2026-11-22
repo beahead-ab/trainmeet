@@ -9,7 +9,10 @@ start and end, is tried one at a time, each from a clean state:
   route is set; its switches move and report; the signal shows kör on the layout; a pretend
   train occupies and frees the track circuits along the route, the train number follows it and
   the interlocking releases section by section behind it. The route ends with the arrival, the
-  entry route released after passage (STV-16), or with the departure on a route out;
+  entry route released after passage (STV-16), or with the departure on a route out. Where the
+  route's last sections have no sensor the interlocking cannot see the passage: the train runs
+  on into them, Ankommit gives the arrival, and the route passes with a note that says so
+  (beslut 22 november, #251);
 - at level 1–2, the same interlocking with Kör: section by section, then Ankommit, or out on the
   line.
 
@@ -237,8 +240,11 @@ def _box(plant: Plant, exit_id: str | None) -> str | None:
     return plant.section_of.get(place.pieces[-1])
 
 
-def _on_layout(plant: Plant, way: Way, layout: PretendLoconet | None) -> list[str]:
-    """One route at level 3 against the pretend LocoNet. Returns its pieces; Failed with the
+def _on_layout(
+    plant: Plant, way: Way, layout: PretendLoconet | None
+) -> tuple[list[str], str | None]:
+    """One route at level 3 against the pretend LocoNet. Returns its pieces, and a note when it
+    passed with Ankommit because the interlocking cannot see the passage; Failed with the
     reason."""
     bench = Bench(plant, layout=layout)
     said = bench.connect()
@@ -329,6 +335,8 @@ def _on_layout(plant: Plant, way: Way, layout: PretendLoconet | None) -> list[st
             if not shown.sections[j].released:
                 raise Failed(f"{plant.said(names[j])} löstes inte ut efter tåget")
     last = names[detected[-1]]
+    blind = names[detected[-1] + 1 :]
+    """The route's last sections without a sensor (Utan givare)."""
 
     if way.leaves is None and inside and len(detected) == 1:
         # The train never leaves the one circuit it started in: nothing can tell the passage,
@@ -336,7 +344,24 @@ def _on_layout(plant: Plant, way: Way, layout: PretendLoconet | None) -> list[st
         released = bench.do(bench.it.release(route_id))
         if not released.accepted:
             raise Failed(released.message)
-        return pieces
+        return pieces, None
+    if way.leaves is None and blind:
+        # The train runs on into the sections without a sensor: the interlocking cannot see the
+        # passage, and the operator gives the arrival with Ankommit (STV-16, beslut 22
+        # november, #251). It passes, with a note that says so.
+        layout_.remove_train(TRAIN)
+        bench.run(0.1)
+        given = bench.do(bench.it.arrive(route_id))
+        if not given.accepted:
+            raise Failed(given.message)
+        reported = any(u.kind == TklReportKind.ARRIVED for u in given.reports)
+        if numbered and way.kind == EngineKind.TRAIN and not reported:
+            raise Failed("ankomsten rapporterades inte")
+        word = "spårledningen" if len(blind) == 1 else "spårledningarna"
+        return pieces, (
+            f"Ankomsten ges med Ankommit: {word} {_listed(blind)} saknar givare, så "
+            "ställverket kan inte se passagen."
+        )
     if way.leaves is None:
         # The tail comes in: the entry route is released after passage (STV-16).
         layout_.move_train(TRAIN, last, length=1)
@@ -350,7 +375,7 @@ def _on_layout(plant: Plant, way: Way, layout: PretendLoconet | None) -> list[st
             arrived = [u for u in bench.up if u.kind == TklReportKind.ARRIVED]
             if not arrived:
                 raise Failed("ankomsten rapporterades inte")
-        return pieces
+        return pieces, None
     box = _box(plant, way.leaves)
     if box is not None and box not in names and bench.detects(box):
         layout_.move_train(TRAIN, box)
@@ -363,7 +388,7 @@ def _on_layout(plant: Plant, way: Way, layout: PretendLoconet | None) -> list[st
         raise Failed(f"tåget lämnade mot {way.leaves}, men avgången kom inte: vägen ligger kvar")
     if numbered and not any(u.kind == TklReportKind.DEPARTED for u in bench.up):
         raise Failed("avgången rapporterades inte")
-    return pieces
+    return pieces, None
 
 
 # --- level 1–2: the same interlocking with Kör ------------------------------------------------
@@ -444,9 +469,10 @@ def _with_kor(plant: Plant, way: Way) -> list[str]:
 def try_route(model: StationModel, way: Way, layout: LayoutMaker | None = None) -> TklProvaRoute:
     """One route from a clean state: passed, or failed with the reason (STUDIO-27)."""
     plant = plant_of(model)
+    note = None
     try:
         if model.level >= 3:
-            pieces = _on_layout(plant, way, layout(model) if layout is not None else None)
+            pieces, note = _on_layout(plant, way, layout(model) if layout is not None else None)
         else:
             pieces = _with_kor(plant, way)
     except Failed as failed:
@@ -454,7 +480,7 @@ def try_route(model: StationModel, way: Way, layout: LayoutMaker | None = None) 
     except Exception as error:  # a bug must not stop the other routes
         said = f"Simulatorn kunde inte köra vägen ({type(error).__name__})."
         return _result(way, TklProvaResult.FAILED, said)
-    return _result(way, TklProvaResult.PASSED, None, pieces)
+    return _result(way, TklProvaResult.PASSED, note, pieces)
 
 
 def try_all(

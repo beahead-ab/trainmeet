@@ -143,6 +143,20 @@ def test_a_grey_object_fails_with_the_interlockings_reason() -> None:
     assert tried[("12", "Ut2")].result == PASSED
 
 
+def test_a_track_without_a_sensor_passes_with_ankommit_and_a_note() -> None:
+    """STV-16, beslut 22 november (#251): a route that ends on a track circuit Utan givare runs
+    on into it, and Ankommit gives the arrival, as the operator does on the layout. It passes,
+    with a note that says why."""
+    model = changed(level_3(provby()), ObjectKind.TRACK_CIRCUIT, "Spår 1", address="without")
+    tried = {(r.start, r.end): r for r in prova.try_all(model)}
+    assert [r.reason for r in tried.values() if r.result != PASSED] == []
+    assert tried[("In", "12")].reason == (
+        "Ankomsten ges med Ankommit: spårledningen Spår 1 saknar givare, så ställverket kan "
+        "inte se passagen."
+    )
+    assert tried[("In", "22")].reason is None
+
+
 @pytest.mark.parametrize("station", STATIONS)
 def test_the_reference_stations_routes_all_pass_in_the_simulator(station: str) -> None:
     """At the station's own level, and at level 3 against the pretend LocoNet when every

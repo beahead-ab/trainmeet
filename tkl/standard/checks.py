@@ -12,11 +12,14 @@
   the engine lays the station out so that it fits, or proposes fields (STD-03).
 - The station's outside can be derived: the model has station tracks and line exits, each gets
   an id in the outside, and each exit's side can be read from the panel (STD-08, TKL92).
+- At level 3, a train route that ends on a station track whose track circuit is Utan givare is
+  a note: the interlocking cannot see the passage, so the arrival is given with Ankommit
+  (STV-16, beslut 22 november, #251).
 
-Some findings are notes, not problems: they are shown, but the model may still run. A line exit
-without a neighbouring station is one, since an exit is tied to a section per meet (H26, Utfart
-in ORDLISTA), so the neighbour is not known in the station file. So are the fields the engine
-proposes, and a panel too high for the screen.
+Some findings are notes, not problems: they are shown, but the model may still run. A track
+without a sensor at level 3 is one. A line exit without a neighbouring station is another, since
+an exit is tied to a section per meet (H26, Utfart in ORDLISTA), so the neighbour is not known in
+the station file. So are the fields the engine proposes, and a panel too high for the screen.
 
 The model itself may be saved with problems, so that Studio can keep a station that is not
 finished; it just may not run.
@@ -41,7 +44,8 @@ from tkl.standard import outside, plan
 from tkl.standard.graph import SLIP_TYPES, Graph, Step, parts
 from tkl.standard.layout import FITS, LayoutError, lay_out
 from tkl.standard.levers import Levers, own_parts
-from tkl.standard.routes import TRAIN_ENDS, TRAIN_STARTS
+from tkl.standard.route import RouteKind
+from tkl.standard.routes import TRAIN_ENDS, TRAIN_STARTS, derive
 
 TWO_PIECES = {
     NodeType.SIGNAL_POINT,
@@ -77,6 +81,8 @@ def checks(model: StationModel) -> tuple[list[str], list[str]]:
     ]
     remarks = _neighbours(model)
     if not found:
+        if model.level == 3:
+            remarks += _unseen_arrivals(model)
         trouble, more, panel = _panel(model)
         found += trouble
         remarks += more
@@ -124,6 +130,41 @@ def _panel(model: StationModel) -> tuple[list[str], list[str], Panel | None]:
             f"(högst {FITS[1]})."
         )
     return [], remarks, found
+
+
+def _unseen_arrivals(model: StationModel) -> list[str]:
+    """At level 3: the train routes that end on a station track whose track circuit is Utan
+    givare, one note per track circuit. The interlocking cannot see the passage there, so the
+    arrival is given with Ankommit (STV-16, beslut 22 november, #251)."""
+    blind = {
+        o.name
+        for o in objects(model)
+        if o.kind == ObjectKind.TRACK_CIRCUIT and o.state == AddressState.WITHOUT
+    }
+    if not blind:
+        return []
+    on_tracks = {p for t in model.station_tracks for p in t.pieces}
+    circuits = {c.name: set(c.pieces) for c in model.track_circuits}
+    ending: dict[str, list[str]] = {}
+    for route in derive(model):
+        if route.kind != RouteKind.TRAIN or not route.track_circuits:
+            continue
+        last = route.track_circuits[-1]
+        if last in blind and circuits.get(last, set()) & on_tracks:
+            ending.setdefault(last, []).append(route.name)
+    found = []
+    for name, routes in ending.items():
+        which = f"tågvägen {routes[0]}" if len(routes) == 1 else f"tågvägarna {_and(routes)}"
+        found.append(
+            f"Spårledningen {name} saknar givare, och {which} slutar där. På nivå 3 kan "
+            "ställverket inte se när tåget har kommit in, så ankomsten ges med Ankommit. Med en "
+            "givare på spåret blir den automatisk."
+        )
+    return found
+
+
+def _and(names: list[str]) -> str:
+    return names[0] if len(names) < 2 else f"{', '.join(names[:-1])} och {names[-1]}"
 
 
 def _repeated(names: Iterable[str]) -> list[str]:

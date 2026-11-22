@@ -165,6 +165,8 @@ def test_arrival_is_the_entry_route_released_after_passage() -> None:
     r.layout.move_train("102", "Spår 1")
     r.run(0.1)
     assert len(r.it.view().routes) == 1, "the tail is still over the switch"
+    early = r.it.arrive(route(r, "In", "12"))
+    assert early.message == "Spårledningen Vx1 är belagd: tåg 102 är inte helt inne."
     r.layout.move_train("102", "Spår 1", length=1)
     r.run(0.1)
     assert r.it.view().routes == []
@@ -199,6 +201,84 @@ def test_occupancy_never_frees_anything_by_itself() -> None:
     inside = shown(r, "In", "12")
     assert inside.at == 0 and [s.released for s in inside.sections] == [False, False]  # type: ignore[attr-defined]
     assert r.it.view().trains[0].section == "Vx1"
+
+
+def test_a_track_without_a_sensor_gets_its_arrival_with_ankommit() -> None:
+    """STV-16, beslut 22 november (#251): where the sections ahead of the train have no sensor
+    (Utan givare), the interlocking cannot see the passage. Occupancy still frees nothing by
+    itself: the route stays, the events say why, and Ankommit gives the arrival once every
+    section behind the train with a sensor is free, as at level 1–2."""
+    model = changed(level_3(provby()), ObjectKind.TRACK_CIRCUIT, "Spår 1", address="without")
+    r = Rig(model)
+    r.connect()
+    r.it.put_train("102", exit="V")
+    r.do(r.it.set_route("In", "12"))
+    r.run(0.5)
+    r.layout.occupy("Infart V")
+    r.layout.occupy("Vx1")
+    r.run(0.1)
+    in_12 = route(r, "In", "12")
+    early = r.it.arrive(in_12)
+    assert not early.accepted
+    assert early.message == "Spårledningen Vx1 är belagd: tåg 102 är inte helt inne."
+    r.layout.occupy("Infart V", False)
+    r.layout.occupy("Vx1", False)
+    r.run(0.1)
+    assert len(r.it.view().routes) == 1, "occupancy frees nothing by itself"
+    assert r.it.view().trains[0].section == "Vx1"
+    assert r.it.events[0].text == (
+        "Tåg 102 har lämnat spårledningen Vx1, men spårledningen Spår 1 saknar givare: "
+        "ställverket kan inte se passagen. Tryck Ankommit när tåget är helt inne."
+    )
+    assert r.it.release(in_12).message == (
+        "Tåg 102 är i vägen In → 12, och ställverket kan inte se passagen. Tryck Ankommit när "
+        "tåget är helt inne, eller nödutlös vägen."
+    )
+    assert r.it.step(in_12).message == BY_CIRCUITS
+    arrived = r.do(r.it.arrive(in_12))
+    assert arrived.accepted  # type: ignore[attr-defined]
+    assert arrived.message == (  # type: ignore[attr-defined]
+        "Tåg 102 har kommit fram till spår 1, bekräftat med Ankommit: ställverket kan inte se "
+        "passagen. Vägen In → 12 är utlöst."
+    )
+    up = [u for u in arrived.reports if u.kind == TklReportKind.ARRIVED]  # type: ignore[attr-defined]
+    assert [(u.train_number, u.track) for u in up] == [("102", "1")]
+    assert r.it.view().routes == []
+    assert r.it.view().trains[0].section == "Spår 1"
+
+
+def test_a_sensor_far_along_the_track_gets_its_arrival_with_ankommit() -> None:
+    """STV-16, beslut 22 november (#251): a short train leaves the switch area before the
+    track's sensor, far along the track, sees it. The interlocking has not seen the passage, and
+    never takes it as one by itself: the events say why, and Ankommit gives the arrival. Before
+    that, Ankommit is refused while the interlocking can still see the train come in."""
+    r = rig()
+    r.it.put_train("102", exit="V")
+    r.do(r.it.set_route("In", "12"))
+    r.run(0.5)
+    r.layout.put_train("102", ["Infart V"])
+    r.layout.move_train("102", "Vx1")
+    r.run(0.1)
+    in_12 = route(r, "In", "12")
+    assert r.it.arrive(in_12).message == (
+        "Tåg 102 är i spårledningen Vx1. Ställverket ser när det kommer fram till "
+        "spårledningen Spår 1, och löser ut vägen efter passagen (STV-16)."
+    )
+    r.layout.remove_train("102")
+    r.run(0.1)
+    r.layout.put_train("102", ["Spår 1"])
+    r.run(0.1)
+    still = shown(r, "In", "12")
+    assert still.at == 1 and [s.released for s in still.sections] == [False, False]  # type: ignore[attr-defined]
+    assert r.it.events[0].text == (
+        "Spårledningen Vx1 blev fri innan tåg 102 syntes i spårledningen Spår 1: ställverket kan "
+        "inte se passagen. Tryck Ankommit när tåget är helt inne."
+    )
+    arrived = r.do(r.it.arrive(in_12))
+    assert arrived.accepted  # type: ignore[attr-defined]
+    up = [u for u in arrived.reports if u.kind == TklReportKind.ARRIVED]  # type: ignore[attr-defined]
+    assert [(u.train_number, u.track) for u in up] == [("102", "1")]
+    assert r.it.view().routes == []
 
 
 def test_a_train_leaves_on_the_line_and_the_line_occupancy_goes_up() -> None:

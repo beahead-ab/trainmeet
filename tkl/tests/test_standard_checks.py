@@ -18,7 +18,10 @@ from contracts.station_model import (
     SwitchType,
     TrackCircuit,
 )
+from contracts.tkl import ObjectKind
+from tkl.loconet.objects import changed as wired
 from tkl.standard import checks, notes, problems
+from tkl.tests.niva3 import level_3 as addressed
 from tkl.tests.provstation import MINUS, PLUS, provby, switch
 
 
@@ -140,6 +143,24 @@ def test_a_line_exit_without_a_neighbour_is_a_note_not_a_problem() -> None:
     assert problems(model) == []
     assert notes(model) == ["Linjeutfarten O saknar grannstation."]
     assert checks(model) == ([], ["Linjeutfarten O saknar grannstation."])
+
+
+def test_a_track_without_a_sensor_at_level_3_is_a_note() -> None:
+    """STV-16, beslut 22 november (#251): at level 3, the train routes that end on a station
+    track whose track circuit is Utan givare get a note, one per circuit. The interlocking
+    cannot see the passage there, so the arrival is given with Ankommit; the model may run."""
+    model = wired(addressed(provby()), ObjectKind.TRACK_CIRCUIT, "Spår 1", address="without")
+    assert checks(model) == (
+        [],
+        [
+            "Spårledningen Spår 1 saknar givare, och tågvägarna In → 12 och In2 → 11 slutar "
+            "där. På nivå 3 kan ställverket inte se när tåget har kommit in, så ankomsten ges "
+            "med Ankommit. Med en givare på spåret blir den automatisk."
+        ],
+    )
+    vx1 = wired(addressed(provby()), ObjectKind.TRACK_CIRCUIT, "Vx1", address="without")
+    assert notes(vx1) == [], "only where a route ends on a station track"
+    assert notes(wired(provby(), ObjectKind.TRACK_CIRCUIT, "Spår 1", address="without")) == []
 
 
 def test_the_graph_holds_together() -> None:
