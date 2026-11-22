@@ -21,7 +21,7 @@ from contracts.meet import DriverLevel, MeetPackage, PlaceKind
 from contracts.reasons import TEXT_SV, Reason
 from contracts.station_outside import ReceiverKind, StationOutside
 from contracts.terminal import DisplaySize
-from core.sqlite import connect, prepare
+from core.sqlite import connect, prepare, reading
 from drift.automatik import Automatik
 from drift.copy import EventCopy
 from drift.drivers import messages_here
@@ -329,6 +329,13 @@ class PreviewStore:
         if self.copy is not None:
             for run_id, written in saved:
                 self.copy.write(epoch_of(run_id), written)
+
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
+            yield db
 
     def _save(
         self,
@@ -1723,7 +1730,7 @@ class PreviewStore:
 
     def push_targets(self, run_id: str) -> list[tuple[station.PushToken, list[str]]]:
         """The approved clients that want push, and the places each is approved for."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT p.token, c.places FROM station_push p "
                 "JOIN station_client c ON c.client_id=p.client_id "
@@ -1952,7 +1959,7 @@ class PreviewStore:
 
     def current(self) -> str:
         """The meet that runs: the one started last. Older ones stay, archived (T11)."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT id FROM preview_run WHERE expires>? AND package=? "
                 "ORDER BY expires DESC LIMIT 1",
@@ -2059,7 +2066,7 @@ class PreviewStore:
 
     def set_aside(self, run_id: str) -> int:
         """Events this hub made after another took over, kept but never applied."""
-        with self._transaction() as db:
+        with self._reading() as db:
             (count,) = db.execute(
                 "SELECT count(*) FROM forked_event WHERE run_id=?", (run_id,)
             ).fetchone()
@@ -2067,7 +2074,7 @@ class PreviewStore:
 
     def leader(self, run_id: str) -> tuple[str, datetime] | None:
         """The hub that leads the run, and when it was last heard; None if this hub leads."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT leader, heard FROM mirror_run WHERE run_id=?", (run_id,)
             ).fetchone()
@@ -2076,7 +2083,7 @@ class PreviewStore:
     def events_after(self, run_id: str, seq: int) -> list[events.DriftEvent]:
         """The run's events after seq, read as they are stored: no replay, so a stream can ask
         often even for a big meet."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT 1 FROM preview_run WHERE id=? AND expires>? AND package=?",
                 (run_id, now_utc().timestamp(), self.package_key),
@@ -2151,7 +2158,7 @@ class PreviewStore:
         )
 
     def refusals(self, run_id: str) -> list[events.Refusal]:
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 "SELECT at, model_time, client_id, place, what, reason, message "
                 "FROM drift_refusal WHERE run_id=? ORDER BY at DESC",
@@ -2188,7 +2195,7 @@ class PreviewStore:
 
     def driver_run(self, code: str) -> str:
         """The live run whose drivers' code it is."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT j.run_id FROM driver_join j JOIN preview_run r ON r.id=j.run_id "
                 "WHERE j.code=? AND r.expires>? AND r.package=?",
@@ -2256,7 +2263,7 @@ class PreviewStore:
         """The driver whose phone has the key, in a live run of this store."""
         if not key or len(key) > 120:
             raise UnknownDriver()
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 f"SELECT {', '.join('d.' + c.strip() for c in self._DRIVER_COLUMNS.split(','))} "
                 "FROM driver d JOIN preview_run r ON r.id=d.run_id "
@@ -2268,12 +2275,12 @@ class PreviewStore:
         return self._driver_of(row)
 
     def driver(self, run_id: str, driver_id: str) -> DriverRecord:
-        with self._transaction() as db:
+        with self._reading() as db:
             return self._driver(db, run_id, driver_id)
 
     def drivers(self, run_id: str) -> list[DriverRecord]:
         """The run's drivers, in the order they came."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute(
                 f"SELECT {self._DRIVER_COLUMNS} FROM driver WHERE run_id=? "
                 "ORDER BY created, driver_id",
@@ -2330,7 +2337,7 @@ class PreviewStore:
             db.execute("DELETE FROM driver WHERE driver_id=? AND run_id=?", (driver_id, run_id))
 
     def driver_photo(self, run_id: str, driver_id: str) -> tuple[bytes, str] | None:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT photo, photo_type FROM driver "
                 "WHERE driver_id=? AND run_id=? AND photo IS NOT NULL",
@@ -2358,14 +2365,14 @@ class PreviewStore:
         return len(pages)
 
     def paper_pages(self, run_id: str, paper: str) -> int:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT count(*) FROM paper_page WHERE run_id=? AND paper=?", (run_id, paper)
             ).fetchone()
         return int(row[0])
 
     def paper_page(self, run_id: str, paper: str, page: int) -> tuple[bytes, str] | None:
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT body, media_type FROM paper_page WHERE run_id=? AND paper=? AND page=?",
                 (run_id, paper, page),

@@ -71,7 +71,7 @@ from contracts.planning import (
 from contracts.reasons import TEXT_SV
 from contracts.station_outside import StationOutside
 from core import changes as driftchanges
-from core.sqlite import connect, prepare
+from core.sqlite import connect, prepare, reading
 from planering import assembly, compare
 from planering.check import review
 from planering.sanity import deviations
@@ -152,20 +152,27 @@ class Planning:
             db.execute("BEGIN IMMEDIATE")
             yield db
 
+    @contextmanager
+    def _reading(self) -> Iterator[sqlite3.Connection]:
+        """A transaction that only reads: it takes no write lock, so a write does not hold it up
+        (core/sqlite.py)."""
+        with reading(self.path) as db:
+            yield db
+
     # --- Reading -----------------------------------------------------------------------------
 
     def meets(self) -> list[MeetSummary]:
         """The meets, newest first. Their versions are Synk's: the hub puts them in."""
-        with self._transaction() as db:
+        with self._reading() as db:
             rows = db.execute("SELECT summary FROM meet ORDER BY created DESC").fetchall()
             return [MeetSummary.model_validate_json(summary) for (summary,) in rows]
 
     def draft(self, meet_id: str) -> Draft:
-        with self._transaction() as db:
+        with self._reading() as db:
             return self._draft(db, meet_id)
 
     def source_file(self, meet_id: str, source_id: str) -> tuple[Source, bytes]:
-        with self._transaction() as db:
+        with self._reading() as db:
             draft = self._draft(db, meet_id)
             row = db.execute(
                 "SELECT body FROM source_file WHERE meet_id=? AND source_id=?",
@@ -179,7 +186,7 @@ class Planning:
     def transcript(self, digest: str) -> str | None:
         """A page's transcription by AI (4c2), by the page's picture: the same page is never
         written down twice (IMPORT-15)."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT text FROM transcript WHERE digest=?", (digest,)).fetchone()
         return str(row[0]) if row else None
 
@@ -192,7 +199,7 @@ class Planning:
 
     def sources(self, meet_id: str) -> list[tuple[Source, bytes]]:
         """Every source of the draft as it came, for Underlaget som ZIP (PLAN-07)."""
-        with self._transaction() as db:
+        with self._reading() as db:
             draft = self._draft(db, meet_id)
             bodies = dict(
                 db.execute(
@@ -208,7 +215,7 @@ class Planning:
     ) -> tuple[datetime, Draft, list[tuple[str, bytes]], list[Proposal]]:
         """Everything the meet's home takes along: when it was made, the draft, the sources as
         they came and the proposals from Drift."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute("SELECT created FROM meet WHERE id=?", (meet_id,)).fetchone()
             if row is None:
                 raise UnknownMeet("Träffen finns inte.")
@@ -594,7 +601,7 @@ class Planning:
     def freeze(self, meet_id: str) -> MeetPackage:
         """The draft as the next version, with the traffic check's findings in it. Synk keeps
         it and gives it its number (SYNK-08)."""
-        with self._transaction() as db:
+        with self._reading() as db:
             draft = self._draft(db, meet_id)
         if draft.package is None:
             raise PlanningError("Lägg till underlag innan du publicerar.")
@@ -638,7 +645,7 @@ class Planning:
 
     def proposals(self, meet_id: str) -> list[Proposal]:
         """The proposals, newest first."""
-        with self._transaction() as db:
+        with self._reading() as db:
             self._draft(db, meet_id)
             return [
                 Proposal.model_validate_json(body)
@@ -734,7 +741,7 @@ class Planning:
 
     def file(self, digest: str) -> tuple[str, bytes] | None:
         """The file with the checksum, as kept: its media type and its bytes."""
-        with self._transaction() as db:
+        with self._reading() as db:
             row = db.execute(
                 "SELECT media_type, body FROM attachment_file WHERE sha256=?", (digest,)
             ).fetchone()
