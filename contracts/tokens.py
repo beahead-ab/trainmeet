@@ -191,13 +191,13 @@ class MeterRead(Contract):
     hard: bool = Field(
         default=False,
         description="En svår följdfråga från CAD, där koden är osäker: den läses av den "
-        "starkaste modellen, Claude Fable 5.2 (CAD18). Priset är detsamma, 12 tokens per bild. "
-        "Bara CAD får fråga så.",
+        "starkaste modellen inom EU, Claude Opus 5.5 med EU-profil (CAD19). Priset är detsamma, "
+        "12 tokens per bild. Bara CAD får fråga så.",
     )
 
 
 HARD_APPS: Final = frozenset({"cad"})
-"""The apps whose questions may be read by the strongest model (CAD18): only CAD's hard
+"""The apps whose questions may be read by the strongest model (CAD18, CAD19): only CAD's hard
 follow-up questions."""
 
 

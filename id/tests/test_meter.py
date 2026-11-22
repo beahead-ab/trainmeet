@@ -1,7 +1,7 @@
 """Mätaren (#79, TOKEN-28): TrainMeets AI med reservationen från saldot.
 
 A pretend Claude answers the meter in ID, and Claude in Amazon Bedrock is answered by a mock
-transport that checks the request: the address in the EU, AWS's signature, the model and the
+transport that checks the request: the address in the EU, AWS's signature, the EU profile and the
 picture. No real AI is called.
 """
 
@@ -35,18 +35,19 @@ class PretendClaude:
     failing: bool = False
     calls: list[tuple[str, int]] = field(default_factory=list)
     hard: list[bool] = field(default_factory=list)
+    profile_factor: float = 1.0
 
     @property
     def model(self) -> str:
-        return "anthropic.claude-sonnet-5-5"
+        return "eu.anthropic.claude-sonnet-5-5"
 
     @property
     def hard_model(self) -> str:
-        return "anthropic.claude-fable-5-2"
+        return "eu.anthropic.claude-opus-5-5"
 
     @property
     def hard_factor(self) -> float:
-        return 4.0
+        return 2.0
 
     def read(
         self,
@@ -138,7 +139,7 @@ def test_the_meter_reads_the_picture_and_draws_what_it_cost(metered: Metered) ->
     assert (answer.text, answer.cost, answer.model) == (
         "Värnamo 07.12 avg 101",
         24,
-        "anthropic.claude-sonnet-5-5",
+        "eu.anthropic.claude-sonnet-5-5",
     )
     assert (answer.reservation.state, answer.reservation.balance.available) == ("drawn", 76)
     again = MeterAnswer.model_validate(metered.read(held, images=2).json())
@@ -149,8 +150,8 @@ def test_the_meter_reads_the_picture_and_draws_what_it_cost(metered: Metered) ->
 def test_cads_hard_question_is_read_by_the_strongest_model_at_the_same_price(
     metered: Metered,
 ) -> None:
-    """CAD18: CAD's hard follow-up question, where the code was unsure, is read by Claude Fable
-    5.2; the person pays the same 12 tokens a picture."""
+    """CAD19: CAD's hard follow-up question, where the code was unsure, is read by Claude Opus
+    5.5 with the EU profile; the person pays the same 12 tokens a picture."""
     kim = person(metered.world)
     headers = {"Authorization": f"Bearer {metered.world.keycloak.app_token('cad')}"}
     body = {
@@ -166,7 +167,7 @@ def test_cads_hard_question_is_read_by_the_strongest_model_at_the_same_price(
     read = metered.read(held, app="cad", hard=True)
     assert read.status_code == 200, read.text
     answer = MeterAnswer.model_validate(read.json())
-    assert (answer.cost, answer.model) == (12, "anthropic.claude-fable-5-2")
+    assert (answer.cost, answer.model) == (12, "eu.anthropic.claude-opus-5-5")
     assert metered.claude.hard == [True]
 
 
@@ -180,7 +181,7 @@ def test_only_cad_may_ask_the_strongest_model(metered: Metered) -> None:
     assert "CAD:s svåra följdfrågor" in refused.json()["message"]
     assert metered.claude.calls == []
     read = metered.read(held, app="hub")
-    assert MeterAnswer.model_validate(read.json()).model == "anthropic.claude-sonnet-5-5"
+    assert MeterAnswer.model_validate(read.json()).model == "eu.anthropic.claude-sonnet-5-5"
     assert metered.claude.hard == [False]
 
 
@@ -249,14 +250,19 @@ def test_bedrock_is_asked_in_the_eu_signed_and_with_the_picture(tmp_path: Path) 
     read = claude.read("Skriv av.", [("image/png", PICTURE)], 4096)
     assert (read.text, read.input_tokens, read.output_tokens) == ("Rad 1\nRad 2", 6900, 2100)
     request = seen[0]
-    assert str(request.url) == "https://bedrock-mantle.eu-north-1.api.aws/anthropic/v1/messages"
-    assert request.headers["anthropic-version"] == "2026-10-21"
+    # TK14: Claude Sonnet 5.5 with the EU profile, called from Stockholm; the profile sends the
+    # call on to one of the EU's regions and never outside them.
+    assert str(request.url) == (
+        "https://bedrock-runtime.eu-north-1.amazonaws.com"
+        "/model/eu.anthropic.claude-sonnet-5-5/invoke"
+    )
     signature = request.headers["authorization"]
     assert signature.startswith("AWS4-HMAC-SHA256 Credential=AKIAPROVET/")
-    assert "/eu-north-1/bedrock-mantle/aws4_request" in signature
+    assert "/eu-north-1/bedrock/aws4_request" in signature
     assert "hemlig-nyckel" not in json.dumps(dict(request.headers))
     body = json.loads(request.content)
-    assert body["model"] == "anthropic.claude-sonnet-5-5"
+    assert body["anthropic_version"] == "bedrock-2023-05-31"
+    assert "model" not in body, "InvokeModel takes the model in the address"
     assert body["output_config"] == {"effort": "low"}
     assert "temperature" not in body, "Claude Sonnet 5.5 takes no sampling settings"
     assert body["messages"][0]["content"] == [
@@ -266,8 +272,9 @@ def test_bedrock_is_asked_in_the_eu_signed_and_with_the_picture(tmp_path: Path) 
 
 
 def test_a_hard_question_goes_to_the_strongest_model_with_room_to_think(tmp_path: Path) -> None:
-    """CAD18: Claude Fable 5.2 always thinks, and its thinking counts in max_tokens, so a short
-    answer still gets room; it reads carefully (effort high)."""
+    """CAD19: the strongest model in the EU, Claude Opus 5.5 with the EU profile, always thinks,
+    and its thinking counts in max_tokens, so a short answer still gets room; it reads carefully
+    (effort high)."""
     seen: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
@@ -282,11 +289,14 @@ def test_a_hard_question_goes_to_the_strongest_model_with_room_to_think(tmp_path
         )
 
     claude = bedrock(tmp_path, handle)
-    assert claude.hard_model == "anthropic.claude-fable-5-2"
+    assert claude.hard_model == "eu.anthropic.claude-opus-5-5"
     read = claude.read("Vilken kontur?", [("image/png", PICTURE)], 256, hard=True)
     assert read.text == "blå"
+    assert str(seen[0].url) == (
+        "https://bedrock-runtime.eu-north-1.amazonaws.com/model/eu.anthropic.claude-opus-5-5/invoke"
+    )
     body = json.loads(seen[0].content)
-    assert body["model"] == "anthropic.claude-fable-5-2"
+    assert "model" not in body
     assert body["output_config"] == {"effort": "high"}
     assert body["max_tokens"] == 16_000
     assert "thinking" not in body and "temperature" not in body
@@ -297,16 +307,29 @@ def test_the_hard_model_and_its_price_factor_are_settings(tmp_path: Path) -> Non
     key.write_text("AKIAPROVET\nhemlig\n")
     found = settings_from({"ID_METER_KEY_FILE": str(key)})
     assert found is not None
-    assert (found.hard_model, found.hard_factor) == ("anthropic.claude-fable-5-2", 4.0)
+    # CAD19: Claude Opus 5.5 with the EU profile, at twice the standard model's price, and the
+    # EU profile at 10 % above the list prices (TK14).
+    assert (found.hard_model, found.hard_factor) == ("eu.anthropic.claude-opus-5-5", 2.0)
+    assert found.profile_factor == 1.1
     other = settings_from(
         {
             "ID_METER_KEY_FILE": str(key),
-            "ID_METER_MODEL_HARD": "anthropic.claude-opus-5-5",
-            "ID_METER_HARD_FACTOR": "2",
+            "ID_METER_MODEL_HARD": "global.anthropic.claude-opus-5-5",
+            "ID_METER_HARD_FACTOR": "1.5",
+            "ID_METER_PROFILE_FACTOR": "1",
         }
     )
     assert other is not None
-    assert (other.hard_model, other.hard_factor) == ("anthropic.claude-opus-5-5", 2.0)
+    assert (other.hard_model, other.hard_factor) == ("global.anthropic.claude-opus-5-5", 1.5)
+    assert other.profile_factor == 1.0
+    nonsense = settings_from(
+        {
+            "ID_METER_KEY_FILE": str(key),
+            "ID_METER_HARD_FACTOR": "ingen",
+            "ID_METER_PROFILE_FACTOR": "0",
+        }
+    )
+    assert nonsense is not None and (nonsense.hard_factor, nonsense.profile_factor) == (2.0, 1.1)
 
 
 def test_the_meter_is_on_only_with_its_key_in_the_vault(tmp_path: Path) -> None:
@@ -316,7 +339,7 @@ def test_the_meter_is_on_only_with_its_key_in_the_vault(tmp_path: Path) -> None:
     key.write_text("AKIAPROVET\nhemlig\n")
     found = settings_from({"ID_METER_KEY_FILE": str(key)})
     assert found is not None
-    assert (found.region, found.model) == ("eu-north-1", "anthropic.claude-sonnet-5-5")
+    assert (found.region, found.model) == ("eu-north-1", "eu.anthropic.claude-sonnet-5-5")
 
 
 @pytest.mark.parametrize(
