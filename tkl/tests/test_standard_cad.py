@@ -79,20 +79,53 @@ LADDER = ["p", "r1", "r2", "r3", "q"]
 LONG = ["x", "v", "u"]
 """The long tracks without numbers, from the top as drawn."""
 
+TRUNKS = {
+    # A second made-up station. A ladder rises from 5 to 2 with four switches: k1 and k2 at its
+    # ends, where only a connector leaves (x1 and x2), and g1 and g2 between, where station
+    # tracks 4 and 3 leave westwards. g2 and k2 lie trunk to trunk, a double switch as the
+    # drawing has it. Station track 1 leaves 2 and ends at a buffer stop, with nothing but
+    # joints on the way.
+    "e": ("1", "t3 3000,0 e0 3500,-75 e1 4000,-150 es 7000,-150"),
+    "a": ("2", "va 0,0 t3 3000,0 s2 11000,0 oa 15000,0"),
+    "d": ("3", "vd 0,75 d0 7500,75 g2 8000,120"),
+    "c": ("4", "vc 0,150 c0 6000,150 g1 6500,180"),
+    "b": ("5", "vb 0,300 s1 3000,300 t1 6500,300 t2 12000,300 ob 15000,300"),
+    "l": (None, "s1 3000,300 k1 5000,225 g1 6500,180 g2 8000,120 k2 8300,110 s2 11000,0"),
+    "x1": (None, "k1 5000,225 t1 6500,300"),
+    "x2": (None, "k2 8300,110 t2 12000,300"),
+}
+TRUNK_SWITCHES = {
+    "s1": ("vb", "t1", "k1"),
+    "t1": ("t2", "s1", "k1"),
+    "t2": ("ob", "t1", "k2"),
+    "t3": ("va", "s2", "e0"),
+    "s2": ("oa", "t3", "k2"),
+    "k1": ("s1", "g1", "t1"),
+    "g1": ("g2", "k1", "c0"),
+    "g2": ("k2", "g1", "d0"),
+    "k2": ("g2", "s2", "t2"),
+}
+
 
 def _id(name: str) -> str:
     return f"{MODULE}:{name}"
 
 
-def studio(numbered: bool = True) -> StudioGraph:
-    """CAD's track graph of the made-up station: each line cut where it crosses a module joint,
-    and a line's end at a free gable a module joint."""
+def studio(
+    numbered: bool = True,
+    lines: dict[str, tuple[str | None, str]] | None = None,
+    turnouts: dict[str, tuple[str, str, str]] | None = None,
+) -> StudioGraph:
+    """CAD's track graph of a made-up station, the first unless others are given: each line
+    cut where it crosses a module joint, and a line's end at a free gable a module joint."""
+    lines = LINES if lines is None else lines
+    turnouts = SWITCHES if turnouts is None else turnouts
     at: dict[str, Point] = {}
     joints: set[str] = set()
     pieces: list[GraphPiece] = []
     toward: dict[tuple[str, str], str] = {}
     """A node and the node a line leads to from it: the piece that leaves it that way."""
-    for line, (number, spec) in LINES.items():
+    for line, (number, spec) in lines.items():
         words = spec.split()
         points: list[tuple[str, Point]] = [
             (name, (float(x), float(y)))
@@ -122,7 +155,7 @@ def studio(numbered: bool = True) -> StudioGraph:
                 )
     nodes = []
     for name, point in at.items():
-        if name in SWITCHES:
+        if name in turnouts:
             kind = NodeType.SWITCH
         elif name in joints or point[0] in (0.0, WIDE):
             kind = NodeType.MODULE_JOINT
@@ -141,7 +174,7 @@ def studio(numbered: bool = True) -> StudioGraph:
             straight=toward[(node, straight)],
             diverging=toward[(node, diverging)],
         )
-        for node, (trunk, straight, diverging) in SWITCHES.items()
+        for node, (trunk, straight, diverging) in turnouts.items()
     ]
     source = StudioSource(
         kind=StudioSourceKind.ASSEMBLY,
@@ -219,6 +252,34 @@ def test_a_station_from_cad_without_signals_lays_out_by_its_tracks(numbered: boo
     assert all(len({c[1] for c in way}) == 1 for way in middle), middle
     rows = [cells[_id("va")][1], *(way[0][1] for way in middle), cells[_id("vb")][1]]
     assert rows == sorted(set(rows)), rows
+
+
+def test_a_ladder_with_two_switches_trunk_to_trunk_rises_all_the_way() -> None:
+    """A ladder keeps the switches where only a connector leaves on its own row, at one end of
+    the diagonal: k1. k2, at the other end past g1 and g2, stands on g2's row, trunk to trunk
+    with it, so that the diagonal rises all the way as drawn and does not come back to k1's row.
+    Until the change it went down two rows from g2 to k2 and up again."""
+    model = proposal(studio(lines=TRUNKS, turnouts=TRUNK_SWITCHES))
+    for panel in (lay_out(model), *(lay_out(model, angle, False) for angle in PanelAngle)):
+        cells = {node.id: node.cell for node in panel.nodes}
+        k1, g1, g2, k2, s2 = (cells[_id(n)] for n in ("k1", "g1", "g2", "k2", "s2"))
+        assert k1[1] > g1[1] > g2[1] > s2[1], (panel.angle, k1, g1, g2, s2)
+        assert k2[1] == g2[1] and k2[0] > g2[0], (panel.angle, g2, k2)
+
+
+def test_a_numbered_stub_to_a_buffer_stop_is_a_station_track_on_its_row() -> None:
+    """Station track 1 leaves 2 and ends at a buffer stop with only joints on the way: it goes
+    off 2 at once, and lies at least 14 cells on its row up to the buffer stop (§3.2, §3.3).
+    Until the change it ran on the slant all the way, with a cell on its row."""
+    model = proposal(studio(lines=TRUNKS, turnouts=TRUNK_SWITCHES))
+    assert_station_tracks(model)
+    stop = next(n.id for n in model.nodes if n.type == NodeType.BUFFER_STOP)
+    for panel in (lay_out(model), *(lay_out(model, angle, False) for angle in PanelAngle)):
+        found = {t: (row, cells) for t, row, cells in station_tracks(model, panel)}
+        row, cells = found["1"]
+        least = SHORTENED if panel.shortened else STATION_TRACK
+        assert cells >= least - 1e-6, (panel.angle, found)
+        assert {node.id: node.cell for node in panel.nodes}[stop][1] == row
 
 
 def test_the_station_from_its_owners_drawing_lays_out() -> None:
