@@ -111,7 +111,7 @@ def test_hubbens_arrival_releases_the_route_in_laid_for_the_train() -> None:
     """Beslut 22 november: without LocoNet the interlocking cannot see a train come in on any
     track, and route.state says so. When Hubben has the train's arrival, by the driver's Framme
     or the controller's Ankommit, the route laid from afar to bring it in is released as at
-    Ankommit on the spot. A route out is laid for no arrival, and only once."""
+    Ankommit on the spot, and only once. A route out waits for the departure."""
     station = Station()
     station.it.set_remote("Fjärr Västra")
     assert automat.route_state(station.it, station.catalogue, SPECS).unseen == ["1", "2"]
@@ -119,7 +119,7 @@ def test_hubbens_arrival_releases_the_route_in_laid_for_the_train() -> None:
     assert automat.request(station.it, station.route("22", "Ut2"), "r2", "t103-p").locked
     assert [(r.start, r.call) for r in station.it.view().routes] == [
         ("In", "t101-p"),
-        ("22", None),
+        ("22", "t103-p"),
     ]
     [in_12] = [r.id for r in station.it.view().routes if r.start == "In"]
     assert station.it.put_train("101", exit="V").accepted
@@ -143,6 +143,26 @@ def test_hubbens_arrival_releases_the_route_in_laid_for_the_train() -> None:
         later.message
         == "Tåget har kommit fram till spår 2 enligt Hubben. Vägen In2 → 21 är utlöst."
     )
+
+
+def test_hubbens_departure_releases_the_route_out_laid_for_the_train() -> None:
+    """FR15: a route laid from afar stays until its train has gone. Without LocoNet nobody on
+    the spot presses Kör or Avgått, so when Hubben has the departure, by the controller's
+    Avgått, the route out laid for the train is released and the train leaves the panel. A
+    route in is no departure's, and with LocoNet the track circuits release it."""
+    station = Station()
+    station.it.set_remote("Fjärr Västra")
+    assert automat.request(station.it, station.route("In", "12"), "r1", "t101-p").locked
+    assert automat.request(station.it, station.route("22", "Ut2"), "r2", "t103-p").locked
+    assert station.it.put_train("103", call="t103-p", section="Spår 2").accepted
+    assert station.it.hub_departure("t101-p", "101") is None, "a route in stays"
+    assert station.it.hub_departure("t104-p", "104") is None, "another train"
+    left = station.it.hub_departure("t103-p", "103")
+    assert left is not None and left.accepted
+    assert left.message == "Tåg 103 har lämnat mot O enligt Hubben. Vägen 22 → Ut2 är utlöst."
+    assert [(r.start, r.end) for r in station.it.view().routes] == [("In", "12")]
+    assert [t.number for t in station.it.view().trains] == [], "off the panel"
+    assert station.it.hub_departure("t103-p", "103") is None, "once"
 
 
 def test_a_remote_request_is_refused_with_the_interlockings_reason() -> None:

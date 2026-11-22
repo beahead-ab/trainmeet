@@ -14,7 +14,9 @@ the web app asks:
 3. A cancelled route is released when the interlocking allows, after its train. A train Hubben
    says has arrived, by the driver's Framme or the controller's Ankommit, has the routes laid
    to bring it in released where the interlocking cannot see the passage itself (beslut 22
-   november); route.state says on which tracks that is (`unseen`).
+   november); route.state says on which tracks that is (`unseen`). A train Hubben says has
+   departed, by the controller's Avgått, has the routes laid to take it out released without
+   LocoNet, where nobody presses Kör or Avgått on the spot (FR15).
 4. What the controller decided for the automats and the local areas (`remote.automats_asked`)
    is switched: an automat at once, a local area in when no route goes to, from or through it
    (FR42) and out when it is empty (FR23).
@@ -243,11 +245,14 @@ def look(
             if cancelled is not None and not cancelled.accepted:
                 looked.refused.append(cancelled.message)
     for call in snapshot.calls:
-        if call.arrival_state != station.ArrivalState.ARRIVED:
-            continue
-        arrived = it.hub_arrival(call.call, call.train_number)
-        if arrived is not None:
-            (looked.said if arrived.accepted else looked.refused).append(arrived.message)
+        heard = []
+        if call.arrival_state == station.ArrivalState.ARRIVED:
+            heard.append(it.hub_arrival(call.call, call.train_number))
+        if call.departure_state == station.DepartureState.DEPARTED:
+            heard.append(it.hub_departure(call.call, call.train_number))
+        for outcome in heard:
+            if outcome is not None:
+                (looked.said if outcome.accepted else looked.refused).append(outcome.message)
     for switched in remote.automats_asked:
         function = automat.local_function(setup.specs, switched.code)
         if function is not None:

@@ -1155,7 +1155,8 @@ class TklSetRoute(Contract):
     call: Id | None = Field(
         default_factory=lambda: None,
         description="Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben "
-        "löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).",
+        "löser stationen ut vägen in där den inte själv kan se passagen (beslut 22 november), "
+        "och kommer avgången löser den utan LocoNet ut vägen ut (FR15).",
     )
 
 

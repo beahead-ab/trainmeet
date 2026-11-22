@@ -300,6 +300,7 @@ def test_hubbens_arrival_releases_the_route_only_where_the_passage_cannot_be_see
     assert not [u for u in arrived.reports if u.kind == TklReportKind.ARRIVED], "Hubben has it"
     assert blind.it.view().routes == []
     assert blind.it.view().trains[0].section == "Spår 1"
+    assert blind.it.hub_departure("t102-p", "102") is None, "the circuits release a route out"
 
 
 def test_a_sensor_far_along_the_track_gets_its_arrival_with_ankommit() -> None:

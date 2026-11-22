@@ -104,12 +104,6 @@ def reason_of(it: Interlocking, route: RemoteRoute, said: str) -> Reason:
     return Reason.ROUTE_REFUSED
 
 
-def _bringing_in(route: RemoteRoute, call: str | None) -> str | None:
-    """The train a route in from the line is laid for, so that the station can release it when
-    Hubben has the train's arrival (beslut 22 november). None for a route out."""
-    return call if route.direction == RouteDirection.IN else None
-
-
 def request(
     it: Interlocking, route: RemoteRoute, request_id: str, call: str | None = None
 ) -> Answer:
@@ -126,7 +120,7 @@ def request(
             route.id,
             RouteBy.REMOTE,
             request_id=request_id,
-            call=_bringing_in(route, call),
+            call=call,
         )
         return Answer(True, None, outcome.message)
     return Answer(False, reason_of(it, route, outcome.message), outcome.message)
@@ -245,7 +239,7 @@ def tick(
             continue
         outcome = it.lay_route(route.start, route.end, RouteKind.TRAIN)
         if outcome.accepted and outcome.route is not None:
-            call = _bringing_in(route, want.call)
+            call = want.call
             it.mark(outcome.route, route.id, RouteBy.AUTOMAT, automat=chosen.code, call=call)
             _record(it, chosen.code, want)
             said.append(f"{chosen.code}: {outcome.message}")
@@ -314,7 +308,7 @@ def _magazine(it: Interlocking, wants: Sequence[Want]) -> list[str]:
             continue
         outcome = it.lay_route(entry.start, entry.end, RouteKind.TRAIN)
         if outcome.accepted and outcome.route is not None:
-            call = _bringing_in(want.route, want.call)
+            call = want.call
             it.mark(outcome.route, entry.route, RouteBy.AUTOMAT, automat=entry.automat, call=call)
             _record(it, entry.automat, want)
             said.append(f"{entry.automat}: ur magasinet: {outcome.message}")

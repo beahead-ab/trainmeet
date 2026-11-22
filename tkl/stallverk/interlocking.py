@@ -278,7 +278,7 @@ class _Route:
     request_id: str | None = None
     """The remote request it answered."""
     call: str | None = None
-    """The train it was laid for, by its call in Hubben (beslut 22 november)."""
+    """The train it was laid for, by its call in Hubben: in or out (beslut 22 november)."""
     automat: str | None = None
     """The station automat that laid it."""
 
@@ -1406,7 +1406,7 @@ class Interlocking:
         up: Hubben has the arrival. None when there is nothing to release now."""
         if (stale := self._refuse_stale()) is not None:
             return stale
-        mine = [r for r in self.routes if r.call == call]
+        mine = [r for r in self.routes if r.call == call and r.way.leaves is None]
         if not mine:
             return None
         before = self.exit_aspects()
@@ -1432,6 +1432,41 @@ class Interlocking:
         word = "Vägen" if len(released) == 1 else "Vägarna"
         outcome = self._done(
             f"{who} har kommit fram till {where} enligt Hubben. {word} {names} är utlöst."
+        )
+        return Outcome(True, outcome.message, None, self._exit_reports(before))
+
+    def hub_departure(self, call: str, number: str | None = None) -> Outcome | None:
+        """Hubben says the train has left on the line: Avgått by whoever remote-controls the
+        station (FR15). Without LocoNet nobody here presses Kör or Avgått, so the routes out
+        laid for the train are released as at Avgått on the spot, and the train leaves the
+        panel. With LocoNet the track circuits release them as the train goes (STV-15).
+        Nothing goes up: Hubben has the departure. None when there is nothing to release."""
+        if (stale := self._refuse_stale()) is not None:
+            return stale
+        if self.field is not None:
+            return None
+        mine = [r for r in self.routes if r.call == call and r.way.leaves is not None]
+        if not mine:
+            return None
+        before = self.exit_aspects()
+        for route in mine:
+            train = self._train(route.train) if route.at >= 0 else None
+            train = train or next((t for t in self.trains if t.call == call), None)
+            if train is not None:
+                behind = self._route_of_train(train)
+                if behind is not None and behind is not route:
+                    self._complete(behind)
+                self.trains.remove(train)
+                for other in self.routes:
+                    if other.train == train.id:
+                        other.train = None
+            self._complete(route)
+        who = f"Tåg {number}" if number else "Tåget"
+        exits = _listed(sorted({r.way.leaves or "" for r in mine}))
+        names = _listed(r.name for r in mine)
+        word = "Vägen" if len(mine) == 1 else "Vägarna"
+        outcome = self._done(
+            f"{who} har lämnat mot {exits} enligt Hubben. {word} {names} är utlöst."
         )
         return Outcome(True, outcome.message, None, self._exit_reports(before))
 

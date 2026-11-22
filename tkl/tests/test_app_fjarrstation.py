@@ -372,12 +372,13 @@ def test_routes_asked_for_are_answered_and_the_state_reported(
     assert [(r.route, r.by) for r in home.state.locked] == [("In-22", station.RouteBy.REMOTE)]
 
 
-def test_a_train_hubben_has_arrived_has_its_route_in_released(
+def test_a_train_hubben_has_arrived_or_departed_has_its_route_released(
     client: TestClient, home: Place
 ) -> None:
     """Beslut 22 november: without LocoNet the station says in route.state that it cannot see a
     train come in on its tracks, and the route laid from afar to bring a train in is released
-    when Hubben has the train's arrival: the driver's Framme or the controller's Ankommit."""
+    when Hubben has the train's arrival: the driver's Framme or the controller's Ankommit. The
+    route out is released when Hubben has the departure (FR15)."""
     command(client, "place.offer", to=REMOTE.client_id)
     home.accept()
     home.ask("r1", "In-12", call="t101-exb")
@@ -399,6 +400,13 @@ def test_a_train_hubben_has_arrived_has_its_route_in_released(
         e.text == "Tåg 101 har kommit fram till spår 1 enligt Hubben. Vägen In → 12 är utlöst."
         for e in interlocking(client).events
     )
+    # FR15: the controller's Avgått reaches the station as the departure, and the route out
+    # laid for the train is released.
+    home.calls[1] = home.calls[1].model_copy(
+        update={"departure_state": station.DepartureState.DEPARTED, "revision": 3}
+    )
+    step(client)
+    assert home.state.locked == []
 
 
 def test_45_seconds_without_the_controller_no_new_routes_and_90_the_default_automat(

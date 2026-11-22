@@ -12907,7 +12907,7 @@ export interface components {
             automat?: string | null;
             /**
              * Call
-             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).
+             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen in där den inte själv kan se passagen (beslut 22 november), och kommer avgången löser den utan LocoNet ut vägen ut (FR15).
              */
             call?: string | null;
         } & {
@@ -14076,7 +14076,7 @@ export interface components {
             automat?: string | null;
             /**
              * Call
-             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen där den inte själv kan se passagen (beslut 22 november).
+             * @description Tågbesöket vägen lades för, i hubbens bild. Kommer ankomsten från Hubben löser stationen ut vägen in där den inte själv kan se passagen (beslut 22 november), och kommer avgången löser den utan LocoNet ut vägen ut (FR15).
              */
             call?: string | null;
         } & {
