@@ -262,7 +262,7 @@
         },
         "unmanned": {
           "default": false,
-          "description": "Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
+          "description": "Ingen trycker Ankommit här: ingen arbetar driftplatsen nu, eller den fjärrstyrs och stationen kan inte se tåget komma in. Här kan Framme räknas som ankomst (LOK-39, beslut 22 november).",
           "title": "Unmanned",
           "type": "boolean"
         },

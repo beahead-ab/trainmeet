@@ -407,7 +407,9 @@ class KorplanRow(Contract):
     last: bool = Field(default=False, description="Tjänstens sista tågbesök.")
     unmanned: bool = Field(
         default=False,
-        description="Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).",
+        description="Ingen trycker Ankommit här: ingen arbetar driftplatsen nu, eller den "
+        "fjärrstyrs och stationen kan inte se tåget komma in. Här kan Framme räknas som ankomst "
+        "(LOK-39, beslut 22 november).",
     )
     changed: bool = Field(default=False, description="Ändrat de senaste 10 spelminuterna.")
     unreadable: bool = Field(

@@ -4554,6 +4554,11 @@ export interface components {
              */
             occupied?: string[];
             /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
+            /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
              */
@@ -5499,6 +5504,11 @@ export interface components {
              * @description Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.
              */
             occupied?: string[];
+            /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
             /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
@@ -6509,6 +6519,11 @@ export interface components {
              */
             occupied?: string[];
             /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
+            /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
              */
@@ -7457,6 +7472,11 @@ export interface components {
              * @description Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.
              */
             occupied?: string[];
+            /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
             /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
@@ -10994,6 +11014,11 @@ export interface components {
              */
             occupied?: string[];
             /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
+            /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).
              */
@@ -13804,7 +13829,7 @@ export interface components {
             last: boolean;
             /**
              * Unmanned
-             * @description Ingen arbetar driftplatsen nu: här kan Framme räknas som ankomst (LOK-39).
+             * @description Ingen trycker Ankommit här: ingen arbetar driftplatsen nu, eller den fjärrstyrs och stationen kan inte se tåget komma in. Här kan Framme räknas som ankomst (LOK-39, beslut 22 november).
              * @default false
              */
             unmanned: boolean;
@@ -27381,6 +27406,11 @@ export interface components {
              * @description Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.
              */
             occupied?: string[];
+            /**
+             * Unseen
+             * @description Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).
+             */
+            unseen?: string[];
             /**
              * Part Requests
              * @description Delarnas begäran, när stationen fjärrstyrs (FR50).

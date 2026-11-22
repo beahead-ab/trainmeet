@@ -8,8 +8,9 @@ and take them back (LOK-30). A service may be released anywhere; released on the
 stands without a driver and Trafikledningen gets an alarm at once (LOK-25, LOK-35).
 
 The app never gives departure and controls no traffic (LOK-11). The one thing a driver does that
-can count in the traffic is Framme, and only when the game has chosen it and only at a place
-nobody works (LOK-39). The clock is always Drift's (LOK-12).
+can count in the traffic is Framme, and only when the game has chosen it and only where nobody
+presses Ankommit: a place nobody works, or a remote-controlled station that cannot see the train
+come in (LOK-39, beslut 22 november). The clock is always Drift's (LOK-12).
 
 The drivers' names stay out of here: the events and the views carry the driver's id, and the
 hub puts the names in where they may be shown (LOK-37).
@@ -529,7 +530,9 @@ def korplan(drift: Drift, service: Service, now: datetime, revision: int) -> con
                     note=call.note,
                     first_of_train=index == 0,
                     last=call.id == last,
-                    unmanned=drift.automatic(call.place),
+                    unmanned=drift.framme_counts(
+                        call.place, drift.assigned.get(call.id, call.track)
+                    ),
                     changed=changed,
                     real=_reality(drift, call, at, ahead)
                     if settings.reality and call.id in drift.calls
@@ -902,8 +905,9 @@ def message(
 
 def framme(drift: Drift, driver: str, call: str, now: datetime) -> bool:
     """Framme (LOK-04, LOK-11, LOK-39). It counts as the train's arrival only when the game has
-    chosen it, and only at a place nobody works. At the service's last call the service is
-    done. True when it counted as the arrival."""
+    chosen it, and only where nobody presses Ankommit: a place nobody works, or a place
+    remote-controlled whose station cannot see the train come in (beslut 22 november). At the
+    service's last call the service is done. True when it counted as the arrival."""
     service = _mine(drift, driver)
     found = next((c for c in service.calls if c.id == call), None)
     if found is None:

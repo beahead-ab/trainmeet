@@ -508,6 +508,12 @@ class RouteState(Contract):
         default_factory=list,
         description="Belagda stationsspår enligt detekteringen, bara från en station på nivå 3.",
     )
+    unseen: list[Id] = Field(
+        default_factory=list,
+        description="Stationsspår där ställverket inte kan se ett tåg komma in: alla utan "
+        "detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens "
+        "Framme som ankomst när stationen fjärrstyrs (beslut 22 november).",
+    )
     part_requests: list[PartRequest] = Field(
         default_factory=list, description="Delarnas begäran, när stationen fjärrstyrs (FR50)."
     )

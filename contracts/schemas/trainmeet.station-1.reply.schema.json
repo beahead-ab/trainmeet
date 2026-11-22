@@ -1650,6 +1650,15 @@
           "title": "Occupied",
           "type": "array"
         },
+        "unseen": {
+          "description": "Stationsspår där ställverket inte kan se ett tåg komma in: alla utan detektering, och på nivå 3 de vars spårledningar saknar givare. Där räknas förarens Framme som ankomst när stationen fjärrstyrs (beslut 22 november).",
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "type": "string"
+          },
+          "title": "Unseen",
+          "type": "array"
+        },
         "part_requests": {
           "description": "Delarnas begäran, när stationen fjärrstyrs (FR50).",
           "items": {

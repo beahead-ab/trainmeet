@@ -11,7 +11,10 @@ the web app asks:
    interlocking as a train route laid by the controller, and answered with route.response within
    Hubben's ten seconds (FR12, FR14): locked, or no with a reason and the interlocking's words.
    While the controller has not been heard for 45 seconds, no new route is laid (FR28).
-3. A cancelled route is released when the interlocking allows, after its train.
+3. A cancelled route is released when the interlocking allows, after its train. A train Hubben
+   says has arrived, by the driver's Framme or the controller's Ankommit, has the routes laid
+   to bring it in released where the interlocking cannot see the passage itself (beslut 22
+   november); route.state says on which tracks that is (`unseen`).
 4. What the controller decided for the automats and the local areas (`remote.automats_asked`)
    is switched: an automat at once, a local area in when no route goes to, from or through it
    (FR42) and out when it is empty (FR23).
@@ -225,7 +228,7 @@ def look(
         elif silent is not None and silent >= SILENT_NO_ROUTES:
             answer = automat.Answer(False, Reason.NO_CONTACT, "")
         else:
-            answer = automat.request(it, route, asked.request_id)
+            answer = automat.request(it, route, asked.request_id, asked.call)
         looked.answered.append(
             station.RouteResponse(
                 request_id=asked.request_id,
@@ -239,6 +242,12 @@ def look(
             cancelled = automat.cancel(it, asked.request_id)
             if cancelled is not None and not cancelled.accepted:
                 looked.refused.append(cancelled.message)
+    for call in snapshot.calls:
+        if call.arrival_state != station.ArrivalState.ARRIVED:
+            continue
+        arrived = it.hub_arrival(call.call, call.train_number)
+        if arrived is not None:
+            (looked.said if arrived.accepted else looked.refused).append(arrived.message)
     for switched in remote.automats_asked:
         function = automat.local_function(setup.specs, switched.code)
         if function is not None:
