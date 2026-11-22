@@ -41,9 +41,9 @@ jobs:
     env:
       CATALOG_TEST_DATABASE_URL: postgresql://postgres:prov@127.0.0.1:5432/postgres
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -83,7 +83,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Bygg bilden
         run: >
@@ -141,7 +141,7 @@ jobs:
       # i Chrome tar tjänster, den andra får beskedet att tjänsten är tagen, och trafikledningen
       # ser Försenad under Förare i Drift (apps/lokforaren/e2e/tva-forare.mjs).
       - name: Node för Lokförarens webbläsarprov
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -166,7 +166,7 @@ jobs:
 
       - name: Lokförarens skärmbilder om något gick fel
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: lokforaren
           path: ${{ runner.temp }}/lokforaren
@@ -301,7 +301,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Bygg bilden
         run: >
@@ -336,12 +336,12 @@ jobs:
       # stationens dator, och webbläsarprovet i Chrome. TKL tar referensstationen Gårdsjö, ger
       # klart, lägger en tågväg och en växlingsväg, stegar tåg 102 in på spår 2 och anmäler
       # ankomsten, som Hubben ska ha fått (apps/tkl/e2e/stallverk.mjs).
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       - name: Node för TKL:s webbläsarprov
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -451,7 +451,7 @@ jobs:
 
       - name: TKL:s skärmbilder om något gick fel
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tkl-stallverk
           path: ${{ runner.temp }}/tkl
@@ -485,7 +485,7 @@ jobs:
     env:
       PROV: /tmp/catalog-testmiljo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Bygg bilden
         run: >
@@ -585,13 +585,13 @@ jobs:
       # går igenom Lägg till med foto och Lägg till flera (apps/catalog/e2e/omgang.mjs). Ingen
       # AI-leverantör anropas.
       - name: Node för webbläsarprovet
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
 
       - name: uv för webbläsarprovet
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -623,7 +623,7 @@ jobs:
 
       - name: Webbläsarprovets skärmbilder om något gick fel
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: webblasarprovet
           path: ${{ env.PROV }}/webblasare
@@ -651,18 +651,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
       # Maven Central svarar ibland inte byggmaskinerna. Tilläggets beroenden sparas därför i
       # GitHubs cache mellan körningarna, och hämtas bara på nytt när pom.xml ändras.
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Bygg ID:s bild med Mavens beroenden ur cachen
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: id/Dockerfile
@@ -812,9 +812,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
 
       - name: Bygg paketet
         run: |
@@ -901,7 +901,7 @@ jobs:
     env:
       PROV: /tmp/cad-testmiljo
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Bygg bilden
         run: >
@@ -1080,13 +1080,13 @@ jobs:
           if head -c 5 cad-backup/*-natt.dump.enc | grep -q PGDMP; then exit 1; fi
 
       - name: Node för webbläsarprovet
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
 
       - name: uv för webbläsarprovet
-        uses: astral-sh/setup-uv@v6
+        uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
 
@@ -1121,7 +1121,7 @@ jobs:
 
       - name: Webbläsarprovets skärmbilder
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: cad-webblasarprovet
           path: ${{ env.PROV }}/webblasare
@@ -1181,10 +1181,10 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.nyckel.outputs.finns == 'true'
 
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
         if: steps.nyckel.outputs.finns == 'true'
         with:
           enable-cache: true
@@ -1205,13 +1205,13 @@ jobs:
           } >> "$GITHUB_ENV"
           echo "BUILT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         if: steps.nyckel.outputs.finns == 'true'
 
       # ID:s bild med Mavens beroenden ur GitHubs cache, som i jobbet ID:s bild.
       - name: Bygg ID:s bild med Mavens beroenden ur cachen
         if: steps.nyckel.outputs.finns == 'true'
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: id/Dockerfile
