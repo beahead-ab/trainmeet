@@ -10,9 +10,11 @@ the real searches (contracts/tokens.py). Nothing of that is trusted here:
 - The publisher is classed against the small reviewed list (CAT-168, catalog/publishers.py),
   never by what the AI says.
 - An excerpt of the source must hold the value (CAT-169). A number with a unit is compared as a
-  number: 1 435 mm, 1435 mm and 1,435 m are the same length. Text is compared after
-  normalising: case, spaces and the kind of dash do not matter. An excerpt that tells when
-  something was ordered or presented does not hold a year of building.
+  number: 1 435 mm, 1435 mm and 1,435 m are the same length. The unit may stand after the
+  number or in the label before it, as in a company's table: Maximum speed (km/h) 120. A count
+  of axles may be written 4 axlar, tvåaxlig, Number of axles 2 or two wheelsets. Text is
+  compared after normalising: case, spaces and the kind of dash do not matter. An excerpt that
+  tells when something was ordered or presented does not hold a year of building.
 - A value without such evidence is dropped, never proposed. What is kept is the evidence and
   the address per field.
 
@@ -81,6 +83,7 @@ UNITS: Final[dict[str, dict[str, Decimal]]] = {
 }
 COUNTED: Final[dict[str, tuple[str, ...]]] = {
     # A whole number without a unit is still a number of something: the words that say what.
+    # A wheelset is an axle with its two wheels, so a count of wheelsets is a count of axles.
     "axles": (
         "axlar",
         "axliga",
@@ -92,7 +95,19 @@ COUNTED: Final[dict[str, tuple[str, ...]]] = {
         "achsen",
         "achsig",
         "achse",
+        "hjulpar",
+        "hjulparen",
+        "wheelsets",
+        "wheelset",
+        "wheel sets",
+        "radsätze",
+        "radsätzen",
+        "radsatz",
     ),
+}
+COUNT_LABELS: Final[dict[str, tuple[str, ...]]] = {
+    # A label that is the count itself, so that the number stands after it: Achszahl 4.
+    "axles": ("achszahl", "achsanzahl", "axelantal", "axle count"),
 }
 _WORDS: Final = {
     "två": 2,
@@ -117,7 +132,19 @@ _NUMBER: Final = (
     r"(?<![\w.,])"
     r"(\d{1,3}(?:[ \u00a0\u202f'\u2019.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)"
 )
+_GLUED: Final = (
+    r"(?<=[^\W\d_])"
+    r"(\d{1,3}(?:[ \u00a0\u202f'\u2019.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)"
+)
+"""A number right after a word, as when a table loses its space: Length over buffers14 040 mm.
+Read beside _NUMBER, never instead of it: BR185 120 km/h is still 120 km/h."""
 _AFTER: Final = r"(?![0-9A-Za-zÀ-ÖØ-öø-ÿ/])"
+_NOT_A_DIGIT_AFTER: Final = r"(?![.,]?\d)"
+_COUNT_OF: Final = r"(?:number\s+of|no\.?\s+of|antal|anzahl(?:\s+der)?)"
+"""Words before the counted thing that make the label a count: Number of axles 2."""
+_EACH: Final = r"(?!\s+(?:per|pro|je)\b)"
+"""2 axlar per boggi is not the number of the vehicle's axles. The counted word is read whole
+first (an atomic group), so that axl in axlar per cannot slip past."""
 _FEET_INCHES: Final = re.compile(
     r"(?<![\w.,])(\d+)\s*(?:ft|feet|foot|['\u2019\u2032])\s*-?\s*"
     r"(\d+(?:\.\d+)?)\s*(?:in\b|inch(?:es)?\b|[\"\u201d\u2033])",
@@ -163,29 +190,53 @@ def numbers(written: str) -> set[Decimal]:
 
 
 def _in_unit(excerpt: str, unit: str) -> set[Decimal]:
-    """Every number with a unit in the excerpt, as numbers in the field's unit."""
+    """Every number with a unit in the excerpt, as numbers in the field's unit: the unit after
+    the number, or in brackets in the label before it, Average tare weight (kg) 15,500."""
     names = UNITS[unit]
-    pattern = re.compile(rf"{_NUMBER}\s*-?\s*({_unit_pattern(names)}){_AFTER}", re.IGNORECASE)
+    units = _unit_pattern(names)
     found: set[Decimal] = set()
-    for match in pattern.finditer(excerpt):
-        factor = names[match[2].lower()]
-        found |= {number * factor for number in numbers(match[1])}
+    for start in (_NUMBER, _GLUED):
+        after = re.compile(rf"{start}\s*-?\s*({units}){_AFTER}", re.IGNORECASE)
+        for match in after.finditer(excerpt):
+            factor = names[match[2].lower()]
+            found |= {number * factor for number in numbers(match[1])}
+    before = re.compile(
+        rf"[(\[]\s*({units})\s*[)\]]\s*[:=]?\s*{_NUMBER}{_NOT_A_DIGIT_AFTER}", re.IGNORECASE
+    )
+    for match in before.finditer(excerpt):
+        factor = names[match[1].lower()]
+        found |= {number * factor for number in numbers(match[2])}
     if unit == "ft":
         for match in _FEET_INCHES.finditer(excerpt):
             found.add(Decimal(match[1]) + Decimal(match[2]) / 12)
     return found
 
 
-def _counted(excerpt: str, words: Sequence[str]) -> set[Decimal]:
-    """Every count of the thing in the excerpt: 4 axlar, 2-axlig, tvåaxlig."""
+def _counted(excerpt: str, words: Sequence[str], labels: Sequence[str] = ()) -> set[Decimal]:
+    """Every count of the thing in the excerpt: 4 axlar, 2-axlig, tvåaxlig, two wheelsets, and
+    with the number after a label that says it is the count: Number of axles 2, Achsen: 4,
+    Achszahl 4."""
     what = _unit_pattern(words)
     found = {
         Decimal(match[1])
-        for match in re.finditer(rf"(?<![\w.,])(\d+)\s*-?\s*(?:{what})", excerpt, re.IGNORECASE)
+        for match in re.finditer(
+            rf"(?<![\w.,])(\d+)\s*-?\s*(?>(?:{what})\w*){_EACH}", excerpt, re.IGNORECASE
+        )
     }
     spelled = _unit_pattern(_WORDS)
-    for match in re.finditer(rf"\b({spelled})[\s-]*(?:{what})", excerpt, re.IGNORECASE):
+    for match in re.finditer(
+        rf"\b({spelled})[\s-]*(?>(?:{what})\w*){_EACH}", excerpt, re.IGNORECASE
+    ):
         found.add(Decimal(_WORDS[match[1].lower()]))
+    counts = [
+        rf"\b{_COUNT_OF}\s+(?:{what})\s*[:=]?",  # Number of axles 2, Antal axlar 2
+        rf"\b(?:{what})\s*[:=]",  # Achsen: 4
+    ]
+    if labels:
+        counts.append(rf"\b(?:{_unit_pattern(labels)})\s*[:=]?")  # Achszahl 4
+    for label in counts:
+        for match in re.finditer(rf"{label}\s*(\d+){_NOT_A_DIGIT_AFTER}", excerpt, re.IGNORECASE):
+            found.add(Decimal(match[1]))
     return found
 
 
@@ -232,7 +283,7 @@ def supports(key: str, value: str, excerpt: str) -> bool:
             return any(abs(each - wanted) <= Decimal("0.01") for each in found)
         return wanted in found
     if key in COUNTED and known.kind is INTEGER:
-        return wanted in _counted(excerpt, COUNTED[key])
+        return wanted in _counted(excerpt, COUNTED[key], COUNT_LABELS.get(key, ()))
     return False
 
 

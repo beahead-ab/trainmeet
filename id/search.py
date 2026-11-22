@@ -119,6 +119,9 @@ class Searched:
     searches: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
+    text: str = ""
+    """Claude's answer as written, for the trial by hand (id/prov_webbsokning.py) only: the
+    meter's own answer never passes it on."""
 
 
 class Searcher(Protocol):
@@ -219,6 +222,16 @@ def _clean(value: str) -> str:
     return value
 
 
+def _without_unit(value: str, unit: str) -> str:
+    """A number that Claude wrote with the field's own unit after it, 14020 mm, is the number:
+    the unit is asked for, not written, and the app reads the value without it. Only that unit,
+    and only after a digit: 14,02 m stays as written, and the app refuses it."""
+    if not unit or not value.casefold().endswith(unit.casefold()):
+        return value
+    number = value[: -len(unit)].rstrip()
+    return number if number[-1:].isdigit() else value
+
+
 def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
     """The proposed values, the citations on each and the real results, from the content of
     Claude's turn. A key that is given twice with different values is left out: nothing tells
@@ -263,6 +276,7 @@ def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
     if failed and not succeeded:
         raise SearchFailed("Webbsökningen kunde inte söka just nu.")
     pattern = _line(frozenset(each.key for each in asked.fields))
+    units = {each.key: each.unit for each in asked.fields if each.kind != "text"}
     found_values: dict[str, tuple[str, list[MeterCitation]]] = {}
     conflicting: set[str] = set()
     start = 0
@@ -270,7 +284,7 @@ def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
         end = start + len(line)
         match = pattern.match(line)
         if match is not None:
-            key, value = match[1], _clean(match[2])
+            key, value = match[1], _without_unit(_clean(match[2]), units.get(match[1], ""))
             if value.casefold() not in _NOTHING and len(value) <= 1000:
                 citations = _citations(spans, start, end)
                 if key in found_values and found_values[key][0] != value:
@@ -285,7 +299,9 @@ def understand(blocks: list[dict[str, Any]], asked: MeterSearch) -> Searched:
         for each in asked.fields
         if each.key in found_values and each.key not in conflicting
     ]
-    return Searched(values=values, results=list(results.values()), searches=succeeded)
+    return Searched(
+        values=values, results=list(results.values()), searches=succeeded, text=text[:20_000]
+    )
 
 
 def _citations(
@@ -406,6 +422,7 @@ class AnthropicSearch:
             searches=max(used["searches"], found.searches),
             input_tokens=used["input"],
             output_tokens=used["output"],
+            text=found.text,
         )
 
     def _ask(self, body: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:

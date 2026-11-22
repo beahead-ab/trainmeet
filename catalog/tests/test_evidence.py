@@ -255,6 +255,67 @@ def test_numbers_with_units_are_compared_as_numbers_and_text_after_normalising(
     assert supports(key, said, excerpt) is holds, excerpt
 
 
+@pytest.mark.parametrize(
+    ("key", "said", "excerpt"),
+    [
+        # The first trial with the real key (22 November): the values as two companies' own
+        # pages write them. Five of the ten were dropped before, though the source holds them.
+        ("weight", "15.5", "Average tare weight (kg) 15,500"),
+        ("max_speed", "120", "Maximum speed (km/h) 120"),
+        ("axles", "2", "Freight wagon with two wheelsets"),
+        ("built", "1976", "First year of delivery … 1976"),
+        ("brake", "KE-GP-A", "Brake type KE-GP-A"),
+        ("length_over_buffers", "14020", "Length over buffers 14.020 mm"),
+        ("wheelbase", "8000", "Wheel base 8.000 mm"),
+        ("weight", "14.1", "Own weight 14.100 kg"),
+        ("axles", "2", "Number of axles 2"),
+        # A table whose cells lost the space between them.
+        ("length_over_buffers", "14040", "Length over buffers14 040 mm"),
+    ],
+)
+def test_a_primary_sources_table_holds_its_values(key: str, said: str, excerpt: str) -> None:
+    """A company's table writes the unit in the label, the count after it, and wheelsets for
+    axles: the value stands there all the same."""
+    assert supports(key, said, excerpt) is True, excerpt
+    checked = check(SE, WANTED, [value(key, said, (URL, excerpt))], [result()], AT)
+    assert checked.fields == {key: said} and reasons(checked) == {}
+
+
+@pytest.mark.parametrize(
+    ("key", "said", "excerpt", "holds"),
+    [
+        # The unit in the label holds only the number right after it.
+        ("weight", "22.5", "Axle load (t) 22.5", True),
+        ("weight", "15.5", "Weight [t]: 15,5", True),
+        ("max_speed", "100", "Maximum speed (km/h) 100/120", True),
+        ("max_speed", "120", "Maximum speed (km/h) 1200", False),
+        ("max_speed", "12", "Maximum speed (km/h) 12.5", False),
+        ("max_speed", "120", "Maximum speed (mph) 120", False),
+        # A number after a word is read beside the plain one, never instead of it.
+        ("max_speed", "120", "BR185 120 km/h", True),
+        ("wheelbase", "1435", "Typ11 435 mm", False),
+        ("length_over_buffers", "14020", "Length over buffers14020", False),
+        # A count after a label only when the label says it is the count.
+        ("axles", "4", "Achsen: 4", True),
+        ("axles", "4", "Achszahl 4", True),
+        ("axles", "4", "Antal axlar: 4", True),
+        ("axles", "2", "zwei Radsätze", True),
+        ("axles", "2", "2 hjulpar", True),
+        ("axles", "2", "4 axles 2 bogies", False),
+        ("axles", "2", "Number of axles 24", False),
+        ("axles", "2", "Axle load: 22.5 t", False),
+        # So many per bogie is not the vehicle's count.
+        ("axles", "2", "2 axlar per boggi", False),
+        ("axles", "2", "två hjulpar per boggi", False),
+        ("axles", "2", "2 Radsätze je Drehgestell", False),
+    ],
+)
+def test_a_label_or_a_glued_number_holds_only_what_it_says(
+    key: str, said: str, excerpt: str, holds: bool
+) -> None:
+    assert supports(key, said, excerpt) is holds, excerpt
+
+
 def test_how_a_written_number_is_read() -> None:
     assert numbers("1 435") == {1435}
     assert numbers("14,5") == {numbers("14.5").pop()}

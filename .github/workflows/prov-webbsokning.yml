@@ -1,0 +1,67 @@
+# Provet av webbsökningen med den riktiga nyckeln (CAT-172, C40): startas bara för hand, aldrig
+# av ett PR eller av main (beslut 22 november). Det söker på riktigt hos Anthropic, ungefär
+# 0,15 dollar per fall, med nyckeln ANTHROPIC_API_KEY_SEARCH. Nyckeln skrivs till en fil som
+# bara det här steget läser, och tas bort efteråt; den skrivs aldrig ut.
+#
+# ID:s prov (id/prov_webbsokning.py) sparar varje fall, och Catalogs prov
+# (catalog/prov_webbsokning.py) kontrollerar belägget per fält på samma svar. Sammanfattningen
+# står under körningen, och allt, med värdena och källorna, ligger i filen prov-webbsokning.
+name: Prov av webbsökningen
+
+on:
+  workflow_dispatch:
+    inputs:
+      fall:
+        description: "Vilka fall: alla, eller numren med komma, till exempel 1,6"
+        required: true
+        default: alla
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prov-webbsokning
+  cancel-in-progress: false
+
+jobs:
+  prov:
+    name: Prov av webbsökningen
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Installera
+        run: uv sync --locked
+
+      - name: Sök
+        env:
+          ANTHROPIC_API_KEY_SEARCH: ${{ secrets.ANTHROPIC_API_KEY_SEARCH }}
+          FALL: ${{ inputs.fall }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY_SEARCH" ]; then
+            echo "::error::ANTHROPIC_API_KEY_SEARCH saknas i repots hemligheter."
+            exit 1
+          fi
+          umask 077
+          key="$RUNNER_TEMP/trainmeet_search-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n' "$ANTHROPIC_API_KEY_SEARCH" > "$key"
+          uv run python -m id.prov_webbsokning --fall "$FALL" --spara prov --nyckelfil "$key"
+
+      - name: Catalogs kontroll av belägget
+        if: ${{ !cancelled() && hashFiles('prov/*.json') != '' }}
+        run: |
+          uv run python -m catalog.prov_webbsokning prov --rapport prov/rapport.md \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && hashFiles('prov/*.json') != '' }}
+        with:
+          name: prov-webbsokning
+          path: prov/
+          retention-days: 30
