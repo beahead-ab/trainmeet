@@ -337,6 +337,26 @@ class MeterSearchAnswer(Contract):
     reservation: TokenReservation
 
 
+class MeterSearchTrial(Contract):
+    """Ett fall ur provet av webbsökningen med den riktiga nyckeln (CAT-172), som en fil: ID:s
+    prov (id/prov_webbsokning.py) sparar det, och Catalogs prov (catalog/prov_webbsokning.py)
+    läser det och kontrollerar belägget på samma svar. Inget API: provet körs för hand. Bara
+    märkningen, Claudes svar och vad det kostade, aldrig nyckeln."""
+
+    asked: MeterSearch
+    model: Text
+    tool: Text
+    text: str = Field(default="", max_length=20_000, description="Claudes svar som det skrevs.")
+    values: list[MeterSearchValue]
+    results: list[MeterSearchResult]
+    searches: int = Field(ge=0)
+    input_tokens: int = Field(ge=0)
+    output_tokens: int = Field(ge=0)
+    cost_usd: float = Field(ge=0, description="Tokens och sökavgift, i dollar.")
+    cost_sek: float = Field(ge=0)
+    tokens: int = Field(ge=0, description="Kostnaden i TrainMeet-tokens med faktorn (TK6).")
+
+
 class MeterSearchState(Contract):
     """Går webbsökningen att använda här, och vad kostar den (CAT-219)?"""
 

@@ -28,6 +28,7 @@ from contracts.tokens import (
     MeterSearchField,
     MeterSearchResult,
     MeterSearchState,
+    MeterSearchTrial,
     MeterSearchValue,
     OwnerPage,
     TokenDraw,
@@ -298,6 +299,31 @@ def test_a_key_that_is_not_asked_for_or_given_twice_is_left_out() -> None:
     found = understand(blocks, asked())
     assert [(value.key, value.value) for value in found.values] == [("axles", "4")]
     assert found.results == []
+
+
+def test_the_fields_own_unit_after_a_number_is_left_out() -> None:
+    """Claude is asked for the number without its unit, but sometimes writes it: 14020 mm is
+    14020. Another unit stays as written, and so do words: the app refuses them."""
+    blocks: list[dict[str, Any]] = [
+        {"type": "web_search_tool_result", "tool_use_id": "s", "content": []},
+        {
+            "type": "text",
+            "text": "length_over_buffers: 14 020 mm\nmax_speed: about 100 km/h\naxles: 2\n"
+            "built: 1976 mm",
+        },
+    ]
+    found = understand(blocks, asked())
+    assert [(value.key, value.value) for value in found.values] == [
+        ("length_over_buffers", "14 020"),
+        ("max_speed", "about 100"),
+        ("axles", "2"),
+        ("built", "1976 mm"),
+    ], "a text field has no unit to leave out"
+    other: list[dict[str, Any]] = [{"type": "text", "text": "length_over_buffers: 14,02 m"}]
+    assert [(v.key, v.value) for v in understand(other, asked()).values] == [
+        ("length_over_buffers", "14,02 m")
+    ]
+    assert understand(blocks, asked()).text.startswith("length_over_buffers: 14 020 mm")
 
 
 def test_a_search_that_itself_failed_is_no_answer() -> None:
@@ -872,3 +898,68 @@ def test_the_trial_prints_what_the_search_cost_and_never_the_key_or_the_values(
     assert prov_webbsokning.main([*args, "--nyckelfil", str(key)], http=failing) == 1
     failed = capsys.readouterr()
     assert "fel 401" in failed.err and KEY not in failed.out + failed.err
+
+
+def test_the_github_job_runs_the_trial_only_when_started_by_hand() -> None:
+    """The trial costs real money (CAT-172): the job "Prov av webbsökningen" starts only when a
+    person starts it, never on a PR or on main. The key goes to a file that only the step reads,
+    never to the command line or the log, and the choice of cases is passed as data."""
+    root = Path(__file__).resolve().parents[2]
+    job = (root / ".github" / "workflows" / "prov-webbsokning.yml").read_text()
+    on = job.split("\non:\n")[1].split("\npermissions:")[0]
+    assert "workflow_dispatch:" in on
+    for other in ("pull_request", "push", "schedule", "workflow_run", "workflow_call"):
+        assert other not in on, other
+    assert "umask 077" in job and "trap 'rm -f \"$key\"' EXIT" in job
+    assert '--fall "$FALL" --spara prov --nyckelfil "$key"' in job
+    assert "${{ inputs.fall }}" not in job.split("run: |")[1], "an input is never part of a script"
+    for line in job.splitlines():
+        if "ANTHROPIC_API_KEY_SEARCH" in line and "secrets." not in line:
+            assert "echo" not in line or "saknas" in line, line
+    assert "python -m catalog.prov_webbsokning prov --rapport prov/rapport.md" in job
+
+
+def test_the_trial_runs_the_cases_and_saves_each_answer_without_the_key(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """--fall alla searches each of the nine markings and saves what Claude answered, the values
+    with their citations and the sources, for Catalog's check (catalog/prov_webbsokning.py):
+    never the key, and nothing is printed but the counts."""
+    key = tmp_path / "trainmeet_search-key"
+    key.write_text(KEY + "\n")
+    sent: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        sent.append(json.loads(request.content)["messages"][0]["content"])
+        return httpx.Response(200, json=message(claudes_turn(), searches=3))
+
+    http = httpx.Client(transport=httpx.MockTransport(handle))
+    folder = tmp_path / "prov"
+    argv = ["--fall", "alla", "--spara", str(folder), "--nyckelfil", str(key)]
+    assert prov_webbsokning.main(argv, http=http) == 0
+    printed = capsys.readouterr()
+    assert len(sent) == len(prov_webbsokning.FALL) == 9
+    assert "Hbis-tt 293" in sent[5] and "DB Cargo" in sent[5] and "Europe" in sent[5]
+    saved = sorted(folder.iterdir())
+    assert [path.name for path in saved][:2] == ["01-hbis.json", "02-rc4.json"]
+    trial = MeterSearchTrial.model_validate_json(saved[0].read_text())
+    assert (trial.asked.litt, trial.asked.operator, trial.asked.profile) == (
+        "Hbis",
+        "Green Cargo",
+        "SE",
+    )
+    assert [value.key for value in trial.values] == ["length_over_buffers", "max_speed", "axles"]
+    assert trial.values[0].citations[0].cited_text == "Längd över buffertar 14 020 mm"
+    assert len(trial.results) == 2 and trial.searches == 3 and trial.tokens > 0
+    assert trial.text.startswith("I'll search for the Hbis wagon.")
+    for path in saved:
+        assert KEY not in path.read_text() and "hemlig" not in path.read_text()
+    assert "Totalt för 9 fall" in printed.out and "tokens med faktorn 2" in printed.out
+    for hidden in (KEY, "14020", MUSEUM, "Längd över buffertar"):
+        assert hidden not in printed.out + printed.err, hidden
+
+    assert prov_webbsokning.main(["--fall", "1,6", "--nyckelfil", str(key)], http=http) == 0
+    assert len(sent) == 11, "only the cases asked for"
+    for wrong in (["--fall", "0"], ["--fall", "10"], ["--fall", "en"], []):
+        assert prov_webbsokning.main([*wrong, "--nyckelfil", str(key)], http=http) == 2
+    assert len(sent) == 11, "a wrong choice searches nothing"
