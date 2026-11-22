@@ -1297,6 +1297,9 @@ jobs:
           APNS_TOPIC: ${{ secrets.APNS_TOPIC }}
           APNS_KEY: ${{ secrets.APNS_KEY }}
           IP: ${{ steps.server.outputs.ip }}
+          # Catalogs bildnyckel (#51) som fil hos löparen; utan den här raden kom den aldrig fram,
+          # och Catalog stannade när hinken fanns (22 november).
+          PICTURES_KEY: ${{ steps.server.outputs.pictures_key }}
         run: |
           docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" "trainmeet-cad:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
