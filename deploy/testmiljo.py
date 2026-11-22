@@ -28,6 +28,8 @@ Valfritt:
 - Catalogs bilder (#51, C35): en egen hink i Object Storage och en egen IAM-app med en nyckel
   som bara når Object Storage i det här projektet. Nyckeln sparas i Secret Manager och läggs i
   catalog-vault på servern. Utan rätten att skapa IAM-appar ligger bilderna på serverns disk.
+  Rätten behövs bara den körning som skapar appen; finns nyckeln i Secret Manager frågas
+  IAM inte alls.
 - CAD:s modulfoton (#89 del c1, CAD-19): likadant, en egen hink, aldrig Catalogs, och en egen
   IAM-app med en egen nyckel. Nyckeln följer med i cad.env, och up.sh lägger den i cad-vault på
   servern, aldrig i .env. Utan hinken ligger fotona på serverns disk, i cad-photos.
@@ -71,7 +73,7 @@ from scaleway.instance.v1.types import (
 )
 from scaleway.marketplace.v2 import MarketplaceV2API
 from scaleway.marketplace.v2.types import LocalImageType
-from scaleway.secret.v1beta1 import SecretV1Beta1API
+from scaleway.secret.v1beta1 import Secret, SecretV1Beta1API
 from scaleway_core.api import ScalewayException
 
 ZONE = "nl-ams-1"
@@ -366,6 +368,26 @@ def known_hosts_line(address: str, host_public: str) -> str:
     return f"{address} {key_type} {key}\n"
 
 
+def find_secret(secrets: SecretV1Beta1API, project_id: str, name: str) -> Secret | None:
+    existing = secrets.list_secrets(
+        project_id=project_id, name=name, scheduled_for_deletion=False
+    ).secrets
+    return next((s for s in existing if s.name == name), None)
+
+
+def latest_version(secrets: SecretV1Beta1API, secret: Secret | None) -> str | None:
+    """The text of the secret's latest version, or None when it has none yet."""
+    if secret is None or secret.version_count == 0:
+        return None
+    version = secrets.access_secret_version(secret_id=secret.id, revision="latest")
+    return base64.b64decode(version.data).decode()
+
+
+def read_secret(secrets: SecretV1Beta1API, project_id: str, name: str) -> str | None:
+    """The latest version of a secret, or None when there is none yet."""
+    return latest_version(secrets, find_secret(secrets, project_id, name))
+
+
 def ensure_secret(
     secrets: SecretV1Beta1API,
     project_id: str,
@@ -374,13 +396,10 @@ def ensure_secret(
     new: Callable[[], str],
 ) -> tuple[str, bool]:
     """The latest version of a secret, made with `new` the first time. (text, created)"""
-    existing = secrets.list_secrets(
-        project_id=project_id, name=name, scheduled_for_deletion=False
-    ).secrets
-    secret = next((s for s in existing if s.name == name), None)
-    if secret is not None and secret.version_count > 0:
-        version = secrets.access_secret_version(secret_id=secret.id, revision="latest")
-        return base64.b64decode(version.data).decode(), False
+    secret = find_secret(secrets, project_id, name)
+    stored = latest_version(secrets, secret)
+    if stored is not None:
+        return stored, False
 
     if secret is None:
         secret = secrets.create_secret(
@@ -693,7 +712,13 @@ def ensure_picture_key(
 ) -> PictureKey:
     """An IAM application with a policy for Object Storage in this project only, and its key
     in Secret Manager. Made the first time, then read back. Catalog's pictures and CAD's
-    photos have one each."""
+    photos have one each.
+
+    A key already in Secret Manager is used as it is, without asking IAM, so the deploy's key
+    needs the right to make IAM applications only for the run that makes them."""
+    stored = read_secret(secrets, project_id, secret_name)
+    if stored is not None:
+        return PictureKey.from_json(stored)
     found = iam.list_applications_all(organization_id=organization_id, name=name)
     application = next((a for a in found if a.name == name), None)
     if application is None:
@@ -815,7 +840,9 @@ def ensure_pictures(
     except ScalewayException as error:
         print(
             f"::notice::{what} ligger på serverns disk: Scaleway nekade IAM-appen "
-            f"(HTTP {error.status_code}). Nyckeln behöver rätten att skapa IAM-appar."
+            f"(HTTP {error.status_code}). Ge GitHub-nyckelns applikation behörigheten "
+            "IAMManager i organisationen för en körning; sedan läses nyckeln ur Secret Manager "
+            "och behörigheten kan tas bort (README, Engångsuppsättningen)."
         )
         return None
     except PicturesError as error:
