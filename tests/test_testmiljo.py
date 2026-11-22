@@ -338,6 +338,61 @@ def test_security_group_sends_uppercase_protocols_to_instance_v1() -> None:
     assert [rule.protocol for rule in rules] == ["TCP", "TCP", "TCP", "UDP", "ICMP"] * 2
 
 
+def test_smtp_out_of_the_server_is_opened_so_id_can_send_its_codes() -> None:
+    """Scaleway blocks SMTP out of a new group, and ID's codes go out with SMTP (22 November)."""
+    instance = Mock(spec=InstanceUtilsV1API)
+    group = SimpleNamespace(name=testmiljo.NAME, id="group", enable_default_security=True)
+    instance.list_security_groups.return_value = SimpleNamespace(security_groups=[group])
+
+    testmiljo.ensure_security_group(instance, "project")
+
+    instance.update_security_group.assert_called_once_with(
+        zone=testmiljo.ZONE, security_group_id="group", enable_default_security=False
+    )
+
+
+def test_an_open_group_is_left_as_it_is() -> None:
+    instance = Mock(spec=InstanceUtilsV1API)
+    group = SimpleNamespace(name=testmiljo.NAME, id="group", enable_default_security=False)
+    instance.list_security_groups.return_value = SimpleNamespace(security_groups=[group])
+
+    testmiljo.ensure_security_group(instance, "project")
+
+    instance.update_security_group.assert_not_called()
+
+
+def test_a_refused_smtp_opening_warns_with_the_step_in_the_console(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    instance = Mock(spec=InstanceUtilsV1API)
+    group = SimpleNamespace(name=testmiljo.NAME, id="group", enable_default_security=True)
+    instance.list_security_groups.return_value = SimpleNamespace(security_groups=[group])
+    instance.update_security_group.side_effect = _refused(403)
+
+    assert testmiljo.ensure_security_group(instance, "project") == "group"
+
+    said = capsys.readouterr().out
+    assert said.startswith("::warning::Scaleway spärrar SMTP") and "HTTP 403" in said
+    assert f"Enable SMTP för säkerhetsgruppen {testmiljo.NAME}" in said
+    instance.set_security_group_rules.assert_called_once()
+
+
+def test_the_deploy_logs_in_to_the_mail_server_and_says_why_codes_fail() -> None:
+    """ID only says that the code could not be sent; the deploy says why, and sends nothing."""
+    up = (ROOT / "deploy" / "testmiljo" / "up.sh").read_text()
+    check = up[up.index("Mejlnyckeln saknas") : up.index("# The new versions must answer")]
+    assert "smtps://smtp.tem.scaleway.com:465" in check and "-X NOOP" in check
+    # The key reaches curl on stdin (-K -), never as an argument that ps would show.
+    assert "-K -" in check and "--user" not in check and "-u " not in check
+    assert "TEM_PROJECT_ID" in check
+    for code, says in (
+        ("7 | 28)", "Enable SMTP för säkerhetsgruppen trainmeet-testhub"),
+        ("67)", "TransactionalEmailEmailSmtpCreate"),
+    ):
+        assert says in check[check.index(code) :].splitlines()[0]
+    assert "id.env" in (ROOT / "deploy" / "testmiljo.py").read_text()
+
+
 def test_a_new_server_receives_cloud_init_before_power_on(monkeypatch: pytest.MonkeyPatch) -> None:
     instance = Mock(spec=InstanceUtilsV1API)
     instance.list_servers.return_value = SimpleNamespace(servers=[])

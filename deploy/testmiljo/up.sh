@@ -156,6 +156,22 @@ echo "id svarar med version $TAG."
 if [ ! -s id-vault/trainmeet_smtp-password ]; then
   # Shown as a warning on the run in GitHub Actions.
   echo "::warning::Mejlnyckeln saknas (TEM_SECRET_KEY), så TrainMeet ID kan inte skicka koder än."
+else
+  # The codes go out with SMTP to Transactional Email (#66). Scaleway blocks SMTP out of a new
+  # server, and refuses a key without TransactionalEmailEmailSmtpCreate at the login; both make
+  # ID say that the code could not be sent (22 November). Logging in from the server tells which,
+  # and sends nothing: NOOP instead of a mail. The key goes to curl on stdin, never as an argument.
+  SMTP_USER=$(sed -n 's/^TEM_PROJECT_ID=//p' id.env)
+  SMTP=0
+  printf 'user = "%s:%s"\n' "$SMTP_USER" "$(cat id-vault/trainmeet_smtp-password)" |
+    curl -sS --connect-timeout 10 --max-time 30 --url smtps://smtp.tem.scaleway.com:465 \
+      -X NOOP -K - -o /dev/null 2>/dev/null || SMTP=$?
+  case "$SMTP" in
+    0) echo "Mejlen: inloggningen hos Transactional Email går igenom." ;;
+    7 | 28) echo "::warning::Servern når inte Scaleways mejlserver (smtp.tem.scaleway.com, port 465), så TrainMeet ID kan inte skicka koder. Scaleway spärrar SMTP ut från nya servrar: slå på Enable SMTP för säkerhetsgruppen trainmeet-testhub (CPU & GPU Instances, Security groups)." ;;
+    67) echo "::warning::Scaleway tar inte emot mejlnyckeln (TEM_SECRET_KEY), så TrainMeet ID kan inte skicka koder. Applikationen trainmeet-mejl behöver TransactionalEmailEmailSmtpCreate i projektet trainmeet, och nyckeln ska vara dess Secret Key." ;;
+    *) echo "::warning::Inloggningen hos Scaleways mejlserver gick inte (curl $SMTP), så TrainMeet ID kan troligen inte skicka koder." ;;
+  esac
 fi
 
 # The new versions must answer on the server itself, with the right commit.

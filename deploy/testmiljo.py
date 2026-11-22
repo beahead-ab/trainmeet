@@ -485,6 +485,7 @@ def ensure_security_group(instance: InstanceUtilsV1API, project_id: str) -> str:
         print("Säkerhetsgruppen skapad.")
     if group is None:
         fail("Scaleway gav ingen säkerhetsgrupp tillbaka.")
+    open_smtp(instance, group)
 
     rules: list[SetSecurityGroupRulesRequestRule] = []
     for ip_range in ("0.0.0.0/0", "::/0"):
@@ -504,6 +505,34 @@ def ensure_security_group(instance: InstanceUtilsV1API, project_id: str) -> str:
             )
     instance.set_security_group_rules(zone=ZONE, security_group_id=group.id, rules=rules)
     return group.id
+
+
+SMTP_CONSOLE = (
+    "slå på Enable SMTP för säkerhetsgruppen "
+    f"{NAME} i Scaleways konsol (CPU & GPU Instances, Security groups)"
+)
+
+
+def open_smtp(instance: InstanceUtilsV1API, group: Any) -> None:
+    """TrainMeet ID sends its codes with SMTP to Transactional Email (#66).
+
+    Scaleway blocks SMTP out of a new security group (enable_default_security), and the login
+    then says that the code could not be sent (22 November). The API calls the setting read only
+    for some accounts, so a refusal is a warning with the step in the console, not a stop.
+    """
+    if not getattr(group, "enable_default_security", False):
+        return
+    try:
+        instance.update_security_group(
+            zone=ZONE, security_group_id=group.id, enable_default_security=False
+        )
+    except ScalewayException as error:
+        print(
+            "::warning::Scaleway spärrar SMTP ut från servern, så TrainMeet ID kan inte skicka "
+            f"koder, och API:t fick inte öppna det (HTTP {error.status_code}): {SMTP_CONSOLE}."
+        )
+        return
+    print("SMTP ut från servern är öppnat, så TrainMeet ID kan skicka koder.")
 
 
 def ensure_ip(instance: InstanceUtilsV1API, project_id: str) -> Ip:
