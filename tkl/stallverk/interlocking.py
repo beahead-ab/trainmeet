@@ -82,7 +82,13 @@ the field with `field_connect`, passes the layout's reports to `field_reports` a
   lever that would lay one, is refused with the reason. Against the pretend LocoNet the yellow
   ones run too (Prova). The panel's state shows each object's state;
 - a section on the line outside an exit reports its occupancy up as section.occupancy (STV-10);
-- Kör, Ankommit and Avgått are refused: the track circuits do that.
+- Kör, Ankommit and Avgått are refused: the track circuits do that. Except where the
+  interlocking cannot see the passage (STV-16, beslut 22 november, #251): the sections ahead of
+  the train have no sensor (Utan givare), or one behind it went free before the train was seen
+  in the route's last section. Then the events say so, and Ankommit gives the arrival once every
+  section behind the train with a sensor is free, as at level 1–2. The passage in that other
+  order is never taken as passage by itself: that would change the rule that occupancy frees
+  nothing by itself.
 
 Without LocoNet the interlocking is as at level 1–2, with the buttons ("LocoNet ej ansluten"
 without the pretend LocoNet, or in the cloud).
@@ -213,6 +219,8 @@ BY_CIRCUITS: Final = (
     "Med LocoNet följer tågnumret spårledningarna (STV-15): Kör, Ankommit och Avgått görs "
     "av tåget självt."
 )
+UNSEEN: Final = "ställverket kan inte se passagen"
+"""Why Ankommit is given by hand at level 3 (STV-16, beslut 22 november, #251)."""
 
 
 @dataclass(frozen=True)
@@ -1015,6 +1023,11 @@ class Interlocking:
         if 0 <= route.at < route.way.last:
             train = self._train(route.train)
             who = train.said if train else "Tåget"
+            if self.field is not None and self._by_hand(route)[0] is not None:
+                return (
+                    f"{who} är i vägen {route.name}, och {UNSEEN}. Tryck Ankommit när tåget är "
+                    "helt inne, eller nödutlös vägen."
+                )
             return f"{who} är i vägen {route.name}. Kör fram tåget, eller nödutlös vägen."
         return None
 
@@ -1294,18 +1307,32 @@ class Interlocking:
 
     def arrive(self, route_id: int) -> Outcome:
         """Ankommit (STV-16): the train stands at the route's end. The route is released and
-        the arrival goes up to Hubben, with the track the train stands on."""
+        the arrival goes up to Hubben, with the track the train stands on.
+
+        At level 3 the arrival is the route released after passage, so Ankommit is refused,
+        except where the interlocking cannot see the passage (`_by_hand`): then the operator
+        confirms that the train is wholly in, as at level 1–2."""
         if (stale := self._refuse_stale()) is not None:
             return stale
-        if self.field is not None:
-            return Outcome(False, BY_CIRCUITS)
         route = self._route(route_id)
+        if self.field is not None:
+            if route is None:
+                return Outcome(False, BY_CIRCUITS)
+            train, why = self._by_hand(route)
+            if train is None:
+                return Outcome(False, why)
+            train.section, train.exit = route.way.sections[-1][0], None
+            return self._arrive(route, train, f", bekräftat med Ankommit: {UNSEEN}")
         if route is None:
             return Outcome(False, "Vägen finns inte längre.")
         train = self._train(route.train)
         if route.at != route.way.last or train is None:
             who = train.said if train is not None and route.at >= 0 else "Inget tåg"
             return Outcome(False, f"{who} har inte kommit fram till {route.way.end} än.")
+        return self._arrive(route, train)
+
+    def _arrive(self, route: _Route, train: _Train, how: str = "") -> Outcome:
+        """The route released at Ankommit, and the arrival up to Hubben."""
         before = self.exit_aspects()
         self._complete(route)
         track = self.plant.track_of.get(train.section or "")
@@ -1317,10 +1344,43 @@ class Interlocking:
             track=self.plant.track_outside.get(track) if track else None,
         )
         outcome = self._done(
-            f"{train.said} har kommit fram till {where}. Vägen {route.name} är utlöst."
+            f"{train.said} har kommit fram till {where}{how}. Vägen {route.name} är utlöst."
         )
         reports = (report,) if train.number or train.call else ()
         return Outcome(True, outcome.message, None, (*reports, *self._exit_reports(before)))
+
+    def _by_hand(self, route: _Route) -> tuple[_Train | None, str]:
+        """At level 3: may the operator give the arrival with Ankommit (STV-16, beslut 22
+        november, #251)? Only where the interlocking cannot see the passage: the route ends at
+        the station, its train is in it, every section ahead of the train is without a sensor
+        or the train is already in the last one, and every section behind it with a sensor, and
+        the one it came from, reports free. The train, or None with why not."""
+        field_ = self.field
+        assert field_ is not None
+        if route.way.leaves is not None:
+            return None, BY_CIRCUITS
+        train = self._train(route.train) if route.at >= 0 else None
+        if train is None:
+            return None, (
+                f"Inget tåg har kommit in i vägen {route.name} än. Med LocoNet följer tågnumret "
+                "spårledningarna (STV-15)."
+            )
+        names = [name for name, _ in route.way.sections]
+        ahead = [name for name in names[route.at + 1 :] if self._detects(name)]
+        if ahead:
+            return None, (
+                f"{train.said} är i {self.plant.said(train.section or '')}. Ställverket ser när "
+                f"det kommer fram till {self.plant.said(ahead[-1])}, och löser ut vägen efter "
+                "passagen (STV-16)."
+            )
+        behind = [*names[: route.way.last], *([route.came_from] if route.came_from else [])]
+        for name in behind:
+            if self._detects(name) and field_.sections.get(name) is not False:
+                return None, (
+                    f"{_cap(self.plant.said(name))} är belagd: {train.said.lower()} är inte "
+                    "helt inne."
+                )
+        return train, ""
 
     def depart(self, route_id: int) -> Outcome:
         """Avgått: the train on a route out has left on the line (STV-10)."""
@@ -2491,7 +2551,10 @@ class Interlocking:
             if train is not None:
                 train.section, train.exit = section, None
             who = train.said if train is not None else "Tåget"
-            return [f"{who} i {self.plant.said(section)}."], []
+            lines = [f"{who} i {self.plant.said(section)}."]
+            if route.at == route.way.last and not self._passed(route, train):
+                lines += self._unseen_said(route, train, gone_first=True)
+            return lines, []
         for route in self.routes:
             if route.at >= 0 or route.held or route.waiting:
                 continue
@@ -2557,7 +2620,40 @@ class Interlocking:
                 text, reports = self._arrived(route, train)
                 said.append(text)
                 up += reports
+            elif not at_end and route.at >= 0 and names[route.at] == section:
+                said += self._unseen_said(route, train, gone_first=False)
         return said, up
+
+    def _unseen_said(self, route: _Route, train: _Train | None, *, gone_first: bool) -> list[str]:
+        """Why the route stays when the interlocking cannot see the passage, and that Ankommit
+        gives the arrival (STV-16, beslut 22 november, #251): the sections ahead of the train
+        have no sensor, or one behind it went free before the train was seen in the last one.
+        Nothing when Ankommit cannot be given now."""
+        if self._by_hand(route)[0] is None:
+            return []
+        who = train.said if train is not None else "Tåget"
+        names = [name for name, _ in route.way.sections]
+        if gone_first:
+            first = [
+                self.plant.said(name)
+                for i, name in enumerate(names[: route.way.last])
+                if self._detects(name) and not route.released[i]
+            ]
+            if not first:
+                return []
+            free = "fri" if len(first) == 1 else "fria"
+            why = (
+                f"{_cap(_listed(first))} blev {free} innan {who.lower()} syntes i "
+                f"{self.plant.said(names[-1])}"
+            )
+        else:
+            blind = [name for name in names[route.at + 1 :] if not self._detects(name)]
+            word = "spårledningen" if len(blind) == 1 else "spårledningarna"
+            why = (
+                f"{who} har lämnat {self.plant.said(names[route.at])}, men {word} "
+                f"{_listed(blind)} saknar givare"
+            )
+        return [f"{why}: {UNSEEN}. Tryck Ankommit när tåget är helt inne."]
 
     def _out_on_line(self, route: _Route) -> bool:
         """A route out has its train on the line: where the line outside the exit has a
