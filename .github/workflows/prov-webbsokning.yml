@@ -4,7 +4,9 @@
 # bara det här steget läser, och tas bort efteråt; den skrivs aldrig ut.
 #
 # ID:s prov (id/prov_webbsokning.py) sparar varje fall, och Catalogs prov
-# (catalog/prov_webbsokning.py) kontrollerar belägget per fält på samma svar. Sammanfattningen
+# (catalog/prov_webbsokning.py) kontrollerar belägget per fält på samma svar, och läser som
+# Catalog de citerade sidorna där utdraget slutar före värdet (catalog/source_pages.py), här från
+# GitHubs server; det kostar inga tokens. Sammanfattningen
 # står under körningen, och hela rapporten, med värdena, utdragen och adresserna, står i loggen
 # och i filen prov-webbsokning. Det är bara det sökningen hittade på öppna sidor och märkningen.
 #

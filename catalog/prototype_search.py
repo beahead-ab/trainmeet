@@ -22,8 +22,10 @@ a reading does (catalog/reading.py):
    the meter searches with hold. The search always uses TrainMeet's key, also for an account
    with own AI, which has no web search.
 3. The answer is checked by Catalog's own code (catalog/evidence.py): a value is kept only with
-   a source from the real search whose excerpt holds it. Then the 24 tokens are drawn, and the
-   search is done. Whatever fails gives the reservation back.
+   a source from the real search whose excerpt holds it. When the search's short excerpt does
+   not, Catalog reads the cited pages itself (catalog/source_pages.py) and looks for the value
+   further on from the cited words (CAT-169). Then the 24 tokens are drawn, and the search is
+   done. Whatever fails gives the reservation back.
 
 The result is a proposal for the person, who sends it to the review queue as it is or after
 changing it (PrototypeProposal.search, catalog/prototypes.py): the evidence follows the fields,
@@ -53,6 +55,7 @@ from catalog.fleet import Refused
 from catalog.prototype_fields import BY_KEY, PROFILES
 from catalog.prototypes import suggest
 from catalog.reading import Readings, _failed, no_tokens, search_off, without_id
+from catalog.source_pages import SourcePages
 from contracts.catalog import (
     SEARCH_PRICE,
     FieldProfile,
@@ -181,14 +184,17 @@ class Searches:
         meter: SearchMeter | None,
         *,
         per_hour: int = PER_HOUR,
+        pages: SourcePages | None = None,
     ) -> None:
         """readings are the readings of photos, which share the rule of one at a time per
         person and the giving up of what never finished. meter is TrainMeet ID's; without ID's
-        API there is none, and no search."""
+        API there is none, and no search. pages reads the cited pages; without it a value is
+        held only to the search's own excerpt."""
         self.db = db
         self.readings = readings
         self.meter = meter
         self.per_hour = per_hour
+        self.pages = pages
 
     # --- The consent, the price and the balance (CAT-142, CAT-172, CAT-219) --------------------
 
@@ -430,6 +436,15 @@ class Searches:
             checked = evidence.check(
                 ask.profile, wanted(ask.profile), answer.values, answer.results, searched_at
             )
+            if checked.unread and self.pages is not None:
+                checked = evidence.check(
+                    ask.profile,
+                    wanted(ask.profile),
+                    answer.values,
+                    answer.results,
+                    searched_at,
+                    pages=_read(self.pages, checked.unread),
+                )
             marked = {"litt": ask.litt} | ({"operator": ask.operator} if ask.operator else {})
             result = PrototypeSearch(
                 id=ask.id,
@@ -536,6 +551,15 @@ class SentSearch:
     def __init__(self, evidence: dict[str, Any], source: str) -> None:
         self.evidence = evidence
         self.source = source
+
+
+def _read(pages: SourcePages, urls: list[str]) -> dict[str, str]:
+    """The cited pages' text. A page that cannot be read is no evidence, never an error."""
+    try:
+        return pages.read(urls)
+    except Exception:
+        LOGGER.warning("Källsidorna gick inte att läsa.", exc_info=True)
+        return {}
 
 
 def without_search() -> Refused:

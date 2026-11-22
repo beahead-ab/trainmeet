@@ -68,6 +68,7 @@ from catalog.pictures import FILES_PATH, PictureLimits, Pictures, S3Store, store
 from catalog.prototype_search import Searches
 from catalog.reading import IdMeter, Readings
 from catalog.settings import Settings, from_env
+from catalog.source_pages import WebPages
 from catalog.storage import IdPayer
 from catalog.tags import Tags
 from catalog.trips import Trips
@@ -468,7 +469,14 @@ def create_app(
     # The prototype catalog (#53): the reviewers are a role in ID, asked at every call (CAT-165).
     # The web search for the type data goes through ID's meter to Claude's web search (CAT-219,
     # C40): only the marking is sent, and Catalog never holds a key.
-    searches = Searches(db, readings, IdMeter(roles) if roles is not None else None)
+    # A value whose short excerpt does not hold it is looked for further on in the cited page,
+    # read from Catalog's own server (catalog/source_pages.py, CAT-169).
+    searches = Searches(
+        db,
+        readings,
+        IdMeter(roles) if roles is not None else None,
+        pages=WebPages() if settings.source_pages else None,
+    )
     catalog_of_prototypes = prototypes.Prototypes(db, fleet, access.reviewer, searches)
     tags = Tags(
         db,
