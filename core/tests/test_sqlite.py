@@ -142,4 +142,3 @@ def test_a_transaction_that_only_reads_may_not_write(tmp_path: Path) -> None:
         db.execute("INSERT INTO thing VALUES ('a')")
     with closing(connect(path)) as db:
         assert db.execute("SELECT count(*) FROM thing").fetchone()[0] == 0
-
