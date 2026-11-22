@@ -1,5 +1,5 @@
 """Källsidorna: Catalog reads the page a citation points to, itself, to see the value further on
-than the search's short excerpt (#53 del b, CAT-169, förslag 22 november).
+than the search's short excerpt (#53 del b, CAT-169, beslut C42).
 
 Claude's web search gives at most about 150 characters of the passage it cites (cited_text), and
 in a table the value often stands further in: DB Cargo's speed, year and brake, Wikipedia's

@@ -465,7 +465,7 @@ def test_the_search_asks_for_the_profiles_type_data_with_the_registers_units(
     assert labels["epoch"] == "Era" and labels["length_ft"] == "Length"
 
 
-# --- Further on in the cited page (CAT-169, förslag 22 november) --------------------------------
+# --- Further on in the cited page (CAT-169, beslut C42) -----------------------------------------
 
 # A company's wagon catalogue as Claude's search cites it: about 150 characters, cut off before
 # the speed, the year and the brake, which stand further on in the same table.

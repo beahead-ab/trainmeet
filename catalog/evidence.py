@@ -340,7 +340,7 @@ def supports(key: str, value: str, excerpt: str) -> bool:
     return False
 
 
-# --- Further on in the page (CAT-169, förslag 22 november) -------------------------------------
+# --- Further on in the page (CAT-169, beslut C42) ----------------------------------------------
 
 
 def _skeleton(text: str) -> tuple[str, list[int]]:
