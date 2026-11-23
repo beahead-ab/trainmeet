@@ -25,6 +25,8 @@ export type SectionLength = NonNullable<Draft["lengths"]>[number];
 export type LinkCode = Schemas["trainmeet.sync-1.link-code"];
 export type Follower = Schemas["trainmeet.sync-1.follower"];
 export type Home = Schemas["trainmeet.sync-1.home"];
+export type LinkAttempt = Schemas["trainmeet.sync-1.link-attempt"];
+export type LinkChosen = Schemas["trainmeet.sync-1.link-chosen"];
 /** Förarna (PLAN-40, LOK-33): who pays when a driver's photos of a missing duty are read. */
 export type PaperReadingSettings = Schemas["trainmeet.driver-1.paper-reading"];
 export type PaperReadingPayer = PaperReadingSettings["payer"];
@@ -52,6 +54,10 @@ export const planning = {
   linkCode: (id: string) => call<LinkCode>(`/api/sync/1/meets/${encodeURIComponent(id)}/code`, {}),
   followers: (id: string) => call<Follower[]>(`/api/sync/1/meets/${encodeURIComponent(id)}/followers`),
   revoke: (id: string, hub: string) => call<unknown>(`/api/sync/1/meets/${encodeURIComponent(id)}/followers/${encodeURIComponent(hub)}/revoke`, {}),
+  // Koppla Pi:n genom inloggning och val av träff (F16): the Pi that asks, in this browser's
+  // cookie, and the meet chosen for it. The answer says where the browser goes back to the Pi.
+  linkAttempt: () => call<LinkAttempt>("/api/sync/1/link/attempt"),
+  chooseForPi: (meet: string) => call<LinkChosen>("/api/sync/1/link/attempt", { meet }),
   // Träffens hem (H35): where the meet is planned, and taking it back from a silent Pi.
   home: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home`),
   reclaim: (id: string) => call<Home>(`/api/sync/1/meets/${encodeURIComponent(id)}/home/reclaim`, {}),

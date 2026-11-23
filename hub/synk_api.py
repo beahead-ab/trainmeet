@@ -1,6 +1,7 @@
 """Synkprotokollet i hubben (trainmeet.sync/1, steg 5 del 2).
 
-In the cloud: Koppla en Pi gives a code for a meet (SYNK-02); the Pi links with it and then
+In the cloud: Koppla en Pi gives a code for a meet (SYNK-02), the reserve to logging in and
+choosing the meet (F16, hub/pi_link.py); the Pi links with it and then
 follows the meet's versions with long-poll, with its own key (SYNK-10, SYNK-13). On the Pi:
 Den här hubben → Molnet, where the administrator gives the cloud's address and the code, and
 sees the meets the Pi follows. The key is never shown or logged.
@@ -53,9 +54,10 @@ from contracts.sync import (
 from contracts.sync import Follower as FollowerInfo
 from drift.engine import Refused
 from drift.store import MissingRun
-from hub.hubben import Authorization, SessionCookie, require_admin
+from hub.hubben import Authorization, SessionCookie, require_admin, session_of
 from hub.local import LocalLogin
 from hub.push import Senders
+from hub.rights import Rights
 from hub.running import Running
 from planering.store import Planning, PlanningError
 from synk.follower import Follower
@@ -106,10 +108,13 @@ def router(
     stations: Stations | None = None,
     owners: Owners | None = None,
     meets_of: Callable[[str], list[id_contract.Meet]] | None = None,
+    rights: Rights | None = None,
 ) -> APIRouter:
     """meets_of: the meets of a person's clubs in TrainMeet ID, with the person's roles (ID10),
-    where the hub has ID's API; the meets molnets TKL may join (TKLMOLN-03)."""
+    where the hub has ID's API; the meets molnets TKL may join (TKLMOLN-03). rights: who plans
+    a meet, and so links a Pi to it (PLAN-19, F16)."""
     routes = APIRouter()
+    may = rights if rights is not None else Rights(login)
     relay = relay if relay is not None else Relay()
 
     def home(meet: str) -> Home:
@@ -138,6 +143,14 @@ def router(
     def admin(session: str | None, authorization: str | None) -> None:
         require_admin(login, session, authorization)
 
+    def planner(meet: str, session: str | None, authorization: str | None) -> None:
+        """The PIN, or Administratör or Arrangör at the meet in TrainMeet ID (PLAN-19)."""
+        try:
+            id_meet = plans.draft(meet).meet.id_meet
+        except PlanningError as error:
+            _fail(error)
+        may.require_planner(session_of(session, authorization), id_meet)
+
     def known(meet: str, key: str) -> None:
         if links.follower(meet, key, datetime.now(UTC)) is None:
             raise HTTPException(401, "Molnhubben känner inte den här Pi:n.")
@@ -151,13 +164,10 @@ def router(
         session: SessionCookie = None,
         authorization: Authorization = None,
     ) -> dict[str, Any]:
-        """Koppla en Pi: a six-digit code for the meet, for 15 minutes."""
+        """Koppla en Pi med en kod, the reserve (F16): a six-digit code for the meet, for 15
+        minutes."""
         response.headers["Cache-Control"] = "no-store"
-        admin(session, authorization)
-        try:
-            plans.draft(meet)
-        except PlanningError as error:
-            _fail(error)
+        planner(meet, session, authorization)
         if not home(meet).here:
             raise HTTPException(409, f"Träffens hem är {home(meet).hub_name}. Koppla Pi:n där.")
         return links.new_code(meet, datetime.now(UTC)).model_dump(mode="json")
@@ -172,7 +182,7 @@ def router(
         meet: str, hub_id: str, session: SessionCookie = None, authorization: Authorization = None
     ) -> None:
         """Koppla bort en Pi: its key no longer works here."""
-        admin(session, authorization)
+        planner(meet, session, authorization)
         if not links.revoke(meet, hub_id):
             raise HTTPException(404, "Pi:n följer inte träffen.")
 

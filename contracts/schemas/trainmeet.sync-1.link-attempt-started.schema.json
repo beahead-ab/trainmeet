@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-attempt-started.schema.json",
+  "title": "trainmeet.sync-1.link-attempt-started",
+  "additionalProperties": true,
+  "properties": {
+    "attempt": {
+      "description": "Försöket: webbläsaren tar det till molnet.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Attempt",
+      "type": "string"
+    },
+    "secret": {
+      "description": "Pi:ns hemlighet för försöket. Stannar på Pi:n.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Secret",
+      "type": "string"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    },
+    "address": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Var webbläsaren öppnar försöket, när molnet vet sin adress på internet.",
+      "title": "Address"
+    }
+  },
+  "required": [
+    "attempt",
+    "secret",
+    "expires"
+  ],
+  "type": "object"
+}

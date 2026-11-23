@@ -134,5 +134,9 @@ export const hub = {
 /** Logga in med TrainMeet ID (#78): the hub sends the browser to ID and back to the page. */
 export const idLoginAddress = (next: string, language = "sv") => `/api/hub/id/login?${new URLSearchParams({ next, lang: language })}`;
 
+/** Koppla Pi:n genom inloggning och val av träff (F16): the Pi sends the browser to the cloud,
+ * where the person logs in and chooses the meet, and back here. */
+export const cloudLoginAddress = (address: string) => `/api/hub/cloud/login?${new URLSearchParams({ address })}`;
+
 /** The QR code for Anslut: the hub draws it, with the meet's code in the box's address. */
 export const connectPicture = (at: number) => `${DRIFT}/connect.svg?${at}`;

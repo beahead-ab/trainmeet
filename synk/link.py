@@ -1,11 +1,14 @@
-"""Kopplingen mellan Pi:n och molnet (SYNK-02, SYNK-13, H11).
+"""Kopplingen mellan Pi:n och molnet (SYNK-02, SYNK-13, H11, F16).
 
-In the cloud: the administrator asks for a six-digit code for a meet; a Pi that gives the code
-gets a key of its own and follows the meet. Only the key's hash is kept, the code is used once
-and lasts 15 minutes, and too many wrong codes make the cloud wait (as the PIN does).
+In the cloud: the Pi asks for an attempt, and someone who may plan a meet here logs in and
+chooses the meet for it (F16, KONTO-22); the Pi then gets a key of its own with the attempt's
+secret, which only the Pi has. Or, as the reserve, the administrator asks for a six-digit code
+for a meet and the Pi gives it. Only the hashes of the key, the attempt and the secret are kept,
+the code and the attempt are used once and last 15 minutes, and too many wrong ones make the
+cloud wait (as the PIN does).
 
-On the Pi: the cloud's address and the key, per meet it follows. The key never leaves Synk's
-file and is never shown or written to a log.
+On the Pi: the cloud's address and the key, per meet it follows, and an attempt's secret until
+it is used. The key never leaves Synk's file and is never shown or written to a log.
 """
 
 from __future__ import annotations
@@ -26,6 +29,8 @@ from contracts.sync import CloudLink, Follower, Hello, LinkCode
 from core.sqlite import connect, prepare, reading
 
 CODE_LIFETIME: Final = timedelta(minutes=15)
+ATTEMPT_LIFETIME: Final = timedelta(minutes=15)
+MAX_ATTEMPTS: Final = 50  # open attempts at once, before the cloud waits
 MAX_FAILURES: Final = 10  # wrong codes within FAILURE_WINDOW before the cloud waits
 FAILURE_WINDOW: Final = timedelta(minutes=15)
 
@@ -43,6 +48,13 @@ CREATE TABLE IF NOT EXISTS sync_answer (
     meet_id TEXT NOT NULL, change_id TEXT NOT NULL, status TEXT NOT NULL,
     PRIMARY KEY (meet_id, change_id)
 );
+CREATE TABLE IF NOT EXISTS sync_attempt (
+    attempt_hash TEXT PRIMARY KEY, secret_hash TEXT NOT NULL, hello TEXT NOT NULL,
+    back TEXT NOT NULL, expires REAL NOT NULL, meet_id TEXT
+);
+CREATE TABLE IF NOT EXISTS sync_pending (
+    attempt TEXT PRIMARY KEY, address TEXT NOT NULL, secret TEXT NOT NULL, expires REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS sync_leader (
     meet_id TEXT PRIMARY KEY, address TEXT NOT NULL, key TEXT NOT NULL,
     meet_name TEXT NOT NULL, cloud TEXT NOT NULL, linked REAL NOT NULL,
@@ -52,17 +64,41 @@ CREATE TABLE IF NOT EXISTS sync_leader (
 
 
 class LinkError(Exception):
-    """The message is for the person linking the Pi."""
+    """The message is for the person linking the Pi. reason: the same, in a word, for the
+    Pi's page after the browser comes back from the cloud (F16)."""
 
     status = 409
+    reason = "nej"
 
 
 class WrongCode(LinkError):
     status = 403
+    reason = "gick-ut"
 
 
 class TooManyTries(LinkError):
     status = 429
+    reason = "vanta"
+
+
+class NotChosen(LinkError):
+    """The Pi came for its key before a meet was chosen in the cloud."""
+
+    reason = "ingen-traff"
+
+
+class Unanswered(LinkError):
+    reason = "svarar-inte"
+
+
+class NotYet(LinkError):
+    """The cloud is older, and links only with the code."""
+
+    reason = "gammal"
+
+
+class BadAddress(LinkError):
+    reason = "adress"
 
 
 def _hash(secret: str) -> str:
@@ -71,6 +107,16 @@ def _hash(secret: str) -> str:
 
 def _time(at: float | None) -> datetime | None:
     return None if at is None else datetime.fromtimestamp(at, UTC)
+
+
+@dataclass(frozen=True)
+class Attempt:
+    """An attempt to link a Pi, as the cloud keeps it: never the secret."""
+
+    hello: Hello
+    back: str
+    expires: datetime
+    meet: str | None
 
 
 @dataclass(frozen=True)
@@ -150,15 +196,15 @@ class Links:
             ).fetchone()
             if row is not None:
                 meet = str(row[0])
-                return meet, self._follow(db, meet, code, hello, moment)
+                db.execute("DELETE FROM sync_code WHERE code_hash=?", (_hash(code),))
+                return meet, self._follow(db, meet, hello, moment)
             # Counted, and kept: the refusal is raised once the failure is written.
             db.execute("INSERT INTO sync_failure VALUES (?)", (moment,))
         raise WrongCode("Koden gäller inte. Be om en ny kod i molnet.")
 
     @staticmethod
-    def _follow(db: sqlite3.Connection, meet: str, code: str, hello: Hello, moment: float) -> str:
-        """The code is used: the Pi follows the meet with a key of its own."""
-        db.execute("DELETE FROM sync_code WHERE code_hash=?", (_hash(code),))
+    def _follow(db: sqlite3.Connection, meet: str, hello: Hello, moment: float) -> str:
+        """The code or the attempt is used: the Pi follows the meet with a key of its own."""
         # The same Pi linked again takes the place of its old key.
         db.execute("DELETE FROM sync_follower WHERE meet_id=? AND hub_id=?", (meet, hello.hub_id))
         key = secrets.token_urlsafe(32)
@@ -167,6 +213,73 @@ class Links:
             (_hash(key), meet, hello.hub_id, hello.model_dump_json(), moment),
         )
         return key
+
+    def begin(self, hello: Hello, back: str, now: datetime) -> tuple[str, str, datetime]:
+        """An attempt for the Pi: the attempt, which the browser carries, and the secret, which
+        stays on the Pi. Raises TooManyTries when too many are open."""
+        expires = now + ATTEMPT_LIFETIME
+        attempt, secret = secrets.token_urlsafe(24), secrets.token_urlsafe(32)
+        with self._transaction() as db:
+            db.execute("DELETE FROM sync_attempt WHERE expires<?", (now.timestamp(),))
+            (open_now,) = db.execute("SELECT count(*) FROM sync_attempt").fetchone()
+            if open_now >= MAX_ATTEMPTS:
+                raise TooManyTries("Molnet har för många kopplingar på gång. Försök om en stund.")
+            db.execute(
+                "INSERT INTO sync_attempt VALUES (?, ?, ?, ?, ?, NULL)",
+                (_hash(attempt), _hash(secret), hello.model_dump_json(), back, expires.timestamp()),
+            )
+        return attempt, secret, expires
+
+    def attempt(self, attempt: str, now: datetime) -> Attempt | None:
+        with self._reading() as db:
+            row = db.execute(
+                "SELECT hello, back, expires, meet_id FROM sync_attempt"
+                " WHERE attempt_hash=? AND expires>=?",
+                (_hash(attempt), now.timestamp()),
+            ).fetchone()
+        if row is None:
+            return None
+        hello, back, expires, meet = row
+        return Attempt(
+            Hello.model_validate_json(hello),
+            str(back),
+            datetime.fromtimestamp(expires, UTC),
+            None if meet is None else str(meet),
+        )
+
+    def choose(self, attempt: str, meet: str, now: datetime) -> bool:
+        """The meet the Pi is to follow, chosen in the cloud. False if the attempt is gone."""
+        with self._transaction() as db:
+            chosen = db.execute(
+                "UPDATE sync_attempt SET meet_id=? WHERE attempt_hash=? AND expires>=?",
+                (meet, _hash(attempt), now.timestamp()),
+            ).rowcount
+        return chosen > 0
+
+    def redeem_attempt(self, attempt: str, secret: str, now: datetime) -> tuple[str, str]:
+        """The Pi's secret gives it the chosen meet and a key of its own, once. Raises
+        WrongCode, TooManyTries, or LinkError while no meet is chosen."""
+        moment = now.timestamp()
+        with self._transaction() as db:
+            db.execute(
+                "DELETE FROM sync_failure WHERE at<?", (moment - FAILURE_WINDOW.total_seconds(),)
+            )
+            (failures,) = db.execute("SELECT count(*) FROM sync_failure").fetchone()
+            if failures >= MAX_FAILURES:
+                raise TooManyTries("För många fel försök. Vänta en stund och börja om på Pi:n.")
+            row = db.execute(
+                "SELECT hello, meet_id FROM sync_attempt"
+                " WHERE attempt_hash=? AND secret_hash=? AND expires>=?",
+                (_hash(attempt), _hash(secret), moment),
+            ).fetchone()
+            if row is not None:
+                if row[1] is None:
+                    raise NotChosen("Ingen träff är vald än. Välj träffen i molnet.")
+                meet = str(row[1])
+                db.execute("DELETE FROM sync_attempt WHERE attempt_hash=?", (_hash(attempt),))
+                return meet, self._follow(db, meet, Hello.model_validate_json(row[0]), moment)
+            db.execute("INSERT INTO sync_failure VALUES (?)", (moment,))
+        raise WrongCode("Försöket gäller inte längre. Börja om på Pi:n.")
 
     def follower(self, meet: str, key: str, now: datetime) -> Follower | None:
         """The Pi the key belongs to, if it follows the meet; heard now."""
@@ -233,6 +346,25 @@ class Links:
                     datetime.now(UTC).timestamp(),
                 ),
             )
+
+    def keep_attempt(self, attempt: str, address: str, secret: str, expires: datetime) -> None:
+        """The attempt's secret, on the Pi until the browser comes back from the cloud."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM sync_pending WHERE expires<?", (datetime.now(UTC).timestamp(),))
+            db.execute(
+                "INSERT OR REPLACE INTO sync_pending VALUES (?, ?, ?, ?)",
+                (attempt, address, secret, expires.timestamp()),
+            )
+
+    def take_attempt(self, attempt: str, now: datetime) -> tuple[str, str] | None:
+        """The cloud's address and the secret for the attempt, once."""
+        with self._transaction() as db:
+            row = db.execute(
+                "SELECT address, secret FROM sync_pending WHERE attempt=? AND expires>=?",
+                (attempt, now.timestamp()),
+            ).fetchone()
+            db.execute("DELETE FROM sync_pending WHERE attempt=?", (attempt,))
+        return None if row is None else (str(row[0]), str(row[1]))
 
     def reaches(self) -> list[Reach]:
         with self._reading() as db:
