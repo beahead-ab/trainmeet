@@ -1,10 +1,11 @@
 """trainmeet.sync/1: Synkprotokollet (5.6, SYNK-10), Pi:n mot molnet (H11).
 
-Följaren ringer alltid ut till den den följer; ingen port öppnas på träffen (SYNK-13). Steg 5
-del 2: en Pi kopplas till en träff i molnet med en sexsiffrig kod (SYNK-02, fram till steg 6),
-får en egen nyckel och följer sedan träffens versioner med long-poll. Kontrollsumman avgör om
-ett paket är helt (SYNK-10). Varje anrop bär protokollets version, så att en Pi och molnet i
-olika programversioner förstår varandra eller säger att de inte gör det (GRUND-18, F19).
+Följaren ringer alltid ut till den den följer; ingen port öppnas på träffen (SYNK-13). En Pi
+kopplas till en träff i molnet, genom inloggning och val av träff eller med en sexsiffrig kod
+som reserv (SYNK-02, F16), får en egen nyckel och följer sedan träffens versioner med
+long-poll. Kontrollsumman avgör om ett paket är helt (SYNK-10). Varje anrop bär protokollets
+version, så att en Pi och molnet i olika programversioner förstår varandra eller säger att de
+inte gör det (GRUND-18, F19).
 """
 
 from __future__ import annotations
@@ -113,6 +114,62 @@ class CloudLinkChange(Contract):
 
     address: str = Field(min_length=8, max_length=200)
     code: str = CODE
+
+
+class LinkAttemptStart(Contract):
+    """Koppla Pi:n genom inloggning och val av träff (F16, SYNK-02, KONTO-22): Pi:n ber molnet
+    om ett försök och säger var webbläsaren kommer tillbaka. Koden är reserven."""
+
+    hello: Hello
+    back: str = Field(
+        max_length=300, description="Pi:ns /api/hub/cloud/linked, som webbläsaren ser den."
+    )
+
+
+class LinkAttemptStarted(Contract):
+    attempt: Text = Field(description="Försöket: webbläsaren tar det till molnet.")
+    secret: Text = Field(
+        min_length=32, description="Pi:ns hemlighet för försöket. Stannar på Pi:n."
+    )
+    expires: datetime
+    address: str | None = Field(
+        default=None,
+        max_length=500,
+        description="Var webbläsaren öppnar försöket, när molnet vet sin adress på internet.",
+    )
+
+
+class LinkMeetChoice(Contract):
+    """En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den."""
+
+    meet: Id
+    name: Text
+    first_date: date | None = None
+
+
+class LinkAttempt(Contract):
+    """Försöket, som molnet visar det för den som väljer träff åt Pi:n."""
+
+    hub_name: Text = Field(description="Pi:ns namn.")
+    software: Text
+    address: Text = Field(description="Pi:ns adress, som webbläsaren ser den.")
+    expires: datetime
+    meets: list[LinkMeetChoice]
+    chosen: Id | None = Field(default=None, description="Träffen som är vald, om någon är det.")
+
+
+class LinkChoice(Contract):
+    meet: Id
+
+
+class LinkChosen(Contract):
+    back: str = Field(description="Tillbaka till Pi:n, som då hämtar sin nyckel.")
+
+
+class LinkRedeem(Contract):
+    """Pi:n hämtar sin nyckel för försöket, med hemligheten bara den har."""
+
+    secret: Text = Field(min_length=32)
 
 
 class RunEvents(Contract):

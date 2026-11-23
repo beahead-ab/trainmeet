@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { hub, type AiService, type AiServiceChange, type Automation, type ClockSource, type TellurianSettings, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
+import { cloudLoginAddress, hub, type AiService, type AiServiceChange, type Automation, type ClockSource, type TellurianSettings, type AutomationSettings, type CloudLink, type DaySettings, type MeetWifi, type Now, type PlacePhone, type UpdateStatus, type Version, type WifiProfile, type WifiStatus } from "./api";
 import { DISTURBANCES, LOST, WHERE, dayName } from "./drift";
 import { Built } from "./StartPage";
 import { Chip, Chips } from "./ui";
@@ -684,15 +684,35 @@ export function Natet({ admin, initial }: { admin: boolean; initial?: WifiStatus
   );
 }
 
-/** Den här hubben → Molnet (SYNK-02, SYNK-10): a Pi follows meets planned in the cloud. The
- * administrator there gives a six-digit code under Versioner; the Pi gets a key of its own,
- * which is never shown, and fetches each version the moment it is published. */
-export function Molnet({ admin, initial }: { admin: boolean; initial?: CloudLink[] }) {
+/** How the linking went, when the browser comes back from the cloud (F16, LinkError.reason). */
+export const LINKED: Record<string, string> = {
+  kopplad: "Pi:n är kopplad och följer träffen.",
+  pin: "Logga in med hubbens PIN-kod först.",
+  adress: "Skriv molnhubbens adress, till exempel https://test.hub.trainmeet.app. Den ska börja med https://.",
+  "svarar-inte": "Molnhubben svarar inte på den adressen. Pi:n behöver internet.",
+  gammal: "Molnhubben kopplar inte med inloggning än. Koppla med en kod nedan.",
+  "gick-ut": "Kopplingen gick ut, eller började i en annan webbläsare. Börja om.",
+  "ingen-traff": "Ingen träff valdes i molnet. Börja om och välj träffen.",
+  vanta: "För många försök. Vänta en stund och börja om.",
+  nej: "Molnhubben sa nej till kopplingen. Börja om, eller koppla med en kod nedan.",
+};
+
+const linkedSaid = () => {
+  if (typeof window === "undefined") return "";
+  const asked = new URLSearchParams(window.location.search).get("molnet");
+  return asked ? (LINKED[asked] ?? "") : "";
+};
+
+/** Den här hubben → Molnet (SYNK-02, SYNK-10, F16): a Pi follows meets planned in the cloud.
+ * The administrator logs in in the cloud and chooses the meet there, or, as the reserve, gives
+ * a six-digit code from Versioner. The Pi gets a key of its own, which is never shown, and
+ * fetches each version the moment it is published. */
+export function Molnet({ admin, initial, initialSaid }: { admin: boolean; initial?: CloudLink[]; initialSaid?: string }) {
   const [clouds, setClouds] = useState<CloudLink[] | null>(initial ?? null);
   const [address, setAddress] = useState("https://test.hub.trainmeet.app");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [said, setSaid] = useState("");
+  const [said, setSaid] = useState(() => initialSaid ?? linkedSaid());
   useEffect(() => {
     if (!admin || initial) return;
     const read = () => void hub.cloud().then(setClouds, () => undefined);
@@ -761,19 +781,26 @@ export function Molnet({ admin, initial }: { admin: boolean; initial?: CloudLink
             </label>
             <input id="cloud-address" className="tm-mono" value={address} onChange={(event) => setAddress(event.target.value)} autoComplete="off" spellCheck={false} />
           </div>
+          <div className="installningsfot">
+            <span className="liten">Logga in i molnhubben och välj bland träffarna du planerar där. Webbläsaren kommer tillbaka hit när träffen är vald.</span>
+            <a id="cloud-login" className="tm-knapp primar" href={cloudLoginAddress(address.trim())}>
+              Logga in och välj träff
+            </a>
+          </div>
+          <p className="liten">Eller med en kod, om det inte går att logga in härifrån:</p>
           <div className="installning">
             <label htmlFor="cloud-code" className="etikett">
               Kod
             </label>
             <input id="cloud-code" className="tm-mono" inputMode="numeric" maxLength={6} value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))} autoComplete="off" placeholder="sex siffror" />
-            <span className="liten">från Planering → Versioner → Koppla en Pi i molnhubben; gäller en gång i 15 minuter</span>
+            <span className="liten">från Planering → Versioner → Ge en kod i molnhubben; gäller en gång i 15 minuter</span>
           </div>
           <div className="installningsfot">
             <span className="liten" role="status" id="cloud-said">
               {busy ? "Kopplar …" : said}
             </span>
-            <button id="cloud-connect" type="button" className="primar" disabled={busy || code.length !== 6 || !address.trim()} onClick={() => void link()}>
-              Koppla till molnet
+            <button id="cloud-connect" type="button" disabled={busy || code.length !== 6 || !address.trim()} onClick={() => void link()}>
+              Koppla med koden
             </button>
           </div>
         </>

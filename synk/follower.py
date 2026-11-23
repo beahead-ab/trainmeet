@@ -18,6 +18,7 @@ import logging
 import urllib.error
 import urllib.request
 from collections.abc import Callable, Mapping
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import BoundedSemaphore, Event, Thread
@@ -33,6 +34,9 @@ from contracts.sync import (
     PROTOCOL,
     Hello,
     Link,
+    LinkAttemptStart,
+    LinkAttemptStarted,
+    LinkRedeem,
     LinkRequest,
     RelayAnswer,
     RelayCall,
@@ -44,7 +48,17 @@ from contracts.sync import (
     VersionList,
 )
 from synk.home import Homes
-from synk.link import LinkError, Links, Reach, TooManyTries, WrongCode
+from synk.link import (
+    BadAddress,
+    LinkError,
+    Links,
+    NotChosen,
+    NotYet,
+    Reach,
+    TooManyTries,
+    Unanswered,
+    WrongCode,
+)
 from synk.store import SyncError, Versions
 
 WAIT: Final = 25.0  # seconds the cloud holds a long-poll
@@ -71,6 +85,14 @@ class Files(Protocol):
     def file(self, digest: str) -> tuple[str, bytes] | None: ...
 
     def keep_file(self, body: bytes, media_type: str) -> str: ...
+
+
+@dataclass(frozen=True)
+class Begun:
+    """An attempt to link the Pi (F16): the attempt, and where the browser opens it."""
+
+    attempt: str
+    opened: str
 
 
 @dataclass(frozen=True)
@@ -119,9 +141,9 @@ def check_address(address: str) -> str:
     parts = urlsplit(address.strip())
     host = (parts.hostname or "").casefold()
     if parts.scheme not in ("https", "http") or not host or parts.query or parts.fragment:
-        raise LinkError("Skriv molnhubbens adress, till exempel https://test.hub.trainmeet.app.")
+        raise BadAddress("Skriv molnhubbens adress, till exempel https://test.hub.trainmeet.app.")
     if parts.scheme == "http" and not _nearby(host):
-        raise LinkError("Molnhubbens adress ska börja med https://.")
+        raise BadAddress("Molnhubbens adress ska börja med https://.")
     return f"{parts.scheme}://{parts.netloc}{parts.path.rstrip('/')}"
 
 
@@ -178,26 +200,76 @@ class Follower:
         """Koppla Pi:n med koden från molnet. The meet it now follows. Raises LinkError."""
         base = check_address(address)
         body = LinkRequest(code=code, hello=self.hello()).model_dump_json().encode()
+        return self._linked(base, self._ask(f"{base}/api/sync/1/link", body))
+
+    def begin_link(self, address: str, back: str) -> Begun:
+        """Koppla Pi:n genom inloggning och val av träff (F16): an attempt in the cloud, whose
+        secret stays here. The attempt, and where the browser opens it. Raises LinkError."""
+        base = check_address(address)
+        body = LinkAttemptStart(hello=self.hello(), back=back).model_dump_json().encode()
+        answer = self._ask(f"{base}/api/sync/1/link/attempts", body, starting=True)
         try:
-            status, answer = self.call(
-                "POST", f"{base}/api/sync/1/link", self._headers(), body, 15.0
-            )
+            started = LinkAttemptStarted.model_validate_json(answer)
+        except ValidationError as error:
+            raise LinkError("Molnhubbens svar gick inte att läsa.") from error
+        opened = f"{base}/api/sync/1/link/attempts/{quote(started.attempt, safe='')}/open"
+        if started.address is not None:
+            # The cloud's own address on the internet, for the browser: never another kind.
+            given = urlsplit(started.address)
+            if given.scheme not in ("http", "https") or not given.netloc:
+                raise LinkError("Molnhubbens svar gick inte att läsa.")
+            opened = started.address
+        self.links.keep_attempt(started.attempt, base, started.secret, started.expires)
+        return Begun(started.attempt, opened)
+
+    def finish_link(self, attempt: str) -> str:
+        """Back from the cloud with a meet chosen: the key, with the attempt's secret. The meet
+        the Pi now follows. Raises LinkError."""
+        kept = self.links.take_attempt(attempt, datetime.now(UTC))
+        if kept is None:
+            raise WrongCode("Kopplingen har gått ut. Börja om.")
+        base, secret = kept
+        body = LinkRedeem(secret=secret).model_dump_json().encode()
+        url = f"{base}/api/sync/1/link/attempts/{quote(attempt, safe='')}/redeem"
+        return self._linked(base, self._ask(url, body, {409: NotChosen}))
+
+    def _ask(
+        self,
+        url: str,
+        body: bytes,
+        refusals: Mapping[int, type[LinkError]] | None = None,
+        starting: bool = False,
+    ) -> bytes:
+        """A call to link the Pi: the answer, or LinkError with why not."""
+        try:
+            status, answer = self.call("POST", url, self._headers(), body, 15.0)
         except Unreachable as error:
-            raise LinkError("Molnhubben svarar inte på den adressen.") from error
+            raise Unanswered("Molnhubben svarar inte på den adressen.") from error
         if status == 426:
             raise LinkError(
                 "Molnhubben talar en annan version av synken. Uppdatera den som är äldst."
             )
-        if status != 200:
-            refused = {403: WrongCode, 429: TooManyTries}.get(status, LinkError)
-            raise refused(_detail(answer) or "Molnhubben sa nej till kopplingen.")
+        if starting and status in (404, 405):
+            raise NotYet("Molnhubben kopplar inte med inloggning än. Koppla med en kod.")
+        if status not in (200, 201):
+            known: dict[int, type[LinkError]] = {403: WrongCode, 429: TooManyTries}
+            known.update(refusals or {})
+            raise known.get(status, LinkError)(
+                _detail(answer) or "Molnhubben sa nej till kopplingen."
+            )
+        return answer
+
+    def _linked(self, base: str, answer: bytes) -> str:
+        """The cloud's Link: the Pi follows the meet with its key, from now."""
         try:
             link = Link.model_validate_json(answer)
         except ValidationError as error:
             raise LinkError("Molnhubbens svar gick inte att läsa.") from error
         self.links.lead(base, link.key, link.meet, link.meet_name, link.hello)
         self._marks.pop(link.meet, None)
-        self.follow(Reach(link.meet, base, link.key), wait=0)
+        # Linked all the same if the cloud is away now: the synk tries again, and Molnet says so.
+        with suppress(Unreachable):
+            self.follow(Reach(link.meet, base, link.key), wait=0)
         return link.meet
 
     def follow(self, reach: Reach, wait: float = WAIT) -> bool:

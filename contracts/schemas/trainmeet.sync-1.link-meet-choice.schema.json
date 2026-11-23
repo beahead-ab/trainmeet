@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-meet-choice.schema.json",
+  "title": "trainmeet.sync-1.link-meet-choice",
+  "additionalProperties": true,
+  "description": "En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.",
+  "properties": {
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    },
+    "name": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "first_date": {
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "First Date"
+    }
+  },
+  "required": [
+    "meet",
+    "name"
+  ],
+  "type": "object"
+}

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-redeem.schema.json",
+  "title": "trainmeet.sync-1.link-redeem",
+  "additionalProperties": true,
+  "description": "Pi:n hämtar sin nyckel för försöket, med hemligheten bara den har.",
+  "properties": {
+    "secret": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Secret",
+      "type": "string"
+    }
+  },
+  "required": [
+    "secret"
+  ],
+  "type": "object"
+}

@@ -21,7 +21,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from hub.id_roles import LEADS_DRIVERS, PLANS, RUNS, IdRoles, publishes, withdraws
+from hub.id_roles import LEADS_DRIVERS, PLANS, RUNS, IdRoles, publishes, roles_of, withdraws
 from hub.local import ADMIN, DISPATCHER, LOCO_LEAD, PERSON, LocalLogin
 
 NOT_LOGGED_IN = "Logga in med hubbens PIN-kod eller med TrainMeet ID."
@@ -51,6 +51,20 @@ class Rights:
             from_ticket = self.login.ticket_roles(token) or {}
             return set(from_ticket.get(str(id_meet), set()))
         return self.roles.at_meet(person.id, id_meet)
+
+    def roles_by_meet(self, token: str | None) -> dict[str, set[str]] | None:
+        """The roles at each ID meet of the one logged in with ID, asked of ID once, or None
+        for the hub's PIN, who may everything. Anyone else holds none."""
+        if self.login.valid(token):
+            return None
+        person = self.login.person(token) if self.login.role(token) == PERSON else None
+        if person is None or self.roles is None:
+            return {}
+        try:
+            found = self.roles.meets(person.id)
+        except HTTPException:
+            return {}
+        return {str(m.id): roles_of(m) for m in found}
 
     def may_plan(self, token: str | None, id_meet: UUID | None) -> bool:
         if self.login.valid(token):

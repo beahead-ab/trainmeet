@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Automation, Client, HubInfo, Now, Version } from "./api";
 import { isOwn, pageOf } from "./App";
 import { meetChoices } from "@trainmeet/hubben";
-import { heaps, Klockan, Molnet, Natet, newSeed, SettingsPage, TellurianDispatch, Uppdatering } from "./Installningar";
+import { heaps, Klockan, LINKED, Molnet, Natet, newSeed, SettingsPage, TellurianDispatch, Uppdatering } from "./Installningar";
 import { KlienterPage } from "./Klienter";
 import { LoggPage, TellurianLog } from "./Logg";
 import { NuPage } from "./Nu";
@@ -386,14 +386,19 @@ describe("Inställningar under the gear (TRAFIK-30, TRAFIK-31)", () => {
     expect(settings(false, null)).toContain("<dd>Testhubben</dd>");
   });
 
-  it("links the Pi to the cloud with a code, and shows how the synk goes (SYNK-02)", () => {
+  it("links the Pi to the cloud by logging in, or with a code, and shows how the synk goes (SYNK-02, F16)", () => {
     const cloud = { address: "https://test.hub.trainmeet.app", meet: "varnamo", meet_name: "Värnamo Moduldagar", cloud_name: "Testhubben", linked: "2026-11-16T04:00:00Z", heard: "2026-11-16T04:01:00Z", versions: 2, problem: "Molnhubben svarar inte.", home_here: false };
     const linked = renderToStaticMarkup(<Molnet admin initial={[cloud]} />);
     expect(linked).toContain("<b>Värnamo Moduldagar</b>");
     expect(linked).toContain("Testhubben · https://test.hub.trainmeet.app · 2 versioner");
     expect(linked).toContain("Molnhubben svarar inte.");
     expect(linked).toContain("Koppla bort");
-    expect(linked).toContain('id="cloud-connect" type="button" class="primar" disabled=""');
+    expect(linked).toContain('id="cloud-connect" type="button" disabled=""');
+    // Logga in och välj träff (F16) first, the code as the reserve.
+    expect(linked).toContain('id="cloud-login" class="tm-knapp primar" href="/api/hub/cloud/login?address=https%3A%2F%2Ftest.hub.trainmeet.app">Logga in och välj träff</a>');
+    expect(linked.indexOf("cloud-login")).toBeLessThan(linked.indexOf("cloud-code"));
+    expect(renderToStaticMarkup(<Molnet admin initial={[]} initialSaid={LINKED.kopplad} />)).toContain("Pi:n är kopplad och följer träffen.");
+    expect(renderToStaticMarkup(<Molnet admin initial={[]} initialSaid={LINKED["ingen-traff"]} />)).toContain("Ingen träff valdes i molnet.");
     expect(renderToStaticMarkup(<Molnet admin={false} initial={[]} />)).toContain("Logga in med hubbens PIN-kod för att koppla Pi:n till molnet.");
     expect(linked).toContain("Ta hem träffen hit");
     expect(linked).toContain("Träffens hem är Testhubben: där planeras och publiceras den.");
