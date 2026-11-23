@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EuProfilerna",
+      "Effect": "Allow",
+      "Action": "bedrock:InvokeModel",
+      "Resource": [
+        "arn:aws:bedrock:eu-north-1:*:inference-profile/eu.anthropic.claude-sonnet-5-5",
+        "arn:aws:bedrock:eu-north-1:*:inference-profile/eu.anthropic.claude-opus-5-5"
+      ]
+    },
+    {
+      "Sid": "ModellernaBaraGenomEuProfilerna",
+      "Effect": "Allow",
+      "Action": "bedrock:InvokeModel",
+      "Resource": [
+        "arn:aws:bedrock:eu-*::foundation-model/anthropic.claude-sonnet-5-5",
+        "arn:aws:bedrock:eu-*::foundation-model/anthropic.claude-opus-5-5"
+      ],
+      "Condition": {
+        "StringLike": {
+          "bedrock:InferenceProfileArn": [
+            "arn:aws:bedrock:eu-north-1:*:inference-profile/eu.anthropic.claude-sonnet-5-5",
+            "arn:aws:bedrock:eu-north-1:*:inference-profile/eu.anthropic.claude-opus-5-5"
+          ]
+        }
+      }
+    }
+  ]
+}
