@@ -99,9 +99,11 @@ TIPS_REACH_MM = 400.0
 TRUNK_SKIP_MM = 30.0
 TRUNK_SPAN_MM = 60.0
 TRUNK_MIN_MM = 20.0
-"""A switch's straight leg is the one that turns least from the trunk. Where the trunk runs to
-another switch, its heading is taken over TRUNK_SPAN_MM from TRUNK_SKIP_MM behind where the legs
-part (at least TRUNK_MIN_MM of it)."""
+"""A switch's straight leg is the one that turns least from the trunk. The trunk's heading is
+taken over TRUNK_SPAN_MM from TRUNK_SKIP_MM behind where the legs part (at least TRUNK_MIN_MM of
+it): next to where they part the trunk is still drawn toward the diverging leg. Part c6 did so
+only between two switches toe to toe; since part c7 for every switch, whether the trunk runs to
+another switch or to a gable."""
 REFERENCE_MM = 250.0
 """The straight is a line fitted to the straight leg's path this far either side of the node."""
 
@@ -489,12 +491,13 @@ def _switch(
 ) -> None:
     sign = 1.0 if toward == "B" else -1.0
     trunk_path = paths[trunk.pid]
-    # Between two switches toe to toe the trunk is short, and next to where the legs part it
-    # is still drawn toward the diverging leg: its heading is taken where the leg has left it,
-    # as far as the trunk reaches toward the other switch (part c6).
+    # Next to where the legs part the trunk is still drawn toward the diverging leg: its heading
+    # is taken where the leg has left it, as far as the trunk reaches toward the other switch or
+    # the gable (part c6 between two switches toe to toe; part c7 for every switch, where the
+    # straight and the diverging leg were swapped at a gable).
     far = net.nodes[trunk.a] if toward == "B" else net.nodes[trunk.b]
     room = abs(node.x - far.x)
-    if far.kind not in ("gable", "end") and room >= TRUNK_SKIP_MM + TRUNK_MIN_MM:
+    if room >= TRUNK_SKIP_MM + TRUNK_MIN_MM:
         span = min(room, TRUNK_SKIP_MM + TRUNK_SPAN_MM)
         base = _heading(trunk_path, node.x - sign * TRUNK_SKIP_MM, node.x - sign * span)
     else:
