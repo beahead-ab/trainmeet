@@ -882,3 +882,15 @@ def test_cads_photos_key_goes_to_its_vault_never_to_env(
     assert "- ./cad-vault:/vault:ro" in cad
     assert "- ./cad-photos:/photos" in cad
     assert "catalog-vault" not in cad and "catalog-pictures" not in cad
+
+
+def test_the_deploy_makes_room_on_the_server_before_it_loads_the_images() -> None:
+    """23 November: the server's disk was full of older images, and docker load stopped. The
+    step frees the images no container runs before it loads the new ones, and says how full
+    the disk was before and after."""
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    step = workflow.split("- name: Lägg ut hubben, Catalog och ID")[1].split("\n      - name:")[0]
+    room = step.index("docker image prune -af")
+    load = step.index("'gunzip | docker load'")
+    assert room < load
+    assert step.index("Disken före") < room < step.index("Disken efter") < load
