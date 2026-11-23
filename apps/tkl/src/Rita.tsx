@@ -33,6 +33,7 @@ import {
   ownParts,
   partsOf,
   placeBoundary,
+  placeDerailer,
   placeBufferStop,
   placeLineExit,
   placeSignal,
@@ -43,12 +44,14 @@ import {
   removeAt,
   removeDrag,
   renameCircuit,
+  renameDerailer,
   renameExit,
   renameSignal,
   renameStationTrack,
   renameSwitch,
   RitaError,
   setControl,
+  setDerailerControl,
   setReversed,
   setSignal,
   setSwitchAddress,
@@ -72,12 +75,13 @@ import {
 import { RoutesView } from "./Sparplan";
 import { SIGNAL_NAMES } from "./sparplan";
 
-export type Tool = "select" | "track" | "switch" | "signal" | "boundary" | "buffer" | "exit";
+export type Tool = "select" | "track" | "switch" | "derailer" | "signal" | "boundary" | "buffer" | "exit";
 
 export const TOOLS: { tool: Tool; label: string; hint: string }[] = [
   { tool: "select", label: "Markera", hint: "Klicka för att välja, dra en växel eller en spårände till en annan ruta, och dra i ett spår för att knäcka det. Skift-klick väljer flera växlar." },
   { tool: "track", label: "Spår", hint: "Dra från ruta till ruta: vågrätt, lodrätt eller i 45°. Ett spår som når ett annat kopplas ihop med en växel eller en korsning." },
   { tool: "switch", label: "Växel", hint: "Klicka på ett spår: växeln får ett avvikande ben åt sidan du valt. Klicka där tre spår möts, eller där två korsar, för att välja typen." },
+  { tool: "derailer", label: "Spårspärr", hint: "Klicka på ett spår, mellan två spårbitar. Spårspärren läggs på när den skyddar en väg bredvid och av när en väg går över den." },
   { tool: "signal", label: "Signal", hint: "Klicka på ett spår eller en nod. Signalen gäller åt hållet du valt; spåret tåget kommer på är det på andra sidan." },
   { tool: "boundary", label: "Spårledningsgräns", hint: "Klicka på ett spår: ett blockstreck där en spårledning slutar och nästa börjar." },
   { tool: "buffer", label: "Stoppbock", hint: "Klicka där ett spår slutar." },
@@ -277,7 +281,7 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
       <div className="sidrubrik">
         <h1>Rita</h1>
         <p className="liten">
-          Rita stationen på rutnätet med sex objekt: spår, växel, signal, spårledningsgräns, stoppbock och linjeutfart. Allt annat räknas fram: spårledningarna mellan blockstrecken, vägarna och panelen. Har stationen redan en modell ritar du om dess panel här.
+          Rita stationen på rutnätet med sju objekt: spår, växel, spårspärr, signal, spårledningsgräns, stoppbock och linjeutfart. Allt annat räknas fram: spårledningarna mellan blockstrecken, vägarna och panelen. Har stationen redan en modell ritar du om dess panel här.
         </p>
       </div>
       <WaysIn way={way} entry={entry} cad={cad} onWay={setWay} />
@@ -418,7 +422,17 @@ export function Rita({ onChanged }: { onChanged: () => void }) {
           onPick={(refs, add) => setSelected(add ? [...selected.filter((r) => !refs.some((x) => x.kind === r.kind && x.id === r.id)), ...refs] : refs)}
           onTool={(at) => {
             if (tool === "switch") act((d) => placeSwitch(d, at, switchType, side), (d) => switchAt(d.model, at));
-            else if (tool === "boundary") act((d) => placeBoundary(d, at));
+            else if (tool === "derailer") {
+              let number = "";
+              act(
+                (d) => {
+                  const made = placeDerailer(d, at);
+                  number = made.number;
+                  return made.drawing;
+                },
+                () => [{ kind: "derailer", id: number }],
+              );
+            } else if (tool === "boundary") act((d) => placeBoundary(d, at));
             else if (tool === "buffer") act((d) => placeBufferStop(d, at));
             else if (tool === "exit") {
               let id = "";
@@ -687,11 +701,22 @@ export function Canvas({ drawing, circuits, selected, route, tool, onPick, onToo
           const pinned = !!model.panel.nodes[node.id];
           const isLoose = loose.has(node.id);
           const sw = model.switches.find((s) => s.node === node.id);
+          const derailer = model.derailers.find((x) => x.node === node.id);
           const exit = model.line_exits.find((e) => e.node === node.id);
           const yellow = assumed(sw?.origin);
           return (
             <g key={node.id} data-ref={`node:${node.id}`} data-node={node.id} className={`nod ${node.type}${chosen.nodes.has(node.id) ? " vald" : ""}${yellow ? " antagen" : ""}`}>
               {node.type === "block_boundary" ? <line className="streck" x1={x - across[0] * 0.3 * u} y1={y - across[1] * 0.3 * u} x2={x + across[0] * 0.3 * u} y2={y + across[1] * 0.3 * u} strokeWidth={0.08 * u} /> : null}
+              {derailer ? (
+                <g className="sparr" data-ref={`derailer:${derailer.number}`} data-derailer={derailer.number}>
+                  <title>{`Spårspärr ${derailer.number}`}</title>
+                  <line x1={x - across[0] * 0.3 * u} y1={y - across[1] * 0.3 * u} x2={x + across[0] * 0.3 * u} y2={y + across[1] * 0.3 * u} strokeWidth={0.16 * u} />
+                  <text className="vaxelnummer" x={x + Math.abs(across[0]) * 0.7 * u} y={y + Math.abs(across[1]) * 0.85 * u + 0.15 * u} textAnchor={Math.abs(across[0]) > 0.5 ? "start" : "middle"}>
+                    {derailer.number}
+                  </text>
+                  <circle className="traff" cx={x} cy={y} r={0.4 * u} />
+                </g>
+              ) : null}
               {node.type === "buffer_stop" ? <line className="stoppbock" x1={x - across[0] * 0.35 * u} y1={y - across[1] * 0.35 * u} x2={x + across[0] * 0.35 * u} y2={y + across[1] * 0.35 * u} strokeWidth={0.2 * u} /> : null}
               {exit ? (
                 <g className="utfart" data-ref={`exit:${exit.id}`}>
@@ -870,6 +895,28 @@ function Inspector({ drawing, circuits, selected, act, pick }: { drawing: FullDr
       Ta bort
     </button>
   );
+  if (ref.kind === "derailer") {
+    const derailer = model.derailers.find((x) => x.number === ref.id);
+    if (!derailer) return null;
+    return (
+      <section className="ruta rita-inspektor" aria-label="Valt">
+        <h2>Spårspärr {derailer.number}</h2>
+        <Field label="Nummer" value={derailer.number} mono onSave={(v) => act((d) => renameDerailer(d, derailer.number, v), () => [{ kind: "derailer", id: v.trim() }])} />
+        <p className="liten">På när den skyddar en väg bredvid, av när en väg går över den (TKL129). Numret är LocoNet-adressen som förval, som för en växel.</p>
+        <label>
+          Läggs av
+          <select aria-label="Läggs av" value={derailer.control ?? "tkl"} onChange={(e) => act((d) => setDerailerControl(d, derailer.number, e.target.value as SwitchControl))}>
+            {CONTROLS.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="rad">{remove}</div>
+      </section>
+    );
+  }
   if (ref.kind === "switch") {
     const sw = model.switches.find((s) => s.number === ref.id);
     if (!sw) return null;

@@ -7,6 +7,7 @@ from typing import Any
 from contracts.station_model import (
     WITHOUT,
     Address,
+    Derailer,
     FeedbackType,
     Lever,
     SignalType,
@@ -136,6 +137,28 @@ def test_no_number_or_name_is_used_twice() -> None:
     )
 
 
+def test_a_derailer_lies_between_two_pieces_with_a_number_of_its_own() -> None:
+    """TKL129: a derailer at a node on a track, numbered apart from the switches."""
+    model = provby()
+
+    def with_derailers(*derailers: Derailer) -> StationModel:
+        return model.model_copy(update={"derailers": list(derailers)})
+
+    assert problems(with_derailers(Derailer(number="5", node="M"))) == []
+    assert problems(with_derailers(Derailer(number="1", node="M"))) == [
+        "Spårspärren 1 har samma nummer som en växel."
+    ]
+    assert problems(
+        with_derailers(Derailer(number="5", node="M"), Derailer(number="5", node="Z"))
+    ) == ["Två spårspärrar har numret 5."]
+    assert problems(with_derailers(Derailer(number="5", node="Q"))) == [
+        "Spårspärren 5 ligger i noden Q, som inte finns."
+    ]
+    assert problems(with_derailers(Derailer(number="5", node="1"))) == [
+        "Spårspärren 5 ska ligga mellan två spårbitar, inte i noden 1."
+    ]
+
+
 def test_a_line_exit_without_a_neighbour_is_a_note_not_a_problem() -> None:
     """An exit is tied to a section per meet (H26), so the station file need not know the
     neighbour: it is shown, but the model may run."""
@@ -247,6 +270,28 @@ def test_level_3_every_switch_has_feedback_or_without() -> None:
     ]
     assert problems(changed(model, "track_circuits", 0, detection=WITHOUT)) == []
     assert problems(changed(model, "signals", 0, address=WITHOUT)) == [], "a virtual signal"
+
+
+def test_level_3_a_derailer_is_wired_as_a_switch() -> None:
+    """TKL129: a derailer TKL lays has an address, its number by default, and feedback."""
+    model = level_3().model_copy(update={"derailers": [Derailer(number="5", node="M")]})
+    assert problems(model) == [
+        "Spårspärr 5 saknar återrapport: välj från kortet, två givare, ingen eller manuell."
+    ]
+    none = SwitchFeedback(type=FeedbackType.NONE)
+    fed = changed(model, "derailers", 0, feedback=none)
+    assert problems(fed) == []
+    assert problems(changed(fed, "derailers", 0, address=Address(number=1))) == [
+        "Adressen LocoNet 1 används av både växel 1 och spårspärr 5."
+    ]
+    manual = SwitchFeedback(type=FeedbackType.MANUAL)
+    assert problems(changed(model, "derailers", 0, feedback=manual)) == [
+        "Spårspärr 5 har manuell återrapport men läggs av ställverket: välj Utan adress för en "
+        "manuell spårspärr."
+    ]
+    by_hand = changed(model, "derailers", 0, control=SwitchControl.MANUAL)
+    assert problems(by_hand) == [], "a derailer laid by hand has no address"
+    assert wired(model, ObjectKind.SWITCH, "5", feedback=none) == fed
 
 
 def test_level_2_does_not_ask_for_addresses() -> None:

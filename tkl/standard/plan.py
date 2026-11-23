@@ -54,7 +54,7 @@ from contracts.tkl import (
     PanelTrackName,
 )
 from tkl.standard.graph import SLIP_TYPES, Graph
-from tkl.standard.grid import cell_text, describe, hits, straight
+from tkl.standard.grid import cell_text, derailers, describe, hits, straight
 from tkl.standard.routes import derive
 
 TOLERANCE_MM = 6.0
@@ -524,6 +524,7 @@ class _Builder:
             lines=lines,
             nodes=nodes,
             switches=switches,
+            derailers=derailers(model, cells, real),
             signals=signals,
             labels=labels,
             track_names=names,

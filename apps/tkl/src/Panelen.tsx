@@ -281,6 +281,23 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
               ])}
           </g>
         ) : null}
+        <g className="sparrar">
+          {drawn.derailers.map((d) => {
+            // Spårspärren (TKL129): a short bar across the track, on it when på and beside it when
+            // av; yellow while a route has it locked as protection (STV-20).
+            const [x, y] = px(d.cell);
+            const shift = d.position === "+" ? 0.38 : 0;
+            const half = 0.3;
+            const at = (k: number): Cell => [x + d.across[0] * (shift + k) * dx, y + d.across[1] * (shift + k) * dy];
+            const [a, b] = [at(-half), at(half)];
+            const colour = d.protection ? skin.protection : skin.switchNumber;
+            return (
+              <g key={`d${d.number}`} data-derailer={d.number} data-position={d.position ?? ""} data-protection={d.protection ? d.number : undefined} opacity={d.laid ? 1 : 0.55}>
+                <line x1={round(a[0])} y1={round(a[1])} x2={round(b[0])} y2={round(b[1])} stroke={colour} strokeWidth={round(0.16 * u)} strokeLinecap="butt" />
+              </g>
+            );
+          })}
+        </g>
         <g className="vandskivor">
           {drawn.tables.map((t) => {
             // The turntable: the pit as a circle and the bridge as a line at its angle, in the
@@ -345,6 +362,13 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
             ? drawn.switches.map((s) => (
                 <text key={s.number} data-switch-number={s.number} x={s.label[0] * dx} y={s.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={switchOutside(s.parts) ? GREY : s.laid ? 1 : 0.55} fontSize={font * 0.85}>
                   {said(switchLabel(s.number))}
+                </text>
+              ))
+            : null}
+          {show.switch_numbers
+            ? drawn.derailers.map((d) => (
+                <text key={`d${d.number}`} data-derailer-number={d.number} x={d.label[0] * dx} y={d.label[1] * dy + font * 0.35} fill={skin.switchNumber} opacity={d.laid ? 1 : 0.55} fontSize={font * 0.85}>
+                  {said(d.number)}
                 </text>
               ))
             : null}
@@ -493,6 +517,19 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
               >
                 <title>{`${say("switchLabel", { name: switchLabel(s.number) })} · ${state}`}</title>
                 <circle cx={x} cy={y} r={0.75 * u} fill="transparent" />
+              </g>
+            );
+          })}
+          {drawn.derailers.map((d) => {
+            const [x, y] = px(d.cell);
+            const name = say("derailerLabel", { name: d.number });
+            const state = [d.position === "-" ? say("derailerOn") : d.position === "+" ? say("derailerOff") : "?", d.routes.length ? say("locked", { routes: d.routes.join(", ") }) : null, d.protection ? say("protection") : null, d.laid ? null : say("notLaid")]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <g key={`d${d.number}`} role="button" tabIndex={0} aria-label={name} data-position={d.position ?? ""} onClick={() => onSwitch?.(d.number)} onKeyDown={press(() => onSwitch?.(d.number))} style={{ cursor: "pointer" }}>
+                <title>{`${name} · ${state}`}</title>
+                <circle cx={x} cy={y} r={0.6 * u} fill="transparent" />
               </g>
             );
           })}

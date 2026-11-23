@@ -4102,6 +4102,14 @@
             "title": "Switches",
             "type": "array"
           },
+          "derailers": {
+            "description": "Spårspärrarna (TKL129): + av, - på.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.station-model-1.Derailer"
+            },
+            "title": "Derailers",
+            "type": "array"
+          },
           "levers": {
             "items": {
               "$ref": "#/components/schemas/trainmeet.station-model-1.Lever"
@@ -4249,6 +4257,86 @@
           "towards_part"
         ],
         "title": "BorderSwitch",
+        "type": "object"
+      },
+      "trainmeet.station-model-1.Derailer": {
+        "additionalProperties": true,
+        "description": "Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.\n\nIt has two positions, as a switch: + is av, so the track is open, and - is på. A route over\nit lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its\nnumber is its lever's, and it has a lever of its own.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "node": {
+            "description": "Noden mellan de två spårbitarna där den ligger.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.station-model-1.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-model-1.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-model-1.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3), som för en växel: + av, - på."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.station-model-1.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "node"
+        ],
+        "title": "Derailer",
         "type": "object"
       },
       "trainmeet.station-model-1.FeedbackType": {
@@ -12220,6 +12308,14 @@
             "title": "Switches",
             "type": "array"
           },
+          "derailers": {
+            "description": "Spårspärrarna (TKL129).",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.track-plan.PanelDerailer"
+            },
+            "title": "Derailers",
+            "type": "array"
+          },
           "signals": {
             "items": {
               "$ref": "#/components/schemas/trainmeet.tkl-1.track-plan.PanelSignal"
@@ -12375,6 +12471,89 @@
           "name"
         ],
         "title": "PanelBuilding",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.track-plan.PanelDerailer": {
+        "additionalProperties": true,
+        "description": "A derailer (spårspärr, TKL129) at its node on the track, with its number beside it. The\npanel shows it på or av, and yellow when a route has it locked as protection (STV-20).",
+        "properties": {
+          "number": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "node": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "cell": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Cell",
+            "type": "array"
+          },
+          "real": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Real"
+          },
+          "label": {
+            "description": "Numret, under spåret.",
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Label",
+            "type": "array"
+          },
+          "laid": {
+            "default": true,
+            "description": "TKL lägger den.",
+            "title": "Laid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "number",
+          "node",
+          "cell",
+          "label"
+        ],
+        "title": "PanelDerailer",
         "type": "object"
       },
       "trainmeet.tkl-1.track-plan.PanelField": {
@@ -13512,6 +13691,86 @@
           "towards_part"
         ],
         "title": "BorderSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.drawing.Derailer": {
+        "additionalProperties": true,
+        "description": "Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.\n\nIt has two positions, as a switch: + is av, so the track is open, and - is på. A route over\nit lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its\nnumber is its lever's, and it has a lever of its own.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "node": {
+            "description": "Noden mellan de två spårbitarna där den ligger.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3), som för en växel: + av, - på."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "node"
+        ],
+        "title": "Derailer",
         "type": "object"
       },
       "trainmeet.tkl-1.drawing.FeedbackType": {
@@ -14733,6 +14992,14 @@
             "title": "Switches",
             "type": "array"
           },
+          "derailers": {
+            "description": "Spårspärrarna (TKL129): + av, - på.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Derailer"
+            },
+            "title": "Derailers",
+            "type": "array"
+          },
           "levers": {
             "items": {
               "$ref": "#/components/schemas/trainmeet.tkl-1.drawing.Lever"
@@ -15679,6 +15946,86 @@
           "towards_part"
         ],
         "title": "BorderSwitch",
+        "type": "object"
+      },
+      "trainmeet.tkl-1.rita.Derailer": {
+        "additionalProperties": true,
+        "description": "Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.\n\nIt has two positions, as a switch: + is av, so the track is open, and - is på. A route over\nit lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its\nnumber is its lever's, and it has a lever of its own.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "node": {
+            "description": "Noden mellan de två spårbitarna där den ligger.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3), som för en växel: + av, - på."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "node"
+        ],
+        "title": "Derailer",
         "type": "object"
       },
       "trainmeet.tkl-1.rita.FeedbackType": {
@@ -16906,6 +17253,14 @@
               "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Switch"
             },
             "title": "Switches",
+            "type": "array"
+          },
+          "derailers": {
+            "description": "Spårspärrarna (TKL129): + av, - på.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.rita.Derailer"
+            },
+            "title": "Derailers",
             "type": "array"
           },
           "levers": {
@@ -19961,6 +20316,86 @@
         "title": "BorderSwitch",
         "type": "object"
       },
+      "trainmeet.tkl-1.cad-import.Derailer": {
+        "additionalProperties": true,
+        "description": "Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.\n\nIt has two positions, as a switch: + is av, so the track is open, and - is på. A route over\nit lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its\nnumber is its lever's, and it has a lever of its own.",
+        "properties": {
+          "number": {
+            "description": "Ägarens nummer, som det står (STD-17).",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Number",
+            "type": "string"
+          },
+          "node": {
+            "description": "Noden mellan de två spårbitarna där den ligger.",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Node",
+            "type": "string"
+          },
+          "control": {
+            "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.SwitchControl",
+            "default": "tkl"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Varför TKL inte lägger den.",
+            "title": "Note"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.Address"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19)."
+          },
+          "feedback": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.SwitchFeedback"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Återrapport (nivå 3), som för en växel: + av, - på."
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.Origin"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          }
+        },
+        "required": [
+          "number",
+          "node"
+        ],
+        "title": "Derailer",
+        "type": "object"
+      },
       "trainmeet.tkl-1.cad-import.FeedbackType": {
         "description": "Växelns återrapport (STUDIO-24, ur cda-tkl).",
         "enum": [
@@ -21186,6 +21621,14 @@
               "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.Switch"
             },
             "title": "Switches",
+            "type": "array"
+          },
+          "derailers": {
+            "description": "Spårspärrarna (TKL129): + av, - på.",
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.tkl-1.cad-import.Derailer"
+            },
+            "title": "Derailers",
             "type": "array"
           },
           "levers": {

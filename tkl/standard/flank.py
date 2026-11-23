@@ -5,6 +5,7 @@ wagons in on the reserved track are locked and shown yellow. As in Trafikverket'
 TDOK 2013:0623 (Sidoskydd), the nearest object on each joining track protects the route:
 
 - a switch the walk reaches on one of its legs, laid to the other leg, away from the route;
+- a derailer (spårspärr, TKL129), laid på (-);
 - a signal facing the route, which shows stop, a stop point, a buffer stop or the line.
 
 The walk starts at every switch, slip and crossing the route runs through, on each piece there
@@ -78,6 +79,13 @@ def _walk(
             continue
         p = graph.pieces[here]
         far = p.end if p.start == near else p.start
+        derailer = graph.derailer_at.get(far)
+        if derailer is not None and _protects(
+            levers, derailer.control, derailer.number, Position.MINUS, wanted
+        ):
+            wanted[derailer.number] = Position.MINUS
+            found.setdefault(derailer.number, (Position.MINUS, origin))
+            continue
         switch = graph.switch_at.get(far)
         if switch is None:
             if graph.node_type.get(far) in ENDS:

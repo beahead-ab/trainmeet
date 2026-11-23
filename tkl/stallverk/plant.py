@@ -51,6 +51,7 @@ from typing import Final, Literal
 
 from contracts.station_model import (
     Address,
+    Derailer,
     NodeType,
     PanelFunction,
     PanelFunctionType,
@@ -227,6 +228,10 @@ class Plant:
             part: s.control for s in model.switches for part in parts(s)
         }
         self.part_node: dict[str, str] = {part: s.node for s in model.switches for part in parts(s)}
+        self.derailers: dict[str, Derailer] = {d.number: d for d in model.derailers}
+        for derailer in model.derailers:
+            self.control.setdefault(derailer.number, derailer.control)
+            self.part_node.setdefault(derailer.number, derailer.node)
         self.crossing_node: dict[str, str] = {
             s.number: s.node for s in model.switches if s.type in _CROSSINGS
         }
@@ -653,7 +658,8 @@ class Plant:
     # --- levers -----------------------------------------------------------------------------
 
     def initial_positions(self) -> dict[str, Position]:
-        """Every lever in its + position, the dragged switches with it, in the model's order."""
+        """Every lever in its + position, the dragged switches with it, in the model's order, and
+        every derailer på (-)."""
         positions: dict[str, Position] = {}
         for lever in self.levers.levers.values():
             for part in own_parts(lever):
@@ -662,7 +668,13 @@ class Plant:
             laid = self.levers.lay(dict(lever.plus))
             if laid is not None:
                 positions.update(laid.positions)
+        for derailer in self.derailers.values():
+            positions[derailer.number] = Position.MINUS  # på until a route lays it av
         return {p: v for p, v in positions.items() if self.control.get(p) == SwitchControl.TKL}
+
+    def what(self, part: str) -> str:
+        """A part as a message names it: Växel 3, or Spårspärr 7 for a derailer (TKL129)."""
+        return f"Spårspärr {part}" if part in self.derailers else f"Växel {part}"
 
     def lever_side(self, lever_id: str, positions: Mapping[str, Position]) -> Position | None:
         lever = self.levers.levers[lever_id]

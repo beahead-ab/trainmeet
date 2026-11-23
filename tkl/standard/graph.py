@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from itertools import pairwise
 
 from contracts.station_model import (
+    Derailer,
     NodeType,
     Position,
     Signal,
@@ -86,6 +87,7 @@ class Graph:
         for signal in model.signals:
             self.signals_at.setdefault(signal.node, []).append(signal)
         self.turntable_at: dict[str, Turntable] = {t.node: t for t in model.turntables}
+        self.derailer_at: dict[str, Derailer] = {d.node: d for d in model.derailers}
         self.circuit_of: dict[str, str] = {
             piece: circuit.name for circuit in model.track_circuits for piece in circuit.pieces
         }

@@ -2,13 +2,13 @@
 
 The switches and derailers that could let vehicles in on a laid route are locked away from it
 (Benny 15 November). The nearest object on each joining track protects, as in TDOK 2013:0623:
-a switch laid to its other leg, or a signal facing the route, a stop point, a buffer stop or
-the line.
+a switch laid to its other leg, a derailer laid på (TKL129), or a signal facing the route, a
+stop point, a buffer stop or the line.
 """
 
 from __future__ import annotations
 
-from contracts.station_model import Lever, SignalType, StationModel, SwitchControl
+from contracts.station_model import Derailer, Lever, SignalType, StationModel, SwitchControl
 from tkl.standard import Route, RouteKind, conflict, derive
 from tkl.tests.provstation import MINUS, PLUS, build, signal, switch
 
@@ -169,3 +169,40 @@ def test_a_switch_the_route_s_lever_needs_the_other_way_cannot_protect() -> None
 def test_the_same_walk_gives_the_same_protection_every_time() -> None:
     first = [(r.key, dict(r.flank)) for r in derive(crossover())]
     assert first == [(r.key, dict(r.flank)) for r in derive(crossover())]
+
+
+def siding(**derailer: object) -> StationModel:
+    """Track 1 with a siding off switch 1 and a derailer D1 on it, before the buffer stop S.
+
+    A -a- 1 -b- B1 -c- B
+           \\s1- D -s2- S      D1 at D; a dwarf signal L at D faces track 1, for trains on s2
+    """
+    return build(
+        "a:A-1 b:1-B1 c:B1-B s1:1-D s2:D-S",
+        switches=[switch("1", "b", "a", "s1")],
+        signals=[signal("A1", HSI, "B1", "c"), signal("L", DVSI, "D", "s2")],
+        derailers=[Derailer(number="D1", node="D", **derailer)],  # type: ignore[arg-type]
+    )
+
+
+def test_a_derailer_on_a_joining_track_protects_laid_pa() -> None:
+    """TKL129: a vehicle on the siding is derailed before it reaches track 1. The derailer is
+    the nearest object, before the dwarf signal L, which faces the other way."""
+    along = routes(siding())[(TRAIN, "A1", "A")]
+    assert along.flank == {"D1": "1"}
+    assert along.positions == {"1": PLUS, "D1": MINUS}
+
+
+def test_a_route_over_a_derailer_lays_it_av() -> None:
+    found = routes(siding())
+    out = found[(SHUNTING, "L", "B")]
+    assert out.switches == {"D1": PLUS, "1": MINUS}
+    assert found[(TRAIN, "A1", "S")].switches == {"1": MINUS, "D1": PLUS}
+    assert conflict(out, found[(TRAIN, "A1", "A")]) is not None
+
+
+def test_a_derailer_tkl_does_not_lay_is_passed_by_no_route_and_protects_nothing() -> None:
+    found = routes(siding(control=SwitchControl.MANUAL))
+    assert (SHUNTING, "L", "B") not in found
+    assert (TRAIN, "A1", "S") not in found
+    assert found[(TRAIN, "A1", "A")].flank == {}, "the walk goes past it to the buffer stop"

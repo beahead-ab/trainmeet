@@ -222,6 +222,28 @@ class Switch(Contract):
     origin: Origin | None = None
 
 
+class Derailer(Contract):
+    """Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.
+
+    It has two positions, as a switch: + is av, so the track is open, and - is på. A route over
+    it lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its
+    number is its lever's, and it has a lever of its own.
+    """
+
+    number: Name = Field(description="Ägarens nummer, som det står (STD-17).")
+    node: Name = Field(description="Noden mellan de två spårbitarna där den ligger.")
+    control: SwitchControl = SwitchControl.TKL
+    note: Text | None = Field(default=None, description="Varför TKL inte lägger den.")
+    address: Address | None = Field(
+        default=None,
+        description="Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19).",
+    )
+    feedback: SwitchFeedback | None = Field(
+        default=None, description="Återrapport (nivå 3), som för en växel: + av, - på."
+    )
+    origin: Origin | None = None
+
+
 class Lever(Contract):
     """Spak: for + and -, the position each switch gets.
 
@@ -594,6 +616,9 @@ class StationModel(Contract):
     nodes: list[Node]
     pieces: list[TrackPiece]
     switches: list[Switch] = Field(default_factory=list)
+    derailers: list[Derailer] = Field(
+        default_factory=list, description="Spårspärrarna (TKL129): + av, - på."
+    )
     levers: list[Lever] = Field(default_factory=list)
     signals: list[Signal] = Field(default_factory=list)
     track_circuits: list[TrackCircuit] = Field(default_factory=list)

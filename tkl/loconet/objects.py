@@ -81,6 +81,8 @@ class Wired:
     feedback: SwitchFeedback | None = None
     control: SwitchControl | None = None
     note: str | None = None
+    derailer: bool = False
+    """A derailer (spårspärr, TKL129): driven and reported as a switch, + av and - på."""
 
     @property
     def reversed(self) -> bool:
@@ -91,7 +93,14 @@ class Wired:
         """As a sentence names it: växel 1, signal 21, Spår 3."""
         if self.kind == ObjectKind.TRACK_CIRCUIT:
             return self.name
+        if self.derailer:
+            return f"spårspärr {self.name}"
         return f"{KIND_WORD[self.kind]} {self.name}"
+
+    @property
+    def word(self) -> str:
+        """The object's kind as a sentence begins: Växel, Spårspärr, Signal."""
+        return self.said.removesuffix(f" {self.name}").capitalize()
 
 
 def default_address(number: str) -> Address | None:
@@ -162,6 +171,35 @@ def objects(model: StationModel) -> list[Wired]:
                     switch.control,
                 )
             )
+    for derailer in model.derailers:
+        if derailer.control != SwitchControl.TKL:
+            found.append(
+                Wired(
+                    ObjectKind.SWITCH,
+                    derailer.number,
+                    None,
+                    False,
+                    AddressState.WITHOUT,
+                    derailer.feedback,
+                    derailer.control,
+                    _NOT_RUN[derailer.control],
+                    derailer=True,
+                )
+            )
+            continue
+        effective = derailer.address or default_address(derailer.number)
+        found.append(
+            Wired(
+                ObjectKind.SWITCH,
+                derailer.number,
+                effective,
+                derailer.address is None and effective is not None,
+                state_of(effective, False),
+                derailer.feedback,
+                derailer.control,
+                derailer=True,
+            )
+        )
     for signal in model.signals:
         given = signal.address
         without = given == WITHOUT
@@ -246,6 +284,19 @@ def changed(
                 update["control"] = control
             switches[i] = switch.model_copy(update=update)
             return model.model_copy(update={"switches": switches})
+        derailers = list(model.derailers)
+        for i, derailer in enumerate(derailers):
+            if derailer.number != name:
+                continue
+            update = {}
+            if not isinstance(address, Keep):
+                update["address"] = address
+            if not isinstance(feedback, Keep):
+                update["feedback"] = feedback
+            if not isinstance(control, Keep):
+                update["control"] = control
+            derailers[i] = derailer.model_copy(update=update)
+            return model.model_copy(update={"derailers": derailers})
         raise KeyError(name)
     if kind == ObjectKind.SIGNAL:
         signals = list(model.signals)
@@ -269,6 +320,8 @@ def explicit(model: StationModel) -> bool:
     for switch in model.switches:
         if switch.address is not None or any(p.address is not None for p in switch.parts):
             return True
+    if any(d.address is not None for d in model.derailers):
+        return True
     return any(isinstance(s.address, Address) for s in model.signals) or any(
         isinstance(c.detection, Address) for c in model.track_circuits
     )

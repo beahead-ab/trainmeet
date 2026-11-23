@@ -2,13 +2,14 @@
 // model with its panel plan (contracts/tkl.py, TklDrawing): every switch, crossing and track end
 // has a cell, and every track runs from node to node over the grid, horizontally, vertically or
 // at 45°, with the joints between its pieces counted in cells along the way (STD-25, TKL81). The
-// owner draws six objects (STUDIO-02): tracks, switches, signals, track-circuit boundaries,
-// buffer stops and line exits. Each tool here is a pure function from one drawing to the next,
+// owner draws seven objects (STUDIO-02, TKL129): tracks, switches, derailers, signals,
+// track-circuit boundaries, buffer stops and line exits. Each tool here is a pure function from one drawing to the next,
 // or a RitaError with the reason in Swedish; TKL's server turns the drawing into the model and
 // computes the rest (tkl/studio/rita.py). The same functions redraw the panel of a station that
 // has a model (STUDIO-30): nodes move between cells, and tracks get new bends. Nothing here
 // names a station (RS13).
 import type {
+  Derailer,
   Drawing,
   Lever,
   LineExit,
@@ -36,10 +37,11 @@ export type Cell = [number, number];
 type Known<T> = { [K in keyof T as string extends K ? never : K]: T[K] };
 export type Track = Omit<Known<PlanTrack>, "via" | "joints"> & { via: Cell[]; joints: number[] };
 export type FullPlan = Omit<Known<Plan>, "tracks" | "signals" | "track_names"> & { tracks: Track[]; signals: Record<string, Placement>; track_names: TrackName[] };
-type Listed = "basis" | "switches" | "levers" | "signals" | "track_circuits" | "station_tracks" | "line_exits" | "turntables" | "functions" | "panel";
+type Listed = "basis" | "switches" | "derailers" | "levers" | "signals" | "track_circuits" | "station_tracks" | "line_exits" | "turntables" | "functions" | "panel";
 export type FullModel = Omit<Known<Model>, Listed> & {
   basis: string[];
   switches: Switch[];
+  derailers: Derailer[];
   levers: Lever[];
   signals: Signal[];
   track_circuits: TrackCircuit[];
@@ -75,6 +77,7 @@ export function full(drawing: Drawing): FullDrawing {
       ...m,
       basis: m.basis ?? [],
       switches: m.switches ?? [],
+      derailers: m.derailers ?? [],
       levers: m.levers ?? [],
       signals: m.signals ?? [],
       track_circuits: m.track_circuits ?? [],
@@ -298,6 +301,10 @@ function fresh(taken: Set<string>, prefix: string): string {
 /** Every number a switch or a slip part has, and every LocoNet address in use. */
 function switchNumbers(model: FullModel): Set<string> {
   const found = new Set<string>();
+  for (const d of model.derailers) {
+    found.add(d.number);
+    if (d.address) found.add(String(d.address.number));
+  }
   for (const s of model.switches) {
     found.add(s.number);
     if (s.address) found.add(String(s.address.number));
@@ -616,9 +623,11 @@ export function addTrack(d: FullDrawing, from: Cell, to: Cell): FullDrawing {
 
 /** A node after the tracks at it changed: a switch where three meet, a crossing where four
  * cross straight, and no switch where fewer than its legs remain. */
-export function settle(model: FullModel, node: string): FullModel {
-  const g = geometry(model);
+export function settle(given: FullModel, node: string): FullModel {
+  const g = geometry(given);
   const touching = g.touching.get(node) ?? [];
+  // A derailer lies between two pieces: where a track now meets it, or ends there, it goes.
+  const model = touching.length === 2 ? given : { ...given, derailers: given.derailers.filter((x) => x.node !== node) };
   const sw = model.switches.find((s) => s.node === node);
   const kind = model.nodes.find((n) => n.id === node)?.type;
   if (sw && touching.length < (sw.type === "ordinary" || sw.type === "y" ? 3 : 4)) return withoutSwitch(model, sw);
@@ -819,6 +828,31 @@ export function placeBoundary(d: FullDrawing, at: Cell): FullDrawing {
   return { ...d, model: { ...model, nodes: typed(model.nodes, node, "block_boundary") } };
 }
 
+/** Derailer (spårspärr, TKL129): on a track, between two pieces, with the next free number. A
+ * route over it lays it av; a route beside it lays it på as protection (STV-20). */
+export function placeDerailer(d: FullDrawing, at: Cell): { drawing: FullDrawing; number: string } {
+  const { model, node } = pointAt(d.model, at, false);
+  const count = (geometry(model).touching.get(node) ?? []).length;
+  if (count !== 2 || model.switches.some((s) => s.node === node)) throw new RitaError("En spårspärr sätts på ett spår, mellan två spårbitar.");
+  if (model.derailers.some((x) => x.node === node)) throw new RitaError("Här ligger redan en spårspärr.");
+  const number = String(nextSwitchNumber(model));
+  const derailer: Derailer = { number, node, control: "tkl", note: null, address: null, feedback: null, origin: originFor(model) };
+  return { drawing: { ...d, model: { ...model, derailers: [...model.derailers, derailer] } }, number };
+}
+
+/** A derailer's number: its LocoNet address by default, as a switch's (STUDIO-19). */
+export function renameDerailer(d: FullDrawing, number: string, to: string): FullDrawing {
+  const next = to.trim();
+  if (!next || next === number) return d;
+  if (switchNumbers(d.model).has(next)) throw new RitaError(`Numret ${next} finns redan.`);
+  return { ...d, model: { ...d.model, derailers: d.model.derailers.map((x) => (x.number === number ? { ...x, number: next } : x)) } };
+}
+
+export function setDerailerControl(d: FullDrawing, number: string, control: SwitchControl): FullDrawing {
+  const derailers = d.model.derailers.map((x) => (x.number === number ? { ...x, control, note: control === "tkl" ? null : x.note } : x));
+  return { ...d, model: { ...d.model, derailers } };
+}
+
 function endAt(model: FullModel, at: Cell, word: string): string {
   const g = geometry(model);
   const node = nodeAt(g, at);
@@ -847,6 +881,7 @@ function renameNode(model: FullModel, from: string, to: string): FullModel {
     nodes: model.nodes.map((n) => (n.id === from ? { ...n, id: to } : n)),
     pieces: model.pieces.map((p) => ({ ...p, start: swap(p.start), end: swap(p.end) })),
     switches: model.switches.map((s) => ({ ...s, node: swap(s.node) })),
+    derailers: model.derailers.map((x) => ({ ...x, node: swap(x.node) })),
     signals: model.signals.map((s) => ({ ...s, node: swap(s.node) })),
     line_exits: model.line_exits.map((e) => ({ ...e, node: swap(e.node) })),
     functions: model.functions.map((f) => ({ ...f, at: f.at ? swap(f.at) : f.at })),
@@ -1032,6 +1067,7 @@ function removePieces(model: FullModel, gone: Set<string>): FullModel {
     ...model,
     pieces,
     nodes: model.nodes.filter((n) => left.has(n.id)),
+    derailers: model.derailers.filter((x) => left.has(x.node)),
     signals,
     line_exits: exits.map((e) => ({ ...e, signals: (e.signals ?? []).filter((s) => !goneNames.has(s)) })),
     track_circuits: model.track_circuits.map((c) => ({ ...c, pieces: c.pieces.filter((p) => !gone.has(p)) })).filter((c) => c.pieces.length),
@@ -1067,6 +1103,7 @@ export function removeAt(d: FullDrawing, ref: Ref): FullDrawing {
     return { ...d, model: made };
   }
   if (ref.kind === "piece") return removeTrack(d, ref.id);
+  if (ref.kind === "derailer") return { ...d, model: { ...model, derailers: model.derailers.filter((x) => x.number !== ref.id) } };
   if (ref.kind === "lever") return { ...d, model: { ...model, levers: model.levers.filter((l) => l.id !== ref.id) } };
   if (ref.kind === "exit") {
     const line = model.line_exits.find((e) => e.id === ref.id);
@@ -1091,7 +1128,7 @@ export function removeAt(d: FullDrawing, ref: Ref): FullDrawing {
 
 // --- Names, numbers and types ----------------------------------------------------------------
 
-export type RefKind = "node" | "piece" | "switch" | "signal" | "circuit" | "lever" | "exit";
+export type RefKind = "node" | "piece" | "switch" | "derailer" | "signal" | "circuit" | "lever" | "exit";
 export type Ref = { kind: RefKind; id: string };
 
 function renamedKeys<T>(map: Record<string, T>, from: string, to: string): Record<string, T> {
@@ -1105,7 +1142,7 @@ export function renameSwitch(d: FullDrawing, node: string, number: string): Full
   const to = number.trim();
   if (!sw || to === sw.number) return d;
   if (!to) throw new RitaError("Växeln behöver ett nummer.");
-  if (model.switches.some((s) => s !== sw && (s.number === to || partsOf(s).includes(to)))) throw new RitaError(`Numret ${to} finns redan.`);
+  if (model.switches.some((s) => s !== sw && (s.number === to || partsOf(s).includes(to))) || model.derailers.some((x) => x.number === to)) throw new RitaError(`Numret ${to} finns redan.`);
   const from = sw.number;
   const plain = sw.type === "ordinary" || sw.type === "y";
   const levers = plain ? model.levers.map((l) => ({ ...l, id: l.id === from ? to : l.id, plus: renamedKeys(l.plus, from, to), minus: renamedKeys(l.minus, from, to) })) : model.levers;
@@ -1406,7 +1443,7 @@ export function looseEnds(model: FullModel): string[] {
  * signal or an exit. */
 export function refOf(target: { kind: string; id: string } | null | undefined): Ref | null {
   if (!target) return null;
-  const kinds: RefKind[] = ["node", "piece", "switch", "signal", "circuit", "lever", "exit"];
+  const kinds: RefKind[] = ["node", "piece", "switch", "derailer", "signal", "circuit", "lever", "exit"];
   return kinds.includes(target.kind as RefKind) ? { kind: target.kind as RefKind, id: target.id } : null;
 }
 
@@ -1417,6 +1454,10 @@ export function litBy(model: FullModel, ref: Ref | null, circuits: TrackCircuit[
   if (!ref) return { nodes, pieces };
   if (ref.kind === "node") nodes.add(ref.id);
   if (ref.kind === "piece") pieces.add(ref.id);
+  if (ref.kind === "derailer") {
+    const derailer = model.derailers.find((x) => x.number === ref.id);
+    if (derailer) nodes.add(derailer.node);
+  }
   if (ref.kind === "switch") {
     const sw = model.switches.find((s) => s.number === ref.id || partsOf(s).includes(ref.id));
     if (sw) nodes.add(sw.node);

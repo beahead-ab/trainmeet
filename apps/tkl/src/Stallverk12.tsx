@@ -323,7 +323,7 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, automats 
               onTable={turn}
             />
           )}
-          <Legend skin={skin} say={say} chosen={settings.skin} turntable={drawn.tables.length > 0} />
+          <Legend skin={skin} say={say} chosen={settings.skin} turntable={drawn.tables.length > 0} derailers={drawn.derailers.length > 0} />
           <div className="stv-valet">
             <p className="stv-hjalp" aria-live="polite">
               {guidance(valet, say, lamps)}
@@ -383,12 +383,13 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, automats 
   );
 }
 
-function Legend({ skin, say, chosen, turntable }: { skin: Skin; say: Say; chosen: SkinId; turntable: boolean }) {
+function Legend({ skin, say, chosen, turntable, derailers = false }: { skin: Skin; say: Say; chosen: SkinId; turntable: boolean; derailers?: boolean }) {
   const swatch = (colour: string) => <span className="farg" style={{ background: colour }} />;
   // Manöver names the skin its symbols come from; the turntable is explained where there is one.
   const after = (
     <>
       {turntable ? ` · ${say("legendTurntable")}` : null}
+      {derailers ? ` · ${say("legendDerailer")}` : null}
       {chosen === "manover" ? ` · ${say("legendManover", { skin: skin.id })}` : null}
     </>
   );
