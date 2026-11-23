@@ -1,0 +1,118 @@
+# Provet av bildläsningen med den riktiga nyckeln (#79, TOKEN-28, TK14, CAD19): startas bara för
+# hand, aldrig av ett PR eller av main, som provet av webbsökningen (beslut 22 november). Det
+# läser en syntetisk bild med TrainMeets AI genom mätarens egen väg (id/prov_bildlasning.py): en
+# avskrift med Claude Sonnet 5.5 och en svår fråga med Claude Opus 5.5, båda med EU-profilerna
+# från Stockholm. Det kostar några cent hos AWS och inga TrainMeet-tokens.
+#
+# Var testmiljon: i ID:s container på servern, med nyckeln som jobbet "Testmiljön" har lagt i
+# ID:s valv. Så provas det som vännerna använder.
+# Var github: hos GitHub, med nyckeln BEDROCK_KEY_ID och BEDROCK_SECRET_KEY i repots
+# hemligheter, till exempel innan testmiljön är utlagd med nyckeln. Nyckeln skrivs till en fil som
+# bara det steget läser, och tas bort efteråt; den skrivs aldrig ut.
+name: Prov av bildläsningen
+
+on:
+  workflow_dispatch:
+    inputs:
+      var:
+        description: "Var provet körs: testmiljon (ID:s container) eller github (repots hemligheter)"
+        required: true
+        default: testmiljon
+        type: choice
+        options:
+          - testmiljon
+          - github
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prov-bildlasning
+  cancel-in-progress: false
+
+jobs:
+  testmiljon:
+    name: Prov av bildläsningen i testmiljön
+    if: ${{ inputs.var == 'testmiljon' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SCW_ACCESS_KEY: ${{ secrets.SCW_ACCESS_KEY }}
+      SCW_SECRET_KEY: ${{ secrets.SCW_SECRET_KEY }}
+      SCW_DEFAULT_PROJECT_ID: ${{ secrets.SCW_DEFAULT_PROJECT_ID }}
+      SCW_DEFAULT_ORGANIZATION_ID: ${{ secrets.SCW_DEFAULT_ORGANIZATION_ID }}
+      TESTMILJO_TYPE: ${{ vars.TESTMILJO_TYPE }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      # Samma väg till servern som jobbet "Testmiljön": nycklarna ligger i Scaleways Secret
+      # Manager och skrivs aldrig ut.
+      - name: Servern hos Scaleway
+        id: server
+        run: |
+          uv sync --locked
+          uv run python deploy/testmiljo.py ensure
+
+      - name: Läs en bild i ID:s container
+        shell: bash
+        env:
+          IP: ${{ steps.server.outputs.ip }}
+          SSH_USER: ${{ steps.server.outputs.user }}
+          KEY: ${{ steps.server.outputs.key_file }}
+          KNOWN: ${{ steps.server.outputs.known_hosts }}
+        run: |
+          SSH="ssh -i $KEY -o UserKnownHostsFile=$KNOWN -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o BatchMode=yes"
+          {
+            echo "### Prov av bildläsningen i testmiljön"
+            echo ""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          $SSH "$SSH_USER@$IP" 'cd /srv/trainmeet && docker compose exec -T id-api python -m id.prov_bildlasning' 2>&1 \
+            | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
+
+  github:
+    name: Prov av bildläsningen hos GitHub
+    if: ${{ inputs.var == 'github' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Installera
+        run: uv sync --locked
+
+      - name: Läs en bild
+        shell: bash
+        env:
+          BEDROCK_KEY_ID: ${{ secrets.BEDROCK_KEY_ID }}
+          BEDROCK_SECRET_KEY: ${{ secrets.BEDROCK_SECRET_KEY }}
+        run: |
+          if [ -z "$BEDROCK_KEY_ID" ] || [ -z "$BEDROCK_SECRET_KEY" ]; then
+            echo "::error::BEDROCK_KEY_ID eller BEDROCK_SECRET_KEY saknas i repots hemligheter."
+            exit 1
+          fi
+          umask 077
+          key="$RUNNER_TEMP/trainmeet_bedrock-key"
+          trap 'rm -f "$key"' EXIT
+          printf '%s\n%s\n' "$BEDROCK_KEY_ID" "$BEDROCK_SECRET_KEY" > "$key"
+          {
+            echo "### Prov av bildläsningen hos GitHub"
+            echo ""
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          status=0
+          uv run python -m id.prov_bildlasning --nyckelfil "$key" 2>&1 \
+            | tee -a "$GITHUB_STEP_SUMMARY" || status=$?
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
