@@ -127,6 +127,7 @@ from contracts.station_model import (
     StationModel,
     StationPart,
     SwitchControl,
+    SwitchPath,
     SwitchStreet,
     SwitchType,
 )
@@ -441,6 +442,10 @@ class PanelSwitch(Contract):
     straight: Name | None = None
     diverging: Name | None = None
     pieces: list[Name] = Field(default_factory=list, description="Korsningens fyra spårbitar.")
+    paths: list[SwitchPath] = Field(
+        default_factory=list,
+        description="Vägarna genom korsningsväxeln, med delarnas lägen (STV-22).",
+    )
     label: Cell = Field(description="Växelnumret, vid knuten.")
     laid: bool = Field(default=True, description="TKL lägger den.")
 

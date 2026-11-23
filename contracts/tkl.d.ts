@@ -6515,6 +6515,11 @@ export interface components {
              */
             pieces?: string[];
             /**
+             * Paths
+             * @description Vägarna genom korsningsväxeln, med delarnas lägen (STV-22).
+             */
+            paths?: components["schemas"]["trainmeet.tkl-1.track-plan.SwitchPath"][];
+            /**
              * Label
              * @description Växelnumret, vid knuten.
              */
@@ -6611,6 +6616,26 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.tkl-1.track-plan.SignalType": "hsi" | "hdvsi" | "dvsi" | "fsi" | "stop_lamp";
+        /**
+         * SwitchPath
+         * @description A way through a slip or a crossing: two of its pieces, and the positions it needs.
+         */
+        "trainmeet.tkl-1.track-plan.SwitchPath": {
+            /** Between */
+            between: [
+                string,
+                string
+            ];
+            /**
+             * Positions
+             * @description Delarnas lägen. Tomt för en korsning utan växel.
+             */
+            positions?: {
+                [key: string]: components["schemas"]["trainmeet.tkl-1.track-plan.Position"];
+            };
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * SwitchType
          * @description Växeltyp (RS1).
