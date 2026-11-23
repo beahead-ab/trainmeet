@@ -613,3 +613,107 @@ describe("Ställverket at level 1–2: the panel functions (STV-04, STV-53, TKL4
     expect(html).toMatch(/data-piece="c" data-state="programming"[^>]*stroke="#3664ff"/);
   });
 });
+
+// A made-up double slip 5a/5b where two tracks cross at [10, 4]: w and e straight through, nw and
+// se on the slant, and the two bows w–se and e–nw. Nothing here names a real station (RS13).
+const slipPanel: Panel = {
+  ...panel,
+  lines: [
+    { piece: "w", track: null, cells: [[6, 4], [10, 4]], real: [], free: false },
+    { piece: "e", track: null, cells: [[10, 4], [14, 4]], real: [], free: false },
+    { piece: "nw", track: null, cells: [[10, 4], [8, 2]], real: [], free: false },
+    { piece: "se", track: null, cells: [[10, 4], [12, 6]], real: [], free: false },
+  ],
+  nodes: [{ id: "5a/5b", type: "switch", cell: [10, 4], real: null }],
+  switches: [
+    {
+      number: "5a/5b",
+      type: "double_slip",
+      node: "5a/5b",
+      cell: [10, 4],
+      real: null,
+      trunk: null,
+      straight: null,
+      diverging: null,
+      pieces: ["w", "e", "nw", "se"],
+      paths: [
+        { between: ["w", "e"], positions: { "5a": "+", "5b": "+" } },
+        { between: ["nw", "se"], positions: { "5a": "-", "5b": "-" } },
+        { between: ["w", "se"], positions: { "5a": "+", "5b": "-" } },
+        { between: ["e", "nw"], positions: { "5a": "-", "5b": "+" } },
+      ],
+      label: [10, 2.9],
+      laid: true,
+    },
+  ],
+  signals: [],
+  labels: [],
+  track_names: [],
+};
+const slipSwitch = (position: "+" | "-") => ({ position, control: "tkl" as const, routes: [], protection: false, local: false, function: null, state: null, reported: null });
+const slipState = (a: "+" | "-", b: "+" | "-", pieces: Interlocking["pieces"] = {}) =>
+  filled({ ...quiet, switches: { "5a": slipSwitch(a), "5b": slipSwitch(b) }, levers: {}, signals: {}, exits: [], sections: {}, pieces });
+
+describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 (STV-22, trainmeet #38)", () => {
+  it("cuts a gap at the knot in the two legs outside the way the slip lies in", () => {
+    const cuts = (a: "+" | "-", b: "+" | "-") =>
+      Object.fromEntries(drawing(slipPanel, slipState(a, b), new Set(), new Set()).lines.map((l) => [l.piece, l.cut.start || l.cut.end]));
+    expect(cuts("+", "+")).toEqual({ w: false, e: false, nw: true, se: true });
+    expect(cuts("-", "-")).toEqual({ w: true, e: true, nw: false, se: false });
+    expect(cuts("+", "-")).toEqual({ w: false, e: true, nw: true, se: false });
+    const near = drawing(slipPanel, slipState("+", "+"), new Set(), new Set()).lines.find((l) => l.piece === "nw");
+    expect(near?.cut).toEqual({ start: true, end: false });
+  });
+
+  it("has a bow for each way that turns, in the state of the way the slip lies in", () => {
+    const quietBows = drawing(slipPanel, slipState("+", "+"), new Set(), new Set()).switches[0]?.bows ?? [];
+    expect(quietBows.map((b) => b.state)).toEqual(["free", "free"]);
+    const routed = slipState("+", "-", { w: { state: "train", route: 3 }, se: { state: "train", route: 3 } });
+    const bows = drawing(slipPanel, routed, new Set(), new Set()).switches[0]?.bows ?? [];
+    expect(bows.map((b) => [b.legs[0][1], b.legs[1][1], b.state])).toEqual([
+      [[9.5, 4], expect.anything(), "train"],
+      [[10.5, 4], expect.anything(), "free"],
+    ]);
+    const occupied = slipState("+", "-", { w: { state: "train", route: 3 }, se: { state: "occupied", route: 3 } });
+    expect(drawing(slipPanel, occupied, new Set(), new Set()).switches[0]?.bows[0]?.state).toBe("occupied");
+  });
+
+  it("gives a single slip one bow, and a plain crossing none and no gap", () => {
+    const single: Panel = {
+      ...slipPanel,
+      switches: slipPanel.switches?.map((s) => ({ ...s, type: "single_slip" as const, paths: (s.paths ?? []).slice(0, 3) })),
+    };
+    expect(drawing(single, slipState("+", "+"), new Set(), new Set()).switches[0]?.bows).toHaveLength(1);
+    const crossing: Panel = {
+      ...slipPanel,
+      switches: slipPanel.switches?.map((s) => ({ ...s, type: "crossing" as const, paths: (s.paths ?? []).slice(0, 2).map((p) => ({ ...p, positions: {} })) })),
+    };
+    const drawn = drawing(crossing, slipState("+", "+"), new Set(), new Set());
+    expect(drawn.switches[0]?.bows).toEqual([]);
+    expect(drawn.lines.every((l) => !l.cut.start && !l.cut.end)).toBe(true);
+  });
+
+  it("draws the bows beside the straight leg, on the side the slant leaves to, in 85 and 95 but not in 59", () => {
+    const drawn = drawing(slipPanel, slipState("+", "-", { w: { state: "train", route: 3 }, se: { state: "train", route: 3 } }), new Set(), new Set());
+    const strokes = (skin: SkinId) => {
+      const html = renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawn} skin={skinOf(skin)} say={say} />);
+      return [...html.matchAll(/data-bow="5a\/5b" data-state="(\w+)" points="([\d.,\s-]+)" stroke="([^"]+)"/g)].map((m) => ({
+        state: m[1],
+        points: (m[2] ?? "").split(" ").map((p) => p.split(",").map(Number)),
+        stroke: m[3],
+      }));
+    };
+    const at85 = strokes("85");
+    expect(at85.map((s) => [s.state, s.stroke])).toEqual([
+      ["train", skinOf("85").tracks.train],
+      ["free", skinOf("85").tracks.free],
+    ]);
+    const [westward, eastward] = at85;
+    // w–se: west of the knot, under track w; e–nw: east of it, over track e. Both lie flat.
+    for (const [x = 0, y = 0] of westward?.points ?? []) expect([x < 240, y > 96]).toEqual([true, true]);
+    for (const [x = 0, y = 0] of eastward?.points ?? []) expect([x > 240, y < 96]).toEqual([true, true]);
+    expect(westward?.points[0]?.[1]).toBe(westward?.points[1]?.[1]);
+    expect(strokes("95")).toHaveLength(2);
+    expect(strokes("59")).toHaveLength(0);
+  });
+});

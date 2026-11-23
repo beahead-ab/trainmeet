@@ -176,6 +176,13 @@ def test_a_switch_s_legs_reach_it() -> None:
     assert any(f"Växel {switch.number}: benet" in f for f in found), found
 
 
+def test_a_crossing_carries_its_ways_to_the_panel() -> None:
+    """As a slip does (STV-22): the panel has the ways through it, here without positions."""
+    ways = {s.node: s.paths for s in planned().switches if s.type.value == "crossing"}
+    found = {s.node: s.paths for s in build(planned()).switches if s.node in ways}
+    assert ways and found == ways
+
+
 def test_four_tracks_meet_in_a_crossing() -> None:
     nodes = dict(the_plan().nodes)
     crossing = next(s for s in planned().switches if s.type.value == "crossing")

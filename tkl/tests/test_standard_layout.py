@@ -363,6 +363,24 @@ def test_track_names_exits_and_switch_numbers_have_their_places() -> None:
     assert {s.number for s in panel.switches} == {"1", "2", "4"}
 
 
+def test_a_slip_carries_its_ways_to_the_panel() -> None:
+    """The panel draws a slip's gap and its bows from its ways and their positions (STV-22)."""
+    slips = 0
+    for station in STATIONS:
+        ways = {s.node: s.paths for s in model(station).switches}
+        for found in chosen(station).switches:
+            if found.type not in (SwitchType.SINGLE_SLIP, SwitchType.DOUBLE_SLIP):
+                assert found.type == SwitchType.CROSSING or not found.paths
+                continue
+            slips += 1
+            assert found.paths == ways[found.node]
+            assert len(found.paths) >= 3, "straight through both ways, and a bow"
+            for way in found.paths:
+                assert set(way.between) <= set(found.pieces), way
+                assert set(way.positions) == set(found.number.split("/")), way
+    assert slips, "a reference station with a slip"
+
+
 def test_the_soft_view_carries_the_drawing() -> None:
     found = ekby()
     panel = lay_out(found)
