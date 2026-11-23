@@ -172,6 +172,30 @@ jobs:
           path: ${{ runner.temp }}/lokforaren
           if-no-files-found: ignore
 
+      # Skärmlåset (#266 del 1, S4, SKARM-03): Pi:ns utgång 1 på /skarm?utgang=1 mot samma träff.
+      # Tangentbordet och musen gör ingenting förrän hubbens PIN är skriven; upplåst ansluter
+      # skärmen, får klockan i Klienter, går till hubbens sidor och tillbaka med Lås skärmen
+      # (apps/skarmar/e2e/skarmlas.mjs).
+      - name: Skärmlåset på Pi:ns utgång i webbläsaren (#266)
+        timeout-minutes: 3
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_ADRESS: http://localhost:8080
+          PROV_PIN: "482915"
+          PROV_BILDER: ${{ runner.temp }}/skarmlas
+        run: |
+          SCRIPT=$(curl -fsS http://localhost:8080/skarm | grep -o '/skarm/assets/[^"]*\.js' | head -1)
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Skärmen är låst"
+          node apps/skarmar/e2e/skarmlas.mjs
+
+      - name: Skärmlåsets skärmbilder om något gick fel
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: skarmlas
+          path: ${{ runner.temp }}/skarmlas
+          if-no-files-found: ignore
+
       - name: Två hubbar ur bilden, Pi:n följer molnet (Synk, ärende 73)
         run: |
           # Molnet och en Pi på ett eget nät: Pi:n ringer ut till http://moln:8080, som på testmiljöns

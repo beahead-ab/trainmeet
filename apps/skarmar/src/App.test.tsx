@@ -1,11 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Package, ScreenPicture } from "./api";
-import { clockText, Screen } from "./App";
+import { clockText, outputName, Screen } from "./App";
+import { Skarmlas } from "./Las";
 import { clockSeconds, hands } from "./Klocka";
 import { rowsOf } from "./Diagram";
 import { nextHappenings, numbers } from "./Oversikt";
-import { lines, trafficOf, type Package as HubPackage } from "@trainmeet/hubben";
+import { lines, outputOf, trafficOf, type Package as HubPackage } from "@trainmeet/hubben";
 import provbanan from "../../../contracts/examples/provbanan.meet.json";
 
 const picture = (change: Partial<ScreenPicture> = {}): ScreenPicture => ({
@@ -123,5 +124,42 @@ describe("a meet screen (SKARM-14)", () => {
     expect(html).toContain('class="banoversikt"');
     expect(html).toContain("Nästa händelser");
     expect(html).toContain("Norrby → Åsen");
+  });
+});
+
+describe("the screen lock on the Pi's outputs (S4, SKARM-03, SKARM-10)", () => {
+  const lock = (change: Partial<Parameters<typeof Skarmlas>[0]> = {}) => renderToStaticMarkup(<Skarmlas output={1} setUp joined onReconnect={() => undefined} {...change} />);
+
+  it("knows the Pi's two outputs by the address, and a screen elsewhere has none (SKARM-14)", () => {
+    expect(outputOf("?utgang=1")).toBe(1);
+    expect(outputOf("?utgang=2")).toBe(2);
+    for (const other of ["", "?utgang=3", "?utgang=0", "?utgang=x", "?kod=482915"]) expect(outputOf(other)).toBeNull();
+    const html = renderToStaticMarkup(<Screen picture={null} fetchedAt={0} now={0} message="" code="" name={outputName(2)} />);
+    expect(html).toContain('value="Pi:ns skärm 2"');
+  });
+
+  it("shows nothing over the view while locked, and asks for the hub's PIN on a key or a click", () => {
+    expect(lock()).toBe("");
+    const asking = lock({ initial: "asking" });
+    expect(asking).toContain('role="dialog"');
+    expect(asking).toContain("Skärmen är låst");
+    expect(asking).toContain("hubbens PIN-kod");
+    expect(asking).toContain('id="unlock-pin" type="password" inputMode="numeric" autoComplete="off"');
+    expect(asking).toMatch(/<button type="submit" disabled="">Lås upp<\/button>/);
+  });
+
+  it("unlocked, opens the hub's pages, joins again or locks, and says it locks again by itself", () => {
+    const open = lock({ initial: "open" });
+    expect(open).toContain("Skärm 1 är upplåst");
+    expect(open).toContain("efter två minuter");
+    for (const button of ['id="to-hub"', 'id="reconnect"', 'id="lock"']) expect(open).toContain(button);
+    expect(lock({ initial: "open", joined: false })).not.toContain('id="reconnect"');
+  });
+
+  it("has no lock before the hub has its PIN, and leads to Första start", () => {
+    const none = lock({ setUp: false, initial: "asking" });
+    expect(none).toContain("ingen PIN-kod än");
+    expect(none).toContain('href="/"');
+    expect(none).not.toContain('role="dialog"');
   });
 });
