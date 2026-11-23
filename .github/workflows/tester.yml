@@ -1301,6 +1301,15 @@ jobs:
           # och Catalog stannade när hinken fanns (22 november).
           PICTURES_KEY: ${{ steps.server.outputs.pictures_key }}
         run: |
+          # Plats för de nya bilderna först (23 november: disken var full, och docker load
+          # stannade). Bilderna som containrarna kör står kvar; äldre versioner och det som blev
+          # över från en avbruten laddning tas bort. Diskens läge står i loggen före och efter.
+          $SSH "$TARGET" '
+            echo "Disken före: $(df -h / | tail -1)"
+            docker image prune -af >/dev/null
+            docker builder prune -af >/dev/null 2>&1 || true
+            echo "Disken efter: $(df -h / | tail -1)"
+          '
           docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" "trainmeet-cad:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
