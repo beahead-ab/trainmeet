@@ -423,7 +423,9 @@ jobs:
           node apps/tkl/e2e/fjarr.mjs
 
       # Rita (#85): en station ritas från ingenting i Chrome mot TKL ur bilden, tas i bruk och får
-      # tågvägen A1 → 1Ö i Ställverket (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
+      # tågvägen A1 → 1Ö i Ställverket. Spårspärren på stickspåret läggs på och blir gul som
+      # sidoskydd för tågvägen B1 → 1V och släpps när den löses ut (TKL129, #37)
+      # (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
       - name: Rita i webbläsaren (#85)
         timeout-minutes: 3
         env:
