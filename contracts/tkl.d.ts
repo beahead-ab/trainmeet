@@ -12803,7 +12803,7 @@ export interface components {
             };
             /**
              * Protection
-             * @description Växlar vägen låser utan att gå över dem, som spakens andra halva (skyddsväxlar, STV-20).
+             * @description Växlar vägen låser utan att gå över dem: spakens andra halva och sidoskyddet, närmaste växel på varje spår som ansluter, lagd bort från vägen (skyddsväxlar, STV-20).
              */
             protection?: string[];
             /**
@@ -13972,7 +13972,7 @@ export interface components {
             };
             /**
              * Protection
-             * @description Växlar vägen låser utan att gå över dem, som spakens andra halva (skyddsväxlar, STV-20).
+             * @description Växlar vägen låser utan att gå över dem: spakens andra halva och sidoskyddet, närmaste växel på varje spår som ansluter, lagd bort från vägen (skyddsväxlar, STV-20).
              */
             protection?: string[];
             /**

@@ -1083,7 +1083,8 @@ class TklSetRoute(Contract):
     )
     protection: list[Name] = Field(
         default_factory=list,
-        description="Växlar vägen låser utan att gå över dem, som spakens andra halva "
+        description="Växlar vägen låser utan att gå över dem: spakens andra halva och "
+        "sidoskyddet, närmaste växel på varje spår som ansluter, lagd bort från vägen "
         "(skyddsväxlar, STV-20).",
     )
     crossings: list[Name] = Field(
