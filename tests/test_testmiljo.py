@@ -158,7 +158,7 @@ def test_catalog_has_its_own_database_behind_the_same_caddy() -> None:
     assert "127.0.0.1:8081:8080" in compose
     assert "CATALOG_TRIAL_LOGIN: ${CATALOG_TRIAL_LOGIN:?" in compose
     # The trial login goes when TrainMeet ID can send its codes (#66).
-    assert "if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi" in up
+    assert "if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; KONTO=on; fi" in up
     assert "CATALOG_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet" in compose
     assert "CATALOG_ID_INTERNAL: http://id:8080/realms/trainmeet" in compose
     assert "CATALOG_ID_SECRET: ${ID_CATALOG_SECRET}" in compose
@@ -218,6 +218,10 @@ def test_tkl_in_the_cloud_reaches_the_test_hub_only_over_the_internet() -> None:
     assert "TKL_MODE: cloud" in tkl and "TKL_HUBBAR: https://${HUB_DOMAIN}" in tkl
     assert "http://hub" not in tkl
     assert "- tkl-data:/data" in tkl and "127.0.0.1:8085:8090" in tkl
+    # The station belongs to the account once ID can send its codes, as Catalog's login (#88).
+    assert "TKL_KONTO: ${TKL_KONTO:-off}" in tkl
+    assert "if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; KONTO=on; fi" in up
+    assert "printf 'TKL_KONTO=%s\\n' \"$KONTO\"" in up
     assert "TKL_DOMAIN: ${TKL_DOMAIN:-test.tkl.trainmeet.app}" in compose
     site = caddyfile.split("{$TKL_DOMAIN} {")[1].split("\n}")[0]
     assert "reverse_proxy tkl:8090" in site and 'X-Robots-Tag "noindex, nofollow"' in site
