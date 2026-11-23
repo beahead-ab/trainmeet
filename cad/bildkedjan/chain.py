@@ -47,7 +47,7 @@ def _array(values: Array) -> list[list[float]]:
     return [[round(float(v), 4) for v in row] for row in np.atleast_2d(values)]
 
 
-CHAIN_VERSION = "3.2.0"
+CHAIN_VERSION = "3.3.0"
 """The measuring code's version: part of every job's key (bildkedjan, Jobbet är nyckeln)."""
 PROFILE = "modulfoto"
 RAIL_HEIGHT = {Scale.H0: 7.0, Scale.N: 4.0, Scale.ZERO: 14.0}
