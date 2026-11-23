@@ -654,7 +654,7 @@ const slipSwitch = (position: "+" | "-") => ({ position, control: "tkl" as const
 const slipState = (a: "+" | "-", b: "+" | "-", pieces: Interlocking["pieces"] = {}) =>
   filled({ ...quiet, switches: { "5a": slipSwitch(a), "5b": slipSwitch(b) }, levers: {}, signals: {}, exits: [], sections: {}, pieces });
 
-describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 (STV-22, trainmeet #38)", () => {
+describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 and, in 95, TDOK 2021:0552 5.2.21.2–3 (STV-22, trainmeet #38)", () => {
   it("cuts a gap at the knot in the two legs outside the way the slip lies in", () => {
     const cuts = (a: "+" | "-", b: "+" | "-") =>
       Object.fromEntries(drawing(slipPanel, slipState(a, b), new Set(), new Set()).lines.map((l) => [l.piece, l.cut.start || l.cut.end]));
@@ -663,6 +663,26 @@ describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 (S
     expect(cuts("+", "-")).toEqual({ w: false, e: true, nw: true, se: false });
     const near = drawing(slipPanel, slipState("+", "+"), new Set(), new Set()).lines.find((l) => l.piece === "nw");
     expect(near?.cut).toEqual({ start: true, end: false });
+  });
+
+  it("in 95 cuts a gap at the knot in every leg, whichever way the slip lies (TDOK 2021:0552 5.2.21.2–3)", () => {
+    const cuts = (a: "+" | "-", b: "+" | "-") =>
+      Object.fromEntries(drawing(slipPanel, slipState(a, b), new Set(), new Set(), "95").lines.map((l) => [l.piece, l.cut.start || l.cut.end]));
+    for (const at of [
+      ["+", "+"],
+      ["-", "-"],
+      ["+", "-"],
+      ["-", "+"],
+    ] as const) {
+      expect(cuts(at[0], at[1])).toEqual({ w: true, e: true, nw: true, se: true });
+    }
+    const straight = drawing(slipPanel, slipState("+", "+"), new Set(), new Set(), "95");
+    expect(straight.lines.find((l) => l.piece === "w")?.cut).toEqual({ start: false, end: true });
+    expect(straight.lines.find((l) => l.piece === "nw")?.cut).toEqual({ start: true, end: false });
+    // Occupation still shows in the legs the slip lies in (TDOK 2014:0693 s. 22 stays for that).
+    const occupied = drawing(slipPanel, slipState("+", "+", { w: { state: "occupied", route: null }, e: { state: "occupied", route: null }, nw: { state: "occupied", route: null } }), new Set(), new Set(), "95");
+    expect(occupied.lines.find((l) => l.piece === "w")?.state).toBe("occupied");
+    expect(occupied.lines.find((l) => l.piece === "nw")?.state).toBe("free");
   });
 
   it("has a bow for each way that turns, in the state of the way the slip lies in", () => {
@@ -691,19 +711,25 @@ describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 (S
     const drawn = drawing(crossing, slipState("+", "+"), new Set(), new Set());
     expect(drawn.switches[0]?.bows).toEqual([]);
     expect(drawn.lines.every((l) => !l.cut.start && !l.cut.end)).toBe(true);
+    const single95 = drawing(single, slipState("+", "+"), new Set(), new Set(), "95");
+    expect(single95.switches[0]?.bows).toHaveLength(1);
+    expect(single95.lines.every((l) => l.cut.start || l.cut.end)).toBe(true);
+    const crossing95 = drawing(crossing, slipState("+", "+"), new Set(), new Set(), "95");
+    expect(crossing95.switches[0]?.bows).toEqual([]);
+    expect(crossing95.lines.every((l) => !l.cut.start && !l.cut.end)).toBe(true);
   });
 
   it("draws the bows beside the straight leg, on the side the slant leaves to, in 85 and 95 but not in 59", () => {
-    const drawn = drawing(slipPanel, slipState("+", "-", { w: { state: "train", route: 3 }, se: { state: "train", route: 3 } }), new Set(), new Set());
-    const strokes = (skin: SkinId) => {
-      const html = renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawn} skin={skinOf(skin)} say={say} />);
-      return [...html.matchAll(/data-bow="5a\/5b" data-state="(\w+)" points="([\d.,\s-]+)" stroke="([^"]+)"/g)].map((m) => ({
+    const laid = slipState("+", "-", { w: { state: "train", route: 3 }, se: { state: "train", route: 3 } });
+    const drawn = drawing(slipPanel, laid, new Set(), new Set());
+    const strokes = (html: string) =>
+      [...html.matchAll(/data-bow="5a\/5b" data-state="(\w+)" points="([\d.,\s-]+)" stroke="([^"]+)" stroke-width="([^"]+)"/g)].map((m) => ({
         state: m[1],
         points: (m[2] ?? "").split(" ").map((p) => p.split(",").map(Number)),
         stroke: m[3],
+        width: Number(m[4]),
       }));
-    };
-    const at85 = strokes("85");
+    const at85 = strokes(renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawn} skin={skinOf("85")} say={say} />));
     expect(at85.map((s) => [s.state, s.stroke])).toEqual([
       ["train", skinOf("85").tracks.train],
       ["free", skinOf("85").tracks.free],
@@ -713,7 +739,26 @@ describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 (S
     for (const [x = 0, y = 0] of westward?.points ?? []) expect([x < 240, y > 96]).toEqual([true, true]);
     for (const [x = 0, y = 0] of eastward?.points ?? []) expect([x > 240, y < 96]).toEqual([true, true]);
     expect(westward?.points[0]?.[1]).toBe(westward?.points[1]?.[1]);
-    expect(strokes("95")).toHaveLength(2);
-    expect(strokes("59")).toHaveLength(0);
+    const span = (points: number[][]) => Math.hypot((points[1]?.[0] ?? 0) - (points[0]?.[0] ?? 0), (points[1]?.[1] ?? 0) - (points[0]?.[1] ?? 0));
+    const at95 = strokes(renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawing(slipPanel, laid, new Set(), new Set(), "95")} skin={skinOf("95")} say={say} />));
+    expect(at95).toHaveLength(2);
+    const [west95, east95] = at95;
+    for (const [x = 0, y = 0] of west95?.points ?? []) expect([x < 240, y > 96]).toEqual([true, true]);
+    for (const [x = 0, y = 0] of east95?.points ?? []) expect([x > 240, y < 96]).toEqual([true, true]);
+    expect(west95?.points[0]?.[1]).toBe(west95?.points[1]?.[1]);
+    expect(west95?.width).toBeLessThan(westward?.width ?? 0);
+    expect(span(west95?.points ?? [])).toBeLessThan(span(westward?.points ?? []));
+    expect(strokes(renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawn} skin={skinOf("59")} say={say} />))).toHaveLength(0);
+  });
+
+  it("in 95 leaves a gap at the knot in both tracks, and in 85 lets the way it lies in meet there", () => {
+    const reaches = (html: string, piece: string) => html.match(new RegExp(`data-piece="${piece}"[^>]*points="([^"]+)"`))?.[1]?.includes("240,96") ?? false;
+    const at85 = renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawing(slipPanel, slipState("+", "+"), new Set(), new Set())} skin={skinOf("85")} say={say} />);
+    expect(reaches(at85, "w")).toBe(true);
+    expect(reaches(at85, "e")).toBe(true);
+    expect(reaches(at85, "nw")).toBe(false);
+    expect(reaches(at85, "se")).toBe(false);
+    const at95 = renderToStaticMarkup(<Panelen panel={slipPanel} drawn={drawing(slipPanel, slipState("+", "+"), new Set(), new Set(), "95")} skin={skinOf("95")} say={say} />);
+    for (const piece of ["w", "e", "nw", "se"]) expect(reaches(at95, piece)).toBe(false);
   });
 });

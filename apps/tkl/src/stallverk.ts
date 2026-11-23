@@ -147,9 +147,9 @@ export type DrawnSwitch = {
   /** A slip's bows (STV-22): one for a single slip and two for a double. */
   bows: DrawnBow[];
 };
-/** A way through a slip that turns, drawn as in TDOK 2014:0693 7.16–7.17: a short stroke by the
- * knot, parallel to the straight leg. Its two legs from the knot, and the way's state while the
- * slip lies in it; free otherwise. */
+/** A way through a slip that turns: a short stroke by the knot, parallel to the straight leg.
+ * 85 draws it as in TDOK 2014:0693 7.16–7.17 and 95 as in TDOK 2021:0552 5.2.21.2–3. Its two
+ * legs from the knot, and the way's state while the slip lies in it; free otherwise. */
 export type DrawnBow = { legs: [Cell[], Cell[]]; state: TrackState };
 export type Aspect = "stop" | "proceed" | "shunt" | "local";
 export type DrawnSignal = {
@@ -242,9 +242,15 @@ export function busyLines(state: Filled, snapshot: Snapshot | null): Set<string>
   return busy;
 }
 
+/** How a slip meets at the knot. 85 follows TDOK 2014:0693 7.16–7.17: the way it lies in goes
+ * through, and the legs outside it have a gap. 95 follows TDOK 2021:0552 5.2.21.2–3: both tracks
+ * have a gap there, in every position. */
+export type SlipMark = "85" | "95";
+
 /** Everything the panel draws, from the panel's geometry, the interlocking's state, the hub's
- * picture of the lines and the route ends a click can choose. */
-export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: Set<string>): Drawing {
+ * picture of the lines and the route ends a click can choose. `slip` is the skin's mark at a
+ * slip's knot; 59 and Foto do not use it. */
+export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: Set<string>, slip: SlipMark = "85"): Drawing {
   const cuts = new Map<string, { start: boolean; end: boolean }>();
   // The leg a switch does not lie in, and its trunk: occupied is red in the leg that lies only
   // (TDOK 2014:0693 s. 22), though the interlocking says the whole section.
@@ -271,22 +277,25 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
       lies = byPiece.get(position === "+" ? s.straight : s.diverging)?.cells ?? null;
       trunk = byPiece.get(s.trunk)?.cells ?? null;
     }
-    // A slip (TDOK 2014:0693 7.16–7.17, STV-22): the tracks cross, the way it lies in goes through
-    // the knot, and the two legs outside it have a gap there, as a switch's leg does.
-    const slip = SLIPS.has(s.type) ? (s.paths ?? []) : [];
-    const way = slip.find((p) => Object.keys(p.positions ?? {}).length > 0 && Object.entries(p.positions ?? {}).every(([part, at]) => state.switches[part]?.position === at));
-    if (way) {
+    // A slip (STV-22). 85 (TDOK 2014:0693 7.16–7.17): the way it lies in goes through the knot,
+    // and the two legs outside it have a gap there, as a switch's leg does. 95 (TDOK 2021:0552
+    // 5.2.21.2–3): both tracks stop short of the knot, whichever way it lies.
+    const paths = SLIPS.has(s.type) ? (s.paths ?? []) : [];
+    const way = paths.find((p) => Object.keys(p.positions ?? {}).length > 0 && Object.entries(p.positions ?? {}).every(([part, at]) => state.switches[part]?.position === at));
+    if (SLIPS.has(s.type)) {
       for (const piece of s.pieces ?? []) {
-        const off = byPiece.get(piece);
-        if (!off || way.between.includes(piece)) continue;
-        const atStart = distance(off.cells[0] as Cell, s.cell) <= distance(off.cells[off.cells.length - 1] as Cell, s.cell);
-        const was = cuts.get(off.piece) ?? { start: false, end: false };
-        cuts.set(off.piece, atStart ? { ...was, start: true } : { ...was, end: true });
-        offLegs.set(off.piece, way.between[0]);
+        const leg = byPiece.get(piece);
+        if (!leg) continue;
+        const inWay = way?.between.includes(piece) ?? false;
+        if (slip === "85" && (!way || inWay)) continue;
+        const atStart = distance(leg.cells[0] as Cell, s.cell) <= distance(leg.cells[leg.cells.length - 1] as Cell, s.cell);
+        const was = cuts.get(leg.piece) ?? { start: false, end: false };
+        cuts.set(leg.piece, atStart ? { ...was, start: true } : { ...was, end: true });
+        if (way && !inWay) offLegs.set(leg.piece, way.between[0]);
       }
     }
     const bows: { legs: [Cell[], Cell[]]; pieces: [string, string] | null }[] = [];
-    for (const p of slip) {
+    for (const p of paths) {
       const a = byPiece.get(p.between[0])?.cells;
       const b = byPiece.get(p.between[1])?.cells;
       if (!a || !b) continue;

@@ -183,7 +183,7 @@ export function Stallverk12({ plan, panel, state: raw, manover = null, automats 
       .then(setUnder)
       .catch(() => api.imageUnder().then(setUnder, () => undefined));
   const ends = useMemo(() => routeEnds(plan.route_list ?? []), [plan]);
-  const drawn = drawing(panel, state, busyLines(state, snapshot), ends);
+  const drawn = drawing(panel, state, busyLines(state, snapshot), ends, skin.id === "95" ? "95" : "85");
   // Fjärrstyrning (#36 del b): while remote-controlled the station's own panel only shows.
   const remote = controlled(snapshot, raw.fjarr);
   const arrows = arrowsOf(outside, automats, raw.fjarr, remote);
