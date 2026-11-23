@@ -53,8 +53,9 @@ services:
     ports:
       - "127.0.0.1:8084:8080"
 
-  # TrainMeet TKL i molnet (#76, KLAR-22): one station per browser, reaching only the test hub,
-  # over the internet as any TKL outside the meet's network, so a code is always needed.
+  # TrainMeet TKL i molnet (#76, KLAR-22, #88): the station with the account in ID, reaching only
+  # the test hub, over the internet as any TKL outside the meet's network, so a code is always
+  # needed.
   tkl:
     image: trainmeet-tkl:${HUB_TAG}
     restart: unless-stopped
@@ -66,6 +67,9 @@ services:
       TKL_ID_ISSUER: https://${ID_DOMAIN}/realms/trainmeet
       TKL_ID_INTERNAL: http://id:8080/realms/trainmeet
       TKL_PUBLIC_URL: https://${TKL_DOMAIN:-test.tkl.trainmeet.app}
+      # The station belongs to the account (#88, TKL5): on once ID can send its codes, which
+      # up.sh sees by the mail key; off, a station per browser, so nobody is locked out.
+      TKL_KONTO: ${TKL_KONTO:-off}
       # Studio's Ladda upp ritning (#89 del c4): TrainMeet CAD beside it on compose's network,
       # asked with the person's own access token from ID. Without it the way in is grey.
       TKL_CAD: http://cad:8080

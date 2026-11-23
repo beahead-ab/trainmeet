@@ -49,11 +49,14 @@ if grep -q '^CAD_PHOTOS_S3_SECRET_KEY=.' cad.env; then
   } > cad-vault/trainmeet_photos-key
 fi
 # Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
-# then (CAT-214, #66).
+# then (CAT-214, #66). TKL in the cloud then keeps the station with the account, in Synk, and
+# starts with the login; until then a station per browser (#88, TKL5).
 TRIAL=on
-if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
+KONTO=off
+if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; KONTO=on; fi
 {
   printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\nPI_DOMAIN=%s\nTKL_DOMAIN=%s\n' "$TAG" "$DOMAIN" "$PI_DOMAIN" "$TKL_DOMAIN"
+  printf 'TKL_KONTO=%s\n' "$KONTO"
   printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"

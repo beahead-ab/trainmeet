@@ -14,7 +14,7 @@ TKL i molnet (`TKL_MODE=cloud` med `TKL_ID_ISSUER` och `TKL_KONTO=on`) har inget
 
 TKL:s egen fil (`tkl.sqlite3`) håller i molnet bara det som behövs medan någon arbetar: inloggningen per webbläsare (personens id och namn och ID:s token, aldrig adressen), sessionerna, arbetskopian som en cache av en version i Synk med de ändringar som inte är sparade än och versionen den bygger på, och TKL:s driftdata för arbetskopian (ställverkets läge, anslutningen till träffen med nyckeln, de senaste ögonblicksbilderna, decken och Provas resultat). Arbetskopian försvinner vid utloggning, när en annan person loggar in i samma webbläsare, när en annan station öppnas och efter en månad utan användning. Inget som ägaren behöver finns bara där.
 
-LocoNet, nivå 3, finns bara i en lokal TKL (TKLMOLN-08). En lokal TKL har kvar sin egen station, PIN och *Spara i molnet* under Inställningar, och kan köra samtidigt (TKLMOLN-04). Utan `TKL_ID_ISSUER`, eller utan `TKL_KONTO=on`, har TKL i molnet en station per webbläsare, som före #88. Testmiljön slår på `TKL_KONTO` när TrainMeet ID går att nå där, så att ingen blir utelåst medan ID:s adress och mejlnyckel saknas.
+LocoNet, nivå 3, finns bara i en lokal TKL (TKLMOLN-08). En lokal TKL har kvar sin egen station, PIN och *Spara i molnet* under Inställningar, och kan köra samtidigt (TKLMOLN-04). Utan `TKL_ID_ISSUER`, eller utan `TKL_KONTO=on`, har TKL i molnet en station per webbläsare, som före #88. Testmiljön slår på `TKL_KONTO` när TrainMeet ID kan skicka sina koder där, alltså när mejlnyckeln finns på servern, samtidigt som Catalog och CAD slutar med provinloggningen. Utan mejlnyckeln står den av, så att ingen blir utelåst.
 
 ## Ladda upp ritning
 
