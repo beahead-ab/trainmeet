@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.clock-check.schema.json",
+  "title": "trainmeet.planning-1.clock-check",
+  "$defs": {
+    "ClockPackSeen": {
+      "additionalProperties": true,
+      "description": "Ett klockpaket i en fil, innan något sparas: förhandsvisningen och varningarna.",
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        },
+        "warnings": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Warnings",
+          "type": "array"
+        },
+        "replaces": {
+          "default": false,
+          "title": "Replaces",
+          "type": "boolean"
+        },
+        "unchanged": {
+          "default": false,
+          "title": "Unchanged",
+          "type": "boolean"
+        },
+        "layers": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Lagren som data-adresser, för förhandsvisningen.",
+          "title": "Layers",
+          "type": "object"
+        },
+        "dark": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Dark",
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "version"
+      ],
+      "title": "ClockPackSeen",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Vad en uppladdad fil innehåller, utan att något sparas.",
+  "properties": {
+    "packs": {
+      "items": {
+        "$ref": "#/$defs/ClockPackSeen"
+      },
+      "title": "Packs",
+      "type": "array"
+    }
+  },
+  "type": "object"
+}

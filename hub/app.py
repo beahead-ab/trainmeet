@@ -370,7 +370,7 @@ def create_app(
             link=meet_link() or f"{here}/",
         )
 
-    app.include_router(screen_web.router(runs, screen_share))
+    app.include_router(screen_web.router(runs, screen_share, plans.file))
 
     # The pages, built in React under apps/ (H62, GRUND-36).
     app.include_router(web.router(web_root))

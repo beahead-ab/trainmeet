@@ -10,12 +10,14 @@ The file is read by Integrationer and kept as it came.
 
 from __future__ import annotations
 
+import base64
 import hashlib
+import logging
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import PurePosixPath, PureWindowsPath
-from typing import Any, Final, Literal, NoReturn
+from typing import Annotated, Any, Final, Literal, NoReturn
 from urllib.parse import quote
 from uuid import UUID
 
@@ -24,9 +26,11 @@ from fastapi.concurrency import run_in_threadpool
 
 from contracts import driver as drivers
 from contracts import planning
-from contracts.meet import Attachment, AttachmentKind, MapPoint, Meet
+from contracts.meet import Attachment, AttachmentKind, MapPoint, Meet, MeetPackage
 from contracts.station_outside import StationOutside
 from contracts.tokens import TOKENS_PER_PAGE, TokenOwner, TokenOwnerKind
+from core.clock_pack import MAX_FACES, ClockPackError, split_packs, style_id
+from core.clock_pack import MEDIA as CLOCK_MEDIA
 from hub.cad_access import NO_CAD, CadReach
 from hub.hubben import Authorization, SessionCookie, service_of, session_of
 from hub.id_roles import PLANS, publishes, roles_of, withdraws
@@ -50,7 +54,9 @@ from synk.home import Homes
 from synk.link import Links
 from synk.store import SyncError, Versions
 
+LOGGER = logging.getLogger("planering.klocka")
 MAX_UPLOAD: Final = planning_json.MAX_BYTES
+MAX_CLOCK: Final = 2 * 1024 * 1024
 # De allmänna instruktionerna som PDF (PLAN-40): a few pages, not a whole booklet of duties.
 MAX_INSTRUCTIONS_PDF: Final = 10 * 1024 * 1024
 _CONTROL = re.compile(r"[\x00-\x1f\x7f]")
@@ -895,6 +901,211 @@ def router(
                 _fail(error)
 
         return await run_in_threadpool(keep)
+
+    # --- Egna urtavlor (F13, H75, ärende 64) -------------------------------------------------
+    # A .tmclock is pictures and clock.json, no code. The planner confirms the right to use
+    # each face; that is logged, and the pack is an attachment of the next version.
+
+    def actor(session: str | None, authorization: str | None) -> str:
+        """Who confirmed the right: the hub's PIN, or the person's id in TrainMeet ID.
+        Never a name."""
+        token = session_of(session, authorization)
+        if login.valid(token):
+            return "pin"
+        person = login.person(token) if login.role(token) == PERSON else None
+        return person.id if person else "pin"
+
+    async def clock_bytes(request: Request) -> bytes:
+        chunks: list[bytes] = []
+        size = 0
+        async for chunk in request.stream():
+            size += len(chunk)
+            if size > MAX_CLOCK:
+                raise HTTPException(413, "Klockpaketet är större än 2 MB.")
+            chunks.append(chunk)
+        return b"".join(chunks)
+
+    def clock_package(meet: str) -> MeetPackage:
+        try:
+            package = store.draft(meet).package
+        except PlanningError as error:
+            _fail(error)
+        if package is None:
+            raise HTTPException(409, "Lägg till underlag först.")
+        return package
+
+    @routes.post("/meets/{meet}/clock-faces/check")
+    async def check_clock_faces(
+        meet: str,
+        request: Request,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Vad filen innehåller, utan att något sparas: varje urtavla, varningarna och
+        lagren som data-adresser för förhandsvisningen."""
+        response.headers["Cache-Control"] = "no-store"
+        await run_in_threadpool(planner, meet, session, authorization)
+        data = await clock_bytes(request)
+        try:
+            found = await run_in_threadpool(split_packs, data)
+        except ClockPackError as error:
+            raise HTTPException(400, str(error)) from error
+        package = await run_in_threadpool(clock_package, meet)
+        current = {
+            a.id: a.sha256 for a in package.attachments if a.kind == AttachmentKind.CLOCK_FACE
+        }
+
+        def url(layer: Any) -> str:
+            encoded = base64.b64encode(layer.data).decode()
+            return f"data:{layer.content_type};base64,{encoded}"
+
+        packs = [
+            planning.ClockPackSeen(
+                id=pack.id,
+                name=pack.name,
+                version=pack.version,
+                warnings=list(pack.warnings),
+                replaces=pack.id in current,
+                unchanged=current.get(pack.id) == pack.sha256,
+                layers={name: url(layer) for name, layer in pack.layers.items()},
+                dark={name: url(layer) for name, layer in pack.dark.items()},
+            )
+            for _body, pack in found
+        ]
+        return planning.ClockCheck(packs=packs).model_dump(mode="json")
+
+    @routes.post("/meets/{meet}/clock-faces")
+    async def upload_clock_faces(
+        meet: str,
+        request: Request,
+        response: Response,
+        name: str = Query(default="klocka.tmclock", min_length=1, max_length=300),
+        rights: Annotated[bool, Query()] = False,
+        approved: Annotated[list[str] | None, Query()] = None,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """De godkända urtavlorna läggs in i utkastet. Varje klocka godkänns för sig, och
+        rätten att använda den intygas och loggas."""
+        response.headers["Cache-Control"] = "no-store"
+        await run_in_threadpool(planner, meet, session, authorization)
+        data = await clock_bytes(request)
+        try:
+            found = await run_in_threadpool(split_packs, data)
+        except ClockPackError as error:
+            raise HTTPException(400, str(error)) from error
+        wanted = set(approved or [])
+        if not rights or not wanted:
+            raise HTTPException(400, "Intyga rätten att använda tavlan innan den läggs in.")
+        known = {pack.id for _body, pack in found}
+        missing = sorted(wanted - known)
+        if missing:
+            raise HTTPException(400, f"Klockan {', '.join(missing)} finns inte i filen.")
+        chosen = [(body, pack) for body, pack in found if pack.id in wanted]
+        package = await run_in_threadpool(clock_package, meet)
+        present = {a.id for a in package.attachments if a.kind == AttachmentKind.CLOCK_FACE}
+        if len(present | {pack.id for _body, pack in chosen}) > MAX_FACES:
+            raise HTTPException(409, "Träffen har redan 20 urtavlor. Ta bort några först.")
+        who = actor(session, authorization)
+        sent_name = filename(name)
+
+        def keep() -> dict[str, Any]:
+            changes = []
+            for body, pack in chosen:
+                digest = store.keep_file(body, CLOCK_MEDIA)
+                face_name = sent_name if len(found) == 1 else f"{pack.id}.tmclock"
+                if not face_name.lower().endswith(".tmclock"):
+                    face_name = f"{pack.id}.tmclock"
+                changes.append(
+                    planning.ClockChange(
+                        clock="add",
+                        face=pack.id,
+                        attachment=Attachment(
+                            id=pack.id,
+                            kind=AttachmentKind.CLOCK_FACE,
+                            filename=face_name,
+                            media_type=CLOCK_MEDIA,
+                            size=len(body),
+                            sha256=digest,
+                        ),
+                    )
+                )
+            try:
+                saved = store.change(meet, *changes)
+            except PlanningError as error:
+                _fail(error)
+            for _body, pack in chosen:
+                store.remember_clock(meet, pack.id, pack.name, sent_name, who, list(pack.warnings))
+                LOGGER.info(
+                    "clock_face.uploaded meet=%s face=%s rights_confirmed=true file=%s",
+                    meet,
+                    pack.id,
+                    sent_name,
+                )
+            return saved.model_dump(mode="json")
+
+        return await run_in_threadpool(keep)
+
+    @routes.get("/meets/{meet}/clock-faces")
+    def clock_faces(meet: str, response: Response) -> dict[str, Any]:
+        """Intygen: vem som godkände varje urtavla och när. Alla får se planen (S1)."""
+        response.headers["Cache-Control"] = "no-store"
+        try:
+            stamps = store.clock_stamps(meet)
+        except PlanningError as error:
+            _fail(error)
+        return planning.ClockStamps(faces=stamps).model_dump(mode="json")
+
+    @routes.post("/meets/{meet}/clock-faces/remove")
+    def remove_clock_face(
+        meet: str,
+        given: planning.ClockRemove,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        response.headers["Cache-Control"] = "no-store"
+        planner(meet, session, authorization)
+        package = clock_package(meet)
+        faces = {a.id for a in package.attachments if a.kind == AttachmentKind.CLOCK_FACE}
+        if given.face not in faces:
+            raise HTTPException(404, "Urtavlan finns inte.")
+        changes = [planning.ClockChange(clock="remove", face=given.face)]
+        if f"custom:{given.face}" in package.clock.styles:
+            changes.append(planning.ClockChange(clock="style", style="analog"))
+        try:
+            saved = store.change(meet, *changes)
+        except PlanningError as error:
+            _fail(error)
+        store.forget_clock(meet, given.face)
+        LOGGER.info("clock_face.deleted meet=%s face=%s", meet, given.face)
+        return saved.model_dump(mode="json")
+
+    @routes.post("/meets/{meet}/clock-style")
+    def choose_clock_style(
+        meet: str,
+        given: planning.ClockStyleChoice,
+        response: Response,
+        session: SessionCookie = None,
+        authorization: Authorization = None,
+    ) -> dict[str, Any]:
+        """Den analoga klockskärmen visar analog eller custom:<id>. Digital är en egen vy."""
+        response.headers["Cache-Control"] = "no-store"
+        planner(meet, session, authorization)
+        face = style_id(given.style)
+        if given.style != "analog" and face is None:
+            raise HTTPException(400, "Klockans stil ska vara analog eller en egen urtavla.")
+        if face is not None:
+            package = clock_package(meet)
+            faces = {a.id for a in package.attachments if a.kind == AttachmentKind.CLOCK_FACE}
+            if face not in faces:
+                raise HTTPException(404, "Urtavlan finns inte.")
+        try:
+            saved = store.change(meet, planning.ClockChange(clock="style", style=given.style))
+        except PlanningError as error:
+            _fail(error)
+        return saved.model_dump(mode="json")
 
     # Förarna (PLAN-40, LOK-33): who pays when a driver's photos of a missing duty are read.
 

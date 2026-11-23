@@ -1,10 +1,10 @@
 import { Skylt } from "@trainmeet/design";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
-import { fetchPackage, fetchPicture, join, savedKey, saveKey, type Package, type ScreenPicture } from "./api";
+import { fetchClock, fetchLayer, fetchPackage, fetchPicture, join, savedKey, saveKey, type Package, type ScreenPicture } from "./api";
 import { BanaView } from "./Bana";
 import { DiagramView } from "./Diagram";
 import { OversiktView } from "./Oversikt";
-import { Klocka } from "./Klocka";
+import { Klocka, type ClockFace } from "./Klocka";
 
 export { clockText } from "./Klocka";
 
@@ -15,6 +15,10 @@ export type ScreenProps = {
   picture: ScreenPicture | null;
   /** The package the views that draw the line draw on. */
   pkg?: Package | null;
+  /** The meet's own clock face, when the analog clock shows custom:<id>. */
+  face?: ClockFace | null;
+  /** Light or dark: a clock pack's dark layers are used in the dark. */
+  theme?: "morkt" | "ljust";
   fetchedAt: number;
   now: number;
   message: string;
@@ -23,7 +27,7 @@ export type ScreenProps = {
 };
 
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
-export function Screen({ picture, pkg = null, fetchedAt, now, message, code, onJoin }: ScreenProps) {
+export function Screen({ picture, pkg = null, face = null, theme = "morkt", fetchedAt, now, message, code, onJoin }: ScreenProps) {
   if (picture && !picture.view) {
     return (
       <section id="waiting" className="vantar">
@@ -38,7 +42,7 @@ export function Screen({ picture, pkg = null, fetchedAt, now, message, code, onJ
   if (picture?.view === "tracks") return <BanaView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
   if (picture?.view === "graph") return <DiagramView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
   if (picture?.view === "overview") return <OversiktView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
-  if (picture) return <Klocka picture={picture} fetchedAt={fetchedAt} now={now} />;
+  if (picture) return <Klocka picture={picture} fetchedAt={fetchedAt} now={now} face={face} theme={theme} />;
   return <JoinForm message={message} code={code} onJoin={onJoin} />;
 }
 
@@ -75,10 +79,13 @@ export function App() {
   const [key, setKey] = useState<string | null>(savedKey);
   const [picture, setPicture] = useState<ScreenPicture | null>(null);
   const [pkg, setPkg] = useState<{ key: string; pkg: Package } | null>(null);
+  const [face, setFace] = useState<ClockFace | null>(null);
+  const [theme, setTheme] = useState<"morkt" | "ljust">(() => (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "ljust" : "morkt"));
   const [fetchedAt, setFetchedAt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [message, setMessage] = useState("");
   const pkgKey = useRef<string | null>(null);
+  const faceKey = useRef<string | null>(null);
   const code = new URLSearchParams(window.location.hash.slice(1)).get("kod") ?? "";
 
   const refresh = useCallback(async () => {
@@ -94,6 +101,30 @@ export function App() {
     }
     setPicture(fetched.picture);
     setFetchedAt(Date.now());
+    if (fetched.picture.view === "clock") {
+      const shown = await fetchClock(key);
+      const mark = shown?.style.startsWith("custom:") ? shown.sha256 : null;
+      if (shown?.id && shown.motion && mark && mark !== faceKey.current) {
+        const layers: Record<string, string> = {};
+        const dark: Record<string, string> = {};
+        for (const name of shown.layers ?? []) {
+          const url = await fetchLayer(key, shown.id, name);
+          if (url) layers[name] = url;
+        }
+        for (const name of shown.dark ?? []) {
+          const url = await fetchLayer(key, shown.id, `dark-${name}`);
+          if (url) dark[name] = url;
+        }
+        faceKey.current = mark;
+        setFace({ id: shown.id, name: shown.name ?? shown.id, motion: shown.motion, layers, dark });
+      } else if (!mark) {
+        faceKey.current = null;
+        setFace(null);
+      }
+    } else if (faceKey.current) {
+      faceKey.current = null;
+      setFace(null);
+    }
     // The package is fetched once, and again when the version or a driftändring changes it.
     const wanted = fetched.picture.package;
     if (wanted && wanted !== pkgKey.current) {
@@ -103,6 +134,13 @@ export function App() {
       else pkgKey.current = null;
     }
   }, [key]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    const apply = () => setTheme(media.matches ? "ljust" : "morkt");
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -127,7 +165,7 @@ export function App() {
 
   return (
     <main>
-      <Screen picture={picture} pkg={pkg?.pkg ?? null} fetchedAt={fetchedAt} now={now} message={message} code={code} onJoin={onJoin} />
+      <Screen picture={picture} pkg={pkg?.pkg ?? null} face={face} theme={theme} fetchedAt={fetchedAt} now={now} message={message} code={code} onJoin={onJoin} />
     </main>
   );
 }

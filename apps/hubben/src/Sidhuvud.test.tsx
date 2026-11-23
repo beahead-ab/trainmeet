@@ -67,6 +67,7 @@ describe("the header (S2, TRAFIK-12)", () => {
     expect(meet).toContain('<a href="/planering/grimslov/versioner">Versioner</a>');
     // Förare in Drift and Förarna in Planering came with Lokföraren (TRAFIK-14, H77).
     expect(meet).toContain('<a href="/planering/grimslov/forarna">Förarna</a>');
+    expect(meet).toContain('<a href="/planering/grimslov/klockan">Klockan</a>');
     expect(meet).toContain('<a href="/drift/forare">Förare</a>');
     expect(meet).toContain("Grimslöv 2027 · version 6");
     // In Planering the tabs are for the meet in view, and its page is marked.

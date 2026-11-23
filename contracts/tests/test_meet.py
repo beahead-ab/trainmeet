@@ -235,3 +235,25 @@ def test_a_remote_area_hangs_together_along_the_line() -> None:
         {"id": "b", "name": "B", "places": ["asn", "mla"]},
     ]
     assert "Driftplatsen asn hör till två fjärrområden: a och b" in problems(data)
+
+
+def test_a_custom_clock_style_names_a_clock_pack_in_the_package() -> None:
+    data = provbanan()
+    data["clock"]["styles"] = ["custom:mitt-ur"]
+    assert "har ingen urtavla" in problems(data)
+    data["clock"]["styles"] = ["stationsur"]
+    assert "inte analog, digital eller en egen urtavla" in problems(data)
+    data["clock"]["styles"] = ["custom:mitt-ur"]
+    data["clock"]["faces"] = ["mitt-ur"]
+    data["attachments"] = [
+        {
+            "id": "mitt-ur",
+            "kind": "clock_face",
+            "filename": "mitt-ur.tmclock",
+            "media_type": "application/zip",
+            "size": 10,
+            "sha256": "ab" * 32,
+        }
+    ]
+    package = MeetPackage.model_validate(data)
+    assert package.clock.faces == ["mitt-ur"]

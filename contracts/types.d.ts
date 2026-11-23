@@ -1268,6 +1268,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/screen/clock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["screenClock"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/screen/clock/{face}/{layer}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["screenClockLayer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/drift/1/clients/view": {
         parameters: {
             query?: never;
@@ -2062,6 +2094,70 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["instructionsPdf"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/clock-faces/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["checkClockFaces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/clock-faces": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["clockFaces"];
+        put?: never;
+        post: operations["uploadClockFaces"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/clock-faces/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["removeClockFace"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/planering/1/meets/{meet}/clock-style": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["chooseClockStyle"];
         delete?: never;
         options?: never;
         head?: never;
@@ -16574,6 +16670,77 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.screen-1.picture.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * ClockFaceShow
+         * @description Vad den analoga klockskärmen ritar (H74, H75). analog är den inbyggda tavlan.
+         *     custom:<id> är träffens klockpaket. Lagren hämtas på /api/screen/clock/{id}/{lager}.
+         */
+        "trainmeet.screen-1.clock-face": {
+            /**
+             * Style
+             * @description analog eller custom:<urtavlans id>.
+             */
+            style: string;
+            /**
+             * Id
+             * @default null
+             */
+            id: string | null;
+            /**
+             * Name
+             * @default null
+             */
+            name: string | null;
+            /**
+             * Sha256
+             * @default null
+             */
+            sha256: string | null;
+            /** @default null */
+            motion: components["schemas"]["trainmeet.screen-1.clock-face.ClockMotion"] | null;
+            /** Layers */
+            layers?: string[];
+            /** Dark */
+            dark?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockMotion
+         * @description Hur visarna går, ur klockpaketets clock.json.
+         */
+        "trainmeet.screen-1.clock-face.ClockMotion": {
+            /**
+             * Hour
+             * @default smooth
+             * @enum {string}
+             */
+            hour: "smooth" | "minute";
+            /**
+             * Minute
+             * @default smooth
+             * @enum {string}
+             */
+            minute: "smooth" | "jump";
+            /**
+             * Minute Bounce
+             * @default false
+             */
+            minute_bounce: boolean;
+            /**
+             * Second
+             * @default smooth
+             * @enum {string}
+             */
+            second: "smooth" | "tick" | "sweep";
+            /**
+             * Sweep Seconds
+             * @default 60
+             */
+            sweep_seconds: number;
+        } & {
+            [key: string]: unknown;
+        };
         /** HubInfo */
         "trainmeet.hub-1.info": {
             /** Name */
@@ -18746,7 +18913,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.draft.StationChange"] | components["schemas"]["trainmeet.planning-1.draft.InstructionsChange"] | components["schemas"]["trainmeet.planning-1.draft.RemoteAreaChange"])[];
+            changes?: (components["schemas"]["trainmeet.planning-1.draft.ClockChange"] | components["schemas"]["trainmeet.planning-1.draft.PlaceChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.draft.SectionChange"] | components["schemas"]["trainmeet.planning-1.draft.CallChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainChange"] | components["schemas"]["trainmeet.planning-1.draft.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.draft.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.draft.StationChange"] | components["schemas"]["trainmeet.planning-1.draft.InstructionsChange"] | components["schemas"]["trainmeet.planning-1.draft.RemoteAreaChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -19298,6 +19465,38 @@ export interface components {
              * @description Urtavlorna, som bilagor (F13).
              */
             faces?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockChange
+         * @description En urtavla i utkastet, eller vilken stil den analoga klockan visar (F13, SKARM-05).
+         *
+         *     add lägger in klockpaketet som bilaga. remove tar bort det och ställer tillbaka
+         *     analog om den stilen visades. style väljer analog eller custom:<id>.
+         */
+        "trainmeet.planning-1.draft.ClockChange": {
+            /**
+             * Clock
+             * @enum {string}
+             */
+            clock: "add" | "remove" | "style";
+            /**
+             * Face
+             * @default null
+             */
+            face: string | null;
+            /**
+             * @description Klockpaketet, sparat bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            attachment: components["schemas"]["trainmeet.planning-1.draft.Attachment"] | null;
+            /**
+             * Style
+             * @description analog eller custom:<urtavlans id>.
+             * @default null
+             */
+            style: string | null;
         } & {
             [key: string]: unknown;
         };
@@ -21006,7 +21205,7 @@ export interface components {
              */
             revision: number;
             /** Changes */
-            changes: (components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.changes.StationChange"] | components["schemas"]["trainmeet.planning-1.changes.InstructionsChange"] | components["schemas"]["trainmeet.planning-1.changes.RemoteAreaChange"])[];
+            changes: (components["schemas"]["trainmeet.planning-1.changes.ClockChange"] | components["schemas"]["trainmeet.planning-1.changes.PlaceChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionTracksChange"] | components["schemas"]["trainmeet.planning-1.changes.SectionChange"] | components["schemas"]["trainmeet.planning-1.changes.CallChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainChange"] | components["schemas"]["trainmeet.planning-1.changes.TrainDaysChange"] | components["schemas"]["trainmeet.planning-1.changes.ConfirmChange"] | components["schemas"]["trainmeet.planning-1.changes.StationChange"] | components["schemas"]["trainmeet.planning-1.changes.InstructionsChange"] | components["schemas"]["trainmeet.planning-1.changes.RemoteAreaChange"])[];
         } & {
             [key: string]: unknown;
         };
@@ -21062,6 +21261,38 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.changes.ClearanceMode": "requested" | "direct";
+        /**
+         * ClockChange
+         * @description En urtavla i utkastet, eller vilken stil den analoga klockan visar (F13, SKARM-05).
+         *
+         *     add lägger in klockpaketet som bilaga. remove tar bort det och ställer tillbaka
+         *     analog om den stilen visades. style väljer analog eller custom:<id>.
+         */
+        "trainmeet.planning-1.changes.ClockChange": {
+            /**
+             * Clock
+             * @enum {string}
+             */
+            clock: "add" | "remove" | "style";
+            /**
+             * Face
+             * @default null
+             */
+            face: string | null;
+            /**
+             * @description Klockpaketet, sparat bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            attachment: components["schemas"]["trainmeet.planning-1.changes.Attachment"] | null;
+            /**
+             * Style
+             * @description analog eller custom:<urtavlans id>.
+             * @default null
+             */
+            style: string | null;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * ConfirmChange
          * @description Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
@@ -21229,6 +21460,106 @@ export interface components {
          * @enum {string}
          */
         "trainmeet.planning-1.changes.Weekday": "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+        /**
+         * ClockCheck
+         * @description Vad en uppladdad fil innehåller, utan att något sparas.
+         */
+        "trainmeet.planning-1.clock-check": {
+            /** Packs */
+            packs?: components["schemas"]["trainmeet.planning-1.clock-check.ClockPackSeen"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockPackSeen
+         * @description Ett klockpaket i en fil, innan något sparas: förhandsvisningen och varningarna.
+         */
+        "trainmeet.planning-1.clock-check.ClockPackSeen": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: string;
+            /** Warnings */
+            warnings?: string[];
+            /**
+             * Replaces
+             * @default false
+             */
+            replaces: boolean;
+            /**
+             * Unchanged
+             * @default false
+             */
+            unchanged: boolean;
+            /**
+             * Layers
+             * @description Lagren som data-adresser, för förhandsvisningen.
+             */
+            layers?: {
+                [key: string]: string;
+            };
+            /** Dark */
+            dark?: {
+                [key: string]: string;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** ClockStamps */
+        "trainmeet.planning-1.clock-stamps": {
+            /** Faces */
+            faces?: components["schemas"]["trainmeet.planning-1.clock-stamps.ClockStamp"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockStamp
+         * @description Intyget om rätten att använda tavlan: vem och när, utan personens namn.
+         */
+        "trainmeet.planning-1.clock-stamps.ClockStamp": {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Filename */
+            filename: string;
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * By
+             * @description pin, eller personens id i TrainMeet ID.
+             */
+            by: string;
+            /** Warnings */
+            warnings?: string[];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * ClockStyleChoice
+         * @description Vilken stil den analoga klockskärmen visar.
+         */
+        "trainmeet.planning-1.clock-style": {
+            /**
+             * Style
+             * @description analog eller custom:<urtavlans id>.
+             */
+            style: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** ClockRemove */
+        "trainmeet.planning-1.clock-remove": {
+            /** Face */
+            face: string;
+        } & {
+            [key: string]: unknown;
+        };
         /**
          * ImportPreview
          * @description Lägg till underlag before anything changes: the level, what the source gave and exactly
@@ -23271,6 +23602,38 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * ClockChange
+         * @description En urtavla i utkastet, eller vilken stil den analoga klockan visar (F13, SKARM-05).
+         *
+         *     add lägger in klockpaketet som bilaga. remove tar bort det och ställer tillbaka
+         *     analog om den stilen visades. style väljer analog eller custom:<id>.
+         */
+        "trainmeet.sync-1.home-bundle.ClockChange": {
+            /**
+             * Clock
+             * @enum {string}
+             */
+            clock: "add" | "remove" | "style";
+            /**
+             * Face
+             * @default null
+             */
+            face: string | null;
+            /**
+             * @description Klockpaketet, sparat bredvid paketet med sin kontrollsumma.
+             * @default null
+             */
+            attachment: components["schemas"]["trainmeet.sync-1.home-bundle.Attachment"] | null;
+            /**
+             * Style
+             * @description analog eller custom:<urtavlans id>.
+             * @default null
+             */
+            style: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * ConfirmChange
          * @description Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An
          *     osäker or trolig fact becomes bekräftad, which counts as säker.
@@ -23396,7 +23759,7 @@ export interface components {
              * Changes
              * @description Planerarens ändringar, i ordning. De gäller även när underlaget läses om.
              */
-            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.StationChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.InstructionsChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.RemoteAreaChange"])[];
+            changes?: (components["schemas"]["trainmeet.sync-1.home-bundle.ClockChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.PlaceChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionTracksChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.SectionChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.CallChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.TrainDaysChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.ConfirmChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.StationChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.InstructionsChange"] | components["schemas"]["trainmeet.sync-1.home-bundle.RemoteAreaChange"])[];
             /**
              * Taken
              * @description Förslagen från Drift som tagits med, i ordning.
@@ -30413,6 +30776,50 @@ export interface operations {
             };
         };
     };
+    screenClock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.screen-1.clock-face"];
+                };
+            };
+        };
+    };
+    screenClockLayer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                face: string;
+                layer: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Ett lager i urtavlan, som bild */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/svg+xml": string;
+                    "image/png": string;
+                };
+            };
+        };
+    };
     showView: {
         parameters: {
             query?: never;
@@ -31741,6 +32148,138 @@ export interface operations {
         requestBody: {
             content: {
                 "application/pdf": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    checkClockFaces: {
+        parameters: {
+            query?: {
+                name?: string;
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.clock-check"];
+                };
+            };
+        };
+    };
+    clockFaces: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.clock-stamps"];
+                };
+            };
+        };
+    };
+    uploadClockFaces: {
+        parameters: {
+            query: {
+                name?: string;
+                rights: boolean;
+                approved: string[];
+            };
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": string;
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    removeClockFace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.clock-remove"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["trainmeet.planning-1.draft"];
+                };
+            };
+        };
+    };
+    chooseClockStyle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                meet: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["trainmeet.planning-1.clock-style"];
             };
         };
         responses: {

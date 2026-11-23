@@ -10,12 +10,15 @@ sessionStorage and sends it as Authorization: Bearer; it is never in an address 
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Header, HTTPException, Request, Response
 
 from contracts import screen, station
+from contracts.meet import AttachmentKind
+from core.clock_pack import ClockPackError, chosen_face, read_pack
 from drift.engine import Drift, model_time, now_utc
 from drift.now import now
 from drift.store import MissingRun, RunLimit, UnknownClient
@@ -23,6 +26,8 @@ from hub.stores import AnyRun
 
 Authorization = Annotated[str | None, Header(max_length=200)]
 CLOCKS = {screen.ScreenView.CLOCK.value, screen.ScreenView.CLOCK_DIGITAL.value}
+LAYER = re.compile(r"^(?:dark-)?(?:dial|hour|minute|second|top)$")
+SANDBOX = "sandbox; default-src 'none'"
 
 
 def package_key(drift: Drift) -> str:
@@ -31,8 +36,40 @@ def package_key(drift: Drift) -> str:
     return hashlib.sha256(f"{drift.version}|{changes}".encode()).hexdigest()[:16]
 
 
-def router(runs: AnyRun, share: Callable[[Request], screen.ScreenShare] | None = None) -> APIRouter:
-    """`share` gives the clock its QR codes: träffens Wi-Fi and the link to the meet."""
+def _show(
+    drift: Drift, files: Callable[[str], tuple[str, bytes] | None] | None
+) -> screen.ClockFaceShow:
+    """The analog clock's face: the built-in one, or the meet's custom:<id>."""
+    faces = {a.id: a for a in drift.package.attachments if a.kind == AttachmentKind.CLOCK_FACE}
+    face = chosen_face(list(drift.package.clock.styles), set(faces))
+    if face is None or files is None:
+        return screen.ClockFaceShow(style="analog")
+    kept = files(faces[face].sha256)
+    if kept is None:
+        return screen.ClockFaceShow(style="analog")
+    try:
+        pack = read_pack(kept[1])
+    except ClockPackError:
+        return screen.ClockFaceShow(style="analog")
+    motion = screen.ClockMotion.model_validate(pack.motion)
+    return screen.ClockFaceShow(
+        style=f"custom:{pack.id}",
+        id=pack.id,
+        name=pack.name,
+        sha256=faces[face].sha256,
+        motion=motion,
+        layers=list(pack.layers),
+        dark=list(pack.dark),
+    )
+
+
+def router(
+    runs: AnyRun,
+    share: Callable[[Request], screen.ScreenShare] | None = None,
+    files: Callable[[str], tuple[str, bytes] | None] | None = None,
+) -> APIRouter:
+    """`share` gives the clock its QR codes: träffens Wi-Fi and the link to the meet.
+    `files` reads an attachment by its checksum, so the clock pack follows the version."""
     routes = APIRouter()
 
     @routes.post("/api/screen/session", status_code=201)
@@ -88,5 +125,38 @@ def router(runs: AnyRun, share: Callable[[Request], screen.ScreenShare] | None =
         response.headers["Cache-Control"] = "no-store"
         _, _, drift = shown(authorization)
         return drift.package.model_dump(mode="json")
+
+    @routes.get("/api/screen/clock")
+    def clock_face(response: Response, authorization: Authorization = None) -> dict[str, Any]:
+        """The face the analog clock draws. custom:<id> when the meet has chosen one."""
+        response.headers["Cache-Control"] = "no-store"
+        _, _, drift = shown(authorization)
+        return _show(drift, files).model_dump(mode="json")
+
+    @routes.get("/api/screen/clock/{face}/{layer}")
+    def clock_layer(face: str, layer: str, authorization: Authorization = None) -> Response:
+        """One layer of the chosen face, as an image. A script in it cannot run."""
+        _, _, drift = shown(authorization)
+        shown_face = _show(drift, files)
+        if shown_face.id != face or not LAYER.fullmatch(layer) or files is None:
+            raise HTTPException(404, "Lagret finns inte.")
+        attachment = next((a for a in drift.package.attachments if a.id == face), None)
+        kept = files(attachment.sha256) if attachment is not None else None
+        try:
+            pack = read_pack(kept[1]) if kept is not None else None
+        except ClockPackError:
+            pack = None
+        found = pack.layer(layer) if pack is not None else None
+        if found is None:
+            raise HTTPException(404, "Lagret finns inte.")
+        return Response(
+            found.data,
+            media_type=found.content_type,
+            headers={
+                "Cache-Control": "private, no-store",
+                "Content-Security-Policy": SANDBOX,
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
 
     return routes

@@ -125,6 +125,19 @@ button {
   height: 86vh;
   width: auto;
 }
+/* A clock pack fills about 90 % of the short side, landscape or portrait (SKARM-16). */
+.urtavla-egen {
+  width: min(90vw, 90vh);
+  height: min(90vw, 90vh);
+}
+.klocka.ljust {
+  background: #f4f5f7;
+  color: #16181c;
+}
+.klocka.ljust .klocka-rubrik p,
+.klocka.ljust .lage {
+  color: #4a4f57;
+}
 .tavla {
   fill: #161a20;
   stroke: #2a313b;

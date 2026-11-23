@@ -4,6 +4,7 @@ import { planning, type Check, type Deviation, type Draft, type DoubleTrackQuest
 import { BanaPage } from "./Bana";
 import { DataPage } from "./Data";
 import { ForarnaPage } from "./Forarna";
+import { KlockanPage } from "./Klockan";
 import { GrafPage } from "./Graf";
 import { TraffarPage } from "./Traffar";
 import { VersionerPage } from "./Versioner";
@@ -11,14 +12,14 @@ import { VersionerPage } from "./Versioner";
 // Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Data, Bana, Graf,
 // Versioner (S6) and Förarna (PLAN-40, H77).
 
-export type Route = { page: "traffar" } | { page: "data" | "bana" | "graf" | "versioner" | "forarna"; meet: string };
+export type Route = { page: "traffar" } | { page: "data" | "bana" | "graf" | "versioner" | "forarna" | "klockan"; meet: string };
 
-const MEET = /^\/planering\/([^/]+)(?:\/(data|bana|graf|versioner|forarna))?$/;
+const MEET = /^\/planering\/([^/]+)(?:\/(data|bana|graf|versioner|forarna|klockan))?$/;
 
 export function routeOf(path: string): Route {
   const found = path.replace(/\/+$/, "").match(MEET);
   if (!found?.[1]) return { page: "traffar" };
-  const page = found[2] === "bana" || found[2] === "graf" || found[2] === "versioner" || found[2] === "forarna" ? found[2] : "data";
+  const page = found[2] === "bana" || found[2] === "graf" || found[2] === "versioner" || found[2] === "forarna" || found[2] === "klockan" ? found[2] : "data";
   return { page, meet: decodeURIComponent(found[1]) };
 }
 
@@ -242,6 +243,19 @@ export function App() {
           />
         )}
         {route.page === "graf" && <GrafPage draft={draft} findings={check?.findings ?? []} />}
+        {route.page === "klockan" && (
+          <KlockanPage
+            admin={admin}
+            meet={route.meet}
+            draft={draft}
+            onDraft={(next) => {
+              setDraft(next);
+              void readVersions(route.meet);
+            }}
+            onTell={tell}
+            onFail={fail}
+          />
+        )}
         {route.page === "forarna" && (
           <ForarnaPage
             admin={admin}
