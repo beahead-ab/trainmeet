@@ -5,7 +5,8 @@ lays all its own switches together, the reversed ones the other way, and drags a
 switches it names in only one position. A dragged switch moves its own lever too. When two of
 these need the same switch, or the same lever, in different positions, the route is impossible.
 
-A switch that TKL lays but that no lever names has a lever of its own, with its number.
+A switch that TKL lays but that no lever names has a lever of its own, with its number, and so
+has every derailer (spårspärr, TKL129): + av, - på.
 """
 
 from __future__ import annotations
@@ -47,6 +48,13 @@ class Levers:
                         id=part, plus={part: Position.PLUS}, minus={part: Position.MINUS}
                     )
                     self.own[part] = part
+        for derailer in model.derailers:
+            part = derailer.number
+            if derailer.control == SwitchControl.TKL and part not in self.own:
+                self.levers.setdefault(
+                    part, Lever(id=part, plus={part: Position.PLUS}, minus={part: Position.MINUS})
+                )
+                self.own[part] = part
 
     def lay(self, wanted: Mapping[str, Position]) -> Laid | None:
         """The positions and levers that `wanted` takes, or None if it needs a lever both ways."""

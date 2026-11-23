@@ -1,13 +1,15 @@
 """The checks before a model file may run (STD-04, §6), as Swedish texts with the object's name.
 
 - Every switch has a trunk, a straight and a diverging leg, and they reach it.
+- Every derailer lies at a node between two pieces, with a number no switch has (TKL129).
 - Every train route ends at a signal in its direction or at a buffer stop.
 - Every track circuit has a name and at least one piece.
 - The levers have unambiguous positions.
 - No number or name is used twice.
 - At level 3: addresses are unique per bus, a switch's number counting as its address by default
   (STUDIO-19), and every switch has its feedback: from the card, two sensors, none or manual
-  (STUDIO-24). A manual switch is Utan adress and has no address (TKL26).
+  (STUDIO-24). A manual switch is Utan adress and has no address (TKL26). A derailer is wired
+  as a switch.
 - The panel can be made: the station's own track plan holds (STD-26, STD-28), or, without one,
   the engine lays the station out so that it fits, or proposes fields (STD-03).
 - The station's outside can be derived: the model has station tracks and line exits, each gets
@@ -72,6 +74,7 @@ def checks(model: StationModel) -> tuple[list[str], list[str]]:
         *_twice(model),
         *_graph(model),
         *_switches(model),
+        *_derailers(model),
         *_track_circuits(model),
         *_levers(model),
         *_train_routes(model),
@@ -177,6 +180,15 @@ def _twice(model: StationModel) -> list[str]:
     found = [f"Två spårbitar heter {x}." for x in _repeated(p.id for p in model.pieces)]
     found += [f"Två noder heter {x}." for x in _repeated(n.id for n in model.nodes)]
     found += [f"Två växlar har numret {x}." for x in _repeated(numbers)]
+    taken = set(numbers)
+    found += [
+        f"Två spårspärrar har numret {x}." for x in _repeated(d.number for d in model.derailers)
+    ]
+    found += [
+        f"Spårspärren {d.number} har samma nummer som en växel."
+        for d in model.derailers
+        if d.number in taken
+    ]
     found += [f"Två signaler heter {x}." for x in _repeated(s.name for s in model.signals)]
     found += [f"Två spakar heter {x}." for x in _repeated(lv.id for lv in model.levers)]
     found += [
@@ -221,6 +233,20 @@ def _graph(model: StationModel) -> list[str]:
         for track in table.tracks:
             if track.piece not in graph.touching.get(table.node, []):
                 found.append(f"Vändskivan {table.id}: spåret {track.piece} når inte skivan.")
+    return found
+
+
+def _derailers(model: StationModel) -> list[str]:
+    """A derailer lies at a node between two pieces, not at a switch or an end (TKL129)."""
+    graph = Graph(model)
+    found: list[str] = []
+    for derailer in model.derailers:
+        name = f"Spårspärren {derailer.number}"
+        at_node = graph.touching.get(derailer.node)
+        if at_node is None:
+            found.append(f"{name} ligger i noden {derailer.node}, som inte finns.")
+        elif len(at_node) != 2 or derailer.node in graph.switch_at:
+            found.append(f"{name} ska ligga mellan två spårbitar, inte i noden {derailer.node}.")
     return found
 
 
@@ -390,20 +416,20 @@ def _level_3(model: StationModel) -> list[str]:
         if wired.kind == ObjectKind.SWITCH:
             if wired.control != SwitchControl.TKL:
                 continue
+            name = f"{wired.word} {wired.name}"
             if wired.address is None:
-                found.append(f"Växel {wired.name} saknar adress.")
+                found.append(f"{name} saknar adress.")
             else:
                 claim(outputs, wired.address, who, "Adressen")
             feedback = wired.feedback
             if feedback is None:
                 found.append(
-                    f"Växel {wired.name} saknar återrapport: välj från kortet, två givare, ingen "
-                    "eller manuell."
+                    f"{name} saknar återrapport: välj från kortet, två givare, ingen eller manuell."
                 )
             elif feedback.type == FeedbackType.MANUAL:
                 found.append(
-                    f"Växel {wired.name} har manuell återrapport men läggs av ställverket: välj "
-                    "Utan adress för en manuell växel."
+                    f"{name} har manuell återrapport men läggs av ställverket: välj "
+                    f"Utan adress för en manuell {wired.word.lower()}."
                 )
             elif feedback.type == FeedbackType.SENSORS:
                 for sensor, word in (
@@ -411,7 +437,7 @@ def _level_3(model: StationModel) -> list[str]:
                     (feedback.diverging, "avvikande"),
                 ):
                     if sensor is None:
-                        found.append(f"Växel {wired.name} saknar givaren för {word}.")
+                        found.append(f"{name} saknar givaren för {word}.")
                     else:
                         claim(sensors, sensor, f"{who} ({word})", "Givaren")
         elif wired.kind == ObjectKind.SIGNAL:

@@ -94,6 +94,7 @@ export type ModelNode = Schemas["trainmeet.tkl-1.drawing.Node"];
 export type NodeType = Schemas["trainmeet.tkl-1.drawing.NodeType"];
 export type Piece = Schemas["trainmeet.tkl-1.drawing.TrackPiece"];
 export type Switch = Schemas["trainmeet.tkl-1.drawing.Switch"];
+export type Derailer = Schemas["trainmeet.tkl-1.drawing.Derailer"];
 export type SwitchType = Schemas["trainmeet.tkl-1.drawing.SwitchType"];
 export type SwitchControl = Schemas["trainmeet.tkl-1.drawing.SwitchControl"];
 export type Signal = Schemas["trainmeet.tkl-1.drawing.Signal"];

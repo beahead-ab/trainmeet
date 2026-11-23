@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Any
 
-from contracts.station_model import SignalType, StationModel, TrackCircuit
+from contracts.station_model import Derailer, SignalType, StationModel, TrackCircuit
 from tkl.stallverk import Interlocking, plant_of
 from tkl.tests.provstation import MINUS, PLUS, build, signal, switch
 
@@ -86,3 +86,36 @@ def test_the_protection_is_released_with_the_section_at_the_node_it_protects() -
     assert shown["1"].routes == [] and shown["3"].routes == [] and shown["4"].routes == []
     yes(it.lay_lever("3", PLUS))
     yes(it.set_route("L", "N"))
+
+
+def siding() -> StationModel:
+    """Track 1 with a siding off switch 1, and the derailer D1 on the siding (TKL129)."""
+    return build(
+        "a1:1-As a2:As-A b:1-B1 c:B1-B s1:1-D s2:D-S",
+        switches=[switch("1", "b", "a1", "s1")],
+        signals=[signal("A1", HSI, "B1", "c")],
+        derailers=[Derailer(number="D1", node="D")],
+        track_circuits=[
+            TrackCircuit(name="Spår B", pieces=["c"]),
+            TrackCircuit(name="Vx1", pieces=["b", "a1", "s1"]),
+            TrackCircuit(name="Ut", pieces=["a2"]),
+            TrackCircuit(name="Stickspår", pieces=["s2"]),
+        ],
+    )
+
+
+def test_a_derailer_starts_pa_and_is_locked_pa_as_the_route_s_protection() -> None:
+    it = made(siding())
+    assert it.view().switches["D1"].position == MINUS, "på until something needs it av"
+    yes(it.lay_lever("D1", PLUS))
+    route = yes(it.set_route("A1", "A")).route
+    shown = it.view().switches["D1"]
+    assert shown.position == MINUS and shown.routes == [route] and shown.protection
+    no(it.lay_lever("D1", PLUS), "Spårspärr D1")
+
+
+def test_a_route_over_the_derailer_lays_it_av() -> None:
+    it = made(siding())
+    route = yes(it.set_route("A1", "S")).route
+    shown = it.view().switches["D1"]
+    assert shown.position == PLUS and shown.routes == [route] and not shown.protection

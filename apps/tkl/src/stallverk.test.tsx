@@ -762,3 +762,39 @@ describe("Ställverket at level 1–2: slips as in TDOK 2014:0693 7.16–7.17 an
     for (const piece of ["w", "e", "nw", "se"]) expect(reaches(at95, piece)).toBe(false);
   });
 });
+
+// Track 2 with a derailer, D1, before the buffer stop (TKL129).
+const derailerPanel: Panel = {
+  ...panel,
+  lines: [...panel.lines.filter((l) => l.piece !== "c"), { piece: "c1", track: "2", cells: [[10, 2], [13, 5], [16, 5]], real: [], free: false }, { piece: "c2", track: "2", cells: [[16, 5], [20, 5]], real: [], free: false }],
+  switches: [{ ...(panel.switches?.[0] as NonNullable<Panel["switches"]>[number]), diverging: "c1" }],
+  derailers: [{ number: "D1", node: "D", cell: [16, 5], real: null, label: [16, 5.45], laid: true }],
+};
+const derailerState = (position: "+" | "-", protection: boolean) =>
+  filled({ ...quiet, switches: { ...quiet.switches, D1: { position, control: "tkl", routes: protection ? [7] : [], protection, local: false, function: null, state: null, reported: null } } });
+
+describe("Ställverket at level 1–2: derailers (spårspärr, TKL129, trainmeet #37)", () => {
+  it("draws the derailer across its track, on it when på and beside it when av", () => {
+    const on = drawing(derailerPanel, derailerState("-", false), new Set(), ends).derailers;
+    expect(on).toEqual([{ number: "D1", cell: [16, 5], label: [16, 5.45], across: [0, 1], position: "-", laid: true, routes: [], protection: false }]);
+    const html = (position: "+" | "-") => renderToStaticMarkup(<Panelen panel={derailerPanel} drawn={drawing(derailerPanel, derailerState(position, false), new Set(), ends)} skin={skinOf("85")} say={say} />);
+    const bar = (markup: string) => markup.match(/data-derailer="D1"[^>]*><line x1="([\d.]+)" y1="([\d.]+)"/)?.slice(1).map(Number);
+    expect(bar(html("-"))).toEqual([384, 112.8]);
+    expect(bar(html("+"))?.[1]).toBeGreaterThan(112.8);
+    expect(html("-")).toContain('data-derailer-number="D1"');
+    expect(html("-")).toContain('aria-label="Spårspärr D1"');
+  });
+
+  it("is yellow while a route has it locked as protection (STV-20)", () => {
+    const drawn = drawing(derailerPanel, derailerState("-", true), new Set(), ends);
+    const html = renderToStaticMarkup(<Panelen panel={derailerPanel} drawn={drawn} skin={skinOf("85")} say={say} />);
+    expect(html).toMatch(/data-derailer="D1"[^>]*data-protection="D1"[^>]*><line[^>]*stroke="#feff00"/);
+    expect(html).toContain("Spårspärr D1 · på · låst i väg 7 · låst som skydd");
+  });
+
+  it("lays its lever when clicked, as a switch's", async () => {
+    const { calls, asked } = pretend({ layLever: async () => answer(derailerState("+", false), "Spårspärr D1 lagd av.") });
+    await clickSwitch({ ...NOTHING }, "D1", calls, NOON);
+    expect(asked).toEqual(['layLever("D1")']);
+  });
+});

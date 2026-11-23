@@ -450,6 +450,18 @@ class PanelSwitch(Contract):
     laid: bool = Field(default=True, description="TKL lägger den.")
 
 
+class PanelDerailer(Contract):
+    """A derailer (spårspärr, TKL129) at its node on the track, with its number beside it. The
+    panel shows it på or av, and yellow when a route has it locked as protection (STV-20)."""
+
+    number: Name
+    node: Name
+    cell: Cell
+    real: Point | None = None
+    label: Cell = Field(description="Numret, under spåret.")
+    laid: bool = Field(default=True, description="TKL lägger den.")
+
+
 class PanelSignal(Contract):
     """A signal: its symbol in the track line, or beside it for a stop lamp (TKL45), and its id
     over the track for a signal towards the east and under for one towards the west, outside
@@ -537,6 +549,9 @@ class Panel(Contract):
     lines: list[PanelLine]
     nodes: list[PanelNode]
     switches: list[PanelSwitch] = Field(default_factory=list)
+    derailers: list[PanelDerailer] = Field(
+        default_factory=list, description="Spårspärrarna (TKL129)."
+    )
     signals: list[PanelSignal] = Field(default_factory=list)
     labels: list[PanelLabel] = Field(default_factory=list)
     track_names: list[PanelTrackName] = Field(default_factory=list)

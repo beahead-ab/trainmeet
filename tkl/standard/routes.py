@@ -16,7 +16,8 @@ Level 1, without signals: routes go track to track, from every stop point, buffe
 exit and the turntable to every other one the walk reaches without reversing, over the
 stop points and over the turntable when the bridge joins two opposite tracks.
 
-No route passes a switch that TKL does not lay. A route that needs a lever in both positions,
+No route passes a switch or a derailer that TKL does not lay; a route over a derailer lays it
+av (+, TKL129). A route that needs a lever in both positions,
 counting coupled switches and those that are dragged along, is rejected. Where several paths
 join the same start and end, the one with fewest diverging switches is taken (TKL53), then the
 one that leaves the most other routes possible, then the shortest.
@@ -27,7 +28,14 @@ from __future__ import annotations
 from collections.abc import Iterator
 from dataclasses import dataclass, field, replace
 
-from contracts.station_model import NodeType, Position, Signal, SignalType, StationModel
+from contracts.station_model import (
+    NodeType,
+    Position,
+    Signal,
+    SignalType,
+    StationModel,
+    SwitchControl,
+)
 from tkl.standard.conflicts import conflict, detectors
 from tkl.standard.flank import flank
 from tkl.standard.graph import Graph, Move, Step
@@ -120,7 +128,13 @@ class Engine:
         if not self.graph.laid_by_tkl(move.switch):
             return None
         switches = dict(walk.switches)
-        for part, position in move.positions.items():
+        needs = dict(move.positions)
+        derailer = self.graph.derailer_at.get(move.node)
+        if derailer is not None:
+            if derailer.control != SwitchControl.TKL:
+                return None
+            needs[derailer.number] = Position.PLUS
+        for part, position in needs.items():
             if switches.setdefault(part, position) != position:
                 return None
         if any(step.piece == move.step.piece for step in walk.steps):

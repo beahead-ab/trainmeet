@@ -2152,6 +2152,11 @@ export interface components {
             pieces: components["schemas"]["trainmeet.station-model-1.TrackPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.station-model-1.Switch"][];
+            /**
+             * Derailers
+             * @description Spårspärrarna (TKL129): + av, - på.
+             */
+            derailers?: components["schemas"]["trainmeet.station-model-1.Derailer"][];
             /** Levers */
             levers?: components["schemas"]["trainmeet.station-model-1.Lever"][];
             /** Signals */
@@ -2225,6 +2230,48 @@ export interface components {
             owner: components["schemas"]["trainmeet.station-model-1.PartOwner"];
             /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
             towards_part: components["schemas"]["trainmeet.station-model-1.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Derailer
+         * @description Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.
+         *
+         *     It has two positions, as a switch: + is av, so the track is open, and - is på. A route over
+         *     it lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its
+         *     number is its lever's, and it has a lever of its own.
+         */
+        "trainmeet.station-model-1.Derailer": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            /**
+             * Node
+             * @description Noden mellan de två spårbitarna där den ligger.
+             */
+            node: string;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.station-model-1.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * @description Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.station-model-1.Address"] | null;
+            /**
+             * @description Återrapport (nivå 3), som för en växel: + av, - på.
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.station-model-1.SwitchFeedback"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -6207,6 +6254,11 @@ export interface components {
             nodes: components["schemas"]["trainmeet.tkl-1.track-plan.PanelNode"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelSwitch"][];
+            /**
+             * Derailers
+             * @description Spårspärrarna (TKL129).
+             */
+            derailers?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelDerailer"][];
             /** Signals */
             signals?: components["schemas"]["trainmeet.tkl-1.track-plan.PanelSignal"][];
             /** Labels */
@@ -6260,6 +6312,46 @@ export interface components {
             ];
             /** Name */
             name: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * PanelDerailer
+         * @description A derailer (spårspärr, TKL129) at its node on the track, with its number beside it. The
+         *     panel shows it på or av, and yellow when a route has it locked as protection (STV-20).
+         */
+        "trainmeet.tkl-1.track-plan.PanelDerailer": {
+            /** Number */
+            number: string;
+            /** Node */
+            node: string;
+            /** Cell */
+            cell: [
+                number,
+                number
+            ];
+            /**
+             * Real
+             * @default null
+             */
+            real: [
+                number,
+                number
+            ] | null;
+            /**
+             * Label
+             * @description Numret, under spåret.
+             */
+            label: [
+                number,
+                number
+            ];
+            /**
+             * Laid
+             * @description TKL lägger den.
+             * @default true
+             */
+            laid: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -6812,6 +6904,48 @@ export interface components {
             owner: components["schemas"]["trainmeet.tkl-1.drawing.PartOwner"];
             /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
             towards_part: components["schemas"]["trainmeet.tkl-1.drawing.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Derailer
+         * @description Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.
+         *
+         *     It has two positions, as a switch: + is av, so the track is open, and - is på. A route over
+         *     it lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its
+         *     number is its lever's, and it has a lever of its own.
+         */
+        "trainmeet.tkl-1.drawing.Derailer": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            /**
+             * Node
+             * @description Noden mellan de två spårbitarna där den ligger.
+             */
+            node: string;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.drawing.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * @description Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.tkl-1.drawing.Address"] | null;
+            /**
+             * @description Återrapport (nivå 3), som för en växel: + av, - på.
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.tkl-1.drawing.SwitchFeedback"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.drawing.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -7407,6 +7541,11 @@ export interface components {
             pieces: components["schemas"]["trainmeet.tkl-1.drawing.TrackPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.tkl-1.drawing.Switch"][];
+            /**
+             * Derailers
+             * @description Spårspärrarna (TKL129): + av, - på.
+             */
+            derailers?: components["schemas"]["trainmeet.tkl-1.drawing.Derailer"][];
             /** Levers */
             levers?: components["schemas"]["trainmeet.tkl-1.drawing.Lever"][];
             /** Signals */
@@ -7884,6 +8023,48 @@ export interface components {
             owner: components["schemas"]["trainmeet.tkl-1.rita.PartOwner"];
             /** @description Läget mot delens område, som skiljer delen från stationen: dit får den som inte äger växeln alltid lägga den, aldrig ut. */
             towards_part: components["schemas"]["trainmeet.tkl-1.rita.Position"];
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Derailer
+         * @description Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.
+         *
+         *     It has two positions, as a switch: + is av, so the track is open, and - is på. A route over
+         *     it lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its
+         *     number is its lever's, and it has a lever of its own.
+         */
+        "trainmeet.tkl-1.rita.Derailer": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            /**
+             * Node
+             * @description Noden mellan de två spårbitarna där den ligger.
+             */
+            node: string;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.rita.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * @description Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.tkl-1.rita.Address"] | null;
+            /**
+             * @description Återrapport (nivå 3), som för en växel: + av, - på.
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.tkl-1.rita.SwitchFeedback"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.rita.Origin"] | null;
         } & {
             [key: string]: unknown;
         };
@@ -8484,6 +8665,11 @@ export interface components {
             pieces: components["schemas"]["trainmeet.tkl-1.rita.TrackPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.tkl-1.rita.Switch"][];
+            /**
+             * Derailers
+             * @description Spårspärrarna (TKL129): + av, - på.
+             */
+            derailers?: components["schemas"]["trainmeet.tkl-1.rita.Derailer"][];
             /** Levers */
             levers?: components["schemas"]["trainmeet.tkl-1.rita.Lever"][];
             /** Signals */
@@ -9972,6 +10158,48 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * Derailer
+         * @description Spårspärr (TKL129): it lies at a node between two pieces and derails what comes.
+         *
+         *     It has two positions, as a switch: + is av, so the track is open, and - is på. A route over
+         *     it lays it av; a route it protects lays it på, as flank protection (sidoskydd, STV-20). Its
+         *     number is its lever's, and it has a lever of its own.
+         */
+        "trainmeet.tkl-1.cad-import.Derailer": {
+            /**
+             * Number
+             * @description Ägarens nummer, som det står (STD-17).
+             */
+            number: string;
+            /**
+             * Node
+             * @description Noden mellan de två spårbitarna där den ligger.
+             */
+            node: string;
+            /** @default tkl */
+            control: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchControl"];
+            /**
+             * Note
+             * @description Varför TKL inte lägger den.
+             * @default null
+             */
+            note: string | null;
+            /**
+             * @description Nivå 3. Saknas den är spårspärrens nummer adressen som förval (STUDIO-19).
+             * @default null
+             */
+            address: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | null;
+            /**
+             * @description Återrapport (nivå 3), som för en växel: + av, - på.
+             * @default null
+             */
+            feedback: components["schemas"]["trainmeet.tkl-1.cad-import.SwitchFeedback"] | null;
+            /** @default null */
+            origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * FeedbackType
          * @description Växelns återrapport (STUDIO-24, ur cda-tkl).
          * @enum {string}
@@ -10568,6 +10796,11 @@ export interface components {
             pieces: components["schemas"]["trainmeet.tkl-1.cad-import.TrackPiece"][];
             /** Switches */
             switches?: components["schemas"]["trainmeet.tkl-1.cad-import.Switch"][];
+            /**
+             * Derailers
+             * @description Spårspärrarna (TKL129): + av, - på.
+             */
+            derailers?: components["schemas"]["trainmeet.tkl-1.cad-import.Derailer"][];
             /** Levers */
             levers?: components["schemas"]["trainmeet.tkl-1.cad-import.Lever"][];
             /** Signals */

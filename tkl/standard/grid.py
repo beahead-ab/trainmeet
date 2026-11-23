@@ -12,7 +12,8 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from itertools import pairwise
 
-from contracts.station_model import Cell
+from contracts.station_model import Cell, Point, StationModel, SwitchControl
+from contracts.tkl import PanelDerailer
 
 EPSILON = 1e-6
 
@@ -163,3 +164,21 @@ def describe(hit: Hit, name: Mapping[str, str] | None = None) -> str:
     if hit.kind == "same":
         return f"Spåren {a} och {b} ligger på samma ruta vid {cell_text(hit.at)}."
     return f"Spåren {a} och {b} korsar varandra i ruta {cell_text(hit.at)} utan korsning."
+
+
+def derailers(
+    model: StationModel, cells: Mapping[str, Cell], real: Mapping[str, Point]
+) -> list[PanelDerailer]:
+    """The derailers at their nodes' cells, the number under the track (TKL129)."""
+    return [
+        PanelDerailer(
+            number=d.number,
+            node=d.node,
+            cell=cells[d.node],
+            real=real.get(d.node),
+            label=(cells[d.node][0], round(cells[d.node][1] + 0.45, 4)),
+            laid=d.control == SwitchControl.TKL,
+        )
+        for d in model.derailers
+        if d.node in cells
+    ]

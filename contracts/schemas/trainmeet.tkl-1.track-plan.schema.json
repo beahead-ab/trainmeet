@@ -106,6 +106,14 @@
           "title": "Switches",
           "type": "array"
         },
+        "derailers": {
+          "description": "Spårspärrarna (TKL129).",
+          "items": {
+            "$ref": "#/$defs/PanelDerailer"
+          },
+          "title": "Derailers",
+          "type": "array"
+        },
         "signals": {
           "items": {
             "$ref": "#/$defs/PanelSignal"
@@ -261,6 +269,89 @@
         "name"
       ],
       "title": "PanelBuilding",
+      "type": "object"
+    },
+    "PanelDerailer": {
+      "additionalProperties": true,
+      "description": "A derailer (spårspärr, TKL129) at its node on the track, with its number beside it. The\npanel shows it på or av, and yellow when a route has it locked as protection (STV-20).",
+      "properties": {
+        "number": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Number",
+          "type": "string"
+        },
+        "node": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Node",
+          "type": "string"
+        },
+        "cell": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Cell",
+          "type": "array"
+        },
+        "real": {
+          "anyOf": [
+            {
+              "maxItems": 2,
+              "minItems": 2,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Real"
+        },
+        "label": {
+          "description": "Numret, under spåret.",
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Label",
+          "type": "array"
+        },
+        "laid": {
+          "default": true,
+          "description": "TKL lägger den.",
+          "title": "Laid",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "number",
+        "node",
+        "cell",
+        "label"
+      ],
+      "title": "PanelDerailer",
       "type": "object"
     },
     "PanelField": {
