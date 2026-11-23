@@ -60,6 +60,26 @@ export function fromKnot(cells: Cell[], knot: Cell, length: number): Cell[] {
   return slice(way, 0, Math.min(length, lengthOf(way) * 0.5));
 }
 
+/** The slips: a single and a double slip have bows and a gap in the legs outside their way. */
+const SLIPS = new Set<string>(["single_slip", "double_slip"]);
+
+/** Two legs from a knot that go on in a line: a way straight through a slip, not a bow. */
+function opposite(knot: Cell, legs: [Cell[], Cell[]]): boolean {
+  const way = (leg: Cell[]): Cell => {
+    const end = leg[leg.length - 1] as Cell;
+    const n = distance(end, knot) || 1;
+    return [(end[0] - knot[0]) / n, (end[1] - knot[1]) / n];
+  };
+  const [a, b] = [way(legs[0]), way(legs[1])];
+  return a[0] * b[0] + a[1] * b[1] < -0.95;
+}
+
+/** The state that shows when a way's pieces differ: occupied before a route, a route before free. */
+const STRENGTH: TrackState[] = ["occupied", "train", "shunting", "local", "programming", "out_of_service"];
+function strongest(states: TrackState[]): TrackState {
+  return STRENGTH.find((s) => states.includes(s)) ?? "free";
+}
+
 /** Where a train number stands over a piece: mid on it, above the track (as the reference
  * interlockings' train number fields). */
 function above(cells: Cell[], lift: number): Cell {
@@ -124,7 +144,13 @@ export type DrawnSwitch = {
   trunk: Cell[] | null;
   /** The pieces in the leg it does not lie in, for model 59's dark lens. */
   other: Cell[] | null;
+  /** A slip's bows (STV-22): one for a single slip and two for a double. */
+  bows: DrawnBow[];
 };
+/** A way through a slip that turns, drawn as in TDOK 2014:0693 7.16–7.17: a short stroke by the
+ * knot, parallel to the straight leg. Its two legs from the knot, and the way's state while the
+ * slip lies in it; free otherwise. */
+export type DrawnBow = { legs: [Cell[], Cell[]]; state: TrackState };
 export type Aspect = "stop" | "proceed" | "shunt" | "local";
 export type DrawnSignal = {
   name: string;
@@ -225,6 +251,7 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
   const offLegs = new Map<string, string>();
   const byPiece = new Map(panel.lines.map((line) => [line.piece, line]));
   const switches: DrawnSwitch[] = [];
+  const slipBows = new Map<string, { legs: [Cell[], Cell[]]; pieces: [string, string] | null }[]>();
   for (const s of panel.switches ?? []) {
     const parts = s.number in state.switches ? [s.number] : s.number.split("/").filter((p) => p in state.switches);
     const shown = parts.length ? state.switches[parts[0] as string] : undefined;
@@ -244,6 +271,30 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
       lies = byPiece.get(position === "+" ? s.straight : s.diverging)?.cells ?? null;
       trunk = byPiece.get(s.trunk)?.cells ?? null;
     }
+    // A slip (TDOK 2014:0693 7.16–7.17, STV-22): the tracks cross, the way it lies in goes through
+    // the knot, and the two legs outside it have a gap there, as a switch's leg does.
+    const slip = SLIPS.has(s.type) ? (s.paths ?? []) : [];
+    const way = slip.find((p) => Object.keys(p.positions ?? {}).length > 0 && Object.entries(p.positions ?? {}).every(([part, at]) => state.switches[part]?.position === at));
+    if (way) {
+      for (const piece of s.pieces ?? []) {
+        const off = byPiece.get(piece);
+        if (!off || way.between.includes(piece)) continue;
+        const atStart = distance(off.cells[0] as Cell, s.cell) <= distance(off.cells[off.cells.length - 1] as Cell, s.cell);
+        const was = cuts.get(off.piece) ?? { start: false, end: false };
+        cuts.set(off.piece, atStart ? { ...was, start: true } : { ...was, end: true });
+        offLegs.set(off.piece, way.between[0]);
+      }
+    }
+    const bows: { legs: [Cell[], Cell[]]; pieces: [string, string] | null }[] = [];
+    for (const p of slip) {
+      const a = byPiece.get(p.between[0])?.cells;
+      const b = byPiece.get(p.between[1])?.cells;
+      if (!a || !b) continue;
+      const legs: [Cell[], Cell[]] = [fromKnot(a, s.cell, 0.5), fromKnot(b, s.cell, 0.5)];
+      if (opposite(s.cell, legs)) continue;
+      bows.push({ legs, pieces: p === way ? p.between : null });
+    }
+    slipBows.set(s.number, bows);
     switches.push({
       number: s.number,
       parts,
@@ -257,6 +308,7 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
       lies,
       trunk,
       other,
+      bows: [],
     });
   }
   const outside = new Map(state.exits.flatMap((exit) => (exit.pieces ?? []).map((piece) => [piece, exit.exit] as const)));
@@ -269,6 +321,11 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
     if (found === "occupied" && trunk !== undefined && state.pieces[trunk]?.state === "occupied") found = "free";
     return { piece: line.piece, cells: line.cells, state: found, route: exit === undefined ? (shown?.route ?? null) : null, line: exit !== undefined, cut: cuts.get(line.piece) ?? { start: false, end: false } };
   });
+  // The bow the slip lies in takes its way's state, the strongest of its two pieces'.
+  const lineState = new Map(drawnLines.map((l) => [l.piece, l.state]));
+  for (const sw of switches) {
+    sw.bows = (slipBows.get(sw.number) ?? []).map((b) => ({ legs: b.legs, state: b.pieces ? strongest(b.pieces.map((p) => lineState.get(p) ?? "free")) : "free" }));
+  }
   const routeEnds = new Set(state.routes.map((r) => r.end));
   const folded = new Set(state.routes.flatMap((r) => [r.start, r.end]));
   const signals: DrawnSignal[] = (panel.signals ?? []).map((s) => {

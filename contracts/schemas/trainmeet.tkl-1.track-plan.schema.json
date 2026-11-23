@@ -824,6 +824,14 @@
           "title": "Pieces",
           "type": "array"
         },
+        "paths": {
+          "description": "Vägarna genom korsningsväxeln, med delarnas lägen (STV-22).",
+          "items": {
+            "$ref": "#/$defs/SwitchPath"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
         "label": {
           "description": "Växelnumret, vid knuten.",
           "maxItems": 2,
@@ -1033,6 +1041,47 @@
       ],
       "title": "SignalType",
       "type": "string"
+    },
+    "SwitchPath": {
+      "additionalProperties": true,
+      "description": "A way through a slip or a crossing: two of its pieces, and the positions it needs.",
+      "properties": {
+        "between": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "maxLength": 80,
+              "minLength": 1,
+              "type": "string"
+            }
+          ],
+          "title": "Between",
+          "type": "array"
+        },
+        "positions": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Position"
+          },
+          "description": "Delarnas lägen. Tomt för en korsning utan växel.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Positions",
+          "type": "object"
+        }
+      },
+      "required": [
+        "between"
+      ],
+      "title": "SwitchPath",
+      "type": "object"
     },
     "SwitchType": {
       "description": "Växeltyp (RS1).",

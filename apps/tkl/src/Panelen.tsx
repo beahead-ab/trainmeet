@@ -125,6 +125,24 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
     const [x, y] = px(s.symbol);
     return [(x + (tx * skin.beside.along + nx * skin.beside.label) * u) / dx, (y + (ty * skin.beside.along + ny * skin.beside.label) * u) / dy];
   };
+  /** A slip's bow: a short stroke beside the straight leg, on the side the other leg turns to. */
+  const bowOf = (knot: Cell, legs: [Cell[], Cell[]]): Cell[] => {
+    const [cx, cy] = px(knot);
+    const from = (leg: Cell[]) => {
+      const [x, y] = px(leg[leg.length - 1] as Cell);
+      return unit([x - cx, y - cy]);
+    };
+    const [a, b] = [from(legs[0]), from(legs[1])];
+    const [h, d] = Math.abs(a[1]) <= Math.abs(b[1]) ? [a, b] : [b, a];
+    const along = d[0] * h[0] + d[1] * h[1];
+    const n = unit([d[0] - along * h[0], d[1] - along * h[1]]);
+    const w = skin.stateWidth * u;
+    const m: Cell = [cx + h[0] * 2.1 * w + n[0] * 1.5 * w, cy + h[1] * 2.1 * w + n[1] * 1.5 * w];
+    return [
+      [(m[0] - h[0] * 1.2 * w) / dx, (m[1] - h[1] * 1.2 * w) / dy],
+      [(m[0] + h[0] * 1.2 * w) / dx, (m[1] + h[1] * 1.2 * w) / dy],
+    ];
+  };
   const trackWidth = (state: string) => (state === "free" || state === "out_of_service" ? skin.width : skin.stateWidth) * u;
   const toggle = (where: Cell, toward: Cell | null, key: string): ReactNode => {
     // Model 59's toggle switch: a short light lever in a light metal ring (SJH s. 152, 157),
@@ -187,6 +205,24 @@ export function Panelen({ panel, drawn, skin, say, title, choice = null, chosen 
             />
           ))}
         </g>
+        {!lamps ? (
+          <g className="bagar" fill="none" pointerEvents="none">
+            {/* Korsningsväxelns bågar, ett kort streck vid knuten parallellt med det raka benet (TDOK 2014:0693 7.16–7.17, STV-22). */}
+            {drawn.switches.flatMap((s) =>
+              s.bows.map((b, i) => (
+                <polyline
+                  key={`b${s.number}${i}`}
+                  data-bow={s.number}
+                  data-state={b.state}
+                  opacity={switchOutside(s.parts) ? GREY : undefined}
+                  points={line(bowOf(s.cell, b.legs))}
+                  stroke={skin.tracks[b.state]}
+                  strokeWidth={round(0.6 * skin.stateWidth * u)}
+                />
+              )),
+            )}
+          </g>
+        ) : null}
         {lamps && p59 ? (
           <g className="lampor">
             {/* Avbrott i spårlinjen där två spårledningar möts, 5 enheter (SJH s. 152). */}

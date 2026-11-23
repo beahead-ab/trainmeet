@@ -476,6 +476,7 @@ class _Builder:
                     pieces=[p for p in graph.touching.get(switch.node, []) if p in graph.pieces]
                     if switch.type in SLIP_TYPES
                     else [],
+                    paths=switch.paths if switch.type in SLIP_TYPES else [],
                     label=(at[0], round(at[1] - 0.25, 4)),
                     laid=graph.laid_by_tkl(switch),
                 )
