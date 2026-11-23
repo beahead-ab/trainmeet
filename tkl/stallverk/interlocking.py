@@ -59,7 +59,9 @@ releases do.
 
 Two Förslag wait for Benny's answer (trainmeet #62) and have a seam each: the signals a route
 passes (STV-19, `passed_showing`) and where the green number stands (STV-21, `green_numbers`).
-Flank protection (STV-20) has its seam in plant.protection_holds.
+Flank protection (STV-20, trainmeet #37) is the engine's (tkl.standard.flank): the nearest
+switch on each joining track is in the route's positions, laid away from it, locked before the
+signal clears and held by the sections at the node it protects.
 
 Level 3 with LocoNet (#85, STV-11, STV-15–STV-17). The service (tkl.loconet.service) connects
 the field with `field_connect`, passes the layout's reports to `field_reports` and the time to

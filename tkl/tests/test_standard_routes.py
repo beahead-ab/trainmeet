@@ -11,6 +11,7 @@ from typing import Literal
 from contracts.station_model import (
     Lever,
     NodeType,
+    Position,
     SignalType,
     SlipPart,
     StationModel,
@@ -43,6 +44,11 @@ STOP_LAMP = SignalType.STOP_LAMP
 
 def routes(model: StationModel) -> dict[tuple[RouteKind, str, str], Route]:
     return {r.key: r for r in derive(model)}
+
+
+def laid(route: Route) -> dict[str, Position]:
+    """What the route's own switches and their levers lay, without its flank protection."""
+    return {p: v for p, v in route.positions.items() if p not in route.flank}
 
 
 def pairs(model: StationModel, kind: RouteKind) -> set[tuple[str, str]]:
@@ -189,7 +195,7 @@ def test_a_switch_drags_another_along_in_one_position_only() -> None:
     found = routes(crossover(levers))
     assert found[(TRAIN, "A1", "C")].positions == {"1": MINUS, "2": MINUS}
     assert found[(TRAIN, "A1", "C")].levers == {"1": MINUS, "2": MINUS}
-    assert found[(TRAIN, "A1", "A")].positions == {"1": PLUS}, "1 straight drags nothing"
+    assert laid(found[(TRAIN, "A1", "A")]) == {"1": PLUS}, "1 straight drags nothing"
     assert found[(TRAIN, "C1", "C")].positions == {"2": PLUS, "1": PLUS}
 
 
@@ -198,8 +204,8 @@ def test_a_drag_that_meets_the_route_s_own_switch_rejects_the_route() -> None:
     levers = [Lever(id="1", plus={"1": PLUS}, minus={"1": MINUS, "2": PLUS})]
     found = routes(crossover(levers))
     assert (TRAIN, "A1", "C") not in found
-    assert found[(TRAIN, "A1", "A")].positions == {"1": PLUS}
-    assert found[(TRAIN, "C1", "C")].positions == {"2": PLUS}
+    assert laid(found[(TRAIN, "A1", "A")]) == {"1": PLUS}
+    assert laid(found[(TRAIN, "C1", "C")]) == {"2": PLUS}
 
 
 def test_a_lever_with_three_parts_lays_them_all() -> None:

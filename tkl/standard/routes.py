@@ -29,6 +29,7 @@ from dataclasses import dataclass, field, replace
 
 from contracts.station_model import NodeType, Position, Signal, SignalType, StationModel
 from tkl.standard.conflicts import conflict, detectors
+from tkl.standard.flank import flank
 from tkl.standard.graph import Graph, Move, Step
 from tkl.standard.levers import Levers
 from tkl.standard.route import PointKind, Route, RouteKind, RoutePoint
@@ -225,6 +226,19 @@ class Engine:
         if laid is None:
             return None
         graph = self.graph
+        protection = flank(graph, self.levers, walk.steps, walk.switches)
+        flanked: dict[str, str] = {}
+        if protection:
+            wanted = {**walk.switches, **{p: v for p, (v, _) in protection.items()}}
+            with_flank = self.levers.lay(wanted)
+            if with_flank is None:  # pragma: no cover - flank() only takes what can be laid
+                return None
+            for part, (position, node) in sorted(protection.items()):
+                alone = self.levers.lay({part: position})
+                for other in alone.positions if alone is not None else {part: position}:
+                    if other not in laid.positions:
+                        flanked.setdefault(other, node)
+            laid = with_flank
         circuits: list[str] = []
         for step in walk.steps:
             circuit = graph.circuit_of.get(step.piece)
@@ -248,6 +262,7 @@ class Engine:
             turntable=walk.turntable,
             length=round(sum(graph.length(s) for s in walk.steps), 1),
             diverging=sum(1 for p in walk.switches.values() if p == Position.MINUS),
+            flank=flanked,
         )
 
 
