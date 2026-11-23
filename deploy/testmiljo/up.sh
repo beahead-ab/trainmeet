@@ -81,7 +81,7 @@ until docker compose exec -T catalog-db pg_isready -U catalog -d catalog >/dev/n
   sleep 1
 done
 sh ./catalog-backup.sh fore-migrering
-docker compose run --rm --no-deps catalog python -m catalog.migrate
+docker compose run --rm --no-deps -T catalog python -m catalog.migrate < /dev/null
 
 # CAD (#89), as Catalog: the database first, then the backup, then the migrations.
 docker compose up -d cad-db
@@ -96,7 +96,7 @@ until docker compose exec -T cad-db pg_isready -U cad -d cad >/dev/null 2>&1; do
   sleep 1
 done
 sh ./cad-backup.sh fore-migrering
-docker compose run --rm --no-deps cad python -m cad.migrate
+docker compose run --rm --no-deps -T cad python -m cad.migrate < /dev/null
 
 # ID's API has a database of its own, idapi, beside Keycloak's in ID's PostgreSQL (#67).
 docker compose up -d id-db

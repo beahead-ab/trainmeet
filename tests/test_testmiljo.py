@@ -127,9 +127,7 @@ def test_a_pretend_pi_follows_the_test_hub() -> None:
     assert "- pi-data:/data" in pi and "127.0.0.1:8084:8080" in pi
     assert "{$PI_DOMAIN}" in caddyfile and "reverse_proxy pi:8080" in caddyfile
     assert 'PI_DOMAIN="${7:-test.pi.trainmeet.app}"' in up and "pi:8084" in up
-    assert (
-        '"$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < deploy/testmiljo/up.sh' in workflow
-    )
+    assert '"$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < /dev/null' in workflow
     hub_image = (ROOT / "hub" / "Dockerfile").read_text()
     assert "mkdir /data && chown hub:hub /data" in hub_image
 
@@ -199,7 +197,7 @@ def test_the_tags_final_address_goes_on_to_catalog_once_its_dns_row_is_there() -
     assert 'TAG_BASE="https://$TAGS_DOMAIN/t/"' in workflow
     assert (
         '"$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" '
-        "< deploy/testmiljo/up.sh" in workflow
+        "< /dev/null" in workflow
     )
     assert "- name: Prova taggarnas adress" in workflow
 
@@ -894,3 +892,23 @@ def test_the_deploy_makes_room_on_the_server_before_it_loads_the_images() -> Non
     load = step.index("'gunzip | docker load'")
     assert room < load
     assert step.index("Disken före") < room < step.index("Disken efter") < load
+
+
+def test_the_deploy_script_runs_as_a_file_with_nothing_on_stdin() -> None:
+    """23 November: up.sh went to the server on stdin to sh -s. The shell read it 8192 bytes at
+    a time, and docker compose run for the migrations read the rest of the script from the same
+    stdin, so the deploy stopped with an unterminated string at line 176. The script goes as a
+    file now, runs with stdin from /dev/null, and no command in it reads the script's stdin."""
+    workflow = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    up = (ROOT / "deploy" / "testmiljo" / "up.sh").read_text()
+    assert "'sh -s'" not in workflow
+    step = workflow.split("- name: Lägg ut hubben, Catalog och ID")[1].split("\n      - name:")[0]
+    copied = step.index('cat deploy/testmiljo/up.sh | $SSH "$TARGET" \'cat > /srv/trainmeet/up.sh')
+    run = step.index("$SSH \"$TARGET\" 'sh /srv/trainmeet/up.sh'")
+    assert copied < run and step[run:].split("\n")[0].endswith("< /dev/null")
+    for line in up.splitlines():
+        command = line.split("#")[0]
+        if "docker compose run" in command or "docker compose exec" in command:
+            assert " -T " in command, line
+        if "docker compose run" in command:
+            assert command.rstrip().endswith("< /dev/null"), line

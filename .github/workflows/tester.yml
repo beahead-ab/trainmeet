@@ -1394,7 +1394,11 @@ jobs:
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
             TAG_BASE="https://$TAGS_DOMAIN/t/"
           fi
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < deploy/testmiljo/up.sh
+          # up.sh as a file on the server, run with nothing on stdin (23 November): fed to sh -s,
+          # the shell read the script 8192 bytes at a time, and docker compose run for the
+          # migrations read the rest of it from the same stdin, so the script stopped at line 176.
+          cat deploy/testmiljo/up.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/up.sh'
+          $SSH "$TARGET" 'sh /srv/trainmeet/up.sh' "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < /dev/null
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'
