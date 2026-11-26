@@ -350,6 +350,19 @@
           },
           "title": "Ordered Signals",
           "type": "object"
+        },
+        "dropping": {
+          "additionalProperties": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "description": "Spårledningar vars givare har släppt men som räknas som belagda tills släpptiden har gått (STUDIO-35): när givaren släppte.",
+          "propertyNames": {
+            "maxLength": 80,
+            "minLength": 1
+          },
+          "title": "Dropping",
+          "type": "object"
         }
       },
       "required": [

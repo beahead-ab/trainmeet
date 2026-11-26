@@ -283,6 +283,19 @@
           ],
           "default": null
         },
+        "drop_delay": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Spårledningens släpptid i sekunder (STUDIO-35).",
+          "title": "Drop Delay"
+        },
         "card": {
           "anyOf": [
             {

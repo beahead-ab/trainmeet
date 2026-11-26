@@ -7,6 +7,7 @@ draft (freeze); Synk keeps the versions, frozen, with their checksums (SYNK-08, 
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 import sqlite3
 import unicodedata
@@ -21,7 +22,9 @@ from contracts.common import Id, Language
 from contracts.drift import DriftChange, ProposalStatus
 from contracts.meet import (
     About,
+    Attachment,
     AttachmentKind,
+    Clock,
     CoupledStation,
     Meet,
     MeetPackage,
@@ -42,6 +45,8 @@ from contracts.planning import (
     Certainty,
     Change,
     Check,
+    ClockChange,
+    ClockStamp,
     ConfirmChange,
     DoubleTrackAnswer,
     Draft,
@@ -71,6 +76,7 @@ from contracts.planning import (
 from contracts.reasons import TEXT_SV
 from contracts.station_outside import StationOutside
 from core import changes as driftchanges
+from core.clock_pack import MAX_FACES
 from core.sqlite import connect, prepare, reading
 from planering import assembly, compare
 from planering.check import review
@@ -107,6 +113,12 @@ CREATE TABLE IF NOT EXISTS attachment_file (
 );
 CREATE TABLE IF NOT EXISTS pending_assembly (
     meet_id TEXT PRIMARY KEY REFERENCES meet(id) ON DELETE CASCADE, layout TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS clock_right (
+    meet_id TEXT NOT NULL REFERENCES meet(id) ON DELETE CASCADE,
+    face_id TEXT NOT NULL, name TEXT NOT NULL, filename TEXT NOT NULL,
+    actor TEXT NOT NULL, at TEXT NOT NULL, warnings TEXT NOT NULL,
+    PRIMARY KEY (meet_id, face_id)
 );
 """
 
@@ -516,7 +528,9 @@ class Planning:
             kept = list(draft.changes)
             for change in changes:
                 kind, target = _target(change)
-                if isinstance(change, RemoteAreaChange):
+                if isinstance(change, ClockChange):
+                    _check_clock(change)
+                elif isinstance(change, RemoteAreaChange):
                     _check_area(draft.package, change)
                 elif target not in known[kind]:
                     raise PlanningError("Det finns inte i utkastet.")
@@ -535,6 +549,9 @@ class Planning:
             answers = {q.id: q.answer for q in draft.questions if q.answer is not None}
             draft = _replay(draft.model_copy(update={"changes": kept}), answers)
             assert draft.package is not None
+            faces = [a for a in draft.package.attachments if a.kind == AttachmentKind.CLOCK_FACE]
+            if len(faces) > MAX_FACES:
+                raise PlanningError("Träffen har redan 20 urtavlor. Ta bort några först.")
             touched = {_train_of(draft.package, c) for c in changes} - {None}
             for train in draft.package.trains:
                 if train.id in touched and not driftchanges.in_order(train.calls):
@@ -739,6 +756,57 @@ class Planning:
             )
         return digest
 
+    def remember_clock(
+        self, meet_id: str, face: str, name: str, filename: str, actor: str, warnings: list[str]
+    ) -> None:
+        """Intyget om rätten att använda tavlan: vem och när, utan personens namn."""
+        stamp = ClockStamp(
+            id=face,
+            name=name,
+            filename=filename,
+            at=datetime.now(UTC),
+            by=actor,
+            warnings=warnings,
+        )
+        with self._transaction() as db:
+            self._draft(db, meet_id)
+            db.execute(
+                "INSERT OR REPLACE INTO clock_right VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    meet_id,
+                    face,
+                    stamp.name,
+                    stamp.filename,
+                    stamp.by,
+                    stamp.at.isoformat(),
+                    json.dumps(stamp.warnings),
+                ),
+            )
+
+    def forget_clock(self, meet_id: str, face: str) -> None:
+        with self._transaction() as db:
+            db.execute("DELETE FROM clock_right WHERE meet_id=? AND face_id=?", (meet_id, face))
+
+    def clock_stamps(self, meet_id: str) -> list[ClockStamp]:
+        with self._reading() as db:
+            self._draft(db, meet_id)
+            rows = db.execute(
+                "SELECT face_id, name, filename, actor, at, warnings FROM clock_right "
+                "WHERE meet_id=? ORDER BY face_id",
+                (meet_id,),
+            ).fetchall()
+        return [
+            ClockStamp(
+                id=row[0],
+                name=row[1],
+                filename=row[2],
+                by=row[3],
+                at=datetime.fromisoformat(row[4]),
+                warnings=json.loads(row[5]),
+            )
+            for row in rows
+        ]
+
     def file(self, digest: str) -> tuple[str, bytes] | None:
         """The file with the checksum, as kept: its media type and its bytes."""
         with self._reading() as db:
@@ -785,6 +853,10 @@ def _summary(draft: Draft) -> str:
 
 def _target(change: Change) -> tuple[str, Id]:
     """Which field of which thing a change sets."""
+    if isinstance(change, ClockChange):
+        if change.clock == "style":
+            return "clock-style", "style"
+        return "clock", change.face or ""
     if isinstance(change, PlaceChange):
         return "place", change.place
     if isinstance(change, SectionTracksChange):
@@ -827,6 +899,54 @@ def _things(package: MeetPackage) -> dict[str, set[Id]]:
     kinds.update({f"train.{field}": trains for field in ("number", "note", "days")})
     kinds["instructions"] = {"pdf", *(f"text:{language.value}" for language in Language)}
     return kinds
+
+
+def _check_clock(change: ClockChange) -> None:
+    """A clock change names a pack, or a style analog or custom:<id>."""
+    if change.clock == "add":
+        attachment = change.attachment
+        if (
+            change.face is None
+            or attachment is None
+            or attachment.id != change.face
+            or attachment.kind != AttachmentKind.CLOCK_FACE
+            or attachment.media_type != "application/zip"
+        ):
+            raise PlanningError("Urtavlan ska vara ett klockpaket.")
+    elif change.clock == "style":
+        style = change.style or ""
+        if style != "analog" and not style.startswith("custom:"):
+            raise PlanningError("Klockans stil ska vara analog eller en egen urtavla.")
+    elif change.face is None:
+        raise PlanningError("Urtavlan saknas.")
+
+
+def _apply_clock(
+    package: MeetPackage, attachments: list[Attachment], changes: list[Change]
+) -> tuple[list[Attachment], Clock]:
+    """The clock packs come only from the planner's changes, replayed in order. A style that
+    points at a face that is gone falls back to the built-in analog clock."""
+    others = [a for a in attachments if a.kind != AttachmentKind.CLOCK_FACE]
+    faces: dict[str, Attachment] = {}
+    style = "analog"
+    for change in changes:
+        if not isinstance(change, ClockChange):
+            continue
+        if change.clock == "add" and change.face and change.attachment is not None:
+            faces[change.face] = change.attachment
+        elif change.clock == "remove" and change.face:
+            faces.pop(change.face, None)
+            if style == f"custom:{change.face}":
+                style = "analog"
+        elif change.clock == "style" and change.style:
+            style = change.style
+    if style.startswith("custom:") and style.removeprefix("custom:") not in faces:
+        style = "analog"
+    styles = [style]
+    if "digital" in package.clock.styles and style != "digital":
+        styles.append("digital")
+    clock = package.clock.model_copy(update={"styles": styles, "faces": list(faces)})
+    return others + list(faces.values()), clock
 
 
 def _check_value(package: MeetPackage, change: Change) -> None:
@@ -1138,6 +1258,7 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
             display = display.model_copy(update={"reference_layout": laid.layout})
         if laid.attachment is not None:
             attachments.append(laid.attachment)
+    attachments, clock = _apply_clock(package, attachments, list(draft.changes))
     return draft.model_copy(
         update={
             "package": package.model_copy(
@@ -1147,6 +1268,7 @@ def _replay(draft: Draft, answers: Mapping[str, str]) -> Draft:
                     "trains": list(trains.values()),
                     "about": about,
                     "attachments": attachments,
+                    "clock": clock,
                     "remote_areas": areas,
                     "display": display,
                 }

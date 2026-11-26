@@ -74,7 +74,9 @@ the field with `field_connect`, passes the layout's reports to `field_reports` a
 - the signals' aspects are ordered as they change, and all stop when LocoNet connects;
 - sensor reports set the track circuits' occupancy, and the train number follows it (STV-15):
   the front moves into the next section of its route, and a section behind it is released when
-  its circuit becomes free (sectional release, after the train);
+  its circuit becomes free (sectional release, after the train). A circuit with a släpptid
+  (STUDIO-35, #274), for an IR sensor that is free between the wagons, becomes free only when
+  its sensor has been free that long; active again before then, the time starts over;
 - arrival is the entry route released after passage (STV-16): the train is in the route's last
   section, every section behind it is released and the one it came from is free. A train route
   then reports the arrival with its track. A route out to the line is departed when the train
@@ -392,6 +394,9 @@ class _Field:
     signals: dict[str, TklAspect | None] = field(default_factory=dict)
     ordered_switches: dict[str, Position | None] = field(default_factory=dict)
     ordered_signals: dict[str, TklAspect] = field(default_factory=dict)
+    dropping: dict[str, datetime] = field(default_factory=dict)
+    """Circuits whose sensor went free, still occupied until their släpptid has gone
+    (STUDIO-35): when the sensor went free."""
 
     def shown(self) -> TklField:
         return TklField(
@@ -402,6 +407,7 @@ class _Field:
             signals=dict(self.signals),
             ordered_switches=dict(self.ordered_switches),
             ordered_signals=dict(self.ordered_signals),
+            dropping=dict(self.dropping),
         )
 
 
@@ -2509,12 +2515,24 @@ class Interlocking:
         return Outcome(True, " ".join(said), None, (*up, *self._exit_reports(before)))
 
     def field_tick(self) -> Outcome:
-        """The time: a route whose switches have not all reported within the time is held."""
+        """The time: a route whose switches have not all reported within the time is held, and
+        a circuit whose sensor has been free for its släpptid is free (STUDIO-35)."""
         if self.field is None or self.problem is not None:
             return Outcome(True, "")
         now = self.now()
         before = self.exit_aspects()
-        said = []
+        said: list[str] = []
+        up: list[TklReport] = []
+        due = [
+            name
+            for name, since in self.field.dropping.items()
+            if (now - since).total_seconds() >= self.plant.sections[name].drop
+        ]
+        for name in due:
+            del self.field.dropping[name]
+            _, lines, sent = self._section_reported(name, False, waited=True)
+            said += lines
+            up += sent
         for route in self.routes:
             since = route.waiting_since
             if not route.waiting or since is None or route.held:
@@ -2526,12 +2544,12 @@ class Interlocking:
             said.append(
                 f"Vägen {route.name} står i stopp: {route.held}. Lägg den på nytt eller lös ut den."
             )
-        if not said:
+        if not said and not due:
             return Outcome(True, "")
         self.revision += 1
         for line in said:
             self._log(line)
-        return Outcome(True, " ".join(said), None, self._exit_reports(before))
+        return Outcome(True, " ".join(said), None, (*up, *self._exit_reports(before)))
 
     def _switch_reported(self, part: str, position: Position | None) -> tuple[bool, list[str]]:
         assert self.field is not None
@@ -2571,13 +2589,25 @@ class Interlocking:
         return True, []
 
     def _section_reported(
-        self, section: str, occupied: bool
+        self, section: str, occupied: bool, *, waited: bool = False
     ) -> tuple[bool, list[str], list[TklReport]]:
-        """A circuit's occupancy: the train number follows it (STV-15)."""
+        """A circuit's occupancy: the train number follows it (STV-15).
+
+        A circuit with a släpptid (STUDIO-35) stays occupied when its sensor goes free, until
+        field_tick has seen it free that long (`waited`); its sensor active again in the
+        meantime starts the time over."""
         field_ = self.field
         assert field_ is not None
-        if section not in field_.sections or field_.sections[section] == occupied:
+        if section not in field_.sections:
             return False, [], []
+        if occupied and field_.dropping.pop(section, None) is not None:
+            return True, [], []
+        if field_.sections[section] == occupied:
+            return False, [], []
+        drop = self.plant.sections[section].drop
+        if not occupied and field_.sections[section] and not waited and drop > 0:
+            field_.dropping[section] = self.now()
+            return True, [], []
         field_.sections[section] = occupied
         up: list[TklReport] = []
         line = self.plant.exit_of_section(section)
@@ -3263,6 +3293,11 @@ class Interlocking:
                 signals={n: a for n, a in kept.signals.items() if n in plant.signals},
                 ordered_switches=dict(kept.ordered_switches),
                 ordered_signals=dict(kept.ordered_signals),
+                dropping={
+                    n: t
+                    for n, t in kept.dropping.items()
+                    if n in plant.sections and plant.sections[n].drop > 0 and kept.sections.get(n)
+                },
             )
 
     def _stale(self, saved: TklInterlocking) -> None:

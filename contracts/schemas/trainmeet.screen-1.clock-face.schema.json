@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.screen-1.clock-face.schema.json",
+  "title": "trainmeet.screen-1.clock-face",
+  "$defs": {
+    "ClockMotion": {
+      "additionalProperties": true,
+      "description": "Hur visarna går, ur klockpaketets clock.json.",
+      "properties": {
+        "hour": {
+          "default": "smooth",
+          "enum": [
+            "smooth",
+            "minute"
+          ],
+          "title": "Hour",
+          "type": "string"
+        },
+        "minute": {
+          "default": "smooth",
+          "enum": [
+            "smooth",
+            "jump"
+          ],
+          "title": "Minute",
+          "type": "string"
+        },
+        "minute_bounce": {
+          "default": false,
+          "title": "Minute Bounce",
+          "type": "boolean"
+        },
+        "second": {
+          "default": "smooth",
+          "enum": [
+            "smooth",
+            "tick",
+            "sweep"
+          ],
+          "title": "Second",
+          "type": "string"
+        },
+        "sweep_seconds": {
+          "default": 60,
+          "maximum": 60,
+          "minimum": 30,
+          "title": "Sweep Seconds",
+          "type": "number"
+        }
+      },
+      "title": "ClockMotion",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Vad den analoga klockskärmen ritar (H74, H75). analog är den inbyggda tavlan.\ncustom:<id> är träffens klockpaket. Lagren hämtas på /api/screen/clock/{id}/{lager}.",
+  "properties": {
+    "style": {
+      "description": "analog eller custom:<urtavlans id>.",
+      "title": "Style",
+      "type": "string"
+    },
+    "id": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Id"
+    },
+    "name": {
+      "anyOf": [
+        {
+          "maxLength": 500,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Name"
+    },
+    "sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Sha256"
+    },
+    "motion": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ClockMotion"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "layers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "dark": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Dark",
+      "type": "array"
+    }
+  },
+  "required": [
+    "style"
+  ],
+  "type": "object"
+}

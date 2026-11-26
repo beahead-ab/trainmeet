@@ -28,6 +28,7 @@ export function planningTabs(now: Now | null, viewed?: string | null): [string, 
     ["Graf", `${meet}/graf`],
     ["Versioner", `${meet}/versioner`],
     ["Förarna", `${meet}/forarna`],
+    ["Klockan", `${meet}/klockan`],
   ];
 }
 

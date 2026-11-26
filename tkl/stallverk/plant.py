@@ -106,6 +106,9 @@ class Section:
     circuit: bool
     detector: str
     """Two track circuits on the same detector are one for locking (conflicts.detectors)."""
+    drop: float = 0.0
+    """The circuit's släpptid in seconds (STUDIO-35): occupied until its sensor has been free
+    that long. 0 for a circuit without a sensor."""
 
     @property
     def said(self) -> str:
@@ -285,7 +288,8 @@ class Plant:
             )
             if circuit.name in self.sections:
                 continue
-            self.sections[circuit.name] = Section(circuit.name, own, True, detector)
+            drop = circuit.drop_delay if isinstance(circuit.detection, Address) else 0.0
+            self.sections[circuit.name] = Section(circuit.name, own, True, detector, drop)
             for piece in own:
                 self.section_of.setdefault(piece, circuit.name)
         rest = [p.id for p in self.model.pieces if p.id not in self.section_of]

@@ -83,6 +83,8 @@ class Wired:
     note: str | None = None
     derailer: bool = False
     """A derailer (spårspärr, TKL129): driven and reported as a switch, + av and - på."""
+    drop_delay: float = 0.0
+    """A track circuit's släpptid in seconds (STUDIO-35)."""
 
     @property
     def reversed(self) -> bool:
@@ -229,6 +231,7 @@ def objects(model: StationModel) -> list[Wired]:
                 False,
                 state_of(address, without),
                 note="Utan givare." if without else None,
+                drop_delay=circuit.drop_delay,
             )
         )
     return found
@@ -257,9 +260,11 @@ def changed(
     address: Address | str | Keep | None = KEEP,
     feedback: SwitchFeedback | Keep | None = KEEP,
     control: SwitchControl | Keep = KEEP,
+    drop_delay: float | Keep = KEEP,
 ) -> StationModel:
-    """The model with one object's address, feedback or control changed. An address of
-    "without" is Utan adress, for a signal or a track circuit. KeyError for an unknown name."""
+    """The model with one object's address, feedback or control changed, or a track circuit's
+    släpptid (STUDIO-35). An address of "without" is Utan adress, for a signal or a track
+    circuit. KeyError for an unknown name."""
     if kind == ObjectKind.SWITCH:
         switches = list(model.switches)
         for i, switch in enumerate(switches):
@@ -309,8 +314,12 @@ def changed(
     circuits = list(model.track_circuits)
     for i, circuit in enumerate(circuits):
         if circuit.name == name:
+            update = {}
             if not isinstance(address, Keep):
-                circuits[i] = circuit.model_copy(update={"detection": address})
+                update["detection"] = address
+            if not isinstance(drop_delay, Keep):
+                update["drop_delay"] = drop_delay
+            circuits[i] = circuit.model_copy(update=update)
             return model.model_copy(update={"track_circuits": circuits})
     raise KeyError(name)
 

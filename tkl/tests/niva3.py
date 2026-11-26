@@ -53,6 +53,13 @@ def level_3(
     return model.model_copy(update={"level": 3})
 
 
+def with_drop_delay(model: StationModel, seconds: float) -> StationModel:
+    """Every track circuit with a släpptid (STUDIO-35), as for IR sensors."""
+    for circuit in model.track_circuits:
+        model = changed(model, ObjectKind.TRACK_CIRCUIT, circuit.name, drop_delay=seconds)
+    return model
+
+
 class Rig:
     """The interlocking, the bus, the link and the pretend LocoNet, with one clock."""
 

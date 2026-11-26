@@ -166,6 +166,7 @@ describe("the addresses", () => {
     expect(routeOf("/planering/varnamo/bana")).toEqual({ page: "bana", meet: "varnamo" });
     expect(routeOf("/planering/varnamo/graf")).toEqual({ page: "graf", meet: "varnamo" });
     expect(routeOf("/planering/varnamo/versioner")).toEqual({ page: "versioner", meet: "varnamo" });
+    expect(routeOf("/planering/varnamo/klockan")).toEqual({ page: "klockan", meet: "varnamo" });
     expect(isOwn("/planering/")).toBe(true);
     expect(isOwn("/planering/varnamo/bana")).toBe(true);
     expect(isOwn("/drift")).toBe(false);

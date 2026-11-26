@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.planning-1.clock-style.schema.json",
+  "title": "trainmeet.planning-1.clock-style",
+  "additionalProperties": true,
+  "description": "Vilken stil den analoga klockskärmen visar.",
+  "properties": {
+    "style": {
+      "description": "analog eller custom:<urtavlans id>.",
+      "maxLength": 48,
+      "title": "Style",
+      "type": "string"
+    }
+  },
+  "required": [
+    "style"
+  ],
+  "type": "object"
+}

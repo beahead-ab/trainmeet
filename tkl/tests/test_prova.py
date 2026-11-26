@@ -34,7 +34,7 @@ from tkl.loconet.simulator import PretendLoconet
 from tkl.provkor import idle
 from tkl.stallverk import plant_of
 from tkl.standard import problems
-from tkl.tests.niva3 import level_3
+from tkl.tests.niva3 import level_3, with_drop_delay
 from tkl.tests.provstation import provby
 
 MODELS = Path(__file__).resolve().parents[2] / "tkl" / "referens"
@@ -155,6 +155,21 @@ def test_a_track_without_a_sensor_passes_with_ankommit_and_a_note() -> None:
         "inte se passagen."
     )
     assert tried[("In", "22")].reason is None
+
+
+def test_a_station_with_slapptider_waits_them_out_on_the_same_clock() -> None:
+    """STUDIO-35 (#274): with a släpptid on every track circuit, as for IR sensors, the
+    pretend train waits it out on the virtual clock after each move, so every route passes as
+    without one, and nothing waits for real."""
+    model = with_drop_delay(level_3(provby()), 10.0)
+    tried = prova.try_all(model)
+    assert len(tried) == len(plant_of(model).preferred())
+    assert [r.reason for r in tried if r.result != PASSED] == []
+    wired = [addressed(reference(s)) for s in STATIONS]
+    wired = [m for m in wired if all(s.circuit for s in plant_of(m).sections.values())]
+    smallest = min(wired, key=lambda m: len(plant_of(m).preferred()))
+    lifted = with_drop_delay(smallest, 5.0)
+    assert [(r.start, r.end, r.reason) for r in prova.try_all(lifted) if r.result != PASSED] == []
 
 
 @pytest.mark.parametrize("station", STATIONS)

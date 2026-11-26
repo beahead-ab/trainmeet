@@ -6016,7 +6016,7 @@
       },
       "trainmeet.station-model-1.TrackCircuit": {
         "additionalProperties": true,
-        "description": "Spårledning.",
+        "description": "Spårledning.\n\nIts släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of\nit, such as an IR sensor, which is free in every gap between the wagons: the circuit counts\nas occupied until its sensor has been free that long. It only keeps a circuit occupied\nlonger, so occupancy still frees nothing by itself (STV-16).",
         "properties": {
           "name": {
             "maxLength": 80,
@@ -6049,6 +6049,14 @@
             "default": null,
             "description": "Givare, eller utan.",
             "title": "Detection"
+          },
+          "drop_delay": {
+            "default": 0,
+            "description": "Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.",
+            "maximum": 60.0,
+            "minimum": 0,
+            "title": "Drop Delay",
+            "type": "number"
           },
           "origin": {
             "anyOf": [
@@ -15610,7 +15618,7 @@
       },
       "trainmeet.tkl-1.drawing.TrackCircuit": {
         "additionalProperties": true,
-        "description": "Spårledning.",
+        "description": "Spårledning.\n\nIts släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of\nit, such as an IR sensor, which is free in every gap between the wagons: the circuit counts\nas occupied until its sensor has been free that long. It only keeps a circuit occupied\nlonger, so occupancy still frees nothing by itself (STV-16).",
         "properties": {
           "name": {
             "maxLength": 80,
@@ -15643,6 +15651,14 @@
             "default": null,
             "description": "Givare, eller utan.",
             "title": "Detection"
+          },
+          "drop_delay": {
+            "default": 0,
+            "description": "Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.",
+            "maximum": 60.0,
+            "minimum": 0,
+            "title": "Drop Delay",
+            "type": "number"
           },
           "origin": {
             "anyOf": [
@@ -18033,7 +18049,7 @@
       },
       "trainmeet.tkl-1.rita.TrackCircuit": {
         "additionalProperties": true,
-        "description": "Spårledning.",
+        "description": "Spårledning.\n\nIts släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of\nit, such as an IR sensor, which is free in every gap between the wagons: the circuit counts\nas occupied until its sensor has been free that long. It only keeps a circuit occupied\nlonger, so occupancy still frees nothing by itself (STV-16).",
         "properties": {
           "name": {
             "maxLength": 80,
@@ -18066,6 +18082,14 @@
             "default": null,
             "description": "Givare, eller utan.",
             "title": "Detection"
+          },
+          "drop_delay": {
+            "default": 0,
+            "description": "Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.",
+            "maximum": 60.0,
+            "minimum": 0,
+            "title": "Drop Delay",
+            "type": "number"
           },
           "origin": {
             "anyOf": [
@@ -22742,7 +22766,7 @@
       },
       "trainmeet.tkl-1.cad-import.TrackCircuit": {
         "additionalProperties": true,
-        "description": "Spårledning.",
+        "description": "Spårledning.\n\nIts släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of\nit, such as an IR sensor, which is free in every gap between the wagons: the circuit counts\nas occupied until its sensor has been free that long. It only keeps a circuit occupied\nlonger, so occupancy still frees nothing by itself (STV-16).",
         "properties": {
           "name": {
             "maxLength": 80,
@@ -22775,6 +22799,14 @@
             "default": null,
             "description": "Givare, eller utan.",
             "title": "Detection"
+          },
+          "drop_delay": {
+            "default": 0,
+            "description": "Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.",
+            "maximum": 60.0,
+            "minimum": 0,
+            "title": "Drop Delay",
+            "type": "number"
           },
           "origin": {
             "anyOf": [
@@ -24699,6 +24731,19 @@
               "minLength": 1
             },
             "title": "Ordered Signals",
+            "type": "object"
+          },
+          "dropping": {
+            "additionalProperties": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "description": "Spårledningar vars givare har släppt men som räknas som belagda tills släpptiden har gått (STUDIO-35): när givaren släppte.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Dropping",
             "type": "object"
           }
         },
@@ -26694,6 +26739,19 @@
               "minLength": 1
             },
             "title": "Ordered Signals",
+            "type": "object"
+          },
+          "dropping": {
+            "additionalProperties": {
+              "format": "date-time",
+              "type": "string"
+            },
+            "description": "Spårledningar vars givare har släppt men som räknas som belagda tills släpptiden har gått (STUDIO-35): när givaren släppte.",
+            "propertyNames": {
+              "maxLength": 80,
+              "minLength": 1
+            },
+            "title": "Dropping",
             "type": "object"
           }
         },
@@ -29786,6 +29844,19 @@
             ],
             "default": null
           },
+          "drop_delay": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårledningens släpptid i sekunder (STUDIO-35).",
+            "title": "Drop Delay"
+          },
           "card": {
             "anyOf": [
               {
@@ -30229,7 +30300,7 @@
       },
       "trainmeet.tkl-1.object-change": {
         "additionalProperties": true,
-        "description": "An object's address as the owner gives it: an address (yellow until it is confirmed on\nthe layout), none (grey), or Utan adress; and the polarity and the switch's feedback.",
+        "description": "An object's address as the owner gives it: an address (yellow until it is confirmed on\nthe layout), none (grey), or Utan adress; and the polarity, the switch's feedback and the\ntrack circuit's släpptid.",
         "properties": {
           "kind": {
             "$ref": "#/components/schemas/trainmeet.tkl-1.object-change.ObjectKind"
@@ -30309,6 +30380,21 @@
             ],
             "default": null,
             "title": "Diverging"
+          },
+          "drop_delay": {
+            "anyOf": [
+              {
+                "maximum": 60.0,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Spårledningens släpptid i sekunder (STUDIO-35). Utan den står den kvar.",
+            "title": "Drop Delay"
           }
         },
         "required": [

@@ -7,6 +7,7 @@ export type ScreenPicture = Schemas["trainmeet.screen-1.picture"];
 export type ScreenLogin = Schemas["trainmeet.screen-1.login"];
 export type ScreenSession = Schemas["trainmeet.screen-1.session"];
 export type Package = Schemas["trainmeet.meet-1"];
+export type ClockFaceShow = Schemas["trainmeet.screen-1.clock-face"];
 
 /** The key lives in sessionStorage and goes as Authorization: Bearer, never in the address. */
 export const STORE = "trainmeet-skarm";
@@ -50,6 +51,26 @@ export async function join(login: ScreenLogin): Promise<{ key: string } | { prob
   const answer = (await response.json().catch(() => ({}))) as Partial<ScreenSession> & { detail?: unknown };
   if (!response.ok || !answer.session_key) return { problem: typeof answer.detail === "string" ? answer.detail : "Det gick inte." };
   return { key: answer.session_key };
+}
+
+/** The analog clock's face: analog, or custom:<id> with the layers named. */
+export async function fetchClock(key: string): Promise<ClockFaceShow | null> {
+  const response = await fetch("/api/screen/clock", { headers: { Authorization: `Bearer ${key}` } }).catch(() => null);
+  if (!response?.ok) return null;
+  return (await response.json()) as ClockFaceShow;
+}
+
+/** One layer of the face, as a data address. An object address is not drawn inside the
+ * clock's own SVG. The key stays in the header. */
+export async function fetchLayer(key: string, id: string, layer: string): Promise<string | null> {
+  const path = `/api/screen/clock/${encodeURIComponent(id)}/${encodeURIComponent(layer)}`;
+  const response = await fetch(path, { headers: { Authorization: `Bearer ${key}` } }).catch(() => null);
+  if (!response?.ok) return null;
+  const type = (response.headers.get("content-type") ?? "image/svg+xml").split(";")[0];
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  let binary = "";
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return `data:${type};base64,${btoa(binary)}`;
 }
 
 /** The package the views draw on, fetched once and again when the picture's key changes. */
