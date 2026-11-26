@@ -1733,7 +1733,6 @@ dev = [
     { name = "scaleway" },
 ]
 id = [
-    { name = "botocore" },
     { name = "httpx" },
     { name = "psycopg", extra = ["binary", "pool"] },
     { name = "pyjwt", extra = ["crypto"] },
@@ -1789,7 +1788,6 @@ dev = [
     { name = "scaleway", specifier = ">=2.12" },
 ]
 id = [
-    { name = "botocore", specifier = ">=1.35" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "psycopg", extras = ["binary", "pool"], specifier = ">=3.2" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.10" },

@@ -46,7 +46,6 @@ cad = [
 ]
 # TrainMeet ID's own API (id/, #67): PostgreSQL, Keycloak's tokens and keys. Not in the hub's image.
 id = [
-    "botocore>=1.35",
     "httpx>=0.27",
     "psycopg[binary,pool]>=3.2",
     "pyjwt[crypto]>=2.10",
@@ -140,8 +139,7 @@ module = ["scaleway", "scaleway.*", "jsonschema", "jsonschema.*"]
 follow_untyped_imports = true
 
 [[tool.mypy.overrides]]
-# AWS's own signing, for Claude in Amazon Bedrock (id/meter.py) and for the pictures in
-# Object Storage (catalog/pictures.py), has no type hints.
+# AWS's own signing, for the pictures in Object Storage (catalog/pictures.py), has no type hints.
 module = ["botocore", "botocore.*"]
 ignore_missing_imports = true
 

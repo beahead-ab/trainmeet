@@ -81,8 +81,10 @@ API = "/api/cad/1/drawings"
 KEEP_DAYS: Final = 30
 """The drawing and its underlay are kept this long: Studio keeps its own model, not CAD's file."""
 CONSENT_KIND: Final = "ai_drawing_consent"
-CONSENT_VERSION: Final = "2026-11-20"
-TRAINMEETS_AI: Final = "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU"
+CONSENT_VERSION: Final = "2026-11-26"
+"""Asked again when what is sent, or to whom, changes: on 26 November the pictures went to
+Anthropic's own API, outside the EU, instead of Bedrock in the EU."""
+TRAINMEETS_AI: Final = "TrainMeets AI: Claude hos Anthropic, utanför EU"
 MAX_TOKENS: Final = 6000
 """The transcription of a page with a few hundred texts."""
 IDLE: Final = 5.0

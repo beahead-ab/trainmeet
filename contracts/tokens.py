@@ -158,10 +158,10 @@ class TokenReservation(Contract):
 #
 #     POST   /api/id/1/apps/meter                           MeterRead -> MeterAnswer
 #
-# TrainMeets AI (TK12, TK14): an app sends the page or the picture with its reservation and gets
-# the transcription and what it cost. The meter holds TrainMeet's key to Claude through Amazon
-# Bedrock in the EU; the apps never see it (TK7). The same reservation twice gives the same
-# answer and draws nothing twice.
+# TrainMeets AI (TK12, TOKEN-20): an app sends the page or the picture with its reservation and
+# gets the transcription and what it cost. The meter holds TrainMeet's key to Claude in
+# Anthropic's own API, outside the EU; the apps never see it (TK7). The same reservation twice
+# gives the same answer and draws nothing twice.
 #
 # With hold the meter reads and keeps the answer, but draws nothing: the reservation stays held,
 # and the app draws the answer's cost, or gives it all back when the answer came too late to be
@@ -191,13 +191,13 @@ class MeterRead(Contract):
     hard: bool = Field(
         default=False,
         description="En svår följdfråga från CAD, där koden är osäker: den läses av den "
-        "starkaste modellen inom EU, Claude Opus 5.5 med EU-profil (CAD19). Priset är detsamma, "
-        "12 tokens per bild. Bara CAD får fråga så.",
+        "starkaste modellen, Claude Fable 5.2 (CAD18). Priset är detsamma, 12 tokens per bild. "
+        "Bara CAD får fråga så.",
     )
 
 
 HARD_APPS: Final = frozenset({"cad"})
-"""The apps whose questions may be read by the strongest model (CAD18, CAD19): only CAD's hard
+"""The apps whose questions may be read by the strongest model (CAD18): only CAD's hard
 follow-up questions."""
 
 
@@ -217,8 +217,8 @@ class MeterAnswer(Contract):
 #     POST   /api/id/1/apps/meter/search                    MeterSearch -> MeterSearchAnswer
 #     POST   /api/id/1/apps/tokens/reservations/{id}/refund TokenReservation
 #
-# The web search is the one exception from Bedrock (TK14): the meter asks Claude's web search in
-# Anthropic's own API, outside the EU, with a key of its own that the apps never see (C40). Only
+# The web search goes to the same API as the readings: the meter asks Claude's web search in
+# Anthropic's own API, outside the EU, with TrainMeet's key that the apps never see (C40). Only
 # Catalog may search (SEARCH_APPS), and only for a prototype's type data.
 #
 # The app sends the marking as data, never a prompt: the litt, the operator, the kind, the field

@@ -159,11 +159,11 @@ def test_the_budget_raises_the_alarm_at_80_and_stops_at_100(owned: Owned) -> Non
     assert page.factor_page_tokens == 11, "0.427 kr × 2 / 7.84 öre"
 
 
-def test_the_eu_profiles_ten_percent_is_counted_in_the_budget(owned: Owned) -> None:
-    """TK14, CAD19: Claude in Bedrock with the EU profile costs 10 % above the list prices the
+def test_the_ten_percent_for_only_the_usa_is_counted_in_the_budget(owned: Owned) -> None:
+    """ID_METER_GEO=us: Claude only on servers in the USA costs 10 % above the list prices the
     owner's prices build on, so a reading of 7 000 tokens in and 3 000 out counts as 0.47 kr
     in the month's budget, not 0.43."""
-    owned.claude.profile_factor = 1.1
+    owned.claude.price_factor = 1.1
     kim = log_in(owned.world, "Kim Ek", "kim@example.com")
     kim.id = kim.client.get("/api/id/1/session").json()["account"]["id"]
     me = owned.as_(kim)

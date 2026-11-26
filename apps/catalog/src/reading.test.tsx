@@ -36,9 +36,9 @@ const consent = (change: Partial<ReadingConsent> = {}): ReadingConsent => ({
   available: true,
   message: null,
   given: false,
-  version: "2026-11-18",
-  sent_to: "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU",
-  text: "Fotona, utan platsuppgifter och annan metadata, skickas till TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU.",
+  version: "2026-11-26",
+  sent_to: "TrainMeets AI: Claude hos Anthropic, utanför EU",
+  text: "Fotona, utan platsuppgifter och annan metadata, skickas till TrainMeets AI: Claude hos Anthropic, utanför EU.",
   own_ai: null,
   price_per_picture: 12,
   balance: 1240,
@@ -206,7 +206,7 @@ describe("the consent the first time (CAT-142)", () => {
     expect(await attemptReading(ID, [photo()], consent(), false)).toEqual({ kind: "consent" });
     expect(asked).toHaveLength(0);
     const html = renderToStaticMarkup(<ConsentView ctx={ctx()} consent={consent()} photos={2} />);
-    expect(html).toContain("skickas till TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU.");
+    expect(html).toContain("skickas till TrainMeets AI: Claude hos Anthropic, utanför EU.");
     expect(html).toContain("<b>24 tokens</b>");
     expect(html).toContain("Saldo: 1\u00a0240 tokens");
     expect(html).toContain(">Ja, läs av<");

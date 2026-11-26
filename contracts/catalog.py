@@ -1042,10 +1042,10 @@ class BackgroundChange(Contract):
 #   suggestions, and Spara saves them through the vehicle's own addresses, with the reading's
 #   id (NewVehicle.reading): a value kept as the AI suggested it gets the source ai (CAT-64).
 # - A form that cannot be read is refused with 422 bad_form, before anything is read or drawn.
-# - The photos are read in TrainMeet ID's meter: TrainMeets AI, Claude through Amazon Bedrock in
-#   the EU, or the account's own AI (CAT-26, TK4). Catalog never holds a key. Each photo is made
-#   anew without position, camera or other metadata before it is sent (CAT-124), and is never
-#   stored.
+# - The photos are read in TrainMeet ID's meter: TrainMeets AI, Claude in Anthropic's own API,
+#   outside the EU, or the account's own AI (CAT-26, TK4). Catalog never holds a key. Each photo
+#   is made anew without position, camera or other metadata before it is sent (CAT-124), and is
+#   never stored.
 # - 12 tokens a picture, 0 with own AI (CAT-19), from the owner's balance: the person's, or the
 #   club's for a club's fleet. They are reserved before the AI is asked and given back when it
 #   fails (CAT-20), or when the answer comes after the vehicle changed (CAT-145, 409 changed).

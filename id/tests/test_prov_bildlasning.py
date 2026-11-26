@@ -1,7 +1,7 @@
-"""Provet av bildläsningen med den riktiga nyckeln (#79, TOKEN-28, TK14, CAD19).
+"""Provet av bildläsningen med den riktiga nyckeln (#79, TOKEN-28, TOKEN-20, CAD18).
 
-The trial is a program run by hand; here it reads against a pretend Bedrock, which answers as
-AWS does. The job that starts it, and the key's policy, are read as files.
+The trial is a program run by hand; here it reads against a pretend Anthropic, which answers as
+Anthropic's API does. The job that starts it is read as a file.
 """
 
 from __future__ import annotations
@@ -19,15 +19,17 @@ from id import prov_bildlasning
 from id.meter import MeterSettings
 
 ROOT = Path(__file__).resolve().parents[2]
-KEY_ID = "AKIAPROVETPROVET"
-SECRET = "hemlig-nyckel-for-provet"
-ACCOUNT = "123456789012"
+KEY = "sk-ant-provet-hemlig-nyckel"
 
 
 def key_file(tmp_path: Path) -> Path:
-    key = tmp_path / "trainmeet_bedrock-key"
-    key.write_text(f"{KEY_ID}\n{SECRET}\n")
+    key = tmp_path / "trainmeet_search-key"
+    key.write_text(f"{KEY}\n")
     return key
+
+
+def hard(request: httpx.Request) -> bool:
+    return bool(json.loads(request.content)["model"] == MeterSettings.hard_model)
 
 
 def test_the_picture_is_a_png_with_the_digits_and_the_square() -> None:
@@ -47,24 +49,22 @@ def test_the_picture_is_a_png_with_the_digits_and_the_square() -> None:
     assert middle[square] == 0
 
 
-def test_the_trial_asks_both_models_in_the_eu_and_never_prints_the_key(
+def test_the_trial_asks_both_models_and_never_prints_the_key(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """A transcription with the meter's model and a hard question with CAD's model, both with
-    the EU profiles from Stockholm, through the meter's own BedrockClaude. Without the key's
-    file it asks nobody."""
+    """A transcription with the meter's model and a hard question with CAD's model, through the
+    meter's own AnthropicClaude. Without the key's file it asks nobody."""
     assert prov_bildlasning.main(["--nyckelfil", str(tmp_path / "saknas")]) == 2
     seen: list[httpx.Request] = []
 
     def handle(request: httpx.Request) -> httpx.Response:
         seen.append(request)
-        hard = "opus" in request.url.path
         return httpx.Response(
             200,
             json={
-                "content": [{"type": "text", "text": "Höger." if hard else "4071"}],
+                "content": [{"type": "text", "text": "Höger." if hard(request) else "4071"}],
                 "stop_reason": "end_turn",
-                "usage": {"input_tokens": 900, "output_tokens": 300 if hard else 8},
+                "usage": {"input_tokens": 900, "output_tokens": 300 if hard(request) else 8},
             },
         )
 
@@ -72,42 +72,39 @@ def test_the_trial_asks_both_models_in_the_eu_and_never_prints_the_key(
     assert (
         prov_bildlasning.main(["--nyckelfil", str(key)], transport=httpx.MockTransport(handle)) == 0
     )
-    assert [request.url.path for request in seen] == [
-        f"/model/{MeterSettings.model}/invoke",
-        f"/model/{MeterSettings.hard_model}/invoke",
-    ]
-    assert {request.url.host for request in seen} == {"bedrock-runtime.eu-north-1.amazonaws.com"}
-    first = json.loads(seen[0].content)
+    assert {str(request.url) for request in seen} == {"https://api.anthropic.com/v1/messages"}
+    first, second = (json.loads(request.content) for request in seen)
+    assert (first["model"], second["model"]) == (MeterSettings.model, MeterSettings.hard_model)
     image = first["messages"][0]["content"][0]
     assert image["source"]["media_type"] == "image/png"
     assert base64.b64decode(image["source"]["data"]) == prov_bildlasning.picture()
-    assert json.loads(seen[1].content)["output_config"] == {"effort": "high"}
+    assert second["output_config"] == {"effort": "high"}
     printed = capsys.readouterr()
-    assert "Avskrift: eu.anthropic.claude-sonnet-5-5" in printed.out
-    assert "Svår fråga: eu.anthropic.claude-opus-5-5" in printed.out
+    assert "Avskrift: claude-sonnet-5-5" in printed.out
+    assert "Svår fråga: claude-fable-5-2" in printed.out
     assert printed.out.count("(rätt)") == 2 and "2 av 2 rätt" in printed.out
     assert "Tokens in: 900" in printed.out and "Tokens ut: 300" in printed.out
-    for hidden in (KEY_ID, SECRET):
-        assert hidden not in printed.out + printed.err
+    # 900 in and 300 out at Fable 5.2's prices: four times Sonnet 5.5's $2/$10 a million.
+    assert "Kostnad ungefär: 0.0192 dollar" in printed.out
+    assert "Tid: " in printed.out
+    assert KEY not in printed.out + printed.err
 
 
-def test_a_refusal_from_aws_says_what_the_policy_lacks_without_the_account(
+def test_a_refusal_from_anthropic_says_what_is_missing_without_the_key(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """When AWS says no, the trial prints AWS's error type and message, so that the model or
-    region missing in the key's policy shows; the account's number is never printed."""
-    refused = (
-        f"User: arn:aws:iam::{ACCOUNT}:user/trainmeet-id is not authorized to perform: "
-        "bedrock:InvokeModel on resource: "
-        "arn:aws:bedrock:eu-west-3::foundation-model/anthropic.claude-opus-5-5"
-    )
+    """When Anthropic says no, the trial prints the error's type and message, so that a key, a
+    model or an account setting that is missing shows; the key is never printed."""
+    refused = f"Your organization's data retention does not allow this model. Key {KEY}."
 
     def handle(request: httpx.Request) -> httpx.Response:
-        if "opus" in request.url.path:
+        if hard(request):
             return httpx.Response(
-                403,
-                headers={"x-amzn-ErrorType": "AccessDeniedException:http://internal.amazon.com/"},
-                json={"message": refused},
+                400,
+                json={
+                    "type": "error",
+                    "error": {"type": "invalid_request_error", "message": refused},
+                },
             )
         return httpx.Response(
             200,
@@ -124,11 +121,10 @@ def test_a_refusal_from_aws_says_what_the_policy_lacks_without_the_account(
     )
     printed = capsys.readouterr()
     assert "1 av 2 rätt" in printed.out
-    assert "AccessDeniedException 403" in printed.err
-    assert "eu-west-3::foundation-model/anthropic.claude-opus-5-5" in printed.err
-    assert "arn:aws:iam::<kontot>:user/trainmeet-id" in printed.err
-    for hidden in (ACCOUNT, KEY_ID, SECRET):
-        assert hidden not in printed.out + printed.err
+    assert "Anthropic: invalid_request_error 400" in printed.err
+    assert "data retention does not allow this model" in printed.err
+    assert "Key <nyckeln>." in printed.err
+    assert KEY not in printed.out + printed.err
 
 
 def test_a_wrong_answer_fails_the_trial(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -136,9 +132,7 @@ def test_a_wrong_answer_fails_the_trial(tmp_path: Path, capsys: pytest.CaptureFi
         return httpx.Response(
             200,
             json={
-                "content": [
-                    {"type": "text", "text": "vänster" if "opus" in request.url.path else "4011"}
-                ],
+                "content": [{"type": "text", "text": "vänster" if hard(request) else "4011"}],
                 "stop_reason": "end_turn",
                 "usage": {"input_tokens": 900, "output_tokens": 8},
             },
@@ -169,31 +163,21 @@ def test_the_github_job_runs_the_trial_only_when_started_by_hand() -> None:
     assert "uv run python deploy/testmiljo.py ensure" in job
     assert "umask 077" in job and "trap 'rm -f \"$key\"' EXIT" in job
     assert 'python -m id.prov_bildlasning --nyckelfil "$key"' in job
+    assert "BEDROCK" not in job
     for line in job.splitlines():
-        if "BEDROCK_" in line and "secrets." not in line:
+        if "ANTHROPIC_API_KEY_SEARCH" in line and "secrets." not in line:
             assert "echo" not in line or "saknas" in line, line
     # The trial is in ID's image, where the test environment runs it.
     image = (ROOT / "id" / "api.Dockerfile").read_text()
     assert "id/prov_bildlasning.py" in image
 
 
-def test_the_keys_policy_allows_the_meters_models_only_through_the_eu_profiles() -> None:
-    """deploy/bedrock-policy.json, the policy of the key's IAM user (README, Testmiljön step 7):
-    InvokeModel on the meter's two EU profiles in the meter's region, and on the models behind
-    them in the EU's regions only when the call comes through those profiles, so the pictures
-    stay in the EU and a region AWS adds to the profile is not refused."""
-    policy = json.loads((ROOT / "deploy" / "bedrock-policy.json").read_text())
-    profiles, models = policy["Statement"]
-    region = MeterSettings.region
-    wanted = [
-        f"arn:aws:bedrock:{region}:*:inference-profile/{model}"
-        for model in (MeterSettings.model, MeterSettings.hard_model)
-    ]
-    assert profiles["Effect"] == models["Effect"] == "Allow"
-    assert profiles["Action"] == models["Action"] == "bedrock:InvokeModel"
-    assert profiles["Resource"] == wanted and "Condition" not in profiles
-    assert models["Resource"] == [
-        f"arn:aws:bedrock:eu-*::foundation-model/{model.removeprefix('eu.')}"
-        for model in (MeterSettings.model, MeterSettings.hard_model)
-    ]
-    assert models["Condition"] == {"StringLike": {"bedrock:InferenceProfileArn": wanted}}
+def test_the_meter_reads_with_the_same_key_as_the_web_search_in_the_test_environment() -> None:
+    """One key to Anthropic's API (GitHub: ANTHROPIC_API_KEY_SEARCH) for the readings and the
+    web search; nothing of AWS is left in the test environment."""
+    compose = (ROOT / "deploy" / "testmiljo" / "compose.yaml").read_text()
+    assert "ID_METER_KEY_FILE: /vault/trainmeet_search-key" in compose
+    assert "ID_SEARCH_KEY_FILE: /vault/trainmeet_search-key" in compose
+    deploy = (ROOT / ".github" / "workflows" / "tester.yml").read_text()
+    assert "BEDROCK" not in deploy and "trainmeet_bedrock-key" not in compose
+    assert not (ROOT / "deploy" / "bedrock-policy.json").exists()

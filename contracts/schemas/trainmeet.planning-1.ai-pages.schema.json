@@ -27,8 +27,8 @@
           "type": "integer"
         },
         "where": {
-          "default": "Claude i Amazon Bedrock i Stockholm",
-          "description": "Var sidorna läses (TK14), som sägs innan de skickas (TK12).",
+          "default": "Claude hos Anthropic, utanför EU",
+          "description": "Var sidorna läses (TOKEN-20), som sägs innan de skickas (TK12).",
           "maxLength": 500,
           "minLength": 1,
           "title": "Where",

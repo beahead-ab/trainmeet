@@ -135,8 +135,10 @@ ORIGINAL_DAYS: Final = 30
 """The original is kept until the module is approved, at most this long (CAD4)."""
 PREVIEW_SIDE: Final = 2000
 CONSENT_KIND: Final = "ai_photo_consent"
-CONSENT_VERSION: Final = "2026-11-19"
-TRAINMEETS_AI: Final = "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU"
+CONSENT_VERSION: Final = "2026-11-26"
+"""Asked again when what is sent, or to whom, changes: on 26 November the pictures went to
+Anthropic's own API, outside the EU, instead of Bedrock in the EU."""
+TRAINMEETS_AI: Final = "TrainMeets AI: Claude hos Anthropic, utanför EU"
 MAX_TOKENS: Final = 1024
 MAX_CHOICE_TOKENS: Final = 256
 IDLE: Final = 5.0

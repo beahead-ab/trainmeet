@@ -11,9 +11,9 @@ const GRID = { x0: -10, y0: -10, ppm: 1, width: 1521, height: 721, matrix: null 
 export const CONSENT: PhotoConsent = {
   available: true,
   given: false,
-  version: "2026-11-19",
-  sent_to: "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU",
-  text: "Mätbilden skickas till TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU. AI:n svarar bara på vilka spår som hänger ihop.",
+  version: "2026-11-26",
+  sent_to: "TrainMeets AI: Claude hos Anthropic, utanför EU",
+  text: "Mätbilden skickas till TrainMeets AI: Claude hos Anthropic, utanför EU. AI:n svarar bara på vilka spår som hänger ihop.",
   own_ai: null,
   price: 12,
   balance: 86,

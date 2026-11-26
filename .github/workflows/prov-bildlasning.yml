@@ -1,13 +1,13 @@
-# Provet av bildläsningen med den riktiga nyckeln (#79, TOKEN-28, TK14, CAD19): startas bara för
-# hand, aldrig av ett PR eller av main, som provet av webbsökningen (beslut 22 november). Det
+# Provet av bildläsningen med den riktiga nyckeln (#79, TOKEN-28, TOKEN-20, CAD18): startas bara
+# för hand, aldrig av ett PR eller av main, som provet av webbsökningen (beslut 22 november). Det
 # läser en syntetisk bild med TrainMeets AI genom mätarens egen väg (id/prov_bildlasning.py): en
-# avskrift med Claude Sonnet 5.5 och en svår fråga med Claude Opus 5.5, båda med EU-profilerna
-# från Stockholm. Det kostar några cent hos AWS och inga TrainMeet-tokens.
+# avskrift med Claude Sonnet 5.5 och en svår fråga med Claude Fable 5.2, i Anthropics eget API,
+# utanför EU. Det kostar några cent hos Anthropic och inga TrainMeet-tokens.
 #
 # Var testmiljon: i ID:s container på servern, med nyckeln som jobbet "Testmiljön" har lagt i
 # ID:s valv. Så provas det som vännerna använder.
-# Var github: hos GitHub, med nyckeln BEDROCK_KEY_ID och BEDROCK_SECRET_KEY i repots
-# hemligheter, till exempel innan testmiljön är utlagd med nyckeln. Nyckeln skrivs till en fil som
+# Var github: hos GitHub, med nyckeln ANTHROPIC_API_KEY_SEARCH i repots hemligheter, samma nyckel
+# som webbsökningens, till exempel innan testmiljön är utlagd. Nyckeln skrivs till en fil som
 # bara det steget läser, och tas bort efteråt; den skrivs aldrig ut.
 name: Prov av bildläsningen
 
@@ -95,17 +95,16 @@ jobs:
       - name: Läs en bild
         shell: bash
         env:
-          BEDROCK_KEY_ID: ${{ secrets.BEDROCK_KEY_ID }}
-          BEDROCK_SECRET_KEY: ${{ secrets.BEDROCK_SECRET_KEY }}
+          ANTHROPIC_API_KEY_SEARCH: ${{ secrets.ANTHROPIC_API_KEY_SEARCH }}
         run: |
-          if [ -z "$BEDROCK_KEY_ID" ] || [ -z "$BEDROCK_SECRET_KEY" ]; then
-            echo "::error::BEDROCK_KEY_ID eller BEDROCK_SECRET_KEY saknas i repots hemligheter."
+          if [ -z "$ANTHROPIC_API_KEY_SEARCH" ]; then
+            echo "::error::ANTHROPIC_API_KEY_SEARCH saknas i repots hemligheter."
             exit 1
           fi
           umask 077
-          key="$RUNNER_TEMP/trainmeet_bedrock-key"
+          key="$RUNNER_TEMP/trainmeet_search-key"
           trap 'rm -f "$key"' EXIT
-          printf '%s\n%s\n' "$BEDROCK_KEY_ID" "$BEDROCK_SECRET_KEY" > "$key"
+          printf '%s\n' "$ANTHROPIC_API_KEY_SEARCH" > "$key"
           {
             echo "### Prov av bildläsningen hos GitHub"
             echo ""

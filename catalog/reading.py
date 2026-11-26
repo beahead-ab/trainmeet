@@ -6,7 +6,7 @@ no vehicle and keeps no picture (CAT-143), and the web app fills the form with t
 which the owner saves through the vehicle's own addresses.
 
 The photos are read in TrainMeet ID's meter (contracts/tokens.py): TrainMeets AI, which is Claude
-from Anthropic through Amazon Bedrock in the EU, or the account's own AI, which costs nothing
+in Anthropic's own API, outside the EU, or the account's own AI, which costs nothing
 (TK4, CAT-26). Catalog never holds a key to an AI. Each photo is read with Pillow and made anew
 without position, camera or other metadata, at most 1800 pixels, before anything is sent
 (catalog/pictures.py, CAT-124).
@@ -110,9 +110,11 @@ MAX_TOKENS: Final = 2048
 MAX_ANSWER: Final = 20_000
 """The longest answer that is read at all, in characters."""
 CONSENT_KIND: Final = "ai_reading_consent"
-CONSENT_VERSION: Final = "2026-11-18"
+CONSENT_VERSION: Final = "2026-11-26"
+"""Asked again when what is sent, or to whom, changes: on 26 November the pictures went to
+Anthropic's own API, outside the EU, instead of Bedrock in the EU."""
 """The version of what the person says yes to (CAT-142). A new text needs a new yes."""
-TRAINMEETS_AI: Final = "TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU"
+TRAINMEETS_AI: Final = "TrainMeets AI: Claude hos Anthropic, utanför EU"
 
 FIELDS: Final[tuple[SuggestedField, ...]] = (
     "kind",
