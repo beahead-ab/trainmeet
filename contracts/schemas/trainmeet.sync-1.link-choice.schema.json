@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-choice.schema.json",
+  "title": "trainmeet.sync-1.link-choice",
+  "additionalProperties": true,
+  "properties": {
+    "meet": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+      "title": "Meet",
+      "type": "string"
+    }
+  },
+  "required": [
+    "meet"
+  ],
+  "type": "object"
+}

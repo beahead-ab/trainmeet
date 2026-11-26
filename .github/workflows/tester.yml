@@ -172,6 +172,30 @@ jobs:
           path: ${{ runner.temp }}/lokforaren
           if-no-files-found: ignore
 
+      # Skärmlåset (#266 del 1, S4, SKARM-03): Pi:ns utgång 1 på /skarm?utgang=1 mot samma träff.
+      # Tangentbordet och musen gör ingenting förrän hubbens PIN är skriven; upplåst ansluter
+      # skärmen, får klockan i Klienter, går till hubbens sidor och tillbaka med Lås skärmen
+      # (apps/skarmar/e2e/skarmlas.mjs).
+      - name: Skärmlåset på Pi:ns utgång i webbläsaren (#266)
+        timeout-minutes: 3
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          PROV_ADRESS: http://localhost:8080
+          PROV_PIN: "482915"
+          PROV_BILDER: ${{ runner.temp }}/skarmlas
+        run: |
+          SCRIPT=$(curl -fsS http://localhost:8080/skarm | grep -o '/skarm/assets/[^"]*\.js' | head -1)
+          curl -fsS "http://localhost:8080$SCRIPT" | grep -q "Skärmen är låst"
+          node apps/skarmar/e2e/skarmlas.mjs
+
+      - name: Skärmlåsets skärmbilder om något gick fel
+        if: failure()
+        uses: actions/upload-artifact@v6
+        with:
+          name: skarmlas
+          path: ${{ runner.temp }}/skarmlas
+          if-no-files-found: ignore
+
       - name: Två hubbar ur bilden, Pi:n följer molnet (Synk, ärende 73)
         run: |
           # Molnet och en Pi på ett eget nät: Pi:n ringer ut till http://moln:8080, som på testmiljöns
@@ -399,7 +423,9 @@ jobs:
           node apps/tkl/e2e/fjarr.mjs
 
       # Rita (#85): en station ritas från ingenting i Chrome mot TKL ur bilden, tas i bruk och får
-      # tågvägen A1 → 1Ö i Ställverket (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
+      # tågvägen A1 → 1Ö i Ställverket. Spårspärren på stickspåret läggs på och blir gul som
+      # sidoskydd för tågvägen B1 → 1V och släpps när den löses ut (TKL129, #37)
+      # (apps/tkl/e2e/rita.mjs). Ingen hubb behövs.
       - name: Rita i webbläsaren (#85)
         timeout-minutes: 3
         env:
@@ -1301,6 +1327,15 @@ jobs:
           # och Catalog stannade när hinken fanns (22 november).
           PICTURES_KEY: ${{ steps.server.outputs.pictures_key }}
         run: |
+          # Plats för de nya bilderna först (23 november: disken var full, och docker load
+          # stannade). Bilderna som containrarna kör står kvar; äldre versioner och det som blev
+          # över från en avbruten laddning tas bort. Diskens läge står i loggen före och efter.
+          $SSH "$TARGET" '
+            echo "Disken före: $(df -h / | tail -1)"
+            docker image prune -af >/dev/null
+            docker builder prune -af >/dev/null 2>&1 || true
+            echo "Disken efter: $(df -h / | tail -1)"
+          '
           docker save "trainmeet-hub:$TAG" "trainmeet-catalog:$TAG" "trainmeet-id:$TAG" "trainmeet-idapi:$TAG" "trainmeet-tkl:$TAG" "trainmeet-cad:$TAG" | gzip | $SSH "$TARGET" 'gunzip | docker load'
           cat deploy/testmiljo/compose.yaml | $SSH "$TARGET" 'cat > /srv/trainmeet/compose.yaml'
           cat deploy/testmiljo/Caddyfile | $SSH "$TARGET" 'cat > /srv/trainmeet/Caddyfile'
@@ -1361,7 +1396,11 @@ jobs:
           if [ "$(getent ahostsv4 "$TAGS_DOMAIN" | awk 'NR==1{print $1}' || true)" = "$IP" ]; then
             TAG_BASE="https://$TAGS_DOMAIN/t/"
           fi
-          $SSH "$TARGET" 'sh -s' -- "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < deploy/testmiljo/up.sh
+          # up.sh as a file on the server, run with nothing on stdin (23 November): fed to sh -s,
+          # the shell read the script 8192 bytes at a time, and docker compose run for the
+          # migrations read the rest of it from the same stdin, so the script stopped at line 176.
+          cat deploy/testmiljo/up.sh | $SSH "$TARGET" 'cat > /srv/trainmeet/up.sh'
+          $SSH "$TARGET" 'sh /srv/trainmeet/up.sh' "$TAG" "$DOMAIN" "$CATALOG_DOMAIN" "$ID_DOMAIN" "$TAGS_DOMAIN" "$TAG_BASE" "$PI_DOMAIN" "$TKL_DOMAIN" "$CAD_DOMAIN" < /dev/null
 
       - name: Prova adressen
         if: steps.nyckel.outputs.finns == 'true'

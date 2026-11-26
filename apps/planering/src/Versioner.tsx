@@ -200,8 +200,9 @@ export function VersionerPage({ admin, mayPublish = admin, mayWithdraw = admin, 
 
 const clock = (at: string) => new Date(at).toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
 
-/** Koppla en Pi (SYNK-02, H11): a six-digit code the Pi gives under Den här hubben → Molnet.
- * The Pi then fetches each version the moment it is published; it always calls out. */
+/** Koppla en Pi (SYNK-02, H11, F16): the Pi logs in and chooses the meet under Den här hubben →
+ * Molnet (ValjTraff), or, as the reserve, gives a six-digit code from here. The Pi then fetches
+ * each version the moment it is published; it always calls out. */
 export function KopplaPi({ admin, meet, initial, initialHome }: { admin: boolean; meet: string; initial?: Follower[]; initialHome?: Home }) {
   const [followers, setFollowers] = useState<Follower[] | null>(initial ?? null);
   const [home, setHome] = useState<Home | null>(initialHome ?? null);
@@ -277,7 +278,7 @@ export function KopplaPi({ admin, meet, initial, initialHome }: { admin: boolean
   return (
     <section id="pi" className="kort" aria-labelledby="pi-rubrik">
       <h2 id="pi-rubrik">Pi:n på träffen</h2>
-      <p className="liten">En Pi följer träffen och hämtar varje version när den publiceras. Skriv koden på Pi:n under kugghjulet → Den här hubben → Molnet. Den gäller en gång i 15 minuter. Före träffen tar Pi:n hem träffen med en knapp, och lämnar tillbaka den efteråt.</p>
+      <p className="liten">En Pi följer träffen och hämtar varje version när den publiceras. Koppla den på Pi:n under kugghjulet → Den här hubben → Molnet: Logga in och välj träff, och välj den här. Går det inte, ge Pi:n en kod härifrån; den gäller en gång i 15 minuter. Före träffen tar Pi:n hem träffen med en knapp, och lämnar tillbaka den efteråt.</p>
       {followers && followers.length > 0 ? (
         <ul id="followers" className="fynd">
           {followers.map((follower) => (
@@ -302,7 +303,7 @@ export function KopplaPi({ admin, meet, initial, initialHome }: { admin: boolean
       {admin && (
         <div className="rad">
           <button id="link-code" type="button" onClick={() => void ask()}>
-            Koppla en Pi
+            Ge en kod
           </button>
           <span className="liten" role="status" id="link-said">
             {code ? (

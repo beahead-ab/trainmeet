@@ -49,11 +49,14 @@ if grep -q '^CAD_PHOTOS_S3_SECRET_KEY=.' cad.env; then
   } > cad-vault/trainmeet_photos-key
 fi
 # Catalog logs in with TrainMeet ID once ID can send its codes, and with the trial login until
-# then (CAT-214, #66).
+# then (CAT-214, #66). TKL in the cloud then keeps the station with the account, in Synk, and
+# starts with the login; until then a station per browser (#88, TKL5).
 TRIAL=on
-if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; fi
+KONTO=off
+if [ -s id-vault/trainmeet_smtp-password ]; then TRIAL=off; KONTO=on; fi
 {
   printf 'HUB_TAG=%s\nHUB_DOMAIN=%s\nPI_DOMAIN=%s\nTKL_DOMAIN=%s\n' "$TAG" "$DOMAIN" "$PI_DOMAIN" "$TKL_DOMAIN"
+  printf 'TKL_KONTO=%s\n' "$KONTO"
   printf 'CATALOG_TRIAL_LOGIN=%s\n' "$TRIAL"
   printf 'CATALOG_TAG=%s\nCATALOG_DOMAIN=%s\n' "$TAG" "$CATALOG_DOMAIN"
   printf 'TAGS_DOMAIN=%s\nCATALOG_TAG_BASE=%s\n' "$TAGS_DOMAIN" "$TAG_BASE"
@@ -78,7 +81,7 @@ until docker compose exec -T catalog-db pg_isready -U catalog -d catalog >/dev/n
   sleep 1
 done
 sh ./catalog-backup.sh fore-migrering
-docker compose run --rm --no-deps catalog python -m catalog.migrate
+docker compose run --rm --no-deps -T catalog python -m catalog.migrate < /dev/null
 
 # CAD (#89), as Catalog: the database first, then the backup, then the migrations.
 docker compose up -d cad-db
@@ -93,7 +96,7 @@ until docker compose exec -T cad-db pg_isready -U cad -d cad >/dev/null 2>&1; do
   sleep 1
 done
 sh ./cad-backup.sh fore-migrering
-docker compose run --rm --no-deps cad python -m cad.migrate
+docker compose run --rm --no-deps -T cad python -m cad.migrate < /dev/null
 
 # ID's API has a database of its own, idapi, beside Keycloak's in ID's PostgreSQL (#67).
 docker compose up -d id-db

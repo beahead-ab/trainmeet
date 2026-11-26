@@ -22809,6 +22809,163 @@ export interface components {
             [key: string]: unknown;
         };
         /**
+         * LinkAttemptStart
+         * @description Koppla Pi:n genom inloggning och val av träff (F16, SYNK-02, KONTO-22): Pi:n ber molnet
+         *     om ett försök och säger var webbläsaren kommer tillbaka. Koden är reserven.
+         */
+        "trainmeet.sync-1.link-attempt-start": {
+            hello: components["schemas"]["trainmeet.sync-1.link-attempt-start.Hello"];
+            /**
+             * Back
+             * @description Pi:ns /api/hub/cloud/linked, som webbläsaren ser den.
+             */
+            back: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * Hello
+         * @description Vem som ringer: hubben, dess program och de versioner av protokollet den talar.
+         */
+        "trainmeet.sync-1.link-attempt-start.Hello": {
+            /** Protocols */
+            protocols?: string[];
+            /**
+             * Hub Id
+             * @description Hubbens id: slumpat vid första start, inte hemligt.
+             */
+            hub_id: string;
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Software
+             * @description Hubbens programversion, till exempel 0.1.0.
+             */
+            software: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LinkAttemptStarted */
+        "trainmeet.sync-1.link-attempt-started": {
+            /**
+             * Attempt
+             * @description Försöket: webbläsaren tar det till molnet.
+             */
+            attempt: string;
+            /**
+             * Secret
+             * @description Pi:ns hemlighet för försöket. Stannar på Pi:n.
+             */
+            secret: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+            /**
+             * Address
+             * @description Var webbläsaren öppnar försöket, när molnet vet sin adress på internet.
+             * @default null
+             */
+            address: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LinkMeetChoice
+         * @description En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.
+         */
+        "trainmeet.sync-1.link-meet-choice": {
+            /** Meet */
+            meet: string;
+            /** Name */
+            name: string;
+            /**
+             * First Date
+             * @default null
+             */
+            first_date: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LinkAttempt
+         * @description Försöket, som molnet visar det för den som väljer träff åt Pi:n.
+         */
+        "trainmeet.sync-1.link-attempt": {
+            /**
+             * Hub Name
+             * @description Pi:ns namn.
+             */
+            hub_name: string;
+            /** Software */
+            software: string;
+            /**
+             * Address
+             * @description Pi:ns adress, som webbläsaren ser den.
+             */
+            address: string;
+            /**
+             * Expires
+             * Format: date-time
+             */
+            expires: string;
+            /** Meets */
+            meets: components["schemas"]["trainmeet.sync-1.link-attempt.LinkMeetChoice"][];
+            /**
+             * Chosen
+             * @description Träffen som är vald, om någon är det.
+             * @default null
+             */
+            chosen: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LinkMeetChoice
+         * @description En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.
+         */
+        "trainmeet.sync-1.link-attempt.LinkMeetChoice": {
+            /** Meet */
+            meet: string;
+            /** Name */
+            name: string;
+            /**
+             * First Date
+             * @default null
+             */
+            first_date: string | null;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LinkChoice */
+        "trainmeet.sync-1.link-choice": {
+            /** Meet */
+            meet: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /** LinkChosen */
+        "trainmeet.sync-1.link-chosen": {
+            /**
+             * Back
+             * @description Tillbaka till Pi:n, som då hämtar sin nyckel.
+             */
+            back: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
+         * LinkRedeem
+         * @description Pi:n hämtar sin nyckel för försöket, med hemligheten bara den har.
+         */
+        "trainmeet.sync-1.link-redeem": {
+            /** Secret */
+            secret: string;
+        } & {
+            [key: string]: unknown;
+        };
+        /**
          * RunEvents
          * @description Under träffen (SYNK-10, DRIFT-12): Pi:n leder och skickar körningens drifthändelser i
          *     ordning, efter molnets senaste kvittens. Utan händelser frågar Pi:n bara efter kvittensen,

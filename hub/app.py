@@ -32,6 +32,7 @@ from hub import (
     id_roles,
     id_tokens,
     network_api,
+    pi_link,
     pi_login,
     planering_api,
     provbanan,
@@ -354,8 +355,13 @@ def create_app(
             stations,
             owners,
             roles_from_id.meets if roles_from_id is not None else None,
+            may,
         )
     )
+    # Koppla Pi:n genom inloggning och val av träff (F16, SYNK-02): in the cloud the person
+    # chooses the meet; on the Pi the administrator starts it, and the code is the reserve.
+    app.include_router(pi_link.cloud_router(plans, links, homes, hello, login, may, with_id))
+    app.include_router(pi_link.pi_router(login, follower))
     app.include_router(tmbox_web.router(runs))
     app.include_router(station_api.router(runs, relay_address, meet=lambda: running.store))
     app.include_router(station_api.relay_router(relay))

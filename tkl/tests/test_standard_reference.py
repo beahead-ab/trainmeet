@@ -20,7 +20,6 @@ from jsonschema import Draft202012Validator
 from contracts.generate import SCHEMA_DIR, STATION_MODEL, filename
 from contracts.station_model import StationModel, to_json
 from tkl.standard import RouteKind, chains, checks, derive
-from tkl.standard.chains import positions
 
 ROOT = Path(__file__).resolve().parents[2]
 MODELS = ROOT / "tkl" / "referens"
@@ -78,7 +77,12 @@ def test_the_engine_gives_the_reference_routes(station: str) -> None:
     reference = {key(r): r for r in data["routes"]}
     routes = derive(model(station))
     engine = {(r.kind.value, r.start.name, r.end.name): r for r in routes}
-    laid = {k: {p: v.value for p, v in r.positions.items()} for k, r in engine.items()}
+    # The page lays a route's own switches and their levers; flank protection is the engine's
+    # (STV-20, trainmeet #37), so it is left out here and checked in test_standard_flank.
+    laid = {
+        k: {p: v.value for p, v in r.positions.items() if p not in r.flank}
+        for k, r in engine.items()
+    }
     excepted: dict[Key, dict[str, Any]] = {}
     for case in data["exceptions"]:
         assert case["reason"], case
@@ -94,7 +98,9 @@ def test_the_engine_gives_the_reference_routes(station: str) -> None:
                 ]
                 assert found, f"no chain {case}"
                 want = reference[k]["switches"]
-                got = {p: v.value for p, v in positions(found[0]).items()}
+                got = {
+                    p: v.value for r in found[0] for p, v in r.positions.items() if p not in r.flank
+                }
                 stale = set(case.get("stale", []))
                 assert {p: v for p, v in want.items() if p not in stale} == {
                     p: v for p, v in got.items() if p not in stale

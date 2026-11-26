@@ -7,6 +7,7 @@ import { ForarnaPage } from "./Forarna";
 import { KlockanPage } from "./Klockan";
 import { GrafPage } from "./Graf";
 import { TraffarPage } from "./Traffar";
+import { ValjTraff } from "./ValjTraff";
 import { VersionerPage } from "./Versioner";
 
 // Planering (PLAN-23) under the Hub's header: Träffar, and for each meet Data, Bana, Graf,
@@ -33,7 +34,8 @@ export function App() {
   const [path, setPath] = useState(() => window.location.pathname);
   const route = routeOf(path);
   // Visa i rutnätet opens Data with a block and a search from the address.
-  const asked = Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)) as { block?: string; sok?: string };
+  // Välj träff åt Pi:n (F16): a Pi sent the browser here with ?koppla=pi.
+  const asked = Object.fromEntries(new URLSearchParams(typeof window === "undefined" ? "" : window.location.search)) as { block?: string; sok?: string; koppla?: string };
   const meet = route.page === "traffar" ? null : route.meet;
   const hubState = useHub();
   // Planering: the PIN holder plans every meet (H18); someone logged in with TrainMeet ID the
@@ -211,6 +213,7 @@ export function App() {
     <>
       <Sidhuvud {...hubState.header({ current: route.page === "traffar" ? "/planering" : `/planering/${encodeURIComponent(route.meet)}/${route.page}`, viewed: meet, navigate })} />
       <main id="innehall" className="planering">
+        {route.page === "traffar" && asked.koppla === "pi" && <ValjTraff withId={hubState.info?.id_login ?? false} />}
         {route.page === "traffar" && <TraffarPage admin={owner} person={person} idMeets={idMeets} meets={meets} navigate={navigate} onCreate={(fresh) => void onCreate(fresh)} />}
         {route.page === "data" && (
           <DataPage

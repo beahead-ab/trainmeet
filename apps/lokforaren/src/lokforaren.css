@@ -630,6 +630,68 @@ section > .lok-lista {
   width: 100%;
 }
 
+/* Topologi (LOK-28, om-taget.jpg): the line with the service's way, scrolled sideways when wide. */
+.lok-topologi-ram {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.lok-topologi svg {
+  display: block;
+  min-width: 100%;
+}
+.lok-topologi path {
+  fill: none;
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.lok-topologi path.linje {
+  stroke: var(--tm-line);
+}
+.lok-topologi path.pa-vagen {
+  stroke: var(--tm-blue);
+  stroke-width: 5;
+}
+.lok-topologi circle {
+  fill: var(--tm-panel);
+  stroke: var(--tm-mute);
+  stroke-width: 2;
+}
+.lok-topologi .pa-vagen circle {
+  stroke: var(--tm-blue);
+}
+.lok-topologi .pa-vagen circle.uppehall {
+  fill: var(--tm-blue);
+}
+.lok-topologi text {
+  fill: var(--tm-mute);
+  font-size: 12px;
+}
+.lok-topologi .pa-vagen text {
+  fill: var(--tm-text);
+  font-weight: 700;
+}
+.lok-topologi-forklaring {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--tm-mute);
+  font-size: 14px;
+}
+.lok-topologi-forklaring .streck {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--tm-blue);
+}
+.lok-topologi-forklaring .prick {
+  width: 10px;
+  height: 10px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--tm-blue);
+}
+
 /* The paper's front (sok-nummer.jpg, taget.jpg). */
 .lok-framsida {
   display: grid;

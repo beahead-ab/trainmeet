@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-chosen.schema.json",
+  "title": "trainmeet.sync-1.link-chosen",
+  "additionalProperties": true,
+  "properties": {
+    "back": {
+      "description": "Tillbaka till Pi:n, som då hämtar sin nyckel.",
+      "title": "Back",
+      "type": "string"
+    }
+  },
+  "required": [
+    "back"
+  ],
+  "type": "object"
+}

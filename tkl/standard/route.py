@@ -6,7 +6,7 @@ Routes are never stored (STD-07); they are computed from the model each time.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 
 from contracts.station_model import Position
@@ -44,7 +44,8 @@ class Route:
     switches: Mapping[str, Position]
     """The positions the route's own path needs."""
     positions: Mapping[str, Position]
-    """Every switch the route lays: its own, the coupled ones and those dragged along."""
+    """Every switch the route lays: its own, the coupled ones, those dragged along and its
+    flank protection."""
     levers: Mapping[str, Position]
     track_circuits: tuple[str, ...]
     """The track circuits in the order the route runs through them, for sectional release."""
@@ -60,6 +61,9 @@ class Route:
     """In millimetres, from the real geometry; 0 where the model has none."""
     diverging: int = 0
     """How many of the route's own switches lie diverging (TKL53)."""
+    flank: Mapping[str, str] = field(default_factory=dict)
+    """The switches laid only for flank protection, each with the node on the route it protects
+    (STV-20, trainmeet #37), and those their levers lay with them."""
 
     @property
     def pieces(self) -> tuple[str, ...]:

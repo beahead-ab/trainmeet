@@ -147,6 +147,19 @@ export type DrawnSwitch = {
   /** A slip's bows (STV-22): one for a single slip and two for a double. */
   bows: DrawnBow[];
 };
+/** A derailer (spårspärr, TKL129) at its node, as a short bar across the track: on it when på
+ * (-) and beside it when av (+), yellow while a route has it locked as protection (STV-20). */
+export type DrawnDerailer = {
+  number: string;
+  cell: Cell;
+  label: Cell;
+  /** Across the track at the node, a unit vector in cells. */
+  across: Cell;
+  position: "+" | "-" | null;
+  laid: boolean;
+  routes: number[];
+  protection: boolean;
+};
 /** A way through a slip that turns: a short stroke by the knot, parallel to the straight leg.
  * 85 draws it as in TDOK 2014:0693 7.16–7.17 and 95 as in TDOK 2021:0552 5.2.21.2–3. Its two
  * legs from the knot, and the way's state while the slip lies in it; free otherwise. */
@@ -218,6 +231,7 @@ export type DrawnTable = {
 export type Drawing = {
   lines: DrawnLine[];
   switches: DrawnSwitch[];
+  derailers: DrawnDerailer[];
   signals: DrawnSignal[];
   buffers: DrawnBuffer[];
   points: DrawnPoint[];
@@ -383,7 +397,37 @@ export function drawing(panel: Panel, state: Filled, lines: Set<string>, ends: S
     const f = shownFunctions.get(b.name);
     return { name: b.name, type: b.type, cell: b.cell, side: b.side, on: f?.on ?? false, mode: f?.mode ?? null };
   });
-  return { lines: drawnLines, switches, signals, buffers, points, numbers, names, labels, buttons, arrows: arrows(panel, state), ...lamps(drawnLines, state), tables: tables(panel, state) };
+  return { lines: drawnLines, switches, derailers: derailers(panel, state), signals, buffers, points, numbers, names, labels, buttons, arrows: arrows(panel, state), ...lamps(drawnLines, state), tables: tables(panel, state) };
+}
+
+/** The derailers, each across the track it lies on (TKL129). */
+function derailers(panel: Panel, state: Filled): DrawnDerailer[] {
+  return (panel.derailers ?? []).map((d) => {
+    const shown = state.switches[d.number];
+    const line = panel.lines.find((l) => sameCell(l.cells[0], d.cell) || sameCell(l.cells[l.cells.length - 1], d.cell));
+    let along: Cell = [1, 0];
+    if (line) {
+      const way = sameCell(line.cells[0], d.cell) ? line.cells : [...line.cells].reverse();
+      const a = way[0] as Cell;
+      const b = way[1] as Cell;
+      const n = distance(a, b) || 1;
+      along = [(b[0] - a[0]) / n, (b[1] - a[1]) / n];
+    }
+    // Across the track, downwards on the screen (or to the east on a vertical track), so that av
+    // lies on the same side as the number.
+    const down = along[0] > 1e-9 || (Math.abs(along[0]) <= 1e-9 && along[1] < 0);
+    const across: Cell = down ? [0 - along[1], along[0] + 0] : [along[1] + 0, 0 - along[0]];
+    return {
+      number: d.number,
+      cell: d.cell,
+      label: d.label,
+      across,
+      position: shown?.position ?? null,
+      laid: d.laid ?? true,
+      routes: shown?.routes ?? [],
+      protection: shown?.protection ?? false,
+    };
+  });
 }
 
 /** A line's way out from a centre: its points from the end nearest the centre. */

@@ -20,6 +20,7 @@ import {
   pieceAt,
   placeBoundary,
   placeBufferStop,
+  placeDerailer,
   placeLineExit,
   placeSignal,
   placeSwitch,
@@ -27,8 +28,10 @@ import {
   refOf,
   removeAt,
   removeTrack,
+  renameDerailer,
   renameSwitch,
   RitaError,
+  setDerailerControl,
   setReversed,
   setSwitchAddress,
   snapStraight,
@@ -142,6 +145,34 @@ describe("Rita: the six objects", () => {
     expect(d.model.line_exits[0]).toMatchObject({ id: "A", neighbour: null });
     expect(looseEnds(d.model)).toEqual([]);
     expect(() => placeLineExit(d, [9, 4])).toThrow("En linjeutfart sätts där ett spår slutar.");
+  });
+
+  it("places a derailer between two pieces, numbered after the switches, and takes it away with its track (TKL129)", () => {
+    const station = provby();
+    const placed = placeDerailer(station, [16, 7]);
+    expect(placed.number).toBe("3");
+    const d = placed.drawing;
+    const node = nodeOf(d, [16, 7]);
+    expect(d.model.derailers).toEqual([{ number: "3", node, control: "tkl", note: null, address: null, feedback: null, origin: null }]);
+    expect(() => placeDerailer(d, [16, 7])).toThrow("Här ligger redan en spårspärr.");
+    expect(() => placeDerailer(d, [8, 4])).toThrow("En spårspärr sätts på ett spår, mellan två spårbitar.");
+    expect(() => placeDerailer(d, [20, 7])).toThrow("En spårspärr sätts på ett spår, mellan två spårbitar.");
+    expect(placeSwitch(d, [14, 4], "ordinary", "ne").model.switches.map((s) => s.number)).toContain("4");
+    expect(() => renameSwitch(d, d.model.switches[0]!.node, "3")).toThrow("Numret 3 finns redan.");
+    expect(() => renameDerailer(d, "3", "2")).toThrow("Numret 2 finns redan.");
+    expect(renameDerailer(d, "3", "Sp1").model.derailers[0]?.number).toBe("Sp1");
+    expect(setDerailerControl(d, "3", "manual").model.derailers[0]?.control).toBe("manual");
+    expect(litBy(d.model, { kind: "derailer", id: "3" }).nodes).toEqual(new Set([node]));
+    expect(refOf({ kind: "derailer", id: "3" })).toEqual({ kind: "derailer", id: "3" });
+    expect(removeAt(d, { kind: "derailer", id: "3" }).model.derailers).toEqual([]);
+    expect(removeTrack(d, pieceOn(d, [18, 7])).model.derailers).toEqual([]);
+  });
+
+  it("drops a derailer where a track is drawn to it, since a switch lies there then", () => {
+    const d = placeDerailer(provby(), [16, 7]).drawing;
+    const joined = addTrack(d, [16, 7], [19, 10]);
+    expect(joined.model.derailers).toEqual([]);
+    expect(joined.model.switches.some((s) => s.node === nodeOf(d, [16, 7]))).toBe(true);
   });
 
   it("draws a whole small station: two station tracks, switches, signals, exits and buffer stops", () => {

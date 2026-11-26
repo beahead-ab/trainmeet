@@ -1,5 +1,5 @@
 {
-  "kalla": "Gårdsjö station (beslut CAD17, krav CAD-36): fotona ur ref/gardsjo/foto i trainmeet-spec, utan kamerans data (filerna har bara JFIF-huvudet), i originalets upplösning. Måtten och växlarna ur ref/gardsjo/station.json (modules[].size, gavlar, turnouts: nummer, mm från västra gaveln längs Kant 1, mm från Kant 1) och modulbladen ref/gardsjo/moduler/*.png (Kopplingar A → B), lästa 19 och 20 november 2026. Stationens gavel A är den västra. Hörnen är satta för hand i fotot, i fotots pixlar, så som ägaren bekräftar dem i Foto och kontroll. kant1 och gavel_a är fotots sidor (sida i går från hörn i till hörn i + 1, medurs från hörnet uppe till vänster) som ägaren trycker på: Gårdsjös moduler är mätta speglade mot CAD:s ritning (modulen ligger till vänster om Kant 1 från gavel A), så gavel A är sidan efter Kant 1. Därför är gavel_a, gavel_b, växlarnas lägen och förbindelserna stationens egna. Kurvorna har Kant 1 ytterst; radien är spår 1:s ur station.json, och kordan och pilhöjden ägaren mäter följer av den (CAD16). Växlarnas lägen på stationssidan är tungspetsarna, som specarbetet läste dem ur fotona och ägaren bekräftade (sektion 2: 112 och 113 tå mot tå, 32 mm isär; förgreningen: tungspetsen 57 mm från gaveln); i fotona syns tungspetsarnas dragstång där. De jämförs därför med kedjans tungspetsar (vaxel_lage: tungspetsar), inte med växelns nod i ritningen, som är där det ritade avvikande benets båge lämnar det raka (del c3). horn_ur_koden: koden hittar hörnen inom 1 % av modulens bredd från de handsatta, och testet läser fotot med kodens hörn (del c3; del c5: på alla fotona; del c6: alla läses med dem, också sektion 2, se dess källa); de handsatta står kvar som facit.",
+  "kalla": "Gårdsjö station (beslut CAD17, krav CAD-36): fotona ur ref/gardsjo/foto i trainmeet-spec, utan kamerans data (filerna har bara JFIF-huvudet), i originalets upplösning. Måtten och växlarna ur ref/gardsjo/station.json (modules[].size, gavlar, turnouts: nummer, mm från västra gaveln längs Kant 1, mm från Kant 1) och modulbladen ref/gardsjo/moduler/*.png (Kopplingar A → B), lästa 19 och 20 november 2026. Stationens gavel A är den västra. Hörnen är satta för hand i fotot, i fotots pixlar, så som ägaren bekräftar dem i Foto och kontroll. kant1 och gavel_a är fotots sidor (sida i går från hörn i till hörn i + 1, medurs från hörnet uppe till vänster) som ägaren trycker på: Gårdsjös moduler är mätta speglade mot CAD:s ritning (modulen ligger till vänster om Kant 1 från gavel A), så gavel A är sidan efter Kant 1. Därför är gavel_a, gavel_b, växlarnas lägen och förbindelserna stationens egna. Kurvorna har Kant 1 ytterst; radien är spår 1:s ur station.json, och kordan och pilhöjden ägaren mäter följer av den (CAD16). Växlarnas lägen på stationssidan är tungspetsarna, som specarbetet läste dem ur fotona och ägaren bekräftade (sektion 2: 112 och 113 tå mot tå, 32 mm isär; förgreningen: tungspetsen 57 mm från gaveln); i fotona syns tungspetsarnas dragstång där. De jämförs därför med kedjans tungspetsar (vaxel_lage: tungspetsar), inte med växelns nod i ritningen, som är där det ritade avvikande benets båge lämnar det raka (del c3). horn_ur_koden: koden hittar hörnen inom 1 % av modulens bredd från de handsatta, och testet läser fotot med kodens hörn (del c3; del c5: på alla fotona; del c6: alla läses med dem, också sektion 2, se dess källa); de handsatta står kvar som facit. Raka benet (vaxel_rakt, del c7) är vart varje växels raka ben går, till ett av stationens gavelspår eller till en annan växel (vaxel_nummer), ur stationens ställverk: tkl/referens/gardsjo.tkl.json, switches[].straight, ur signalplanen och bekräftat.",
   "fall": [
     {
       "foto": "infart-1.jpg",
@@ -32,6 +32,8 @@
       "gavel_b_mm": [140, 196, 285, 343],
       "forbindelser": ["A1-B1", "A2-B2", "A2-B3", "A2-B4", "A3-B3", "A3-B4"],
       "vaxlar": [[57, 196], [583, 265], [615, 270]],
+      "vaxel_nummer": ["111", "112", "113"],
+      "vaxel_rakt": ["B2", "111", "B4"],
       "harleds": true,
       "horn_ur_koden": true,
       "vaxel_lage": "tungspetsar",
@@ -43,7 +45,7 @@
     },
     {
       "foto": "sektion-6.jpg",
-      "kalla": "Sektion 6: 900 × 480 mm; gavel A 140/196/282/340 och gavel B 140/196/282, status 'Uppmätt ur foto'. Växel 136 (809 mm, 282): spår 4 går in i spår 3 nära östra gaveln (modulbladet: A4 → B3 via 136); i fotot syns tungspetsarnas dragstång där. Del c3 läser bågens tangentpunkt vid 876 och tungspetsarna vid 870, 61 mm från stationens (med de handsatta hörnen 854, 46 mm): skenorna syns isär först från 3 mm, och var tungspetsarna ligger mellan bågens tangentpunkt och där skenornas lutning möter det raka avgörs inte av fotot.",
+      "kalla": "Sektion 6: 900 × 480 mm; gavel A 140/196/282/340 och gavel B 140/196/282, status 'Uppmätt ur foto'. Växel 136 (809 mm, 282): spår 4 går in i spår 3 nära östra gaveln (modulbladet: A4 → B3 via 136); i fotot syns tungspetsarnas dragstång där. Del c3 läser bågens tangentpunkt vid 876 och tungspetsarna vid 870, 61 mm från stationens (med de handsatta hörnen 854, 46 mm): skenorna syns isär först från 3 mm, och var tungspetsarna ligger mellan bågens tangentpunkt och där skenornas lutning möter det raka avgörs inte av fotot. Del c7: raka benet läses som i stationens ställverk, mot A3 (förut mot A4), och tungspetsarna vid 846; dragstången syns vid ungefär 810–815 mm, som stationssidan.",
       "form": "straight",
       "bredd": 480,
       "langd": 900,
@@ -54,6 +56,8 @@
       "gavel_b_mm": [140, 196, 282],
       "forbindelser": ["A1-B1", "A2-B2", "A3-B3", "A4-B3"],
       "vaxlar": [[809, 282]],
+      "vaxel_nummer": ["136"],
+      "vaxel_rakt": ["A3"],
       "harleds": true,
       "horn_ur_koden": true,
       "vaxel_lage": "tungspetsar",
@@ -65,7 +69,7 @@
     },
     {
       "foto": "sektion-8.jpg",
-      "kalla": "Sektion 8: 900 × 337 mm, bredden bekräftad av ägaren; gavel A 140/194 och gavel B 140/197, status 'Uppmätt ur foto'. Överkorsningen 152 (62 mm, 194) och 151 (772, 140): A2 → B1 (modulbladet). Stationssidan säger att spår 2 avviker 3 mm från parallellt; fotot ger ungefär 197 vid båda gavlarna. 140/194 mot 140/197 skiljer för lite för att härleda Kant 1 och gavel A. Del c5: nere till höger ligger modulens skugga på golvet, mörk som gräset; koden går förbi den till brädans kant, och vänster sida är brädans yttre kant, inte gräsets (del c3: 6,1 mm fel, nu 2,7). Läst med kodens hörn: längden 899,1.",
+      "kalla": "Sektion 8: 900 × 337 mm, bredden bekräftad av ägaren; gavel A 140/194 och gavel B 140/197, status 'Uppmätt ur foto'. Överkorsningen 152 (62 mm, 194) och 151 (772, 140): A2 → B1 (modulbladet). Stationssidan säger att spår 2 avviker 3 mm från parallellt; fotot ger ungefär 197 vid båda gavlarna. 140/194 mot 140/197 skiljer för lite för att härleda Kant 1 och gavel A. Del c5: nere till höger ligger modulens skugga på golvet, mörk som gräset; koden går förbi den till brädans kant, och vänster sida är brädans yttre kant, inte gräsets (del c3: 6,1 mm fel, nu 2,7). Läst med kodens hörn: längden 899,1. Del c7: raka benet läses som i stationens ställverk, 152 rakt mot B2 och avvikande mot 151 (förut förväxlade) och 151 rakt mot A1; tungspetsarna vid 110 och 796 mm. Fotot visar dragstängerna ungefär 100 mm (152) och 820 mm (151) från gavel A, 38 och 48 mm längre in än stationssidans 62 och 772, medan 136 på sektion 6 stämmer med sin. Ägaren får frågan (specens GDJ-152), och medianen är 40 mm i stället för 35 tills hans mått finns: med fotots lägen vore den 17.",
       "form": "straight",
       "bredd": 337,
       "langd": 900,
@@ -76,10 +80,12 @@
       "gavel_b_mm": [140, 197],
       "forbindelser": ["A1-B1", "A2-B2", "A2-B1"],
       "vaxlar": [[62, 194], [772, 140]],
+      "vaxel_nummer": ["152", "151"],
+      "vaxel_rakt": ["B2", "A1"],
       "harleds": false,
       "horn_ur_koden": true,
       "vaxel_lage": "tungspetsar",
-      "vaxel_median_mm": 35.0,
+      "vaxel_median_mm": 40.0,
       "minst_hittade": 4,
       "minst_vaxlar": 2,
       "vaxel_tolerans_mm": 80.0,

@@ -59,7 +59,9 @@ releases do.
 
 Two Förslag wait for Benny's answer (trainmeet #62) and have a seam each: the signals a route
 passes (STV-19, `passed_showing`) and where the green number stands (STV-21, `green_numbers`).
-Flank protection (STV-20) has its seam in plant.protection_holds.
+Flank protection (STV-20, trainmeet #37) is the engine's (tkl.standard.flank): the nearest
+switch on each joining track is in the route's positions, laid away from it, locked before the
+signal clears and held by the sections at the node it protects.
 
 Level 3 with LocoNet (#85, STV-11, STV-15–STV-17). The service (tkl.loconet.service) connects
 the field with `field_connect`, passes the layout's reports to `field_reports` and the time to
@@ -581,16 +583,22 @@ class Interlocking:
         for part, position in way.route.positions.items():
             control = plant.control.get(part)
             if control is None:
-                return f"Växel {part} finns inte i stationsmodellen."
+                return f"{self.plant.what(part)} finns inte i stationsmodellen."
             if control != SwitchControl.TKL:
                 return not_laid(part, control)
             for holder, held in locks.parts.get(part, []):
                 if held != position:
-                    return f"Växel {part} är låst i läget {sign(held)} i vägen {holder.name}."
+                    return (
+                        f"{self.plant.what(part)} är låst i läget {sign(held)} "
+                        f"i vägen {holder.name}."
+                    )
             if self.positions.get(part) != position and not locks.parts.get(part):
                 under = self._under_train(part, occupied)
                 if under is not None:
-                    return f"Växel {part} kan inte läggas om: {plant.said(under)} är belagd."
+                    return (
+                        f"{self.plant.what(part)} kan inte läggas om: "
+                        f"{plant.said(under)} är belagd."
+                    )
         shown = [way.start] if way.route.start.kind == PointKind.SIGNAL else []
         for signal in [*shown, *way.route.passed]:
             holder = locks.showing.get(signal)
@@ -691,7 +699,9 @@ class Interlocking:
             for part, position in way.route.positions.items():
                 held = function.locked_parts.get(part)
                 if held is not None and held != position:
-                    return f"Växel {part} är låst i läget {sign(held)} av {function.name}."
+                    return (
+                        f"{self.plant.what(part)} är låst i läget {sign(held)} av {function.name}."
+                    )
         return None
 
     def _held_by(self, route: _Route) -> str | None:
@@ -1173,7 +1183,7 @@ class Interlocking:
         for part in sorted(moving, key=lambda p: (p not in own, p)):
             control = plant.control.get(part)
             if control is None:
-                return f"Växel {part} finns inte i stationsmodellen."
+                return f"{self.plant.what(part)} finns inte i stationsmodellen."
             if control != SwitchControl.TKL:
                 return not_laid(part, control)
             if self.field is not None:
@@ -1183,18 +1193,19 @@ class Interlocking:
             held = locks.parts.get(part)
             if held:
                 follow = "" if part in own else " och kan inte följa med"
-                return f"Växel {part} är låst i vägen {held[0][0].name}{follow}."
+                return f"{self.plant.what(part)} är låst i vägen {held[0][0].name}{follow}."
             for function in self._active(LOCAL):
                 if part in function.locked_parts:
-                    return f"Växel {part} är låst av {function.name}."
+                    return f"{self.plant.what(part)} är låst av {function.name}."
                 if part in function.switches:
                     return (
-                        f"Växel {part} är lokalt frigiven ({function.name}) och läggs om med "
+                        f"{self.plant.what(part)} är lokalt frigiven ({function.name}) "
+                        "och läggs om med "
                         "knappen på modulen."
                     )
             under = self._under_train(part, occupied)
             if under is not None:
-                return f"Växel {part} kan inte läggas om: {plant.said(under)} är belagd."
+                return f"{self.plant.what(part)} kan inte läggas om: {plant.said(under)} är belagd."
         return None
 
     def _train_for(self, route: _Route) -> tuple[_Train | None, str]:
@@ -2289,12 +2300,13 @@ class Interlocking:
         for part in sorted(moving):
             held = locks.parts.get(part)
             if held:
-                return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}.")
+                return Outcome(False, f"{self.plant.what(part)} är låst i vägen {held[0][0].name}.")
             under = self._under_train(part, occupied)
             if under is not None:
                 return Outcome(
                     False,
-                    f"Växel {part} kan inte läggas om: {self.plant.said(under)} är belagd.",
+                    f"{self.plant.what(part)} kan inte läggas om: "
+                    f"{self.plant.said(under)} är belagd.",
                 )
         before = self.exit_aspects()
         self.positions.update(moving)
@@ -2333,9 +2345,9 @@ class Interlocking:
                 return Outcome(False, not_laid(part, plant.control.get(part, SwitchControl.TKL)))
             held = locks.parts.get(part)
             if held:
-                return Outcome(False, f"Växel {part} är låst i vägen {held[0][0].name}.")
+                return Outcome(False, f"{self.plant.what(part)} är låst i vägen {held[0][0].name}.")
             if part in function.locked_parts:
-                return Outcome(False, f"Växel {part} är låst av {name}.")
+                return Outcome(False, f"{self.plant.what(part)} är låst av {name}.")
         self.positions.update(moving)
         return self._done(f"Växel {lever_id} lagd i {sign(side)} med knappen på modulen.")
 

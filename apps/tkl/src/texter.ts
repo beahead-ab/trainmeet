@@ -112,6 +112,9 @@ const T = {
   // The panel's own words
   signal: { sv: "Signal {name}", en: "Signal {name}" },
   switchLabel: { sv: "Växel {name}", en: "Switch {name}" },
+  derailerLabel: { sv: "Spårspärr {name}", en: "Derailer {name}" },
+  derailerOn: { sv: "på", en: "on" },
+  derailerOff: { sv: "av", en: "off" },
   point: { sv: "Mål {name}", en: "Goal {name}" },
   locked: { sv: "låst i väg {routes}", en: "locked in route {routes}" },
   protection: { sv: "låst som skydd", en: "locked as protection" },
@@ -123,6 +126,7 @@ const T = {
   legendOccupied: { sv: "Belagt", en: "Occupied" },
   legendGap: { sv: "Glapp vid växeln = benet som inte ligger", en: "Gap at the switch = the leg it does not lie in" },
   legendProtection: { sv: "Kort gult vid knuten = växel låst som skydd", en: "Short yellow at the switch = locked as protection" },
+  legendDerailer: { sv: "Streck över spåret = spårspärr, på spåret på och bredvid av, gult = låst som skydd", en: "Bar across the track = derailer, on the track on and beside it off, yellow = locked as protection" },
   legendSignals: {
     sv: "Huvudsignal triangel, dvärgsignal fylld pil, rött = slutpunkt",
     en: "Main signal triangle, dwarf signal filled arrow, red = end point",

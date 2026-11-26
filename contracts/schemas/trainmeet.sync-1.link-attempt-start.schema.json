@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-attempt-start.schema.json",
+  "title": "trainmeet.sync-1.link-attempt-start",
+  "$defs": {
+    "Hello": {
+      "additionalProperties": true,
+      "description": "Vem som ringer: hubben, dess program och de versioner av protokollet den talar.",
+      "properties": {
+        "protocols": {
+          "items": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Protocols",
+          "type": "array"
+        },
+        "hub_id": {
+          "description": "Hubbens id: slumpat vid första start, inte hemligt.",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Hub Id",
+          "type": "string"
+        },
+        "hub_name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Hub Name",
+          "type": "string"
+        },
+        "software": {
+          "description": "Hubbens programversion, till exempel 0.1.0.",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Software",
+          "type": "string"
+        }
+      },
+      "required": [
+        "hub_id",
+        "hub_name",
+        "software"
+      ],
+      "title": "Hello",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Koppla Pi:n genom inloggning och val av träff (F16, SYNK-02, KONTO-22): Pi:n ber molnet\nom ett försök och säger var webbläsaren kommer tillbaka. Koden är reserven.",
+  "properties": {
+    "hello": {
+      "$ref": "#/$defs/Hello"
+    },
+    "back": {
+      "description": "Pi:ns /api/hub/cloud/linked, som webbläsaren ser den.",
+      "maxLength": 300,
+      "title": "Back",
+      "type": "string"
+    }
+  },
+  "required": [
+    "hello",
+    "back"
+  ],
+  "type": "object"
+}

@@ -45246,6 +45246,294 @@
         "title": "CloudLinkChange",
         "type": "object"
       },
+      "trainmeet.sync-1.link-attempt-start": {
+        "additionalProperties": true,
+        "description": "Koppla Pi:n genom inloggning och val av träff (F16, SYNK-02, KONTO-22): Pi:n ber molnet\nom ett försök och säger var webbläsaren kommer tillbaka. Koden är reserven.",
+        "properties": {
+          "hello": {
+            "$ref": "#/components/schemas/trainmeet.sync-1.link-attempt-start.Hello"
+          },
+          "back": {
+            "description": "Pi:ns /api/hub/cloud/linked, som webbläsaren ser den.",
+            "maxLength": 300,
+            "title": "Back",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hello",
+          "back"
+        ],
+        "title": "LinkAttemptStart",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-attempt-start.Hello": {
+        "additionalProperties": true,
+        "description": "Vem som ringer: hubben, dess program och de versioner av protokollet den talar.",
+        "properties": {
+          "protocols": {
+            "items": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "title": "Protocols",
+            "type": "array"
+          },
+          "hub_id": {
+            "description": "Hubbens id: slumpat vid första start, inte hemligt.",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Hub Id",
+            "type": "string"
+          },
+          "hub_name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "description": "Hubbens programversion, till exempel 0.1.0.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          }
+        },
+        "required": [
+          "hub_id",
+          "hub_name",
+          "software"
+        ],
+        "title": "Hello",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-attempt-started": {
+        "additionalProperties": true,
+        "properties": {
+          "attempt": {
+            "description": "Försöket: webbläsaren tar det till molnet.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Attempt",
+            "type": "string"
+          },
+          "secret": {
+            "description": "Pi:ns hemlighet för försöket. Stannar på Pi:n.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Secret",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Var webbläsaren öppnar försöket, när molnet vet sin adress på internet.",
+            "title": "Address"
+          }
+        },
+        "required": [
+          "attempt",
+          "secret",
+          "expires"
+        ],
+        "title": "LinkAttemptStarted",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-meet-choice": {
+        "additionalProperties": true,
+        "description": "En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Date"
+          }
+        },
+        "required": [
+          "meet",
+          "name"
+        ],
+        "title": "LinkMeetChoice",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-attempt": {
+        "additionalProperties": true,
+        "description": "Försöket, som molnet visar det för den som väljer träff åt Pi:n.",
+        "properties": {
+          "hub_name": {
+            "description": "Pi:ns namn.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "software": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Software",
+            "type": "string"
+          },
+          "address": {
+            "description": "Pi:ns adress, som webbläsaren ser den.",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "expires": {
+            "format": "date-time",
+            "title": "Expires",
+            "type": "string"
+          },
+          "meets": {
+            "items": {
+              "$ref": "#/components/schemas/trainmeet.sync-1.link-attempt.LinkMeetChoice"
+            },
+            "title": "Meets",
+            "type": "array"
+          },
+          "chosen": {
+            "anyOf": [
+              {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "description": "Träffen som är vald, om någon är det.",
+            "title": "Chosen"
+          }
+        },
+        "required": [
+          "hub_name",
+          "software",
+          "address",
+          "expires",
+          "meets"
+        ],
+        "title": "LinkAttempt",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-attempt.LinkMeetChoice": {
+        "additionalProperties": true,
+        "description": "En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.",
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "first_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "First Date"
+          }
+        },
+        "required": [
+          "meet",
+          "name"
+        ],
+        "title": "LinkMeetChoice",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-choice": {
+        "additionalProperties": true,
+        "properties": {
+          "meet": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+            "title": "Meet",
+            "type": "string"
+          }
+        },
+        "required": [
+          "meet"
+        ],
+        "title": "LinkChoice",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-chosen": {
+        "additionalProperties": true,
+        "properties": {
+          "back": {
+            "description": "Tillbaka till Pi:n, som då hämtar sin nyckel.",
+            "title": "Back",
+            "type": "string"
+          }
+        },
+        "required": [
+          "back"
+        ],
+        "title": "LinkChosen",
+        "type": "object"
+      },
+      "trainmeet.sync-1.link-redeem": {
+        "additionalProperties": true,
+        "description": "Pi:n hämtar sin nyckel för försöket, med hemligheten bara den har.",
+        "properties": {
+          "secret": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "title": "LinkRedeem",
+        "type": "object"
+      },
       "trainmeet.sync-1.run-events": {
         "additionalProperties": true,
         "description": "Under träffen (SYNK-10, DRIFT-12): Pi:n leder och skickar körningens drifthändelser i\nordning, efter molnets senaste kvittens. Utan händelser frågar Pi:n bara efter kvittensen,\ntill exempel efter en omstart.",

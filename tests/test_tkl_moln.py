@@ -22,8 +22,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from contracts import station
+from contracts.station_model import StationModel
 from contracts.sync import StationPackage
 from contracts.tkl import (
+    RouteKind,
     TklCloudStations,
     TklConnection,
     TklIdState,
@@ -31,6 +33,7 @@ from contracts.tkl import (
     TklMode,
     TklSaved,
     TklState,
+    TklTrackPlan,
 )
 from hub import id_login as hub_id
 from hub.app import create_app as create_hub
@@ -45,6 +48,7 @@ from tkl.app import create_app as create_tkl
 from tkl.id_login import TklIdSettings
 
 TKL_API = "/api/tkl/1"
+REFERENCES = Path(__file__).resolve().parents[1] / "tkl" / "referens"
 TKL = "https://tkl.example.test"
 ID_API = "http://id-api:8080"
 OUR_MEET = uuid.uuid4()
@@ -736,6 +740,37 @@ def test_a_remote_interlocking_in_the_cloud_is_opened_by_the_login(
     opened = new_station(tkl)
     assert opened.remote is None and opened.station is not None
     assert opened.station.station_id == "exb"
+
+
+def test_the_friends_trial_works_with_the_login(tkl: TestClient, pretend: PretendIdWithApi) -> None:
+    """The trial cards for TKL in the cloud once the test environment turns TKL_KONTO on (#88):
+    log in, Ny station, a reference station with a part as one's own, a route laid in
+    Ställverket, and the part's screen sets a route of its own in the same browser."""
+    log_in(tkl, pretend)
+    new_station(tkl)
+    models = {
+        p.name.removesuffix(".tkl.json"): StationModel.model_validate_json(p.read_text("utf-8"))
+        for p in REFERENCES.glob("*.tkl.json")
+    }
+    [(reference, model)] = [(k, m) for k, m in models.items() if m.parts]
+    used = tkl.post(f"{TKL_API}/referens/{reference}/use")
+    assert used.status_code == 200, used.text
+    plan = TklTrackPlan.model_validate(used.json())
+    train = next(r for r in plan.route_list if r.kind == RouteKind.TRAIN)
+    laid = tkl.post(TKL_API + "/stallverk/route", json={"start": train.start, "end": train.end})
+    assert laid.status_code == 200, laid.text
+    assert [(r["start"], r["end"]) for r in tkl.get(TKL_API + "/stallverk").json()["routes"]] == [
+        (train.start, train.end)
+    ]
+    part = model.parts[0]
+    inside = next(
+        r for r in plan.route_list if r.kind == RouteKind.SHUNTING and r.start in part.signals
+    )
+    goals = tkl.get(f"{TKL_API}/stallverk/parts/{part.id}/targets", params={"start": inside.start})
+    assert goals.status_code == 200, goals.text
+    # Logged out, the same browser reaches nothing until it logs in again.
+    assert tkl.post(TKL_API + "/id/logout").status_code == 200
+    assert tkl.get(TKL_API + "/stallverk").status_code == 401
 
 
 @pytest.mark.parametrize(("konto", "login"), [(None, False), ("on", True)])

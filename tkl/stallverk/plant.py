@@ -14,7 +14,8 @@ Ways. A way is one of the engine's routes as the interlocking uses it: its secti
 where a train stands to take it, and which sections hold each lock. A switch on the route's
 own path is held by the sections at its node; a switch the route lays without running over
 it, coupled on the same lever or dragged along (TKL104), is held as long as the switch it
-protects (STV-20, a Förslag: the simplest safe choice, see protection_holds). A signal the
+protects (see protection_holds), and a flank protection switch (tkl.standard.flank, STV-20) by
+the sections at the node on the route it protects. A signal the
 route guards is held by the sections at its node, the end signal by the last section.
 
 Exits. An exit's box is the line outside the entry signal: the pieces from the line exit in to
@@ -50,6 +51,7 @@ from typing import Final, Literal
 
 from contracts.station_model import (
     Address,
+    Derailer,
     NodeType,
     PanelFunction,
     PanelFunctionType,
@@ -226,6 +228,10 @@ class Plant:
             part: s.control for s in model.switches for part in parts(s)
         }
         self.part_node: dict[str, str] = {part: s.node for s in model.switches for part in parts(s)}
+        self.derailers: dict[str, Derailer] = {d.number: d for d in model.derailers}
+        for derailer in model.derailers:
+            self.control.setdefault(derailer.number, derailer.control)
+            self.part_node.setdefault(derailer.number, derailer.node)
         self.crossing_node: dict[str, str] = {
             s.number: s.node for s in model.switches if s.type in _CROSSINGS
         }
@@ -432,6 +438,8 @@ class Plant:
             laid = self.levers.lay({part: position})
             for other in laid.positions if laid is not None else {part: position}:
                 owners.setdefault(other, set()).add(part)
+        for part, node in route.flank.items():
+            holds.setdefault(part, at(node))
         for part in route.positions:
             if part not in holds:
                 holds[part] = protection_holds(part, owners, holds, every)
@@ -650,7 +658,8 @@ class Plant:
     # --- levers -----------------------------------------------------------------------------
 
     def initial_positions(self) -> dict[str, Position]:
-        """Every lever in its + position, the dragged switches with it, in the model's order."""
+        """Every lever in its + position, the dragged switches with it, in the model's order, and
+        every derailer på (-)."""
         positions: dict[str, Position] = {}
         for lever in self.levers.levers.values():
             for part in own_parts(lever):
@@ -659,7 +668,13 @@ class Plant:
             laid = self.levers.lay(dict(lever.plus))
             if laid is not None:
                 positions.update(laid.positions)
+        for derailer in self.derailers.values():
+            positions[derailer.number] = Position.MINUS  # på until a route lays it av
         return {p: v for p, v in positions.items() if self.control.get(p) == SwitchControl.TKL}
+
+    def what(self, part: str) -> str:
+        """A part as a message names it: Växel 3, or Spårspärr 7 for a derailer (TKL129)."""
+        return f"Spårspärr {part}" if part in self.derailers else f"Växel {part}"
 
     def lever_side(self, lever_id: str, positions: Mapping[str, Position]) -> Position | None:
         lever = self.levers.levers[lever_id]
@@ -715,12 +730,11 @@ def protection_holds(
     holds: Mapping[str, frozenset[int]],
     every: frozenset[int],
 ) -> frozenset[int]:
-    """Where a switch the route locks without running over it is held (STV-20, a Förslag).
+    """Where a switch the route lays with its own, on the same lever or dragged along, is held.
 
-    The seam for flank protection: today such a switch, coupled on the same lever or dragged
-    along, is held as long as the route's own switches that lay it, and with none of them
-    known, until the whole route is released. When Benny's answer comes (trainmeet #62), the
-    flank protection rule goes here.
+    As long as the route's own switches that lay it, and with none of them known, until the
+    whole route is released. A switch laid for flank protection (tkl.standard.flank) is held by
+    the sections at the node it protects instead (STV-20, trainmeet #37).
     """
     found = frozenset(i for owner in owners.get(part, ()) for i in holds.get(owner, ()))
     return found or every

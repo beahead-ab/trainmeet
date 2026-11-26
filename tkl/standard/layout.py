@@ -83,7 +83,7 @@ from contracts.tkl import (
     PanelTrackName,
 )
 from tkl.standard.graph import SLIP_TYPES, Graph, length
-from tkl.standard.grid import Hit, describe, hits
+from tkl.standard.grid import Hit, derailers, describe, hits
 
 CELL_PX = 24
 ROW = 3
@@ -2211,6 +2211,7 @@ def _panel(layout: _Layout, paths: dict[str, list[Cell]], cells: dict[str, Cell]
         lines=lines,
         nodes=nodes,
         switches=_switches(layout, cells, paths),
+        derailers=derailers(shape.model, cells, shape.real),
         signals=_signals(layout, cells),
         labels=_labels(layout, cells, paths),
         track_names=_track_names(layout, cells),

@@ -14,7 +14,8 @@ its shape). Part c6: every photo is read with them, and the one with two switche
 keeps its switches and gable tracks when code's corners move by up to SHAKE_PX.
 A switch's position is what its source means by it (vaxel_lage): the drawn node where the
 diverging arc leaves the straight (AnyRail's), or the blade tips (tungspetsarna, the station
-page's); the median distance is held to vaxel_median_mm.
+page's); the median distance is held to vaxel_median_mm. Part c7: each switch's straight leg runs
+where the station's interlocking has it (vaxel_nummer, vaxel_rakt).
 
 Each photo is read once per run (read() is cached) and the tests share it: a photo takes 6–40 s.
 The shaken readings are measured in SHAKE_WORKERS processes at once.
@@ -25,6 +26,7 @@ header.
 
 from __future__ import annotations
 
+import itertools
 import json
 import math
 import multiprocessing
@@ -178,9 +180,9 @@ def found_pairs(measured: Measured) -> set[str]:
     return {f"{a}-{b}" for a, b in measured.code_pairs()}
 
 
-def station_pairs(name: str) -> set[str]:
-    """The connections found, each gable track named as the station names it: the nearest of
-    the station's tracks at that gable. A track the chain did not find leaves a gap in its own
+def station_names(name: str) -> dict[str, str]:
+    """Each terminal found, a gable track named as the station names it: the nearest of the
+    station's tracks at that gable. A track the chain did not find leaves a gap in its own
     numbering, never in the station's."""
     _, case = BY_NAME[name]
     found = read(name)
@@ -193,7 +195,13 @@ def station_pairs(name: str) -> set[str]:
         at = found.assembled.gable_positions[t.id]
         nearest = min(range(len(owner)), key=lambda i: abs(owner[i] - at))
         names[t.id] = f"{t.gable}{nearest + 1}"
-    return {f"{names[a]}-{names[b]}" for a, b in found.measured.code_pairs()}
+    return names
+
+
+def station_pairs(name: str) -> set[str]:
+    """The connections found, each gable track named as the station names it."""
+    names = station_names(name)
+    return {f"{names[a]}-{names[b]}" for a, b in read(name).measured.code_pairs()}
 
 
 def switch_positions(assembled: Assembled, meaning: str = "nod") -> list[tuple[float, float]]:
@@ -312,6 +320,53 @@ def test_the_switches_lie_within_their_median(name: str) -> None:
         name,
         distances,
     )
+
+
+def straight_legs(name: str) -> dict[str, str]:
+    """Where each of the station's switches found sends its straight leg: to the station's gable
+    track (A1, B2 …) or to another of the station's switches, by number. The station's switches
+    are paired with those found so that the distances add up to the least: between two switches
+    toe to toe the nearest one found can be the other's (112 and 113, 32 mm apart)."""
+    _, case = BY_NAME[name]
+    found = read(name).assembled
+    net = found.net
+    fits = chain.numbered_switches(net)
+    # The drawing numbers the switches as their fits by x, and keeps each one's blade tips.
+    at = [
+        found.switch_tips.get(str(i + 1), (net.nodes[f.node].x, net.nodes[f.node].y))
+        for i, f in enumerate(fits)
+    ]
+    truths = [tuple(t) for t in case["vaxlar"]]
+    if len(fits) < len(truths):
+        return {}
+    best = min(
+        itertools.permutations(range(len(fits)), len(truths)),
+        key=lambda js: sum(math.dist(t, at[j]) for t, j in zip(truths, js, strict=True)),
+    )
+    number = {
+        fits[j].node: case["vaxel_nummer"][i]
+        for i, j in enumerate(best)
+        if math.dist(truths[i], at[j]) <= float(case["vaxel_tolerans_mm"])
+    }
+    names = station_names(name)
+    legs: dict[str, str] = {}
+    for fit in fits:
+        if fit.node not in number:
+            continue
+        edge = net.edges[fit.straight]
+        far = edge.b if edge.a == fit.node else edge.a
+        legs[number[fit.node]] = number.get(far) or names.get(far, net.nodes[far].kind)
+    return legs
+
+
+@pytest.mark.parametrize("name", [c["foto"] for _, c in CASES if c.get("vaxel_rakt")])
+def test_the_straight_leg_is_the_stations(name: str) -> None:
+    """Part c7: each switch's straight leg runs where the station's own interlocking has it
+    (vaxel_rakt, from the signal plan): between two switches toe to toe, as part c6 read them,
+    and at a gable too, where the diverging leg was read as the straight (136 and 152)."""
+    _, case = BY_NAME[name]
+    want = dict(zip(case["vaxel_nummer"], case["vaxel_rakt"], strict=True))
+    assert straight_legs(name) == want, name
 
 
 def corner_distances_mm(name: str) -> list[float]:

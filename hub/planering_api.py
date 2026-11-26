@@ -115,19 +115,6 @@ def router(
         """The PIN, or Administratör or Arrangör at the meet in TrainMeet ID (PLAN-19)."""
         may.require_planner(session_of(session, authorization), id_meet_of(meet))
 
-    def roles_by_meet(token: str | None) -> dict[str, set[str]] | None:
-        """The roles at each ID meet of the one logged in with ID, or None for the hub's PIN."""
-        if login.valid(token):
-            return None
-        person = login.person(token) if login.role(token) == PERSON else None
-        if person is None or may.roles is None:
-            return {}
-        try:
-            found = may.roles.meets(person.id)
-        except HTTPException:
-            return {}
-        return {str(m.id): roles_of(m) for m in found}
-
     @routes.get("/meets")
     def meets(
         response: Response, session: SessionCookie = None, authorization: Authorization = None
@@ -139,7 +126,7 @@ def router(
         response.headers["Cache-Control"] = "no-store"
         published = kept.meets()
         away = homes.elsewhere(me()[0])
-        held = roles_by_meet(session_of(session, authorization))
+        held = may.roles_by_meet(session_of(session, authorization))
 
         def rights(meet: Meet) -> dict[str, bool]:
             if held is None:

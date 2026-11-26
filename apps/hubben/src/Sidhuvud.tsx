@@ -1,7 +1,8 @@
 import { BottomNav, linkClick, ProductName, Skylt, type NavItem } from "@trainmeet/design";
 import { useState } from "react";
-import { connectPicture, type Joining, type Now, type Weekday } from "./api";
+import { connectPicture, hub, type Joining, type Now, type Weekday } from "./api";
 import { clockNote, clockText, meetTitle, PROVBANAN, WEEKDAYS, type MeetChoice } from "./traff";
+import { openedOnOutput, openOnOutput, outputAddress, useRelock } from "./utgang";
 
 // The header (S2, TRAFIK-12): the same for everyone. It always has the meet with Byt träff,
 // the meet clock, Anslut and Väntar; logged in, one also gets the buttons (S1). Planering and
@@ -67,11 +68,36 @@ export type HeaderProps = {
   onMenu: (menu: Menu) => void;
   onStart: (choice: MeetChoice, day: Weekday) => void;
   onLogOut: () => void;
+  /** Leaves the app for another page of the hub's, as Lås skärmen does; left out, the browser
+   * goes there. */
+  leave?: (href: string) => void;
 };
+
+const goTo = (href: string) => window.location.assign(href);
+
+/** Lås skärmen (S4): on one of the Pi's outputs, the hub's pages lock again by the button or
+ * after two minutes without a key or a click. The PIN's session ends, and the output shows its
+ * view. */
+function useOutputLock(leave: (href: string) => void): (() => void) | null {
+  const output = openedOnOutput();
+  const lock = () => {
+    if (output === null) return;
+    void hub
+      .logOut()
+      .catch(() => undefined)
+      .finally(() => {
+        openOnOutput(null);
+        leave(outputAddress(output));
+      });
+  };
+  useRelock(output !== null, lock);
+  return output === null ? null : lock;
+}
 
 export function Sidhuvud(props: HeaderProps) {
   const { current, viewed, bottom, hubName, admin, owner = admin, loggedIn = admin, person, tokens, tokensUrl, now, elapsedMs, waiting, menu, navigate, onMenu } = props;
   const toggle = (which: Menu) => onMenu(menu === which ? null : which);
+  const lockOutput = useOutputLock(props.leave ?? goTo);
   const tab = (href: string) => ({ "aria-current": href === current ? ("page" as const) : undefined, onClick: linkClick(navigate, href) });
   return (
     <>
@@ -119,6 +145,11 @@ export function Sidhuvud(props: HeaderProps) {
             {now && <span className="not">{clockNote(now)}</span>}
             <span className="osynlig">{now ? (now.clock.running ? " Klockan går." : " Klockan står still.") : " Ingen träff är startad."}</span>
           </span>
+          {lockOutput && (
+            <button id="lock-output" type="button" className="hknapp" title="Pi:ns skärm visar sin vy igen, och tangentbordet och musen låses." onClick={lockOutput}>
+              Lås skärmen
+            </button>
+          )}
           {/* Inställningar, always to the left of the account (TRAFIK-30, H48). */}
           <a id="gear" className="hknapp kugge" href="/installningar" aria-label="Inställningar" title="Inställningar" {...tab("/installningar")}>
             <Gear />

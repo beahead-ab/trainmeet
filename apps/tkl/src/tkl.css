@@ -974,6 +974,13 @@ svg.rita-rutnat .nod.vald .knut {
 svg.rita-rutnat .nod.antagen .vaxelnummer {
   fill: #b07c00;
 }
+svg.rita-rutnat .sparr line {
+  stroke: #b07c00;
+  stroke-linecap: butt;
+}
+svg.rita-rutnat .sparr {
+  cursor: pointer;
+}
 svg.rita-rutnat .streck,
 svg.rita-rutnat .stoppbock {
   stroke: #1d1d1b;

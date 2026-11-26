@@ -1,3 +1,4 @@
+import type { Package } from "@trainmeet/hubben";
 import { useState, type ChangeEvent } from "react";
 import { LEVELS, refKey, trainsOf, type Level, type ServiceOffer } from "./api";
 import { timeSeconds } from "./clock";
@@ -5,6 +6,7 @@ import { onAxis, wholeMinutes } from "./korplan";
 import { paperStatusText, RejectedCard, runningPaper } from "./Papper";
 import type { Lok, LokState } from "./store";
 import { TEXT, type Text } from "./text";
+import { Topologi, usePackage } from "./Topologi";
 import { Icon, PageHead, Problem } from "./ui";
 
 // Tåg (LOK-17, LOK-18, LOK-19, LOK-25, LOK-29, LOK-31, LOK-32, LOK-40; valj-tjanst.jpg,
@@ -316,9 +318,12 @@ export function TagTab({ lok, state, now }: { lok: Lok; state: LokState; now: nu
   );
 }
 
-/** Tjänstens kort (taget.jpg): the front, the trains, the instructions, and Ta tjänsten. */
-export function TjanstKort({ lok, state, now }: { lok: Lok; state: LokState; now: number | null }) {
+/** Tjänstens kort (taget.jpg, om-taget.jpg): the front, the line with the service's way
+ * (LOK-28), the instructions, and Ta tjänsten. */
+export function TjanstKort({ lok, state, now, initialPackage }: { lok: Lok; state: LokState; now: number | null; initialPackage?: Package | null }) {
   const text = TEXT[state.language];
+  const fetched = usePackage();
+  const pkg = initialPackage !== undefined ? initialPackage : fetched;
   const offer = state.selected ?? state.me?.service ?? null;
   if (!offer) {
     return (
@@ -345,6 +350,7 @@ export function TjanstKort({ lok, state, now }: { lok: Lok; state: LokState; now
       />
       <Problem text={state.problem} />
       <Front offer={offer} text={text} paper={paper} now={now} />
+      <Topologi pkg={pkg} offer={offer} text={text} />
       <ul className="lok-lankar">
         <li>
           <button type="button" onClick={() => lok.navigate("instruktioner")}>

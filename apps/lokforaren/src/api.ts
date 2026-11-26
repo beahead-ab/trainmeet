@@ -114,6 +114,8 @@ export const api = {
   list: () => call<Presence[]>(`${DRIVERS}/list`),
   wait: (after: number, signal?: AbortSignal) => call<Wait>(`${DRIVERS}/wait?after=${after}`, { signal }),
   instructions: () => call<Instructions>(`${DRIVERS}/instructions`),
+  /** The package Drift goes by, open to anyone as Nu is (H72): the line for Topologi (LOK-28). */
+  package: () => call<Schemas["trainmeet.meet-1"]>("/api/drift/1/package"),
   leave: () => call<void>(`${DRIVERS}/leave`, json({})),
   /** The price before anything is read (LOK-33, TOKEN-14), and whether it can be read now. */
   paperPrice: (pages: number) => call<PaperPrice>(`${DRIVERS}/paper/price?pages=${pages}`),

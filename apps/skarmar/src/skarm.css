@@ -94,6 +94,78 @@ button {
   min-height: 1.4em;
 }
 
+button.andra {
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Skärmlåset (S4, SKARM-03): the PIN in the middle over the dimmed view, and the row along the
+   bottom while the output is unlocked or the hub has no PIN yet. */
+.las-bakgrund {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  background: rgb(11 13 16 / 0.72);
+}
+.las {
+  width: min(420px, 92vw);
+  padding: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  text-align: center;
+}
+.las h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+}
+.las p {
+  margin: 0;
+  color: var(--mute);
+}
+.las form {
+  width: 100%;
+}
+#unlock-pin {
+  font-family: "TrainMeet Mono", ui-monospace, monospace;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+#unlock-message {
+  color: var(--yellow);
+  min-height: 1.4em;
+  margin-top: 8px;
+}
+.las-rad {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 20;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--mute);
+}
+.las-rad p {
+  margin: 0;
+}
+.las-rad a {
+  color: var(--blue);
+}
+
 /* Klockskärmen (SKARM-23, H74): the meet and its day top left, the clock in the middle. When
    the clock stands still, that is said in red glass over the lower half. */
 .klocka {

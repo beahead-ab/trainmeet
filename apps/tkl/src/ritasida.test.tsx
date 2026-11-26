@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { Finding, Route } from "./api";
 import { Canvas, FindingsView, TOOLS } from "./Rita";
-import { addTrack, placeLineExit } from "./rita";
+import { addTrack, placeDerailer, placeLineExit } from "./rita";
 import { blank, provby } from "./ritaprov";
 
 /** Every element in a tree a component returned, to find a button and press it. */
@@ -15,8 +15,14 @@ function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
 }
 
 describe("Rita, the page", () => {
-  it("has the six tools and Markera", () => {
-    expect(TOOLS.map((t) => t.label)).toEqual(["Markera", "Spår", "Växel", "Signal", "Spårledningsgräns", "Stoppbock", "Linjeutfart"]);
+  it("has the seven tools and Markera (STUDIO-02, TKL129)", () => {
+    expect(TOOLS.map((t) => t.label)).toEqual(["Markera", "Spår", "Växel", "Spårspärr", "Signal", "Spårledningsgräns", "Stoppbock", "Linjeutfart"]);
+  });
+
+  it("draws a derailer across its track with its number, to select", () => {
+    const drawn = placeDerailer(provby(), [16, 7]).drawing;
+    const html = renderToStaticMarkup(<Canvas drawing={drawn} circuits={[]} selected={[]} route={null} tool="select" />);
+    expect(html).toMatch(/<g class="sparr" data-ref="derailer:3" data-derailer="3"><title>Spårspärr 3<\/title><line/);
   });
 
   it("shows a red dot where a track ends without reaching anything (RS7)", () => {

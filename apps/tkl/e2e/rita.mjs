@@ -5,6 +5,8 @@
 // mot en stoppbock: varje växel har tre ben, så antalet ändar är jämnt, och provet har därför två
 // stoppbockar. Provet ser att de röda punkterna försvinner när ändarna får stoppbock och utfart,
 // att motorn räknar fram vägarna, tar ritningen i bruk och lägger tågvägen A1 → 1Ö i Ställverket.
+// Stickspåret får spårspärren 3 (TKL129, trainmeet #37): tågvägen B1 → 1V går rakt förbi växel 2,
+// och spärren läggs på och blir gul som sidoskydd för den; när vägen är utlöst släpps den.
 // Sist delas stationen i Studio › Dela stationen (#87 del b): spår 2 blir delen Lastplatsen med
 // växel 1 som gränsväxel och en växelgata till spår 2. Använd väntar med 409 medan tågvägen
 // ligger, och går igenom när den är utlöst. På delens skärm /del/lastplatsen läggs gatan, och
@@ -127,7 +129,7 @@ async function dela(page) {
   await checks.getByText("Inga problem", { exact: false }).waitFor();
   await page.getByText("Inga problem: delarna kan användas.").waitFor();
   await screenshot(page, "dela-stationen");
-  // Använd medan tågvägen A1 → 1Ö ligger: 409, och utkastet står kvar.
+  // Använd medan tågvägen B1 → 1V ligger: 409, och utkastet står kvar.
   await page.getByRole("button", { name: "Använd", exact: true }).click();
   await page.locator(".fel, .notis", { hasText: "Ställverket har lagda vägar" }).waitFor();
   await page.getByText("Utkast, sparat på datorn", { exact: true }).waitFor();
@@ -136,6 +138,9 @@ async function dela(page) {
     const done = await page.request.post(`${TKL}/api/tkl/1/stallverk/release`, { data: { route: route.id } });
     check(done.ok() && (await done.json()).accepted, `Tågvägen ${route.id} löstes inte ut.`);
   }
+  // Utlöst släpper vägen sidoskyddet: spårspärren 3 ligger kvar på men är inte längre låst.
+  const released = (await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json()).switches["3"];
+  check(released?.position === "-" && !released.protection && !released.routes?.length, `Spårspärren 3 är låst fast vägen är utlöst: ${JSON.stringify(released)}`);
   await page.getByRole("button", { name: "Använd", exact: true }).click();
   await page.getByText("Används i Ställverket", { exact: true }).waitFor();
   await screenshot(page, "dela-anvand");
@@ -190,6 +195,11 @@ try {
   await click(page, 20, 7);
   await click(page, 27, 1);
   check((await loose(page)) === 0, "Stoppbockarna tog inte bort de röda punkterna.");
+  // Spårspärren 3 på stickspåret från växel 2, mellan växeln och stoppbocken (TKL129).
+  await tool(page, "Spårspärr");
+  await click(page, 26, 2);
+  await grid(page).locator('g[data-derailer="3"]').waitFor();
+  check((await loose(page)) === 0, "Spårspärren gav röda punkter.");
 
   // Fyra signaler: infarterna A1 och B1, utfarterna 1V och 1Ö på spår 1.
   await signal(page, 5, 4, "east", "A1");
@@ -234,10 +244,35 @@ try {
   check((await panel.locator('g[data-signal="A1"]').getAttribute("data-aspect")) === "proceed", "A1 visar inte kör.");
   await screenshot(page, "stallverket-tagvag");
 
+  // 5b. Sidoskyddet (TKL129, STV-20): tågvägen B1 → 1V går rakt förbi växel 2, så spårspärren 3 på
+  //     stickspåret läggs på och låses som skydd, gul på panelen. Först löses A1 → 1Ö ut, som korsar.
+  const derailer = panel.locator('g[data-derailer="3"]');
+  await derailer.waitFor();
+  check((await derailer.getAttribute("data-protection")) === null, "Spårspärren 3 är gul fast ingen väg behöver den.");
+  const laid = await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json();
+  for (const route of laid.routes) {
+    const done = await page.request.post(`${TKL}/api/tkl/1/stallverk/release`, { data: { route: route.id } });
+    check(done.ok() && (await done.json()).accepted, `Tågvägen ${route.id} löstes inte ut.`);
+  }
+  await page.getByRole("button", { name: /^Tågväg A1 → 1Ö/ }).waitFor({ state: "detached" });
+  await panel.getByRole("button", { name: "Signal B1", exact: true }).click();
+  await panel.locator('circle[data-start="B1"]').waitFor();
+  await panel.getByRole("button", { name: "Signal 1V", exact: true }).click();
+  await page.getByRole("button", { name: /^Tågväg B1 → 1V/ }).waitFor();
+  await panel.locator('g[data-derailer="3"][data-protection="3"][data-position="-"]').waitFor();
+  const guarded = await (await page.request.get(`${TKL}/api/tkl/1/stallverk`)).json();
+  check(guarded.switches["3"]?.position === "-" && guarded.switches["3"]?.protection === true, `Spårspärren 3 ligger inte på som skydd: ${JSON.stringify(guarded.switches["3"])}`);
+  await page.locator(".stv-svar", { hasText: /Tågväg B1 → 1V lagd: 2 \+, 3 [−-]/ }).waitFor();
+  const title = await panel.getByRole("button", { name: "Spårspärr 3", exact: true }).locator("title").textContent();
+  check(/på/.test(title ?? "") && /skydd/i.test(title ?? ""), `Spårspärren 3 säger inte att den ligger på som skydd: ${title}`);
+  check((await panel.locator('g[data-signal="B1"]').getAttribute("data-aspect")) === "proceed", "B1 visar inte kör.");
+  await screenshot(page, "stallverket-sparsparr");
+
   // 6. Dela stationen (#87 del b): spår 2 och benet dit från växel 1 blir delen Lastplatsen.
   await dela(page);
   check(!errors.length, `Fel i sidan: ${errors.join("; ")}`);
   console.log(`Rita i TKL: stationen ritades, togs i bruk och tågvägen A1 → 1Ö lades i Ställverket på ${Math.round((Date.now() - started) / 1000)} s.`);
+  console.log("Sidoskyddet: tågvägen B1 → 1V lade spårspärren 3 på stickspåret på och låste den gul som skydd, och släppte den när vägen löstes ut.");
   console.log("Dela stationen: Lastplatsen fick spår 2, gränsväxeln 1 och gatan till 2; Använd väntade med 409 medan tågvägen låg, och gatan lades på /del/lastplatsen.");
 } catch (error) {
   if (error instanceof ProvFel) {

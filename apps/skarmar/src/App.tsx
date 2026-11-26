@@ -1,15 +1,18 @@
 import { Skylt } from "@trainmeet/design";
+import { hub, outputOf } from "@trainmeet/hubben";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { fetchClock, fetchLayer, fetchPackage, fetchPicture, join, savedKey, saveKey, type Package, type ScreenPicture } from "./api";
 import { BanaView } from "./Bana";
 import { DiagramView } from "./Diagram";
 import { OversiktView } from "./Oversikt";
 import { Klocka, type ClockFace } from "./Klocka";
+import { Skarmlas } from "./Las";
 
 export { clockText } from "./Klocka";
 
 // A meet screen in the browser (SKARM-14): join with the code, wait under Väntar for a view,
-// then show it, drawn for 1920 × 1080 and scaled to the screen.
+// then show it, drawn for 1920 × 1080 and scaled to the screen. On the Pi's own outputs
+// (/skarm?utgang=1 and 2) the screen is locked, and the hub's PIN unlocks it (S4, Las.tsx).
 
 export type ScreenProps = {
   picture: ScreenPicture | null;
@@ -23,11 +26,16 @@ export type ScreenProps = {
   now: number;
   message: string;
   code: string;
+  /** The screen's name before it has one: Pi:ns skärm 1 on the Pi's first output. */
+  name?: string;
   onJoin?: (name: string, code: string) => void;
 };
 
+/** What a screen on the Pi's output is called in Klienter until someone renames it. */
+export const outputName = (output: number) => `Pi:ns skärm ${output}`;
+
 /** Everything on the screen, from the state. No fetching here, so it can be rendered in tests. */
-export function Screen({ picture, pkg = null, face = null, theme = "morkt", fetchedAt, now, message, code, onJoin }: ScreenProps) {
+export function Screen({ picture, pkg = null, face = null, theme = "morkt", fetchedAt, now, message, code, name = "Skärm", onJoin }: ScreenProps) {
   if (picture && !picture.view) {
     return (
       <section id="waiting" className="vantar">
@@ -43,11 +51,11 @@ export function Screen({ picture, pkg = null, face = null, theme = "morkt", fetc
   if (picture?.view === "graph") return <DiagramView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
   if (picture?.view === "overview") return <OversiktView picture={picture} pkg={pkg} fetchedAt={fetchedAt} now={now} />;
   if (picture) return <Klocka picture={picture} fetchedAt={fetchedAt} now={now} face={face} theme={theme} />;
-  return <JoinForm message={message} code={code} onJoin={onJoin} />;
+  return <JoinForm message={message} code={code} given={name} onJoin={onJoin} />;
 }
 
-function JoinForm({ message, code, onJoin }: { message: string; code: string; onJoin?: ScreenProps["onJoin"] }) {
-  const [name, setName] = useState("Skärm");
+function JoinForm({ message, code, given, onJoin }: { message: string; code: string; given: string; onJoin?: ScreenProps["onJoin"] }) {
+  const [name, setName] = useState(given);
   const [typed, setTyped] = useState(code);
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -87,6 +95,17 @@ export function App() {
   const pkgKey = useRef<string | null>(null);
   const faceKey = useRef<string | null>(null);
   const code = new URLSearchParams(window.location.hash.slice(1)).get("kod") ?? "";
+  const output = outputOf(window.location.search);
+  // Locked until the hub says it has no PIN yet; out of reach, it stays locked.
+  const [setUp, setSetUp] = useState(true);
+
+  useEffect(() => {
+    if (output === null) return;
+    hub.info().then(
+      (info) => setSetUp(info.set_up),
+      () => undefined,
+    );
+  }, [output]);
 
   const refresh = useCallback(async () => {
     if (!key) return;
@@ -163,9 +182,22 @@ export function App() {
     setKey(joined.key);
   };
 
+  /** Anslut på nytt, on an unlocked output: the screen forgets its key and asks for the code. */
+  const reconnect = () => {
+    saveKey(null);
+    setKey(null);
+    setPicture(null);
+    setPkg(null);
+    pkgKey.current = null;
+    setFace(null);
+    faceKey.current = null;
+    setMessage("");
+  };
+
   return (
     <main>
-      <Screen picture={picture} pkg={pkg?.pkg ?? null} face={face} theme={theme} fetchedAt={fetchedAt} now={now} message={message} code={code} onJoin={onJoin} />
+      <Screen picture={picture} pkg={pkg?.pkg ?? null} face={face} theme={theme} fetchedAt={fetchedAt} now={now} message={message} code={code} name={output === null ? undefined : outputName(output)} onJoin={onJoin} />
+      {output !== null && <Skarmlas output={output} setUp={setUp} joined={key !== null} onReconnect={reconnect} />}
     </main>
   );
 }

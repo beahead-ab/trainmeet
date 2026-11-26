@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/beahead-ab/trainmeet/blob/main/contracts/schemas/trainmeet.sync-1.link-attempt.schema.json",
+  "title": "trainmeet.sync-1.link-attempt",
+  "$defs": {
+    "LinkMeetChoice": {
+      "additionalProperties": true,
+      "description": "En träff Pi:n kan kopplas till: den planeras här, och den inloggade får planera den.",
+      "properties": {
+        "meet": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "title": "Meet",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "first_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Date"
+        }
+      },
+      "required": [
+        "meet",
+        "name"
+      ],
+      "title": "LinkMeetChoice",
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "description": "Försöket, som molnet visar det för den som väljer träff åt Pi:n.",
+  "properties": {
+    "hub_name": {
+      "description": "Pi:ns namn.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Hub Name",
+      "type": "string"
+    },
+    "software": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Software",
+      "type": "string"
+    },
+    "address": {
+      "description": "Pi:ns adress, som webbläsaren ser den.",
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Address",
+      "type": "string"
+    },
+    "expires": {
+      "format": "date-time",
+      "title": "Expires",
+      "type": "string"
+    },
+    "meets": {
+      "items": {
+        "$ref": "#/$defs/LinkMeetChoice"
+      },
+      "title": "Meets",
+      "type": "array"
+    },
+    "chosen": {
+      "anyOf": [
+        {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Träffen som är vald, om någon är det.",
+      "title": "Chosen"
+    }
+  },
+  "required": [
+    "hub_name",
+    "software",
+    "address",
+    "expires",
+    "meets"
+  ],
+  "type": "object"
+}

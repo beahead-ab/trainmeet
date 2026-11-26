@@ -102,3 +102,19 @@ describe("the header (S2, TRAFIK-12)", () => {
   });
 });
 
+describe("Lås skärmen on the Pi's output (S4)", () => {
+  it("is there only when the hub's pages were opened from an unlocked output", () => {
+    expect(header({ admin: true })).not.toContain('id="lock-output"');
+    const kept = new Map([["trainmeet-utgang", "2"]]);
+    const storage = { getItem: (key: string) => kept.get(key) ?? null, setItem: () => undefined, removeItem: () => undefined };
+    Object.defineProperty(globalThis, "sessionStorage", { value: storage, configurable: true });
+    try {
+      expect(header({ admin: true })).toContain('id="lock-output" type="button" class="hknapp"');
+      kept.set("trainmeet-utgang", "7");
+      expect(header({ admin: true })).not.toContain('id="lock-output"');
+    } finally {
+      Reflect.deleteProperty(globalThis, "sessionStorage");
+    }
+  });
+});
+
