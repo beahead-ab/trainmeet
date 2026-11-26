@@ -2158,7 +2158,7 @@
     },
     "TrackCircuit": {
       "additionalProperties": true,
-      "description": "Spårledning.",
+      "description": "Spårledning.\n\nIts släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of\nit, such as an IR sensor, which is free in every gap between the wagons: the circuit counts\nas occupied until its sensor has been free that long. It only keeps a circuit occupied\nlonger, so occupancy still frees nothing by itself (STV-16).",
       "properties": {
         "name": {
           "maxLength": 80,
@@ -2191,6 +2191,14 @@
           "default": null,
           "description": "Givare, eller utan.",
           "title": "Detection"
+        },
+        "drop_delay": {
+          "default": 0,
+          "description": "Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.",
+          "maximum": 60.0,
+          "minimum": 0,
+          "title": "Drop Delay",
+          "type": "number"
         },
         "origin": {
           "anyOf": [

@@ -3112,6 +3112,11 @@ export interface components {
         /**
          * TrackCircuit
          * @description Spårledning.
+         *
+         *     Its släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of
+         *     it, such as an IR sensor, which is free in every gap between the wagons: the circuit counts
+         *     as occupied until its sensor has been free that long. It only keeps a circuit occupied
+         *     longer, so occupancy still frees nothing by itself (STV-16).
          */
         "trainmeet.station-model-1.TrackCircuit": {
             /** Name */
@@ -3124,6 +3129,12 @@ export interface components {
              * @default null
              */
             detection: components["schemas"]["trainmeet.station-model-1.Address"] | "without" | null;
+            /**
+             * Drop Delay
+             * @description Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.
+             * @default 0
+             */
+            drop_delay: number;
             /** @default null */
             origin: components["schemas"]["trainmeet.station-model-1.Origin"] | null;
         } & {
@@ -7852,6 +7863,11 @@ export interface components {
         /**
          * TrackCircuit
          * @description Spårledning.
+         *
+         *     Its släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of
+         *     it, such as an IR sensor, which is free in every gap between the wagons: the circuit counts
+         *     as occupied until its sensor has been free that long. It only keeps a circuit occupied
+         *     longer, so occupancy still frees nothing by itself (STV-16).
          */
         "trainmeet.tkl-1.drawing.TrackCircuit": {
             /** Name */
@@ -7864,6 +7880,12 @@ export interface components {
              * @default null
              */
             detection: components["schemas"]["trainmeet.tkl-1.drawing.Address"] | "without" | null;
+            /**
+             * Drop Delay
+             * @description Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.
+             * @default 0
+             */
+            drop_delay: number;
             /** @default null */
             origin: components["schemas"]["trainmeet.tkl-1.drawing.Origin"] | null;
         } & {
@@ -9065,6 +9087,11 @@ export interface components {
         /**
          * TrackCircuit
          * @description Spårledning.
+         *
+         *     Its släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of
+         *     it, such as an IR sensor, which is free in every gap between the wagons: the circuit counts
+         *     as occupied until its sensor has been free that long. It only keeps a circuit occupied
+         *     longer, so occupancy still frees nothing by itself (STV-16).
          */
         "trainmeet.tkl-1.rita.TrackCircuit": {
             /** Name */
@@ -9077,6 +9104,12 @@ export interface components {
              * @default null
              */
             detection: components["schemas"]["trainmeet.tkl-1.rita.Address"] | "without" | null;
+            /**
+             * Drop Delay
+             * @description Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.
+             * @default 0
+             */
+            drop_delay: number;
             /** @default null */
             origin: components["schemas"]["trainmeet.tkl-1.rita.Origin"] | null;
         } & {
@@ -11394,6 +11427,11 @@ export interface components {
         /**
          * TrackCircuit
          * @description Spårledning.
+         *
+         *     Its släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of
+         *     it, such as an IR sensor, which is free in every gap between the wagons: the circuit counts
+         *     as occupied until its sensor has been free that long. It only keeps a circuit occupied
+         *     longer, so occupancy still frees nothing by itself (STV-16).
          */
         "trainmeet.tkl-1.cad-import.TrackCircuit": {
             /** Name */
@@ -11406,6 +11444,12 @@ export interface components {
              * @default null
              */
             detection: components["schemas"]["trainmeet.tkl-1.cad-import.Address"] | "without" | null;
+            /**
+             * Drop Delay
+             * @description Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är ingen.
+             * @default 0
+             */
+            drop_delay: number;
             /** @default null */
             origin: components["schemas"]["trainmeet.tkl-1.cad-import.Origin"] | null;
         } & {
@@ -12518,6 +12562,13 @@ export interface components {
             ordered_signals?: {
                 [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking.TklAspect"];
             };
+            /**
+             * Dropping
+             * @description Spårledningar vars givare har släppt men som räknas som belagda tills släpptiden har gått (STUDIO-35): när givaren släppte.
+             */
+            dropping?: {
+                [key: string]: string;
+            };
         } & {
             [key: string]: unknown;
         };
@@ -13509,6 +13560,13 @@ export interface components {
              */
             ordered_signals?: {
                 [key: string]: components["schemas"]["trainmeet.tkl-1.interlocking-answer.TklAspect"];
+            };
+            /**
+             * Dropping
+             * @description Spårledningar vars givare har släppt men som räknas som belagda tills släpptiden har gått (STUDIO-35): när givaren släppte.
+             */
+            dropping?: {
+                [key: string]: string;
             };
         } & {
             [key: string]: unknown;
@@ -15036,6 +15094,12 @@ export interface components {
             /** @default null */
             control: components["schemas"]["trainmeet.tkl-1.koppla-in.SwitchControl"] | null;
             /**
+             * Drop Delay
+             * @description Spårledningens släpptid i sekunder (STUDIO-35).
+             * @default null
+             */
+            drop_delay: number | null;
+            /**
              * Card
              * @description Kortet adressen sitter på.
              * @default null
@@ -15241,7 +15305,8 @@ export interface components {
         /**
          * TklObjectChange
          * @description An object's address as the owner gives it: an address (yellow until it is confirmed on
-         *     the layout), none (grey), or Utan adress; and the polarity and the switch's feedback.
+         *     the layout), none (grey), or Utan adress; and the polarity, the switch's feedback and the
+         *     track circuit's släpptid.
          */
         "trainmeet.tkl-1.object-change": {
             kind: components["schemas"]["trainmeet.tkl-1.object-change.ObjectKind"];
@@ -15274,6 +15339,12 @@ export interface components {
              * @default null
              */
             diverging: number | null;
+            /**
+             * Drop Delay
+             * @description Spårledningens släpptid i sekunder (STUDIO-35). Utan den står den kvar.
+             * @default null
+             */
+            drop_delay: number | null;
         } & {
             [key: string]: unknown;
         };

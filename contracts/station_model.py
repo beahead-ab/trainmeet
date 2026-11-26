@@ -283,12 +283,29 @@ class Signal(Contract):
     origin: Origin | None = None
 
 
+DROP_DELAY_MAX: Final = 60.0
+"""The longest släpptid, in seconds (STUDIO-35)."""
+
+
 class TrackCircuit(Contract):
-    """Spårledning."""
+    """Spårledning.
+
+    Its släpptid (STUDIO-35, trainmeet #274) is for a sensor that sees only what is in front of
+    it, such as an IR sensor, which is free in every gap between the wagons: the circuit counts
+    as occupied until its sensor has been free that long. It only keeps a circuit occupied
+    longer, so occupancy still frees nothing by itself (STV-16)."""
 
     name: Name
     pieces: list[Name]
     detection: Detection | None = Field(default=None, description="Givare, eller utan.")
+    drop_delay: float = Field(
+        default=0,
+        ge=0,
+        le=DROP_DELAY_MAX,
+        description="Släpptid i sekunder (STUDIO-35): spårledningen räknas som belagd tills "
+        "givaren har varit fri så länge, för en IR-givare som släpper mellan vagnarna. 0 är "
+        "ingen.",
+    )
     origin: Origin | None = None
 
 

@@ -95,12 +95,21 @@ export function where(object: KopplaObject): string {
   return parts.join(" · ");
 }
 
-/** The address as the row shows it. */
+/** Seconds as the page writes them: 2,5. */
+export function seconds(value: number): string {
+  return String(value).replace(".", ",");
+}
+
+/** The address as the row shows it, with a track circuit's släpptid (STUDIO-35). */
 export function addressText(object: KopplaObject): string {
   if (object.state === "without") return "–";
   if (object.address === null || object.address === undefined) return "ingen";
-  return `${object.address}${object.default ? " (förval)" : ""}${object.reversed ? " · omvänd" : ""}`;
+  const drop = object.kind === "track_circuit" && object.drop_delay ? ` · släpptid ${seconds(object.drop_delay)} s` : "";
+  return `${object.address}${object.default ? " (förval)" : ""}${object.reversed ? " · omvänd" : ""}${drop}`;
 }
+
+/** The longest släpptid in seconds (STUDIO-35), as in the contract. */
+export const DROP_DELAY_MAX = 60;
 
 export const BLUETOOTH = /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/;
 
@@ -116,7 +125,7 @@ export function connectAsk(type: LoconetType, port: string, channel: number): { 
 }
 
 /** The owner's edit of one row. */
-export type Edit = { address: string; without: boolean; reversed: boolean; feedback: FeedbackType | ""; straight: string; diverging: string };
+export type Edit = { address: string; without: boolean; reversed: boolean; feedback: FeedbackType | ""; straight: string; diverging: string; dropDelay: string };
 
 export function editOf(object: KopplaObject): Edit {
   return {
@@ -126,6 +135,7 @@ export function editOf(object: KopplaObject): Edit {
     feedback: object.feedback ?? "",
     straight: object.straight ? String(object.straight) : "",
     diverging: object.diverging ? String(object.diverging) : "",
+    dropDelay: object.drop_delay ? seconds(object.drop_delay) : "",
   };
 }
 
@@ -138,7 +148,14 @@ const number = (text: string): number | null => {
 export function changeOf(object: KopplaObject, edit: Edit): { change: ObjectChange } | { error: string } {
   const address = edit.address.trim() ? number(edit.address) : null;
   if (edit.address.trim() && address === null) return { error: "Adressen är ett heltal 1–4096." };
-  const change: ObjectChange = { kind: object.kind, name: object.name, address, without: edit.without, reversed: edit.reversed, feedback: null, straight: null, diverging: null };
+  const change: ObjectChange = { kind: object.kind, name: object.name, address, without: edit.without, reversed: edit.reversed, feedback: null, straight: null, diverging: null, drop_delay: null };
+  if (object.kind === "track_circuit") {
+    // Släpptid (STUDIO-35): empty is none; a comma or a point for the decimals.
+    const given = edit.dropDelay.trim().replace(",", ".");
+    const drop = given ? Number(given) : 0;
+    if (!Number.isFinite(drop) || drop < 0 || drop > DROP_DELAY_MAX) return { error: `Släpptiden är 0–${DROP_DELAY_MAX} sekunder.` };
+    change.drop_delay = drop;
+  }
   if (object.kind === "switch" && edit.feedback) {
     change.feedback = edit.feedback;
     if (edit.feedback === "sensors") {

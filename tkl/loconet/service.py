@@ -74,6 +74,7 @@ from tkl.loconet.objects import (
     RUNNING,
     Bus,
     FieldReport,
+    Keep,
     SwitchReported,
     Wired,
     changed,
@@ -777,6 +778,7 @@ def _row(o: Wired, cards: list[TklCard]) -> TklKopplaObject:
         straight=feedback.straight.number if feedback and feedback.straight else None,
         diverging=feedback.diverging.number if feedback and feedback.diverging else None,
         control=o.control,
+        drop_delay=o.drop_delay if o.kind == ObjectKind.TRACK_CIRCUIT else None,
         card=card,
         module=module,
         channel=channel,
@@ -785,8 +787,9 @@ def _row(o: Wired, cards: list[TklCard]) -> TklKopplaObject:
 
 
 def object_changed(model: StationModel, ask: TklObjectChange) -> StationModel:
-    """The model with the owner's change of one object (STUDIO-17, STUDIO-19, STUDIO-24). The
-    address keeps its confirmation only while its number and polarity stay the same."""
+    """The model with the owner's change of one object (STUDIO-17, STUDIO-19, STUDIO-24), and a
+    track circuit's släpptid (STUDIO-35). The address keeps its confirmation only while its
+    number and polarity stay the same."""
     o = find(model, ask.kind, ask.name)
     if o is None:
         raise Refused(f"{_cap(_said(ask.kind, ask.name))} finns inte i stationsmodellen.", 404)
@@ -819,9 +822,12 @@ def object_changed(model: StationModel, ask: TklObjectChange) -> StationModel:
             feedback=feedback,
             control=SwitchControl.TKL,
         )
+    drop: float | Keep = KEEP
+    if ask.kind == ObjectKind.TRACK_CIRCUIT and ask.drop_delay is not None:
+        drop = ask.drop_delay
     if ask.without:
-        return changed(model, ask.kind, ask.name, address=WITHOUT)
-    return changed(model, ask.kind, ask.name, address=_address(o, ask))
+        return changed(model, ask.kind, ask.name, address=WITHOUT, drop_delay=drop)
+    return changed(model, ask.kind, ask.name, address=_address(o, ask), drop_delay=drop)
 
 
 def _address(o: Wired, ask: TklObjectChange) -> Address | None:
