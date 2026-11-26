@@ -20,6 +20,7 @@ Synk stores a published package as a frozen version with its checksum (common.ch
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from enum import StrEnum
 from typing import Final, Literal
@@ -31,6 +32,7 @@ from contracts.common import Contract, Id, Language, Side, Text, TimeOfDay, Week
 from contracts.station_outside import StationOutside
 
 FORMAT: Final = "trainmeet.meet/1"
+_FACE_ID: Final = re.compile(r"^[a-z0-9][a-z0-9-]{0,39}$")
 
 
 class ClearanceMode(StrEnum):
@@ -610,7 +612,18 @@ def _structural_problems(package: MeetPackage) -> list[str]:
             place_ref(ref, f"Grafsidan {page.id}")
         if page.distances is not None and len(page.distances) != len(page.places):
             problems.append(f"Grafsidan {page.id} har inte ett avstånd per plats.")
+    clock_faces = {a.id for a in package.attachments if a.kind == AttachmentKind.CLOCK_FACE}
     for face in package.clock.faces:
         if face not in attachments:
             problems.append(f"Urtavlan {face} finns inte bland bilagorna.")
+        elif face not in clock_faces:
+            problems.append(f"Urtavlan {face} är inte ett klockpaket.")
+    for style in package.clock.styles:
+        if style in {"analog", "digital"}:
+            continue
+        face = style.removeprefix("custom:")
+        if not style.startswith("custom:") or not _FACE_ID.fullmatch(face):
+            problems.append(f"Klockans stil {style} är inte analog, digital eller en egen urtavla.")
+        elif face not in clock_faces:
+            problems.append(f"Klockans stil {style} har ingen urtavla i paketet.")
     return problems

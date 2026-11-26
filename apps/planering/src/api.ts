@@ -32,6 +32,22 @@ export type PaperReadingSettings = Schemas["trainmeet.driver-1.paper-reading"];
 export type PaperReadingPayer = PaperReadingSettings["payer"];
 export type DoubleTrackQuestion = NonNullable<Check["double_track"]>[number];
 export type Deviation = NonNullable<Check["deviations"]>[number];
+/** Egna urtavlor (F13): a file checked before it is saved, and the rights stamp. */
+export type ClockCheck = Schemas["trainmeet.planning-1.clock-check"];
+export type ClockPackSeen = NonNullable<ClockCheck["packs"]>[number];
+export type ClockStamps = Schemas["trainmeet.planning-1.clock-stamps"];
+export type ClockStamp = NonNullable<ClockStamps["faces"]>[number];
+
+async function fileCall<T>(url: string, file: File, failed: string): Promise<T> {
+  const response = await fetch(url, { method: "POST", body: file, credentials: "same-origin" }).catch(() => null);
+  if (!response) throw new Problem("Kontakten med Hubben bröts. Försök igen.", 0);
+  const answer: unknown = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const said = (answer as { detail?: unknown } | null)?.detail;
+    throw new Problem(typeof said === "string" ? said : failed, response.status);
+  }
+  return answer as T;
+}
 
 const MEETS = "/api/planering/1/meets";
 const meet = (id: string) => `${MEETS}/${encodeURIComponent(id)}`;
@@ -65,6 +81,16 @@ export const planning = {
   /** Förarna (LOK-33): the meet's tokens or the driver's own, for reading a missing duty. */
   paperReading: (id: string) => call<PaperReadingSettings>(`${meet(id)}/paper-reading`),
   choosePaperReading: (id: string, payer: PaperReadingPayer) => call<PaperReadingSettings>(`${meet(id)}/paper-reading`, { payer }),
+  /** Egna urtavlor (F13): what the file holds, without saving it. */
+  checkClock: async (id: string, file: File): Promise<ClockCheck> => fileCall<ClockCheck>(`${meet(id)}/clock-faces/check?name=${encodeURIComponent(file.name)}`, file, "Klockpaketet gick inte att läsa."),
+  /** The approved faces, with the right to use them confirmed. */
+  uploadClock: async (id: string, file: File, approved: string[]): Promise<Draft> => {
+    const query = approved.map((face) => `approved=${encodeURIComponent(face)}`).join("&");
+    return fileCall<Draft>(`${meet(id)}/clock-faces?name=${encodeURIComponent(file.name)}&rights=true&${query}`, file, "Klockpaketet gick inte att lägga in.");
+  },
+  clockFaces: (id: string) => call<ClockStamps>(`${meet(id)}/clock-faces`),
+  removeClock: (id: string, face: string) => call<Draft>(`${meet(id)}/clock-faces/remove`, { face }),
+  clockStyle: (id: string, style: string) => call<Draft>(`${meet(id)}/clock-style`, { style }),
   /** Förarna (PLAN-40): the general instructions as PDF, its bytes in the body. */
   instructionsPdf: async (id: string, file: File): Promise<Draft> => {
     const response = await fetch(`${meet(id)}/instructions.pdf?name=${encodeURIComponent(file.name)}`, {

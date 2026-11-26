@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Package, ScreenPicture } from "./api";
 import { clockText, outputName, Screen } from "./App";
 import { Skarmlas } from "./Las";
-import { clockSeconds, hands } from "./Klocka";
+import { clockSeconds, handAngles, hands, type ClockFace } from "./Klocka";
 import { rowsOf } from "./Diagram";
 import { nextHappenings, numbers } from "./Oversikt";
 import { lines, outputOf, trafficOf, type Package as HubPackage } from "@trainmeet/hubben";
@@ -51,7 +51,7 @@ describe("a meet screen (SKARM-14)", () => {
 
   it("shows the meet clock, analog or digital, running on at its speed between the hub's answers (SKARM-23)", () => {
     const html = renderToStaticMarkup(<Screen picture={picture()} fetchedAt={0} now={0} message="" code="" />);
-    expect(html).toContain('id="clock-view" class="klocka gar analog"');
+    expect(html).toContain('id="clock-view" class="klocka morkt gar analog"');
     expect(html).toContain('<h1 id="meet">Provbanan</h1><p id="day">Måndag · dag 1 · ×4</p>');
     expect(html).toContain('class="urtavla"');
     expect(html).toContain("Klockan går i 4×");
@@ -65,9 +65,31 @@ describe("a meet screen (SKARM-14)", () => {
     expect(clockText(picture({ clock: { ...picture().clock, seconds: 23 * 3600 + 59 * 60 } }), 0, 60_000)).toBe("00:03");
   });
 
+  it("shows a clock pack, custom:<id>, in light and in dark (H75)", () => {
+    const face: ClockFace = {
+      id: "mitt-ur",
+      name: "Mitt ur",
+      motion: { minute: "jump", second: "tick" },
+      layers: { dial: "data:image/svg+xml,light", hour: "data:image/svg+xml,hand" },
+      dark: { dial: "data:image/svg+xml,dark" },
+    };
+    const dark = renderToStaticMarkup(<Screen picture={picture()} face={face} theme="morkt" fetchedAt={0} now={0} message="" code="" />);
+    expect(dark).toContain('class="klocka morkt gar egen"');
+    expect(dark).toContain('data-face="mitt-ur"');
+    expect(dark).toContain('href="data:image/svg+xml,dark"');
+    expect(dark).toContain("urtavla-egen");
+    expect(dark).not.toContain("data:image/svg+xml,light");
+    const light = renderToStaticMarkup(<Screen picture={picture()} face={face} theme="ljust" fetchedAt={0} now={0} message="" code="" />);
+    expect(light).toContain('class="klocka ljust gar egen"');
+    expect(light).toContain('href="data:image/svg+xml,light"');
+    const at = 10 * 3600 + 30 * 60 + 15;
+    expect(handAngles(at, { minute: "jump", second: "tick" })).toEqual({ hour: 315.125, minute: 180, second: 90 });
+    expect(handAngles(58.5, { second: "sweep", sweep_seconds: 58.5 }).second).toBe(360);
+  });
+
   it("says when the clock stands still", () => {
     const html = renderToStaticMarkup(<Screen picture={picture({ clock: { ...picture().clock, running: false } })} fetchedAt={0} now={0} message="" code="" />);
-    expect(html).toContain("klocka star");
+    expect(html).toContain("klocka morkt star");
     expect(html).toContain('<p id="state" class="lage stopp">Klockan står still</p>');
   });
 

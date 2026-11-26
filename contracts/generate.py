@@ -231,6 +231,7 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.screen-1.session": screen.ScreenSession,
     "trainmeet.screen-1.show": screen.ShowView,
     "trainmeet.screen-1.picture": screen.ScreenPicture,
+    "trainmeet.screen-1.clock-face": screen.ClockFaceShow,
     "trainmeet.hub-1.info": hub.HubInfo,
     "trainmeet.hub-1.setup": hub.SetUp,
     "trainmeet.hub-1.login": hub.LogIn,
@@ -263,6 +264,10 @@ CONTRACTS: dict[str, type[BaseModel]] = {
     "trainmeet.planning-1.id-meet-choice": planning.IdMeetChoice,
     "trainmeet.planning-1.meet-summary": planning.MeetSummary,
     "trainmeet.planning-1.changes": planning.Changes,
+    "trainmeet.planning-1.clock-check": planning.ClockCheck,
+    "trainmeet.planning-1.clock-stamps": planning.ClockStamps,
+    "trainmeet.planning-1.clock-style": planning.ClockStyleChoice,
+    "trainmeet.planning-1.clock-remove": planning.ClockRemove,
     "trainmeet.planning-1.import-preview": planning.ImportPreview,
     "trainmeet.planning-1.answer": planning.Answer,
     "trainmeet.planning-1.double-track-answer": planning.DoubleTrackAnswer,
@@ -933,6 +938,17 @@ def openapi() -> str:
     route("post", "/api/screen/session", "screenLogin", v + "session", v + "login")
     route("get", "/api/screen/picture", "screenPicture", v + "picture", bearer=True)
     route("get", "/api/screen/package", "screenPackage", "trainmeet.meet-1", bearer=True)
+    route("get", "/api/screen/clock", "screenClock", v + "clock-face", bearer=True)
+    route("get", "/api/screen/clock/{face}/{layer}", "screenClockLayer", None, bearer=True)
+    paths["/api/screen/clock/{face}/{layer}"]["get"]["responses"] = {
+        "200": {
+            "description": "Ett lager i urtavlan, som bild",
+            "content": {
+                "image/svg+xml": {"schema": {"type": "string", "format": "binary"}},
+                "image/png": {"schema": {"type": "string", "format": "binary"}},
+            },
+        }
+    }
     route("post", "/api/drift/1/clients/view", "showView", d + "client", v + "show", bearer=True)
     h = "trainmeet.hub-1."
     route("get", "/api/hub", "hubInfo", h + "info")
@@ -1079,10 +1095,55 @@ def openapi() -> str:
     )
     # Förarna (PLAN-40): the general instructions as PDF, kept beside the package.
     route("post", m + "/{meet}/instructions.pdf", "instructionsPdf", p + "draft", bearer=True)
+    # Egna urtavlor (F13, ärende 64): check saves nothing; the upload keeps the approved packs.
+    route(
+        "post",
+        m + "/{meet}/clock-faces/check",
+        "checkClockFaces",
+        p + "clock-check",
+        bearer=True,
+    )
+    route("post", m + "/{meet}/clock-faces", "uploadClockFaces", p + "draft", bearer=True)
+    route("get", m + "/{meet}/clock-faces", "clockFaces", p + "clock-stamps")
+    route(
+        "post",
+        m + "/{meet}/clock-faces/remove",
+        "removeClockFace",
+        p + "draft",
+        p + "clock-remove",
+        bearer=True,
+    )
+    route(
+        "post",
+        m + "/{meet}/clock-style",
+        "chooseClockStyle",
+        p + "draft",
+        p + "clock-style",
+        bearer=True,
+    )
     paths[m + "/{meet}/instructions.pdf"]["post"]["requestBody"] = {
         "required": True,
         "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}},
     }
+    for clock_path in (m + "/{meet}/clock-faces/check", m + "/{meet}/clock-faces"):
+        paths[clock_path]["post"]["requestBody"] = {
+            "required": True,
+            "content": {
+                "application/octet-stream": {"schema": {"type": "string", "format": "binary"}}
+            },
+        }
+        paths[clock_path]["post"]["parameters"].append(
+            {"name": "name", "in": "query", "required": False, "schema": {"type": "string"}}
+        )
+    paths[m + "/{meet}/clock-faces"]["post"]["parameters"] += [
+        {"name": "rights", "in": "query", "required": True, "schema": {"type": "boolean"}},
+        {
+            "name": "approved",
+            "in": "query",
+            "required": True,
+            "schema": {"type": "array", "items": {"type": "string"}},
+        },
+    ]
     upload = paths[m + "/{meet}/sources"]["post"]
     upload["requestBody"] = {
         "required": True,

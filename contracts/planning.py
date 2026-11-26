@@ -410,6 +410,68 @@ INSTRUCTIONS_MAX: Final = 20_000
 """The general instructions as text, in characters (PLAN-40)."""
 
 
+class ClockChange(Contract):
+    """En urtavla i utkastet, eller vilken stil den analoga klockan visar (F13, SKARM-05).
+
+    add lägger in klockpaketet som bilaga. remove tar bort det och ställer tillbaka
+    analog om den stilen visades. style väljer analog eller custom:<id>."""
+
+    clock: Literal["add", "remove", "style"]
+    face: Id | None = None
+    attachment: Attachment | None = Field(
+        default=None, description="Klockpaketet, sparat bredvid paketet med sin kontrollsumma."
+    )
+    style: str | None = Field(
+        default=None, max_length=48, description="analog eller custom:<urtavlans id>."
+    )
+
+
+class ClockPackSeen(Contract):
+    """Ett klockpaket i en fil, innan något sparas: förhandsvisningen och varningarna."""
+
+    id: Id
+    name: Text
+    version: Text
+    warnings: list[str] = Field(default_factory=list)
+    replaces: bool = False
+    unchanged: bool = False
+    layers: dict[str, str] = Field(
+        default_factory=dict, description="Lagren som data-adresser, för förhandsvisningen."
+    )
+    dark: dict[str, str] = Field(default_factory=dict)
+
+
+class ClockCheck(Contract):
+    """Vad en uppladdad fil innehåller, utan att något sparas."""
+
+    packs: list[ClockPackSeen] = Field(default_factory=list)
+
+
+class ClockStamp(Contract):
+    """Intyget om rätten att använda tavlan: vem och när, utan personens namn."""
+
+    id: Id
+    name: Text
+    filename: Text
+    at: datetime
+    by: Text = Field(description="pin, eller personens id i TrainMeet ID.")
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ClockStamps(Contract):
+    faces: list[ClockStamp] = Field(default_factory=list)
+
+
+class ClockStyleChoice(Contract):
+    """Vilken stil den analoga klockskärmen visar."""
+
+    style: str = Field(max_length=48, description="analog eller custom:<urtavlans id>.")
+
+
+class ClockRemove(Contract):
+    face: Id
+
+
 class InstructionsChange(Contract):
     """De allmänna instruktionerna som köruppdragen hänvisar till (PLAN-40, LOK-34, LF21): en
     text per språk, eller en PDF. De står i träffpaketet, texten i about och PDF:en som bilaga,
@@ -428,6 +490,7 @@ def _change_kind(value: Any) -> str:
     call, a train's field or its days, the general instructions, or a remote area."""
     if isinstance(value, dict):
         for key, kind in (
+            ("clock", "clock"),
             ("remote_area", "remote_area"),
             ("instructions", "instructions"),
             ("confirm", "confirm"),
@@ -442,6 +505,7 @@ def _change_kind(value: Any) -> str:
                 return kind
         return "section"
     for model, kind in (
+        (ClockChange, "clock"),
         (RemoteAreaChange, "remote_area"),
         (InstructionsChange, "instructions"),
         (ConfirmChange, "confirm"),
@@ -458,7 +522,8 @@ def _change_kind(value: Any) -> str:
 
 
 Change = Annotated[
-    Annotated[PlaceChange, Tag("place")]
+    Annotated[ClockChange, Tag("clock")]
+    | Annotated[PlaceChange, Tag("place")]
     | Annotated[SectionTracksChange, Tag("tracks")]
     | Annotated[SectionChange, Tag("section")]
     | Annotated[CallChange, Tag("call")]

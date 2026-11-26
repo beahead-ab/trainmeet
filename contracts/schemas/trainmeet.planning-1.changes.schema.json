@@ -109,6 +109,65 @@
       "title": "ClearanceMode",
       "type": "string"
     },
+    "ClockChange": {
+      "additionalProperties": true,
+      "description": "En urtavla i utkastet, eller vilken stil den analoga klockan visar (F13, SKARM-05).\n\nadd lägger in klockpaketet som bilaga. remove tar bort det och ställer tillbaka\nanalog om den stilen visades. style väljer analog eller custom:<id>.",
+      "properties": {
+        "clock": {
+          "enum": [
+            "add",
+            "remove",
+            "style"
+          ],
+          "title": "Clock",
+          "type": "string"
+        },
+        "face": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,79}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Face"
+        },
+        "attachment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Attachment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Klockpaketet, sparat bredvid paketet med sin kontrollsumma."
+        },
+        "style": {
+          "anyOf": [
+            {
+              "maxLength": 48,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "analog eller custom:<urtavlans id>.",
+          "title": "Style"
+        }
+      },
+      "required": [
+        "clock"
+      ],
+      "title": "ClockChange",
+      "type": "object"
+    },
     "ConfirmChange": {
       "additionalProperties": true,
       "description": "Bekräfta (IMPORT-04, PLAN-02): the planner approves what a source gave, as it is. An\nosäker or trolig fact becomes bekräftad, which counts as säker.",
@@ -434,6 +493,9 @@
     "changes": {
       "items": {
         "oneOf": [
+          {
+            "$ref": "#/$defs/ClockChange"
+          },
           {
             "$ref": "#/$defs/PlaceChange"
           },

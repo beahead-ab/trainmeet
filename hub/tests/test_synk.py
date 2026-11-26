@@ -191,6 +191,27 @@ def test_a_revoked_pi_is_told_to_link_again(cloud: TestClient, tmp_path: Path) -
     assert [v["number"] for v in pi.get(f"{API}/meets/{MEET}/versions").json()] == [1]
 
 
+def test_a_clock_pack_follows_the_version_to_the_pi(cloud: TestClient, tmp_path: Path) -> None:
+    """F13: the face is an attachment of the version, and the Pi keeps the file."""
+    from core.clock_pack import read_pack
+    from core.tests.test_clock_pack import pack
+    from hub.tests.test_clock_faces import send
+
+    assert send(cloud, pack()).status_code == 200
+    assert (
+        cloud.post(f"{API}/meets/{MEET}/clock-style", json={"style": "custom:mitt-ur"}).status_code
+        == 200
+    )
+    assert cloud.post(f"{API}/meets/{MEET}/versions").status_code == 201
+    pi = pi_for(cloud, tmp_path)
+    assert link(pi, cloud).status_code == 200
+    version = pi.get(f"{API}/meets/{MEET}/versions/2").json()
+    [face] = [a for a in version["attachments"] if a["kind"] == "clock_face"]
+    kept = pi.get(f"{API}/meets/{MEET}/versions/2/attachments/{face['id']}")
+    assert kept.status_code == 200
+    assert read_pack(kept.content).id == "mitt-ur"
+
+
 def test_a_version_that_does_not_come_whole_is_not_kept(cloud: TestClient, tmp_path: Path) -> None:
     pi = pi_for(cloud, tmp_path, spoil=True)
     assert link(pi, cloud).status_code == 200

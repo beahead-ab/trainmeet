@@ -1,12 +1,14 @@
 """Träffens skärmar (TV, 1920 × 1080): a screen joins with the meet's code, waits under Väntar
 and shows the view the dispatcher gives it in Klienter (S3, S4). The clock comes in two
-built-in styles, analog and digital (H74); the track overview, the train graph and the
-overview draw on the meet as it runs (ärende 70).
+built-in styles, analog and digital (H74), and a meet may show its own face, custom:<id>
+(F13, H75). The track overview, the train graph and the overview draw on the meet as it
+runs (ärende 70).
 """
 
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import Field
 
@@ -50,6 +52,29 @@ class ScreenShare(Contract):
         )
     )
     link: Text = Field(description="Länken till träffen, för QR-koden 2 · Träffen.")
+
+
+class ClockMotion(Contract):
+    """Hur visarna går, ur klockpaketets clock.json."""
+
+    hour: Literal["smooth", "minute"] = "smooth"
+    minute: Literal["smooth", "jump"] = "smooth"
+    minute_bounce: bool = False
+    second: Literal["smooth", "tick", "sweep"] = "smooth"
+    sweep_seconds: float = Field(default=60, ge=30, le=60)
+
+
+class ClockFaceShow(Contract):
+    """Vad den analoga klockskärmen ritar (H74, H75). analog är den inbyggda tavlan.
+    custom:<id> är träffens klockpaket. Lagren hämtas på /api/screen/clock/{id}/{lager}."""
+
+    style: str = Field(description="analog eller custom:<urtavlans id>.")
+    id: Id | None = None
+    name: Text | None = None
+    sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    motion: ClockMotion | None = None
+    layers: list[str] = Field(default_factory=list)
+    dark: list[str] = Field(default_factory=list)
 
 
 class ScreenPicture(Contract):
