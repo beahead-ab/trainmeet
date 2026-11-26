@@ -286,8 +286,11 @@ button:disabled {
   background: rgba(176, 28, 28, 0.42);
   backdrop-filter: blur(6px);
   color: #fff;
-  font-size: 7vh;
+  /* Standing, the words would be wider than the screen: no more than 8 % of the width. */
+  font-size: min(7vh, 8vw);
   font-weight: 700;
+  text-align: center;
+  padding: 0 4vw;
 }
 
 /* Skärm · Banöversikt (SKARM-21): the meet and the line's state top left, the clock top right,

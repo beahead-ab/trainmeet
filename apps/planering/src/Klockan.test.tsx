@@ -31,6 +31,7 @@ describe("Klockan (F13, H75)", () => {
     );
     expect(html).toContain("träffens egna urtavlor");
     expect(html).toContain("custom:mitt-ur");
+    expect(html).toContain('<p id="vald-stil">Mitt ur, egen urtavla</p>');
     expect(html).toContain("Visas på klockskärmen");
     expect(html).toContain("Godkänd att visas");
     expect(html).toContain("av den som har PIN");

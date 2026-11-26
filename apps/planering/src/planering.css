@@ -526,6 +526,19 @@ main.planering label.valj {
   align-items: center;
   gap: 8px;
 }
+/* A checkbox in a row: the box its own size, not a text field's (Klockan, F13). */
+main.planering label.valj input[type="checkbox"] {
+  min-height: 0;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  margin: 0;
+}
+main.planering label.intyg {
+  color: var(--tm-text);
+  font-size: 15px;
+  margin-top: 12px;
+}
 
 /* Dra tillbaka (PLAN-18): the version stays in the list, struck through as one not to run. */
 .pill.tillbaka {

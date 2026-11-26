@@ -16,6 +16,7 @@ const TEXT = {
     readOnly: "Bara arrangören lägger in urtavlor.",
     style: "Klockskärmen visar",
     analog: "Analog, inbyggd",
+    own: "egen urtavla",
     digital: "Digital väljs för en skärm i Klienter.",
     use: "Använd som klockans stil",
     using: "Visas på klockskärmen",
@@ -46,6 +47,7 @@ const TEXT = {
     readOnly: "Only the organiser adds clock faces.",
     style: "The clock screen shows",
     analog: "Analog, built in",
+    own: "own clock face",
     digital: "Digital is chosen for a screen in Klienter.",
     use: "Use as the clock's style",
     using: "Shown on the clock screen",
@@ -107,7 +109,7 @@ export function Godkann({
           <FaceRow key={pack.id} pack={pack} text={text} picked={picked.includes(pack.id)} onToggle={() => toggle(pack.id)} />
         ))}
       </ul>
-      <label className="rad">
+      <label className="valj intyg">
         <input id="ratt" type="checkbox" checked={rights} onChange={(event) => setRights(event.target.checked)} /> {text.rights}
       </label>
       <div className="rad">
@@ -126,7 +128,7 @@ function FaceRow({ pack, text, picked, onToggle }: { pack: ClockPackSeen; text: 
   const warnings = pack.warnings ?? [];
   return (
     <li>
-      <label>
+      <label className="valj">
         <input type="checkbox" checked={picked} onChange={onToggle} /> <b>{pack.name}</b> <span className="liten">{pack.id}</span>
       </label>
       {pack.layers?.dial && <img className="forhands" src={pack.layers.dial} alt="" />}
@@ -185,6 +187,12 @@ export function KlockanPage({
   const faces = (pkg?.attachments ?? []).filter((item) => item.kind === "clock_face");
   const style = chosenStyle(pkg?.clock?.styles);
   const stampOf = (id: string) => known.find((stamp) => stamp.id === id);
+  /** The chosen face by its name, as the list below calls it. */
+  const ownName = (chosen: string) => {
+    const id = chosen.startsWith("custom:") ? chosen.slice("custom:".length) : null;
+    const face = faces.find((item) => item.id === id);
+    return id === null ? null : (stampOf(id)?.name ?? face?.filename ?? null);
+  };
 
   const read = async (chosen: File | undefined) => {
     if (!chosen) return;
@@ -235,7 +243,7 @@ export function KlockanPage({
         <>
           <section id="klockans-stil" className="kort">
             <h2>{text.style}</h2>
-            <p id="vald-stil">{style === "analog" ? text.analog : style}</p>
+            <p id="vald-stil">{style === "analog" ? text.analog : `${ownName(style) ?? style}, ${text.own}`}</p>
             <p className="liten">{text.digital}</p>
             {admin && style !== "analog" && (
               <button type="button" onClick={() => void choose("analog")}>
