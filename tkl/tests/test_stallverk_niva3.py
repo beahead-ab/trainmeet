@@ -24,7 +24,7 @@ from tkl.stallverk import Interlocking, load, plant_of
 from tkl.stallverk import automats as automat
 from tkl.stallverk.interlocking import BY_CIRCUITS, KOPPLA_IN
 from tkl.studio import fjarr
-from tkl.tests.niva3 import Rig, level_3
+from tkl.tests.niva3 import Rig, level_3, with_drop_delay
 from tkl.tests.provstation import provby
 
 PLUS, MINUS = Position.PLUS, Position.MINUS
@@ -334,6 +334,82 @@ def test_a_sensor_far_along_the_track_gets_its_arrival_with_ankommit() -> None:
     up = [u for u in arrived.reports if u.kind == TklReportKind.ARRIVED]  # type: ignore[attr-defined]
     assert [(u.train_number, u.track) for u in up] == [("102", "1")]
     assert r.it.view().routes == []
+
+
+def test_a_sensor_free_between_the_wagons_releases_nothing_within_its_slapptid() -> None:
+    """STUDIO-35 (#274): a circuit with a släpptid stays occupied while its sensor is free for
+    less than that, as an IR sensor in the gap between two wagons, and active again the time
+    starts over. When the sensor has been free that long, the section behind the train is
+    released and the arrival comes, as without one; the line's occupancy goes up as free only
+    then too (STV-10)."""
+    r = Rig(with_drop_delay(level_3(provby()), 3.0))
+    r.connect()
+    r.it.put_train("102", exit="V")
+    r.do(r.it.set_route("In", "12"))
+    r.run(0.5)
+    r.layout.put_train("102", ["Infart V"])
+    r.layout.move_train("102", "Vx1")
+    r.run(0.1)
+    r.layout.move_train("102", "Spår 1")
+    r.run(0.1)
+
+    def line() -> list[bool | None]:
+        return [
+            u.occupied for u in r.up if u.kind == TklReportKind.SECTION_OCCUPANCY and u.exit == "V"
+        ]
+
+    assert line() == [False, True], "the line behind the train is still occupied"
+    # A gap between two wagons over the switch: the sensor sees nothing for two seconds.
+    r.layout.occupy("Vx1", False)
+    r.run(2.0)
+    field = r.it.view().field
+    assert field is not None and field.sections["Vx1"] is True and "Vx1" in field.dropping
+    assert [s.released for s in shown(r, "In", "12").sections] == [False, False]  # type: ignore[attr-defined]
+    r.layout.occupy("Vx1")
+    r.run(0.1)
+    field = r.it.view().field
+    assert field is not None and "Vx1" not in field.dropping
+    r.run(3.0)
+    assert len(r.it.view().routes) == 1, "the wagons are still over the switch"
+    assert line() == [False, True, False], "the line is free three seconds after the train"
+    # The last wagon passes the switch.
+    r.layout.move_train("102", "Spår 1", length=1)
+    r.run(2.0)
+    assert len(r.it.view().routes) == 1, "the sensor has been free for two seconds only"
+    assert [u for u in r.up if u.kind == TklReportKind.ARRIVED] == []
+    r.run(1.5)
+    assert r.it.view().routes == []
+    arrived = [u for u in r.up if u.kind == TklReportKind.ARRIVED]
+    assert [(u.train_number, u.track) for u in arrived] == [("102", "1")]
+    assert "Spårledningen Vx1 utlöst efter tåg 102." in [e.text for e in r.it.events]
+
+
+def test_the_slapptid_is_kept_with_the_state() -> None:
+    """STUDIO-35: when a sensor went free is saved with the state, so that the circuit is free
+    on time after the interlocking is read again; without a släpptid nothing waits."""
+    model = with_drop_delay(level_3(provby()), 3.0)
+    r = Rig(model)
+    r.connect()
+    r.layout.occupy("Spår 1")
+    r.run(0.1)
+    r.layout.occupy("Spår 1", False)
+    r.run(1.0)
+    body = r.it.view().model_dump_json()
+    back = load(plant_of(model), r.it.revision, body, now=r.now)
+    kept = back.view().field
+    assert kept is not None and list(kept.dropping) == ["Spår 1"]
+    assert kept.dropping == r.it.view().field.dropping  # type: ignore[union-attr]
+    r.seconds += 2.5
+    back.field_tick()
+    field = back.view().field
+    assert field is not None and field.sections["Spår 1"] is False and field.dropping == {}
+    plain = rig()
+    plain.layout.occupy("Spår 1")
+    plain.run(0.1)
+    plain.layout.occupy("Spår 1", False)
+    plain.run(0.1)
+    field = plain.it.view().field
+    assert field is not None and field.sections["Spår 1"] is False and field.dropping == {}
 
 
 def test_a_train_leaves_on_the_line_and_the_line_occupancy_goes_up() -> None:

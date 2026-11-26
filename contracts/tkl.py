@@ -111,6 +111,7 @@ from contracts.station import (
     Snapshot,
 )
 from contracts.station_model import (
+    DROP_DELAY_MAX,
     BorderSwitch,
     Cell,
     FeedbackType,
@@ -1370,6 +1371,11 @@ class TklField(Contract):
     ordered_signals: dict[Name, TklAspect] = Field(
         default_factory=dict, description="Beskeden TKL senast beordrade."
     )
+    dropping: dict[Name, datetime] = Field(
+        default_factory=dict,
+        description="Spårledningar vars givare har släppt men som räknas som belagda tills "
+        "släpptiden har gått (STUDIO-35): när givaren släppte.",
+    )
 
 
 # --- Delställverk (#87, TKL97–TKL103): the parts' state, both screens' -----------------------
@@ -1954,6 +1960,9 @@ class TklKopplaObject(Contract):
     straight: int | None = Field(default=None, description="Givaren för rakt, med två givare.")
     diverging: int | None = Field(default=None, description="Givaren för avvikande.")
     control: SwitchControl | None = None
+    drop_delay: float | None = Field(
+        default=None, description="Spårledningens släpptid i sekunder (STUDIO-35)."
+    )
     card: int | None = Field(default=None, description="Kortet adressen sitter på.")
     module: Text | None = None
     channel: int | None = None
@@ -2014,7 +2023,8 @@ class TklKopplaIn(Contract):
 
 class TklObjectChange(Contract):
     """An object's address as the owner gives it: an address (yellow until it is confirmed on
-    the layout), none (grey), or Utan adress; and the polarity and the switch's feedback."""
+    the layout), none (grey), or Utan adress; and the polarity, the switch's feedback and the
+    track circuit's släpptid."""
 
     kind: ObjectKind
     name: Name
@@ -2024,6 +2034,12 @@ class TklObjectChange(Contract):
     feedback: FeedbackType | None = None
     straight: int | None = Field(default=None, ge=1, le=4096)
     diverging: int | None = Field(default=None, ge=1, le=4096)
+    drop_delay: float | None = Field(
+        default=None,
+        ge=0,
+        le=DROP_DELAY_MAX,
+        description="Spårledningens släpptid i sekunder (STUDIO-35). Utan den står den kvar.",
+    )
 
 
 class TklLearnAsk(Contract):

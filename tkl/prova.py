@@ -20,7 +20,8 @@ Each route passes, or fails with the reason in Swedish: the interlocking's own n
 occupied, an object that is grey), no feedback, a signal that does not clear, a train number that
 does not follow, a section not released. Everything runs on a virtual clock, so nothing waits
 for real; the Runner runs it in the background with its progress. When every route has passed
-the station is Klart for that model (STUDIO-05).
+the station is Klart for that model (STUDIO-05). A station with släpptider (STUDIO-35) waits
+them out on the same clock after each move of the train.
 
 Pure Python without I/O. No code here names a station (RS13).
 """
@@ -65,6 +66,8 @@ TRAIN: Final = "1"
 """The pretend train's number."""
 EPOCH: Final = datetime(2000, 1, 1, tzinfo=UTC)
 STEP: Final = 0.05
+SETTLE: Final = 0.1
+"""How long the pretend train waits after it moves, before the interlocking is checked."""
 """The virtual clock's step, in seconds."""
 ROUNDS: Final = 20
 MOST_RUNNING: Final = 4
@@ -150,6 +153,9 @@ class Bench:
         self.bus = Bus(model, RUNNING[mode])
         self.it = Interlocking(plant, now=self.now)
         self.up: list[TklReport] = []
+        self.settle = SETTLE + max((s.drop for s in plant.sections.values()), default=0.0)
+        """How long the pretend train waits after it moves: the station's longest släpptid
+        too (STUDIO-35), so that a circuit behind it is free before it is checked."""
 
     def clock(self) -> float:
         return self.seconds
@@ -310,7 +316,7 @@ def _on_layout(
     from a buffer stop, and enters without a number."""
     if circuits:
         layout_.put_train(TRAIN, circuits)
-        bench.run(0.1)
+        bench.run(bench.settle)
 
     # Along the route: the front into each circuit, the tail out of the one behind it.
     detected = [i for i, name in enumerate(names) if bench.detects(name)]
@@ -323,7 +329,7 @@ def _on_layout(
         else:
             layout_.put_train(TRAIN, [name])
         circuits = list(layout_.trains[TRAIN].circuits)
-        bench.run(0.1)
+        bench.run(bench.settle)
         shown = _route(bench, route_id)
         if shown.at != i:
             raise Failed(
@@ -350,7 +356,7 @@ def _on_layout(
         # passage, and the operator gives the arrival with Ankommit (STV-16, beslut 22
         # november, #251). It passes, with a note that says so.
         layout_.remove_train(TRAIN)
-        bench.run(0.1)
+        bench.run(bench.settle)
         given = bench.do(bench.it.arrive(route_id))
         if not given.accepted:
             raise Failed(given.message)
@@ -365,7 +371,7 @@ def _on_layout(
     if way.leaves is None:
         # The tail comes in: the entry route is released after passage (STV-16).
         layout_.move_train(TRAIN, last, length=1)
-        bench.run(0.1)
+        bench.run(bench.settle)
         if bench.it.shown_route(route_id) is not None:
             raise Failed(
                 f"vägen löstes inte ut efter passagen: tåget står i {plant.said(last)}, men "
@@ -379,11 +385,11 @@ def _on_layout(
     box = _box(plant, way.leaves)
     if box is not None and box not in names and bench.detects(box):
         layout_.move_train(TRAIN, box)
-        bench.run(0.1)
+        bench.run(bench.settle)
         layout_.move_train(TRAIN, box, length=1)
     else:
         layout_.remove_train(TRAIN)
-    bench.run(0.1)
+    bench.run(bench.settle)
     if bench.it.shown_route(route_id) is not None:
         raise Failed(f"tåget lämnade mot {way.leaves}, men avgången kom inte: vägen ligger kvar")
     if numbered and not any(u.kind == TklReportKind.DEPARTED for u in bench.up):

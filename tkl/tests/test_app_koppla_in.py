@@ -134,6 +134,28 @@ def test_the_pretend_loconet_is_connected_discovered_and_learnt_by_touching(
     assert not view.loconet.connected
 
 
+def test_a_track_circuits_slapptid_keeps_its_confirmed_sensor(client: TestClient) -> None:
+    """STUDIO-35 (#274): Ändra gives a track circuit a släpptid in seconds, for an IR sensor;
+    the sensor stays green and the row shows the time. A change without it keeps it, and more
+    than a minute is refused."""
+    shown(client.post(K + "/connect", json={"type": "pretend"}))
+    shown(client.post(K + "/learn", json={"kind": "track_circuit", "name": "Spår 1"}))
+    view = shown(client.post(K + "/latsas", json={"track_circuit": "Spår 1"}))
+    assert view.question is not None
+    view = shown(client.post(K + "/answer", json={"question": view.question.id, "answer": "yes"}))
+    track = row(view, "track_circuit", "Spår 1")
+    assert (track.state.value, track.address, track.drop_delay) == ("green", 3, 0)
+    assert row(view, "signal", "In").drop_delay is None
+    change = {"kind": "track_circuit", "name": "Spår 1", "address": 3, "drop_delay": 2.5}
+    view = shown(client.put(K + "/object", json=change))
+    assert view.message == "Spårledningen Spår 1 är ändrad."
+    track = row(view, "track_circuit", "Spår 1")
+    assert (track.state.value, track.address, track.drop_delay) == ("green", 3, 2.5)
+    view = shown(client.put(K + "/object", json={**change, "drop_delay": None}))
+    assert row(view, "track_circuit", "Spår 1").drop_delay == 2.5
+    assert client.put(K + "/object", json={**change, "drop_delay": 61}).status_code == 422
+
+
 def test_level_3_turns_on_when_the_addresses_pass_the_checks(client: TestClient) -> None:
     """STD-17 and §6: level 3 needs addresses, unique per bus, and every switch's feedback;
     the owner's own changes are saved in the model (STUDIO-19, STUDIO-24)."""

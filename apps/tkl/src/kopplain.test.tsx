@@ -19,6 +19,7 @@ const object = (o: Partial<KopplaObject> & Pick<KopplaObject, "kind" | "name" | 
   module: null,
   channel: null,
   note: null,
+  drop_delay: null,
   ...o,
 });
 
@@ -246,19 +247,37 @@ describe("Koppla in", () => {
     const yellow = objects[1] as KopplaObject;
     const edit = { ...editOf(yellow), address: "12", reversed: true, feedback: "sensors" as const, straight: "41", diverging: "42" };
     expect(changeOf(yellow, edit)).toEqual({
-      change: { kind: "switch", name: "2", address: 12, without: false, reversed: true, feedback: "sensors", straight: 41, diverging: 42 },
+      change: { kind: "switch", name: "2", address: 12, without: false, reversed: true, feedback: "sensors", straight: 41, diverging: 42, drop_delay: null },
     });
     expect(changeOf(yellow, { ...edit, address: "x" })).toEqual({ error: "Adressen är ett heltal 1–4096." });
     const { asked, failed, done } = pretend(connected);
     done.onChange(yellow, { ...editOf(yellow), without: true });
     done.onChange(yellow, { ...edit, address: "0" });
     done.onLevel(3);
-    expect(asked[0]).toBe('change({"kind":"switch","name":"2","address":2,"without":true,"reversed":false,"feedback":null,"straight":null,"diverging":null})');
+    expect(asked[0]).toBe('change({"kind":"switch","name":"2","address":2,"without":true,"reversed":false,"feedback":null,"straight":null,"diverging":null,"drop_delay":null})');
     expect(failed).toEqual(["Adressen är ett heltal 1–4096."]);
     expect(asked[1]).toBe("level(3)");
     const html = render(quiet);
     expect(html).toContain("Växel 2 saknar återrapport");
     expect(html).toMatch(/<button type="button" class="primar" disabled="">Slå på nivå 3<\/button>/);
+  });
+
+  it("gives a track circuit a släpptid in seconds, with a comma or a point (STUDIO-35, #274)", () => {
+    const track = { ...(objects[4] as KopplaObject), drop_delay: 2.5 };
+    expect(addressText(track)).toBe("3 · släpptid 2,5 s");
+    expect(addressText(objects[4] as KopplaObject)).toBe("3");
+    const edit = editOf(track);
+    expect(edit.dropDelay).toBe("2,5");
+    expect(changeOf(track, { ...edit, dropDelay: "10" })).toEqual({
+      change: { kind: "track_circuit", name: "Spår 1", address: 3, without: false, reversed: false, feedback: null, straight: null, diverging: null, drop_delay: 10 },
+    });
+    expect(changeOf(track, { ...edit, dropDelay: "1.5" })).toMatchObject({ change: { drop_delay: 1.5 } });
+    expect(changeOf(track, { ...edit, dropDelay: "" })).toMatchObject({ change: { drop_delay: 0 } });
+    expect(changeOf(track, { ...edit, dropDelay: "61" })).toEqual({ error: "Släpptiden är 0–60 sekunder." });
+    expect(changeOf(track, { ...edit, dropDelay: "x" })).toEqual({ error: "Släpptiden är 0–60 sekunder." });
+    expect(changeOf(objects[1] as KopplaObject, editOf(objects[1] as KopplaObject))).toMatchObject({ change: { drop_delay: null } });
+    const html = render({ ...quiet, objects: [track] });
+    expect(html).toContain("3 · släpptid 2,5 s");
   });
 
   it("shows Lyssna behind Felsök: the last messages decoded in Swedish (STUDIO-24)", () => {

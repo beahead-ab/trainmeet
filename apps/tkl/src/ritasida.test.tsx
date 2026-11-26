@@ -40,7 +40,7 @@ describe("Rita, the page", () => {
 
   it("draws the template's symbols: switch numbers, signals, buffer stops, station tracks and block labels", () => {
     const d = provby();
-    const circuits = [{ name: "S1v", pieces: [d.model.station_tracks[0]!.pieces![0]!], detection: null, origin: null }];
+    const circuits = [{ name: "S1v", pieces: [d.model.station_tracks[0]!.pieces![0]!], detection: null, drop_delay: 0, origin: null }];
     const html = renderToStaticMarkup(<Canvas drawing={d} circuits={circuits} selected={[{ kind: "signal", id: "A1" }]} route={null} tool="signal" />);
     expect(html).toContain('data-signal="A1"');
     expect(html).toContain('class="signal hsi vald"');

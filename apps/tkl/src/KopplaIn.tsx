@@ -3,8 +3,9 @@
 // module and channel, and learn every object by touching the layout. Each switch, signal and
 // track circuit is grey, yellow, green or Utan adress; the learning questions come as the layout
 // answers ("Givaren 73 slog till. Är det Spår 3?"). Level 3 is turned on here. Felsök › Lyssna
-// shows the last messages in Swedish. While connected the page asks the server every second, so
-// that a question comes as soon as a sensor reports.
+// shows the last messages in Swedish. A track circuit's Ändra also sets its släpptid, for an IR
+// sensor that is free between the wagons (STUDIO-35, #274). While connected the page asks the
+// server every second, so that a question comes as soon as a sensor reports.
 import { useCallback, useEffect, useState } from "react";
 import "./kopplain.css";
 import {
@@ -554,6 +555,12 @@ function EditRow({ object, edit, busy, onEdit, onSave }: { object: KopplaObject;
               </option>
             ))}
           </select>
+        </label>
+      ) : null}
+      {object.kind === "track_circuit" && !edit.without ? (
+        <label title="För en IR-givare som släpper mellan vagnarna: spårledningen räknas som belagd tills givaren har varit fri så länge.">
+          Släpptid (sekunder)
+          <input className="kort-falt" inputMode="decimal" placeholder="0" value={edit.dropDelay} onChange={(e) => onEdit({ ...edit, dropDelay: e.target.value })} />
         </label>
       ) : null}
       {switchRow && edit.feedback === "sensors" && !edit.without ? (

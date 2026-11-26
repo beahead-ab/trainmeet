@@ -1422,7 +1422,7 @@ export function renameCircuit(d: FullDrawing, pieces: string[], name: string): F
   const inside = new Set(pieces);
   const kept = d.model.track_circuits.filter((c) => !c.pieces.some((p) => inside.has(p)));
   if (kept.some((c) => c.name === next)) throw new RitaError(`Det finns redan en spårledning ${next}.`);
-  const circuit: TrackCircuit = { name: next, pieces, detection: null, origin: originFor(d.model) };
+  const circuit: TrackCircuit = { name: next, pieces, detection: null, drop_delay: 0, origin: originFor(d.model) };
   return { ...d, model: { ...d.model, track_circuits: [...kept, circuit] } };
 }
 
