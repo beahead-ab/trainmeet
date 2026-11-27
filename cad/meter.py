@@ -1,7 +1,7 @@
 """TrainMeet ID's tokens and meter, as CAD uses them for a photo (CAD-13, CAD-18, CAD-29).
 
 CAD never holds a key to an AI. A photo is read in ID's meter (contracts/tokens.py): TrainMeets
-AI, which is Claude through Amazon Bedrock in the EU, or the account's own AI, which costs
+AI, which is Claude in Anthropic's own API, outside the EU, or the account's own AI, which costs
 nothing (TK4). As Catalog's reading (#52): reserve before the call, read with hold so the meter
 keeps the answer but draws nothing, check the answer failing closed, then draw what it cost, or
 give it all back when anything failed. A reservation nobody draws goes back by itself.

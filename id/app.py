@@ -89,7 +89,7 @@ from id.accounts import Accounts
 from id.db import Database
 from id.help import HelpDesk, HelpMailer
 from id.mail import SmtpMailer
-from id.meter import BedrockClaude, Claude, Meter
+from id.meter import AnthropicClaude, Claude, Meter
 from id.meter import settings_from as meter_settings
 from id.own_ai import OwnAis, OwnReader, sealer
 from id.owner import Owner, owners_from
@@ -169,14 +169,14 @@ def create_app(
     )
     tokens = Tokens(db, caps=owner.caps)
     if claude is None and (metered := meter_settings()) is not None:
-        claude = BedrockClaude(metered)
+        claude = AnthropicClaude(metered)
     own_ais = OwnAis(db, tokens, sealer(settings.secret), http)
 
     def own_ai_for(owner: TokenOwner) -> OwnReader | None:
         found = own_ais.for_owner(owner)
         return OwnReader(found, http) if found else None
 
-    # The web search goes to Anthropic's own API with a key of its own (TOKEN-30, C40); without
+    # The web search goes to Anthropic's own API, as the readings do (TOKEN-30, C40); without
     # the key's file it is off, and says so (CAT-219).
     if searcher is None and (searching := search_settings()) is not None:
         searcher = AnthropicSearch(searching)

@@ -59,7 +59,7 @@ describe("Foto och kontroll", () => {
     for (const label of [">KANT 1<", ">GAVEL A<", ">GAVEL B<"]) expect(html).toContain(label);
     expect(html).toContain("4 hörn hittade");
     expect(html).toContain("<b>12 tokens</b> för mätbilden");
-    expect(html).toContain("Mätbilden skickas till TrainMeets AI: Claude från Anthropic via Amazon Bedrock i EU.");
+    expect(html).toContain("Mätbilden skickas till TrainMeets AI: Claude hos Anthropic, utanför EU.");
     expect(html).toContain("Jag godkänner att mätbilden skickas till TrainMeets AI");
     // The first time, Läs av med AI waits for the yes; without AI it is free at once.
     expect(html).toMatch(/<button type="button" class="tm-knapp primar" disabled="">Läs av med AI · 12 tokens<\/button>/);

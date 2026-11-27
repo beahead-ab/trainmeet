@@ -22047,8 +22047,8 @@ export interface components {
             price: number;
             /**
              * Where
-             * @description Var sidorna läses (TK14), som sägs innan de skickas (TK12).
-             * @default Claude i Amazon Bedrock i Stockholm
+             * @description Var sidorna läses (TOKEN-20), som sägs innan de skickas (TK12).
+             * @default Claude hos Anthropic, utanför EU
              */
             where: string;
             /**

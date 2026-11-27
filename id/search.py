@@ -1,9 +1,9 @@
 """Webbsökningen hos mätaren (#53 del b, TOKEN-30, CAT-166, CAT-219, C40).
 
-The one exception from Bedrock (TK14): the web search for a prototype's type data goes to
-Claude's web search in Anthropic's own API, which Bedrock does not have. It is processed outside
-the EU, so only the marking is sent: the litt, the operator, the kind of vehicle and the field
-profile, with the fields that are wanted (contracts/tokens.py, MeterSearch). The prompt is
+The web search for a prototype's type data goes to Claude's web search in Anthropic's own API,
+as the meter's readings do (id/meter.py). It is processed outside the EU, and the search goes
+out on the web, so only the marking is sent: the litt, the operator, the kind of vehicle and the
+field profile, with the fields that are wanted (contracts/tokens.py, MeterSearch). The prompt is
 written here from that structure; an app never sends a text of its own for a search, so no
 picture, name, vehicle number or note can leave with it (CAT-166).
 
@@ -18,8 +18,8 @@ says without a citation is passed on without one, and it is for the app to refus
 CAT-167–CAT-169). The results of the real searches are passed on too, so
 that the app can tell a real source from an invented one.
 
-Called with httpx, as the meter calls Bedrock (id/meter.py) and for the same reason: Anthropic's
-SDK would bring an HTTP library of its own into ID.
+Called with httpx, as the meter's readings are (id/meter.py): Anthropic's SDK would bring an
+HTTP library of its own into ID.
 
 Settings, from the environment:
 
@@ -535,7 +535,7 @@ class AnthropicSearch:
             raise SearchFailed("Webbsökningen har för många frågor just nu.")
         if answer.status_code != 200:
             # The refusal's own words are not passed on, nor written down: only its kind.
-            LOGGER.warning("Anthropic svarade %s (%s).", answer.status_code, _error_type(answer))
+            LOGGER.warning("Anthropic svarade %s (%s).", answer.status_code, error_type(answer))
             raise SearchFailed(f"Webbsökningen svarade med fel {answer.status_code}.")
         try:
             message = answer.json()
@@ -546,7 +546,7 @@ class AnthropicSearch:
         return message
 
 
-def _error_type(answer: httpx.Response) -> str:
+def error_type(answer: httpx.Response) -> str:
     """The kind of error Anthropic names, such as authentication_error: a fixed word, never the
     message."""
     try:

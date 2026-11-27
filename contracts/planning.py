@@ -308,8 +308,8 @@ class TrainMeetAi(Contract):
     available: int = Field(ge=0, description="Det saldot har kvar nu.")
     price: int = Field(ge=0, description="12 tokens per sida som inte är avskriven (TOKEN-14).")
     where: Text = Field(
-        default="Claude i Amazon Bedrock i Stockholm",
-        description="Var sidorna läses (TK14), som sägs innan de skickas (TK12).",
+        default="Claude hos Anthropic, utanför EU",
+        description="Var sidorna läses (TOKEN-20), som sägs innan de skickas (TK12).",
     )
     own_ai: Text | None = Field(
         default=None,

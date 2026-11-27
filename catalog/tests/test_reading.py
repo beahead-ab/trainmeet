@@ -586,8 +586,8 @@ def test_the_first_reading_needs_the_consent_which_is_kept_once(
     before = ReadingConsent.model_validate(world.a.get(f"{API}/readings/consent").json())
     assert (before.available, before.given, before.price_per_picture) == (True, False, 12)
     assert before.text == (
-        "Fotona, utan platsuppgifter och annan metadata, skickas till TrainMeets AI: Claude från "
-        "Anthropic via Amazon Bedrock i EU."
+        "Fotona, utan platsuppgifter och annan metadata, skickas till TrainMeets AI: Claude hos "
+        "Anthropic, utanför EU."
     )
     assert (before.balance, before.own_ai) == (100, None)
 

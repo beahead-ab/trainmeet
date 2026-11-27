@@ -145,12 +145,12 @@ describe("a scanned file, before anything goes to the AI (IMPORT-05)", () => {
   });
 
   it("offers TrainMeets AI with where the pages go and who pays, chosen by the planner (#79, TK12)", () => {
-    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude i Amazon Bedrock i Stockholm", own_ai: null } };
+    const pages = { filename: "Lekby.png", pages: 3, saved: 1, model: null, tokens: 3460, trainmeet_ai: { payer: "Västby MJK", available: 1500, price: 24, where: "Claude hos Anthropic, utanför EU", own_ai: null } };
     const html = renderToStaticMarkup(<Skriv pages={pages} writing={false} onWrite={go} />);
     expect(html).toContain("TrainMeets AI");
     // The price in TrainMeet's tokens before anything starts (IMPORT-05): 12 a page.
     expect(html).toContain("3 sidor att skriva av · 24 tokens · 1 redan avskriven, kostar inget");
-    expect(html).toContain("Sidorna läses av Claude i Amazon Bedrock i Stockholm. 24 tokens dras från Västby MJK, som har 1\u00a0500 kvar.");
+    expect(html).toContain("Sidorna läses av Claude hos Anthropic, utanför EU. 24 tokens dras från Västby MJK, som har 1\u00a0500 kvar.");
     // Nothing is chosen for the planner: the buttons wait until TrainMeets AI is chosen.
     expect(html).not.toContain("checked");
     expect(html).toMatch(/id="transcribe"[^>]*disabled=""/);
